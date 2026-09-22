@@ -69,6 +69,24 @@ test('the mobile switcher reveals the channels panel', function () {
     $page->assertVisible('@channels-panel');
 });
 
+test('the mobile switcher uses the shared yellow active tab treatment', function () {
+    $post = seedMobileEditorPost();
+
+    $page = visit(route('app.posts.edit', $post))->resize(375, 812);
+
+    $page->assertVisible('@editor-mobile-nav')
+        ->click('@editor-nav-channels');
+
+    $classes = $page->script(<<<'JS'
+        (() => document.querySelector('[data-testid="editor-nav-channels"]')?.className ?? '')();
+    JS);
+
+    expect($classes)
+        ->toContain('bg-amber-200')
+        ->toContain('border-amber-300')
+        ->not->toContain('bg-violet');
+});
+
 test('media tile actions are visible on a phone without hover', function () {
     $post = seedMobileEditorPost([
         'media' => [[

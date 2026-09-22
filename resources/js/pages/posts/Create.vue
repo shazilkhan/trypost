@@ -43,12 +43,18 @@ const hasConnectedAccounts = computed(() => props.socialAccounts.length > 0);
 const startFromScratch = () => {
     if (submitting.value) return;
     submitting.value = true;
-    const url = props.date ? storePost.url({ query: { date: props.date } }) : storePost.url();
-    router.post(url, {}, {
-        onFinish: () => {
-            submitting.value = false;
+    const url = props.date
+        ? storePost.url({ query: { date: props.date } })
+        : storePost.url();
+    router.post(
+        url,
+        {},
+        {
+            onFinish: () => {
+                submitting.value = false;
+            },
         },
-    });
+    );
 };
 
 const pageTitle = computed(() => trans('posts.create.title'));
@@ -68,23 +74,35 @@ const stepHeader = computed(() => {
     <AppLayout>
         <div class="flex h-full flex-1 flex-col p-4">
             <div class="mx-auto flex w-full max-w-2xl flex-col gap-6">
-                <PageHeader :title="stepHeader.title" :description="stepHeader.description" />
+                <PageHeader
+                    :title="stepHeader.title"
+                    :description="stepHeader.description"
+                />
 
                 <!-- Choice screen -->
                 <template v-if="view === 'choice'">
                     <div class="grid gap-4 sm:grid-cols-2">
                         <button
                             type="button"
-                            class="group flex flex-col items-start gap-4 rounded-2xl border-2 border-foreground bg-card p-5 text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-2xs"
+                            class="group flex flex-col items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-2xs"
                             :disabled="submitting"
                             @click="startFromScratch"
                         >
-                            <div class="inline-flex size-12 -rotate-2 items-center justify-center rounded-2xl border-2 border-foreground bg-violet-200 shadow-2xs transition-transform group-hover:rotate-0">
-                                <IconPencil class="size-6 text-foreground" stroke-width="2" />
+                            <div
+                                class="inline-flex size-12 items-center justify-center rounded-xl border border-border bg-muted shadow-xs transition-colors group-hover:bg-amber-100"
+                            >
+                                <IconPencil
+                                    class="size-6 text-foreground"
+                                    stroke-width="2"
+                                />
                             </div>
                             <div class="space-y-1">
-                                <p class="text-base font-bold text-foreground">{{ $t('posts.create.scratch_title') }}</p>
-                                <p class="text-xs leading-relaxed text-foreground/70">
+                                <p class="text-base font-bold text-foreground">
+                                    {{ $t('posts.create.scratch_title') }}
+                                </p>
+                                <p
+                                    class="text-xs leading-relaxed text-foreground/70"
+                                >
                                     {{ $t('posts.create.scratch_description') }}
                                 </p>
                             </div>
@@ -92,18 +110,31 @@ const stepHeader = computed(() => {
 
                         <button
                             type="button"
-                            class="group flex flex-col items-start gap-4 rounded-2xl border-2 border-foreground bg-card p-5 text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-2xs"
+                            class="group flex flex-col items-start gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-2xs transition-all hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-2xs"
                             :disabled="!hasConnectedAccounts"
                             @click="view = 'ai'"
                         >
-                            <div class="inline-flex size-12 rotate-1 items-center justify-center rounded-2xl border-2 border-foreground bg-amber-200 shadow-2xs transition-transform group-hover:rotate-0">
-                                <IconSparkles class="size-6 text-foreground" stroke-width="2" />
+                            <div
+                                class="inline-flex size-12 items-center justify-center rounded-xl border border-border bg-amber-100 shadow-xs transition-colors group-hover:bg-amber-200"
+                            >
+                                <IconSparkles
+                                    class="size-6 text-foreground"
+                                    stroke-width="2"
+                                />
                             </div>
                             <div class="space-y-1">
-                                <p class="text-base font-bold text-foreground">{{ $t('posts.create.ai_title') }}</p>
-                                <p class="text-xs leading-relaxed text-foreground/70">
+                                <p class="text-base font-bold text-foreground">
+                                    {{ $t('posts.create.ai_title') }}
+                                </p>
+                                <p
+                                    class="text-xs leading-relaxed text-foreground/70"
+                                >
                                     <template v-if="!hasConnectedAccounts">
-                                        {{ $t('posts.create.steps.connect_first') }}
+                                        {{
+                                            $t(
+                                                'posts.create.steps.connect_first',
+                                            )
+                                        }}
                                     </template>
                                     <template v-else>
                                         {{ $t('posts.create.ai_description') }}
@@ -121,7 +152,10 @@ const stepHeader = computed(() => {
                     :templates="templates"
                     :date="props.date"
                     @update:step-header="aiHeader = $event"
-                    @cancel="view = 'choice'; aiHeader = null"
+                    @cancel="
+                        view = 'choice';
+                        aiHeader = null;
+                    "
                 />
             </div>
         </div>

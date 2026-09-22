@@ -8,6 +8,11 @@ export interface Webhook {
     last_sent_at: string | null;
 }
 
+export interface ScrollWebhooks {
+    data: Webhook[];
+    total: number;
+}
+
 export interface WebhookWithSecret extends Webhook {
     signing_secret: string;
 }
@@ -27,7 +32,9 @@ export interface WebhookLog extends WebhookLogBroadcast {
     response_body: string | null;
 }
 
-export const webhookLogFromBroadcast = (broadcast: WebhookLogBroadcast): WebhookLog => ({
+export const webhookLogFromBroadcast = (
+    broadcast: WebhookLogBroadcast,
+): WebhookLog => ({
     ...broadcast,
     payload: null,
     response_body: null,

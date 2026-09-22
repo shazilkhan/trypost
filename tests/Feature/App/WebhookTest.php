@@ -34,7 +34,7 @@ test('authenticated users can view webhooks', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('webhooks/Index')
-            ->has('webhooks')
+            ->has('webhooks.data')
         );
 });
 
@@ -48,10 +48,24 @@ test('webhook index hides the signing secret', function () {
         ->get(route('app.webhooks.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->has('webhooks', 1, fn ($webhook) => $webhook
+            ->has('webhooks.data', 1, fn ($webhook) => $webhook
                 ->missing('signing_secret')
                 ->etc()
             )
+        );
+});
+
+test('webhook index paginates results for infinite scrolling', function () {
+    Webhook::factory()->count(30)->create([
+        'workspace_id' => $this->workspace->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.webhooks.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('webhooks.data', (int) config('app.pagination.default'))
+            ->where('webhooks.total', 30)
         );
 });
 

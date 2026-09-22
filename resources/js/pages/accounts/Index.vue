@@ -2,7 +2,7 @@
 import { Head } from '@inertiajs/vue3';
 
 import SocialAccountsManager from '@/components/accounts/SocialAccountsManager.vue';
-import PageHeader from '@/components/PageHeader.vue';
+import HeaderTitle from '@/components/HeaderTitle.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import type {
     AvailablePlatform,
@@ -18,18 +18,30 @@ defineProps<{
 <template>
     <Head :title="$t('accounts.page_title')" />
 
-    <AppLayout>
-        <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">
-            <PageHeader
+    <AppLayout full-width>
+        <template #header>
+            <HeaderTitle
                 :title="$t('accounts.page_title')"
-                :description="$t('accounts.description')"
                 :total="connectedAccounts.length"
             />
+        </template>
 
-            <SocialAccountsManager
-                :platforms="platforms"
-                :connected-accounts="connectedAccounts"
-            />
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div
+                class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain pb-px"
+                data-testid="accounts-scroll"
+            >
+                <div class="flex min-h-full flex-col gap-6 p-6">
+                    <p class="text-sm text-muted-foreground">
+                        {{ $t('accounts.description') }}
+                    </p>
+
+                    <SocialAccountsManager
+                        :platforms="platforms"
+                        :connected-accounts="connectedAccounts"
+                    />
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>

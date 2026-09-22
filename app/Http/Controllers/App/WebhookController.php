@@ -29,13 +29,14 @@ class WebhookController extends Controller
 
         $this->authorize('viewAny', Webhook::class);
 
-        $webhooks = Webhook::query()
-            ->where('workspace_id', $workspace->id)
-            ->orderByDesc('created_at')
-            ->get();
-
         return Inertia::render('webhooks/Index', [
-            'webhooks' => $webhooks,
+            'webhooks' => Inertia::scroll(
+                fn () => Webhook::query()
+                    ->where('workspace_id', $workspace->id)
+                    ->latest()
+                    ->orderByDesc('id')
+                    ->paginate((int) config('app.pagination.default')),
+            ),
         ]);
     }
 
