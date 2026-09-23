@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHttp, usePage } from '@inertiajs/vue3';
+import { useHttp } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted } from 'vue';
 
 import AppHeader from '@/components/AppHeader.vue';
@@ -12,9 +12,6 @@ import {
     SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { heartbeat as heartbeatRoute } from '@/routes/app/presence';
-
-const page = usePage();
-const isOpen = page.props.sidebarOpen;
 
 type Props = {
     fullWidth?: boolean;
@@ -44,9 +41,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <SidebarProvider :default-open="isOpen">
+    <SidebarProvider :default-open="true" class="bg-sidebar">
         <AppSidebar />
-        <SidebarInset class="overflow-x-hidden">
+        <SidebarInset
+            class="overflow-hidden bg-card md:m-2 md:ml-0 md:rounded-xl md:border md:border-border md:shadow-xs"
+            data-testid="app-content-shell"
+        >
             <AppHeader v-if="$slots['header'] || $slots['header-actions']">
                 <template v-if="$slots['header']" #left>
                     <slot name="header" />

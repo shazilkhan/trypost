@@ -34,7 +34,7 @@ test('the login screen uses the TryPost Connect design system', function () {
         ->background->toBeIn(['#fff', '#ffffff'])
         ->primary->toBe('#fa5d19')
         ->border->toBe('#e9e6e3')
-        ->radius->toBe('0.525rem')
+        ->radius->toBeIn(['0.525rem', '.525rem'])
         ->displayFont->toContain('Inter')
         ->buttonBackground->toBe('rgb(250, 93, 25)')
         ->buttonHeight->toBe('36px');
@@ -58,9 +58,33 @@ test('app pages render titles and breadcrumbs in the shared header', function ()
 
     $this->actingAs($user);
 
-    visit(route('app.accounts'))
+    $accountsPage = visit(route('app.accounts'))
         ->assertVisible('@header-title')
+        ->assertVisible('@app-content-shell')
         ->assertNoJavaScriptErrors();
+
+    $contentShell = $accountsPage->script(<<<'JS'
+        (() => {
+            const shell = document.querySelector('[data-testid="app-content-shell"]');
+            const style = getComputedStyle(shell);
+            const sidebar = document.querySelector('[data-slot="sidebar"][data-state]');
+
+            return {
+                borderRadius: style.borderRadius,
+                borderWidth: style.borderWidth,
+                marginTop: style.marginTop,
+                overflow: style.overflow,
+                sidebarState: sidebar?.getAttribute('data-state'),
+            };
+        })();
+    JS);
+
+    expect($contentShell)
+        ->borderRadius->toBe('12.4px')
+        ->borderWidth->toBe('1px')
+        ->marginTop->toBe('8px')
+        ->overflow->toBe('hidden')
+        ->sidebarState->toBe('expanded');
 
     $webhookPage = visit(route('app.webhooks.show', $webhook))
         ->assertVisible('@breadcrumbs')
