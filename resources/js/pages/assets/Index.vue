@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { IconPhoto } from '@tabler/icons-vue';
 
 import GalleryBrowser from '@/components/assets/GalleryBrowser.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
@@ -11,7 +12,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
     <AppLayout>
         <template #header>
-            <HeaderTitle :title="$t('assets.title')" />
+            <HeaderTitle :title="$t('assets.title')" :icon="IconPhoto" />
         </template>
 
         <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">

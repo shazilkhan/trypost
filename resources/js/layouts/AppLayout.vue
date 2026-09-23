@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { IconLayoutGrid } from '@tabler/icons-vue';
+import type { Component } from 'vue';
+
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
 import AppLayout from '@/layouts/app/AppSidebarLayout.vue';
@@ -8,6 +11,7 @@ type Props = {
     fullWidth?: boolean;
     title?: string;
     total?: number | null;
+    icon?: Component;
     breadcrumbs?: BreadcrumbItem[];
 };
 
@@ -15,6 +19,7 @@ withDefaults(defineProps<Props>(), {
     fullWidth: false,
     title: undefined,
     total: undefined,
+    icon: undefined,
     breadcrumbs: undefined,
 });
 </script>
@@ -26,11 +31,18 @@ withDefaults(defineProps<Props>(), {
             #header
         >
             <slot name="header">
-                <Breadcrumbs
+                <HeaderTitle
                     v-if="breadcrumbs?.length"
-                    :breadcrumbs="breadcrumbs"
+                    :icon="icon ?? IconLayoutGrid"
+                >
+                    <Breadcrumbs :breadcrumbs="breadcrumbs" />
+                </HeaderTitle>
+                <HeaderTitle
+                    v-else-if="title"
+                    :title="title"
+                    :total="total"
+                    :icon="icon ?? IconLayoutGrid"
                 />
-                <HeaderTitle v-else-if="title" :title="title" :total="total" />
             </slot>
         </template>
         <template v-if="$slots['header-actions']" #header-actions>

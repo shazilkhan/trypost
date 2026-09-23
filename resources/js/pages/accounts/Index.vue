@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { IconPlugConnected } from '@tabler/icons-vue';
 
 import SocialAccountsManager from '@/components/accounts/SocialAccountsManager.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
@@ -23,6 +24,7 @@ defineProps<{
             <HeaderTitle
                 :title="$t('accounts.page_title')"
                 :total="connectedAccounts.length"
+                :icon="IconPlugConnected"
             />
         </template>
 

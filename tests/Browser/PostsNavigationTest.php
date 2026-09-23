@@ -90,6 +90,7 @@ test('posts list tabs and calendar switch share one canonical navigation', funct
     ]));
 
     $page->assertVisible('@header-title')
+        ->assertVisible('@header-icon')
         ->assertVisible('@posts-view-list')
         ->assertVisible('@posts-view-calendar')
         ->assertVisible('@posts-tabs')

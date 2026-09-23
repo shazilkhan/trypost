@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { IconChartBar } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
@@ -56,7 +57,10 @@ const platformSupportsDateRange = computed(() => {
         <Head :title="trans('sidebar.analytics')" />
 
         <template #header>
-            <HeaderTitle :title="$t('sidebar.analytics')" />
+            <HeaderTitle
+                :title="$t('sidebar.analytics')"
+                :icon="IconChartBar"
+            />
         </template>
 
         <div

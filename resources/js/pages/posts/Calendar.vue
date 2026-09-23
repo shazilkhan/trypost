@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { IconChevronLeft, IconChevronRight, IconPlus } from '@tabler/icons-vue';
+import {
+    IconCalendarEvent,
+    IconChevronLeft,
+    IconChevronRight,
+    IconPlus,
+} from '@tabler/icons-vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import DatePicker from '@/components/DatePicker.vue';
@@ -312,7 +317,7 @@ const formatTime = (scheduledAt: string): string => {
 
     <AppLayout full-width>
         <template #header>
-            <HeaderTitle :title="$t('posts.title')" />
+            <HeaderTitle :title="$t('posts.title')" :icon="IconCalendarEvent" />
         </template>
 
         <template #header-actions>

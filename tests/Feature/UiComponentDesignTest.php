@@ -65,6 +65,23 @@ test('the app layout wraps the main content in a rounded desktop shell', functio
         ->toContain('overflow-hidden bg-card');
 });
 
+test('shared page headers pair a reusable icon treatment with the title', function () {
+    expect(componentSource('HeaderTitle.vue'))
+        ->toContain("import type { Component } from 'vue'")
+        ->toContain('icon?: Component')
+        ->toContain('data-testid="header-icon"')
+        ->toContain(':is="icon"')
+        ->toContain('<slot>')
+        ->toContain('rounded-xl border border-border');
+
+    expect(resourceSource('pages/posts/Index.vue'))
+        ->toContain(':icon="IconCalendarEvent"');
+
+    expect(resourceSource('pages/webhooks/Show.vue'))
+        ->toContain('<HeaderTitle :icon="IconWebhook">')
+        ->toContain('<Breadcrumbs :breadcrumbs="breadcrumbs" />');
+});
+
 test('the desktop sidebar has no dividing border beside the content shell', function () {
     expect(componentSource('ui/sidebar/Sidebar.vue'))
         ->not->toContain('group-data-[side=left]:border-e')

@@ -63,7 +63,7 @@ const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
 
     <AppLayout>
         <template #header>
-            <HeaderTitle :title="$t('repurposes.title')" />
+            <HeaderTitle :title="$t('repurposes.title')" :icon="IconRepeat" />
         </template>
 
         <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">

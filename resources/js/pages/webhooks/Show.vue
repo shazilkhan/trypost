@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { IconWebhook } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import HeaderTitle from '@/components/HeaderTitle.vue';
 import { Badge } from '@/components/ui/badge';
 import EditWebhookDialog from '@/components/webhook/EditWebhookDialog.vue';
 import RotateSecretDialog from '@/components/webhook/RotateSecretDialog.vue';
@@ -58,7 +60,9 @@ const openDelete = () => {
     <AppLayout full-width>
         <template #header>
             <div class="flex min-w-0 items-center gap-3">
-                <Breadcrumbs :breadcrumbs="breadcrumbs" />
+                <HeaderTitle :icon="IconWebhook">
+                    <Breadcrumbs :breadcrumbs="breadcrumbs" />
+                </HeaderTitle>
                 <Badge
                     :variant="webhookStatusVariant(webhook.status)"
                     class="shrink-0"

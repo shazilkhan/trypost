@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, router } from '@inertiajs/vue3';
 import {
+    IconCalendarEvent,
     IconCopy,
     IconCopyPlus,
     IconDots,
@@ -291,7 +292,11 @@ useWorkspaceEcho(
 
     <AppLayout full-width>
         <template #header>
-            <HeaderTitle :title="$t('posts.title')" :total="posts.total" />
+            <HeaderTitle
+                :title="$t('posts.title')"
+                :total="posts.total"
+                :icon="IconCalendarEvent"
+            />
         </template>
 
         <template #header-actions>

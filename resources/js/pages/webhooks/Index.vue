@@ -54,6 +54,7 @@ const handleDelete = (webhook: Webhook) => {
             <HeaderTitle
                 :title="$t('webhooks.title')"
                 :total="webhooks.total"
+                :icon="IconWebhook"
             />
         </template>
 
