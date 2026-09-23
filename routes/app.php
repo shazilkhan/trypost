@@ -195,7 +195,10 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('calendar', [PostController::class, 'calendar'])->name('app.calendar');
 
     // Posts
-    Route::get('posts/{status?}', [PostController::class, 'index'])->name('app.posts.index')->where('status', 'draft|scheduled|published');
+    Route::get('posts', [PostController::class, 'index'])->name('app.posts.index');
+    Route::get('posts/{status}', [PostController::class, 'legacyIndex'])
+        ->name('app.posts.legacy')
+        ->where('status', 'draft|scheduled|published');
     Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');

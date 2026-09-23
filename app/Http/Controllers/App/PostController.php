@@ -36,7 +36,7 @@ use Inertia\Response;
 
 class PostController extends Controller
 {
-    public function index(Request $request, ?string $status = null): Response|RedirectResponse
+    public function index(Request $request): Response|RedirectResponse
     {
         $workspace = $request->user()->currentWorkspace;
 
@@ -49,11 +49,18 @@ class PostController extends Controller
         $query = $workspace->posts()
             ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount'), 'user', 'labels']);
 
-        if ($status) {
-            $query = match ($status) {
-                PostStatus::Draft->value => $query->draft(),
-                PostStatus::Scheduled->value => $query->scheduled(),
-                PostStatus::Published->value => $query->published(),
+        $currentTab = match ($request->string('tab')->toString()) {
+            PostStatus::Draft->value => PostStatus::Draft,
+            PostStatus::Scheduled->value => PostStatus::Scheduled,
+            PostStatus::Published->value => PostStatus::Published,
+            default => null,
+        };
+
+        if ($currentTab !== null) {
+            $query = match ($currentTab) {
+                PostStatus::Draft => $query->draft(),
+                PostStatus::Scheduled => $query->scheduled(),
+                PostStatus::Published => $query->published(),
                 default => $query,
             };
         }
@@ -75,12 +82,21 @@ class PostController extends Controller
         return Inertia::render('posts/Index', [
             'workspace' => $workspace,
             'posts' => Inertia::scroll(fn () => $query->latest('scheduled_at')->paginate(config('app.pagination.default'))),
-            'currentStatus' => $status,
+            'currentTab' => $currentTab?->value,
             'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
             'filters' => [
+                'tab' => $currentTab?->value,
                 'search' => $request->input('search', ''),
                 'labels' => $labelIds,
             ],
+        ]);
+    }
+
+    public function legacyIndex(Request $request, string $status): RedirectResponse
+    {
+        return redirect()->route('app.posts.index', [
+            'tab' => $status,
+            ...$request->except('tab'),
         ]);
     }
 

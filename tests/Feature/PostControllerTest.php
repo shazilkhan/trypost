@@ -55,6 +55,126 @@ test('posts index shows posts for current workspace', function () {
     );
 });
 
+test('posts index filters by the tab query parameter', function (string $tab, array $expectedStatuses) {
+    Post::factory()->draft()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    Post::factory()->scheduled()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    Post::factory()->published()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::PartiallyPublished,
+        'published_at' => now(),
+    ]);
+
+    $response = $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['tab' => $tab]));
+
+    $response->assertOk()->assertInertia(fn ($page) => $page
+        ->where('currentTab', $tab)
+        ->where('posts.data', fn ($posts) => collect($posts)
+            ->pluck('status')
+            ->sort()
+            ->values()
+            ->all() === collect($expectedStatuses)->sort()->values()->all())
+    );
+})->with([
+    'draft' => ['draft', [PostStatus::Draft->value]],
+    'scheduled' => ['scheduled', [PostStatus::Scheduled->value]],
+    'published' => ['published', [PostStatus::Published->value, PostStatus::PartiallyPublished->value]],
+]);
+
+test('posts index treats blank or unsupported tabs as all posts', function (?string $tab) {
+    Post::factory()->draft()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    Post::factory()->scheduled()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    Post::factory()->published()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    Post::factory()->failed()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+
+    $parameters = $tab === null ? [] : ['tab' => $tab];
+    $response = $this->actingAs($this->user)
+        ->get(route('app.posts.index', $parameters));
+
+    $response->assertOk()->assertInertia(fn ($page) => $page
+        ->where('currentTab', null)
+        ->where('filters.tab', null)
+        ->has('posts.data', 4)
+    );
+})->with([
+    'absent' => null,
+    'blank' => '',
+    'unsupported' => 'failed',
+]);
+
+test('posts index composes tab search and label filters', function () {
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
+
+    $scheduled = Post::factory()->scheduled()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'content' => 'Launch campaign',
+    ]);
+    $scheduled->labels()->attach($label);
+
+    $draft = Post::factory()->draft()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'content' => 'Launch campaign',
+    ]);
+    $draft->labels()->attach($label);
+
+    $response = $this->actingAs($this->user)->get(route('app.posts.index', [
+        'tab' => 'scheduled',
+        'search' => 'launch',
+        'labels' => [$label->id],
+    ]));
+
+    $response->assertOk()->assertInertia(fn ($page) => $page
+        ->where('currentTab', 'scheduled')
+        ->where('filters.tab', 'scheduled')
+        ->where('filters.search', 'launch')
+        ->where('filters.labels', [$label->id])
+        ->has('posts.data', 1)
+        ->where('posts.data.0.id', $scheduled->id)
+    );
+});
+
+test('legacy post status paths redirect to the canonical tab query and preserve filters', function (string $status) {
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
+
+    $response = $this->actingAs($this->user)->get(route('app.posts.legacy', [
+        'status' => $status,
+        'search' => 'launch',
+        'labels' => [$label->id],
+        'tab' => 'draft',
+    ]));
+
+    $response->assertRedirect(route('app.posts.index', [
+        'tab' => $status,
+        'search' => 'launch',
+        'labels' => [$label->id],
+    ]));
+})->with(['scheduled', 'draft', 'published']);
+
 test('posts index exposes workspace labels for filter dropdown', function () {
     WorkspaceLabel::factory()->count(3)->create(['workspace_id' => $this->workspace->id]);
     WorkspaceLabel::factory()->create(); // belongs to a different workspace; must not leak.
