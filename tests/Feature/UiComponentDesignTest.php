@@ -102,7 +102,7 @@ test('webhook detail uses flat full-height panels', function (string $path, stri
     'log detail' => ['webhook/WebhookLogDetail.vue', 'webhook-log-detail'],
 ]);
 
-test('post listings use the full-height scrolling table layout', function () {
+test('post listings use the full-height chronological card feed', function () {
     expect(resourceSource('pages/posts/Index.vue'))
         ->toContain('<AppLayout full-width>')
         ->toContain('<template #header-actions>')
@@ -112,9 +112,12 @@ test('post listings use the full-height scrolling table layout', function () {
         ->toContain('tab: props.currentTab || undefined')
         ->toContain('data-testid="posts-search"')
         ->toContain('data-testid="posts-scroll"')
-        ->toContain('<TableHeader sticky>')
-        ->toContain('items-element="#posts-body"')
+        ->toContain('data-testid="posts-feed"')
+        ->toContain(':data-testid="`post-card-${post.id}`"')
+        ->toContain('items-element="#posts-feed"')
+        ->toContain('<PostMediaPreview')
         ->toContain("reset: ['posts']")
+        ->not->toContain('<TableHeader')
         ->not->toContain('postsIndex.url(props.currentStatus)')
         ->not->toContain('gap-6 px-6 py-8');
 });

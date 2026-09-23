@@ -5,6 +5,7 @@ import {
     IconCopyPlus,
     IconDots,
     IconFileText,
+    IconLoader2,
     IconSearch,
     IconTrash,
 } from '@tabler/icons-vue';
@@ -24,6 +25,7 @@ import HeaderTitle from '@/components/HeaderTitle.vue';
 import LabelBadge from '@/components/labels/LabelBadge.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostsHeaderActions from '@/components/posts/PostsHeaderActions.vue';
+import PostMediaPreview from '@/components/posts/previews/PostMediaPreview.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,15 +36,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableLoadMore,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Tooltip,
     TooltipContent,
@@ -60,6 +53,7 @@ import date from '@/date';
 import debounce from '@/debounce';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { cn, copyToClipboard } from '@/lib/utils';
+import type { MediaItem } from '@/types/media';
 import { PostStatus } from '@/types/post';
 interface SocialAccount {
     id: string;
@@ -91,6 +85,8 @@ interface Post {
     status: string;
     scheduled_at: string | null;
     published_at: string | null;
+    created_at: string;
+    media: MediaItem[];
     post_platforms: PostPlatform[];
     labels: Label[];
 }
@@ -193,16 +189,53 @@ const tabClass = (tab: PostTab | null): string =>
             : 'border-transparent text-muted-foreground hover:border-amber-200 hover:text-foreground',
     );
 
-const formatDateTime = (value: string | null): string => {
-    if (!value) return '—';
-    return date.formatDateTime(value);
-};
-
 const getEnabledPlatforms = (post: Post) =>
     post.post_platforms.filter((pp) => pp.enabled);
 
 const getPostPreview = (post: Post): string =>
     post.content?.trim() || trans('calendar.no_content');
+
+const getPostTimestamp = (post: Post): string =>
+    post.scheduled_at ?? post.published_at ?? post.created_at;
+
+const formatGroupLabel = (value: string): string => {
+    const localDate = date.formatDateTimeForDatePicker(value);
+    const today = date.formatDateTimeForDatePicker(new Date().toISOString());
+
+    if (localDate.isSame(today, 'day')) {
+        return `${trans('common.date_range_picker.today')}, ${date.formatDate(value)}`;
+    }
+
+    if (localDate.isSame(today.subtract(1, 'day'), 'day')) {
+        return `${trans('common.date_range_picker.yesterday')}, ${date.formatDate(value)}`;
+    }
+
+    return date.formatDate(value);
+};
+
+const postGroups = computed(() => {
+    const groups = new Map<string, { label: string; posts: Post[] }>();
+
+    props.posts.data.forEach((post) => {
+        const timestamp = getPostTimestamp(post);
+        const key = date
+            .formatDateTimeForDatePicker(timestamp)
+            .format('YYYY-MM-DD');
+        const group = groups.get(key);
+
+        if (group) {
+            group.posts.push(post);
+            return;
+        }
+
+        groups.set(key, {
+            label: formatGroupLabel(timestamp),
+            posts: [post],
+        });
+    });
+
+    return Array.from(groups, ([key, group]) => ({ key, ...group }));
+});
 
 const EDITABLE_STATUSES: readonly string[] = [
     PostStatus.Draft,
@@ -328,243 +361,379 @@ useWorkspaceEcho(
 
             <div
                 v-else
-                class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain pb-px"
+                class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-stone-50/55 px-4 py-6 sm:px-6 lg:px-8 dark:bg-stone-950/20"
                 data-testid="posts-scroll"
             >
                 <InfiniteScroll
                     data="posts"
-                    items-element="#posts-body"
+                    items-element="#posts-feed"
                     preserve-url
                     :buffer="300"
                 >
-                    <Table>
-                        <TableHeader sticky>
-                            <TableRow>
-                                <TableHead>{{
-                                    $t('posts.table.post')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('posts.table.status')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('posts.table.scheduled_at')
-                                }}</TableHead>
-                                <TableHead class="text-right" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody id="posts-body">
-                            <TableRow
-                                v-for="post in posts.data"
-                                :key="post.id"
-                                class="cursor-pointer"
-                                :data-testid="`post-row-${post.id}`"
-                                @click="router.visit(postUrl(post))"
+                    <div
+                        id="posts-feed"
+                        class="mx-auto flex w-full max-w-4xl flex-col gap-8"
+                        data-testid="posts-feed"
+                    >
+                        <section
+                            v-for="group in postGroups"
+                            :key="group.key"
+                            class="grid gap-3 lg:grid-cols-[6.5rem_minmax(0,1fr)] lg:gap-x-5"
+                        >
+                            <h2
+                                class="text-base font-semibold tracking-tight text-foreground lg:col-start-2"
                             >
-                                <TableCell class="max-w-md py-3">
-                                    <div class="space-y-1.5">
-                                        <div class="flex items-center gap-2">
-                                            <div
-                                                v-if="
-                                                    getEnabledPlatforms(post)
-                                                        .length
-                                                "
-                                                class="flex -space-x-1.5"
+                                {{ group.label }}
+                            </h2>
+
+                            <div class="contents">
+                                <template
+                                    v-for="post in group.posts"
+                                    :key="post.id"
+                                >
+                                    <div
+                                        class="flex items-center gap-2 text-xs font-medium text-muted-foreground lg:flex-col lg:items-end lg:gap-0.5 lg:pt-4"
+                                    >
+                                        <span
+                                            class="text-sm text-foreground/80"
+                                        >
+                                            {{
+                                                date.formatTime(
+                                                    getPostTimestamp(post),
+                                                )
+                                            }}
+                                        </span>
+                                        <span>{{
+                                            getPostStatusConfig(post.status)
+                                                .label
+                                        }}</span>
+                                    </div>
+
+                                    <article
+                                        class="relative min-w-0 overflow-hidden rounded-xl border border-stone-200 bg-card shadow-[0_1px_2px_rgba(28,25,23,0.04)] transition-colors hover:border-amber-300/80 dark:border-stone-800"
+                                        :data-testid="`post-card-${post.id}`"
+                                    >
+                                        <div
+                                            class="flex min-w-0 flex-col md:min-h-44 md:flex-row"
+                                        >
+                                            <Link
+                                                :href="postUrl(post)"
+                                                class="flex min-w-0 flex-1 flex-col gap-4 p-4 pr-12 focus-visible:ring-2 focus-visible:ring-amber-500/60 focus-visible:outline-none sm:p-5 sm:pr-14"
                                             >
-                                                <TooltipProvider
-                                                    v-for="pp in getEnabledPlatforms(
-                                                        post,
-                                                    ).slice(0, 4)"
-                                                    :key="pp.id"
-                                                    :delay-duration="200"
+                                                <div
+                                                    class="flex min-w-0 items-center gap-3"
                                                 >
-                                                    <Tooltip>
-                                                        <TooltipTrigger
-                                                            as-child
+                                                    <div
+                                                        v-if="
+                                                            getEnabledPlatforms(
+                                                                post,
+                                                            ).length
+                                                        "
+                                                        class="flex shrink-0 -space-x-2"
+                                                    >
+                                                        <TooltipProvider
+                                                            v-for="pp in getEnabledPlatforms(
+                                                                post,
+                                                            ).slice(0, 4)"
+                                                            :key="pp.id"
+                                                            :delay-duration="
+                                                                200
+                                                            "
                                                         >
-                                                            <span
-                                                                class="inline-flex size-6 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
-                                                            >
-                                                                <img
-                                                                    :src="
-                                                                        getPlatformLogo(
-                                                                            pp.platform,
-                                                                        )
-                                                                    "
-                                                                    :alt="
-                                                                        pp.platform
-                                                                    "
-                                                                    class="size-full object-cover"
-                                                                />
-                                                            </span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <div
-                                                                class="space-y-0.5 text-xs"
-                                                            >
-                                                                <p
-                                                                    class="font-semibold"
+                                                            <Tooltip>
+                                                                <TooltipTrigger
+                                                                    as-child
                                                                 >
-                                                                    {{
-                                                                        pp
-                                                                            .social_account
-                                                                            ?.display_label ??
-                                                                        pp.platform
-                                                                    }}<span
-                                                                        v-if="
-                                                                            pp
-                                                                                .social_account
-                                                                                ?.username
-                                                                        "
-                                                                        class="font-normal opacity-80"
-                                                                        >&nbsp;·&nbsp;@{{
-                                                                            pp
-                                                                                .social_account
-                                                                                .username
-                                                                        }}</span
+                                                                    <span
+                                                                        class="relative inline-flex size-9 items-center justify-center rounded-full border-2 border-card bg-muted"
                                                                     >
-                                                                </p>
-                                                                <p
-                                                                    class="opacity-70"
-                                                                >
-                                                                    {{
-                                                                        getPlatformLabel(
-                                                                            pp.platform,
-                                                                        )
-                                                                    }}
-                                                                </p>
-                                                            </div>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <span
-                                                v-if="
-                                                    getEnabledPlatforms(post)
-                                                        .length > 4
-                                                "
-                                                class="text-xs font-bold text-foreground/60"
-                                                >+{{
-                                                    getEnabledPlatforms(post)
-                                                        .length - 4
-                                                }}</span
-                                            >
+                                                                        <img
+                                                                            v-if="
+                                                                                pp
+                                                                                    .social_account
+                                                                                    ?.avatar_url
+                                                                            "
+                                                                            :src="
+                                                                                pp
+                                                                                    .social_account
+                                                                                    .avatar_url
+                                                                            "
+                                                                            :alt="
+                                                                                pp
+                                                                                    .social_account
+                                                                                    .display_label
+                                                                            "
+                                                                            class="size-full rounded-full object-cover"
+                                                                        />
+                                                                        <span
+                                                                            v-else
+                                                                            class="text-xs font-semibold text-muted-foreground"
+                                                                        >
+                                                                            {{
+                                                                                (
+                                                                                    pp
+                                                                                        .social_account
+                                                                                        ?.display_label ??
+                                                                                    pp.platform
+                                                                                )
+                                                                                    .slice(
+                                                                                        0,
+                                                                                        1,
+                                                                                    )
+                                                                                    .toUpperCase()
+                                                                            }}
+                                                                        </span>
+                                                                        <span
+                                                                            class="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full border border-card bg-card"
+                                                                        >
+                                                                            <img
+                                                                                :src="
+                                                                                    getPlatformLogo(
+                                                                                        pp.platform,
+                                                                                    )
+                                                                                "
+                                                                                :alt="
+                                                                                    pp.platform
+                                                                                "
+                                                                                class="size-3 rounded-sm object-contain"
+                                                                            />
+                                                                        </span>
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <div
+                                                                        class="space-y-0.5 text-xs"
+                                                                    >
+                                                                        <p
+                                                                            class="font-semibold"
+                                                                        >
+                                                                            {{
+                                                                                pp
+                                                                                    .social_account
+                                                                                    ?.display_label ??
+                                                                                pp.platform
+                                                                            }}
+                                                                        </p>
+                                                                        <p
+                                                                            class="opacity-70"
+                                                                        >
+                                                                            {{
+                                                                                getPlatformLabel(
+                                                                                    pp.platform,
+                                                                                )
+                                                                            }}
+                                                                        </p>
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+
+                                                    <div class="min-w-0 flex-1">
+                                                        <p
+                                                            class="truncate text-sm font-semibold text-foreground"
+                                                        >
+                                                            {{
+                                                                getEnabledPlatforms(
+                                                                    post,
+                                                                )[0]
+                                                                    ?.social_account
+                                                                    ?.display_label ??
+                                                                workspace.name
+                                                            }}
+                                                        </p>
+                                                        <p
+                                                            class="text-xs text-muted-foreground"
+                                                        >
+                                                            {{
+                                                                getEnabledPlatforms(
+                                                                    post,
+                                                                )
+                                                                    .map(
+                                                                        (
+                                                                            platform,
+                                                                        ) =>
+                                                                            getPlatformLabel(
+                                                                                platform.platform,
+                                                                            ),
+                                                                    )
+                                                                    .join(' · ')
+                                                            }}
+                                                        </p>
+                                                    </div>
+
+                                                    <Badge
+                                                        :variant="
+                                                            getPostStatusConfig(
+                                                                post.status,
+                                                            ).variant
+                                                        "
+                                                        class="hidden sm:inline-flex"
+                                                    >
+                                                        <component
+                                                            :is="
+                                                                getPostStatusConfig(
+                                                                    post.status,
+                                                                ).icon
+                                                            "
+                                                            class="size-3"
+                                                        />
+                                                        {{
+                                                            getPostStatusConfig(
+                                                                post.status,
+                                                            ).label
+                                                        }}
+                                                    </Badge>
+                                                </div>
+
+                                                <p
+                                                    class="line-clamp-4 max-w-2xl text-sm leading-6 whitespace-pre-line text-foreground/85"
+                                                >
+                                                    {{ getPostPreview(post) }}
+                                                </p>
+
+                                                <div
+                                                    v-if="post.labels?.length"
+                                                    class="mt-auto flex flex-wrap items-center gap-1.5"
+                                                >
+                                                    <LabelBadge
+                                                        v-for="label in post.labels.slice(
+                                                            0,
+                                                            4,
+                                                        )"
+                                                        :key="label.id"
+                                                        :label="label"
+                                                    />
+                                                    <span
+                                                        v-if="
+                                                            post.labels.length >
+                                                            4
+                                                        "
+                                                        class="text-xs font-medium text-muted-foreground"
+                                                    >
+                                                        +{{
+                                                            post.labels.length -
+                                                            4
+                                                        }}
+                                                    </span>
+                                                </div>
+                                            </Link>
+
                                             <div
-                                                v-if="post.labels?.length"
-                                                class="ml-1 flex flex-wrap items-center gap-1"
+                                                v-if="post.media?.length"
+                                                class="relative h-48 shrink-0 overflow-hidden border-t border-border bg-muted md:h-auto md:w-52 md:border-t-0 md:border-l"
+                                                @click.stop
                                             >
-                                                <LabelBadge
-                                                    v-for="label in post.labels.slice(
-                                                        0,
-                                                        3,
-                                                    )"
-                                                    :key="label.id"
-                                                    :label="label"
+                                                <PostMediaPreview
+                                                    :media="post.media"
+                                                    :show-arrows="false"
+                                                    :show-dots="
+                                                        post.media.length > 1
+                                                    "
+                                                    media-class="h-full w-full object-cover"
                                                 />
                                                 <span
-                                                    v-if="
-                                                        post.labels.length > 3
-                                                    "
-                                                    class="text-xs font-bold text-foreground/60"
+                                                    v-if="post.media.length > 1"
+                                                    class="absolute top-3 right-3 rounded-full bg-black/65 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm"
                                                 >
-                                                    +{{
-                                                        post.labels.length - 3
-                                                    }}
+                                                    +{{ post.media.length - 1 }}
                                                 </span>
                                             </div>
                                         </div>
-                                        <p class="truncate text-foreground/80">
-                                            {{ getPostPreview(post) }}
-                                        </p>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        :variant="
-                                            getPostStatusConfig(post.status)
-                                                .variant
-                                        "
-                                    >
-                                        <component
-                                            :is="
-                                                getPostStatusConfig(post.status)
-                                                    .icon
-                                            "
-                                            class="size-3"
-                                        />
-                                        {{
-                                            getPostStatusConfig(post.status)
-                                                .label
-                                        }}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    {{
-                                        formatDateTime(
-                                            post.scheduled_at ??
-                                                post.published_at,
-                                        )
-                                    }}
-                                </TableCell>
-                                <TableCell class="text-right" @click.stop>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger as-child>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                class="size-8"
-                                                @click.stop
-                                            >
-                                                <IconDots class="size-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                v-if="canCreatePost"
-                                                @click="handleDuplicate(post)"
-                                            >
-                                                <IconCopyPlus class="size-4" />
-                                                {{
-                                                    $t(
-                                                        'posts.actions.duplicate',
-                                                    )
-                                                }}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                @click="handleCopyId(post)"
-                                            >
-                                                <IconCopy class="size-4" />
-                                                {{
-                                                    $t('posts.actions.copy_id')
-                                                }}
-                                            </DropdownMenuItem>
-                                            <template
-                                                v-if="
-                                                    canCreatePost &&
-                                                    canDelete(post)
-                                                "
-                                            >
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    variant="destructive"
-                                                    @click="handleDelete(post)"
+
+                                        <div
+                                            class="absolute top-3 right-3"
+                                            @click.stop
+                                        >
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger as-child>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        class="size-8 bg-card/90 backdrop-blur-sm"
+                                                        @click.stop
+                                                    >
+                                                        <IconDots
+                                                            class="size-4"
+                                                        />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent
+                                                    align="end"
                                                 >
-                                                    <IconTrash class="size-4" />
-                                                    {{
-                                                        $t(
-                                                            'posts.actions.delete',
-                                                        )
-                                                    }}
-                                                </DropdownMenuItem>
-                                            </template>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                                                    <DropdownMenuItem
+                                                        v-if="canCreatePost"
+                                                        @click="
+                                                            handleDuplicate(
+                                                                post,
+                                                            )
+                                                        "
+                                                    >
+                                                        <IconCopyPlus
+                                                            class="size-4"
+                                                        />
+                                                        {{
+                                                            $t(
+                                                                'posts.actions.duplicate',
+                                                            )
+                                                        }}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        @click="
+                                                            handleCopyId(post)
+                                                        "
+                                                    >
+                                                        <IconCopy
+                                                            class="size-4"
+                                                        />
+                                                        {{
+                                                            $t(
+                                                                'posts.actions.copy_id',
+                                                            )
+                                                        }}
+                                                    </DropdownMenuItem>
+                                                    <template
+                                                        v-if="
+                                                            canCreatePost &&
+                                                            canDelete(post)
+                                                        "
+                                                    >
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            variant="destructive"
+                                                            @click="
+                                                                handleDelete(
+                                                                    post,
+                                                                )
+                                                            "
+                                                        >
+                                                            <IconTrash
+                                                                class="size-4"
+                                                            />
+                                                            {{
+                                                                $t(
+                                                                    'posts.actions.delete',
+                                                                )
+                                                            }}
+                                                        </DropdownMenuItem>
+                                                    </template>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </article>
+                                </template>
+                            </div>
+                        </section>
+                    </div>
 
                     <template #next="{ loading }">
-                        <TableLoadMore v-if="loading" />
+                        <div
+                            v-if="loading"
+                            class="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground"
+                        >
+                            <IconLoader2 class="size-4 animate-spin" />
+                            {{ $t('common.loading') }}
+                        </div>
                     </template>
                 </InfiniteScroll>
             </div>

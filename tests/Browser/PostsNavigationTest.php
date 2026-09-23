@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Enums\Post\Status as PostStatus;
 use App\Enums\UserWorkspace\Role;
+use App\Models\Post;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
@@ -151,4 +153,35 @@ test('posts list tabs and calendar switch share one canonical navigation', funct
         ->pathname->toBe('/posts')
         ->tab->toBeNull()
         ->sidebarActive->toBeTrue();
+});
+
+test('posts render as a chronological card feed instead of a table', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    $post = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'status' => PostStatus::Scheduled,
+        'content' => 'A chronological post card',
+        'scheduled_at' => now()->addDay()->setTime(14, 20),
+    ]);
+
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+
+    $page->assertVisible('@posts-feed')
+        ->assertVisible('@post-card-'.$post->id)
+        ->assertSee('A chronological post card')
+        ->assertNoJavaScriptErrors();
+
+    expect($page->script("document.querySelectorAll('[data-testid=\"posts-feed\"] table').length"))
+        ->toBe(0);
 });
