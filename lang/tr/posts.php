@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 return [
+    'view' => [
+        'list' => 'Liste',
+    ],
     'title' => 'Gönderiler',
     'search' => 'Gönderi ara...',
     'all_posts' => 'Tüm Gönderiler',

@@ -53,6 +53,43 @@ test('tables render as flat page grids instead of rounded cards', function () {
         ->not->toContain('border border-border');
 });
 
+test('the app layout wraps the main content in a rounded desktop shell', function () {
+    expect(resourceSource('layouts/app/AppSidebarLayout.vue'))
+        ->toContain('<SidebarProvider :default-open="true"')
+        ->not->toContain('page.props.sidebarOpen')
+        ->toContain('data-testid="app-content-shell"')
+        ->toContain('md:m-2')
+        ->toContain('md:ml-0')
+        ->toContain('md:rounded-xl')
+        ->toContain('md:border md:border-border')
+        ->toContain('overflow-hidden bg-card');
+});
+
+test('the desktop sidebar has no dividing border beside the content shell', function () {
+    expect(componentSource('ui/sidebar/Sidebar.vue'))
+        ->not->toContain('group-data-[side=left]:border-e')
+        ->not->toContain('group-data-[side=right]:border-s');
+});
+
+test('posts share one mode switch and one sidebar destination', function () {
+    expect(componentSource('posts/PostsHeaderActions.vue'))
+        ->toContain("activeMode: 'list' | 'calendar'")
+        ->toContain('postsIndex.url()')
+        ->toContain("calendar.url({ query: { view: 'week' } })")
+        ->toContain('data-testid="posts-view-list"')
+        ->toContain('data-testid="posts-view-calendar"')
+        ->toContain('data-testid="new-post-link"');
+
+    expect(componentSource('AppSidebar.vue'))
+        ->not->toContain("postsIndex.url('scheduled')")
+        ->not->toContain("postsIndex.url('published')")
+        ->not->toContain("postsIndex.url('draft')");
+
+    expect(componentSource('NavMain.vue'))
+        ->toContain('item.isActive ??')
+        ->toContain('urlIsActive(item.activePattern ?? item.href');
+});
+
 test('webhook detail uses flat full-height panels', function (string $path, string $testId) {
     expect(componentSource($path))
         ->toContain("data-testid=\"{$testId}\"")

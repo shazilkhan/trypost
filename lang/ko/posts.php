@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'view' => [
+        'list' => '목록',
+    ],
     'title' => '게시물',
     'search' => '게시물 검색...',
     'all_posts' => '모든 게시물',

@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'view' => [
+        'list' => 'Lista',
+    ],
     'title' => 'Posty',
     'search' => 'Szukaj postów...',
     'all_posts' => 'Wszystkie posty',

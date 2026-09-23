@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'view' => [
+        'list' => '列表',
+    ],
     'title' => '帖子',
     'search' => '搜索帖子…',
     'all_posts' => '所有帖子',

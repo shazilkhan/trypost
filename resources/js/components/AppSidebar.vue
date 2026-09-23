@@ -3,14 +3,10 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     IconAffiliate,
     IconAlertTriangle,
-    IconCalendar,
     IconChartBar,
     IconChevronRight,
-    IconClock,
-    IconFileCheck,
     IconFileText,
     IconHash,
-    IconPencil,
     IconPhoto,
     IconPlugConnected,
     IconRepeat,
@@ -46,6 +42,7 @@ import {
 } from '@/components/ui/sidebar';
 import WorkspaceMenuContent from '@/components/WorkspaceMenuContent.vue';
 import WorkspaceUpgradeDialog from '@/components/workspaces/WorkspaceUpgradeDialog.vue';
+import { useActiveUrl } from '@/composables/useActiveUrl';
 import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import { accounts, analytics, calendar } from '@/routes/app';
 import { index as assets } from '@/routes/app/assets';
@@ -83,15 +80,11 @@ const {
     canCreateWorkspace,
 } = useWorkspaceRole();
 const { isMobile } = useSidebar();
+const { urlIsActive } = useActiveUrl();
 
 const workspaceUpgradeDialogOpen = ref(false);
 
 const mainNavItems = computed<NavItem[]>(() => [
-    {
-        title: trans('sidebar.posts.calendar'),
-        href: calendar.url(),
-        icon: IconCalendar,
-    },
     {
         title: trans('sidebar.analytics'),
         href: analytics.url(),
@@ -111,29 +104,10 @@ const mainNavItems = computed<NavItem[]>(() => [
 
 const postsNavItems = computed<NavItem[]>(() => [
     {
-        title: trans('sidebar.posts.all'),
+        title: trans('sidebar.groups.posts'),
         href: postsIndex.url(),
         icon: IconFileText,
-        excludeActive: [
-            postsIndex.url('scheduled'),
-            postsIndex.url('published'),
-            postsIndex.url('draft'),
-        ],
-    },
-    {
-        title: trans('sidebar.posts.scheduled'),
-        href: postsIndex.url('scheduled'),
-        icon: IconClock,
-    },
-    {
-        title: trans('sidebar.posts.posted'),
-        href: postsIndex.url('published'),
-        icon: IconFileCheck,
-    },
-    {
-        title: trans('sidebar.posts.drafts'),
-        href: postsIndex.url('draft'),
-        icon: IconPencil,
+        isActive: urlIsActive(postsIndex.url()) || urlIsActive(calendar.url()),
     },
 ]);
 
@@ -257,11 +231,7 @@ const workspaceNavItems = computed<NavItem[]>(() => [
             </div>
 
             <NavMain v-if="currentWorkspace" :items="mainNavItems" />
-            <NavMain
-                v-if="currentWorkspace"
-                :items="postsNavItems"
-                :label="$t('sidebar.groups.posts')"
-            />
+            <NavMain v-if="currentWorkspace" :items="postsNavItems" />
             <NavMain
                 v-if="currentWorkspace && workspaceNavItems.length"
                 :items="workspaceNavItems"

@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 return [
+    'view' => [
+        'list' => 'Liste',
+    ],
     'title' => 'Beiträge',
     'search' => 'Beiträge suchen...',
     'all_posts' => 'Alle Beiträge',
