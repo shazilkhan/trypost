@@ -4,6 +4,8 @@ import { IconChevronLeft, IconChevronRight, IconPlus } from '@tabler/icons-vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import DatePicker from '@/components/DatePicker.vue';
+import HeaderTitle from '@/components/HeaderTitle.vue';
+import PostsHeaderActions from '@/components/posts/PostsHeaderActions.vue';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -308,13 +310,21 @@ const formatTime = (scheduledAt: string): string => {
 <template>
     <Head :title="$t('calendar.title')" />
 
-    <AppLayout :fullWidth="true">
+    <AppLayout full-width>
+        <template #header>
+            <HeaderTitle :title="$t('posts.title')" />
+        </template>
+
+        <template #header-actions>
+            <PostsHeaderActions active-mode="calendar" />
+        </template>
+
         <div class="flex h-full flex-col">
-            <!-- Mobile header: nav + date jump on top, full-width New post below -->
+            <!-- Mobile header: navigation and date jump -->
             <header
                 class="flex shrink-0 flex-col gap-2 border-b border-border bg-card px-4 py-3 lg:hidden"
             >
-                <div class="flex items-center justify-between gap-2 pl-12">
+                <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
                         <Button
                             variant="outline"
@@ -344,18 +354,9 @@ const formatTime = (scheduledAt: string): string => {
                         />
                     </div>
                 </div>
-                <Link
-                    v-if="canCreatePost"
-                    :href="createPost.url()"
-                    class="block"
-                >
-                    <Button class="w-full">{{
-                        $t('calendar.new_post')
-                    }}</Button>
-                </Link>
             </header>
 
-            <!-- Desktop header: nav · title · view switcher + new post -->
+            <!-- Desktop header: nav · title · view switcher -->
             <header
                 class="hidden shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-border bg-card px-6 py-3 lg:grid"
             >
@@ -394,10 +395,6 @@ const formatTime = (scheduledAt: string): string => {
                             }}</TabsTrigger>
                         </TabsList>
                     </Tabs>
-
-                    <Link v-if="canCreatePost" :href="createPost.url()">
-                        <Button>{{ $t('calendar.new_post') }}</Button>
-                    </Link>
                 </div>
             </header>
 

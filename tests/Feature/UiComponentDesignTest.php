@@ -119,6 +119,18 @@ test('post listings use the full-height scrolling table layout', function () {
         ->not->toContain('gap-6 px-6 py-8');
 });
 
+test('calendar shares the posts header while preserving its view controls', function () {
+    expect(resourceSource('pages/posts/Calendar.vue'))
+        ->toContain('<PostsHeaderActions active-mode="calendar"')
+        ->toContain('<HeaderTitle :title="$t(\'posts.title\')"')
+        ->toContain('<TabsTrigger value="day"')
+        ->toContain('<TabsTrigger value="week"')
+        ->toContain('<TabsTrigger value="month"')
+        ->toContain('calendar.url({ query: { view } })')
+        ->toContain("createPostUrl(day.format('YYYY-MM-DD'))")
+        ->not->toContain(':href="createPost.url()"');
+});
+
 test('selection components use the yellow interaction treatment', function (string $path) {
     expect(componentSource($path))
         ->toContain('amber-')
