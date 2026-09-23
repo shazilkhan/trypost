@@ -31,8 +31,17 @@ function postsNavigationState(mixed $page): array
     JS);
 }
 
-function clickPostsNavigationAndWait(mixed $page, string $testId, string $pathname): void
-{
+function clickPostsNavigationAndWait(
+    mixed $page,
+    string $testId,
+    string $pathname,
+    ?string $queryKey = null,
+    ?string $queryValue = null,
+): void {
+    $queryCondition = $queryKey === null
+        ? 'true'
+        : "new URL(window.location.href).searchParams.get('{$queryKey}') === '{$queryValue}'";
+
     $page->script(<<<JS
         (async () => {
             const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,7 +58,7 @@ function clickPostsNavigationAndWait(mixed $page, string $testId, string $pathna
             }
 
             for (let i = 0; i < 150; i++) {
-                if (window.location.pathname === '{$pathname}') {
+                if (window.location.pathname === '{$pathname}' && {$queryCondition}) {
                     await wait(250);
                     return;
                 }
@@ -95,7 +104,13 @@ test('posts list tabs and calendar switch share one canonical navigation', funct
         ->visiblePostsLinks->toBe(1)
         ->sidebarActive->toBeTrue();
 
-    clickPostsNavigationAndWait($page, 'posts-tab-scheduled', '/posts');
+    clickPostsNavigationAndWait(
+        $page,
+        'posts-tab-scheduled',
+        '/posts',
+        'tab',
+        'scheduled',
+    );
 
     expect(postsNavigationState($page))
         ->pathname->toBe('/posts')
@@ -104,7 +119,13 @@ test('posts list tabs and calendar switch share one canonical navigation', funct
         ->labels->toBe([$label->id])
         ->sidebarActive->toBeTrue();
 
-    clickPostsNavigationAndWait($page, 'posts-view-calendar', '/calendar');
+    clickPostsNavigationAndWait(
+        $page,
+        'posts-view-calendar',
+        '/calendar',
+        'view',
+        'week',
+    );
 
     $page->assertVisible('@posts-view-list')
         ->assertVisible('@posts-view-calendar')
