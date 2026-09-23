@@ -5,7 +5,6 @@ import {
     IconCopyPlus,
     IconDots,
     IconFileText,
-    IconPlus,
     IconSearch,
     IconTrash,
 } from '@tabler/icons-vue';
@@ -13,7 +12,6 @@ import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 import {
-    create as createPost,
     destroy as destroyPost,
     duplicate as duplicatePost,
     edit as editPost,
@@ -25,6 +23,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
 import LabelBadge from '@/components/labels/LabelBadge.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
+import PostsHeaderActions from '@/components/posts/PostsHeaderActions.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,7 +59,7 @@ import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import date from '@/date';
 import debounce from '@/debounce';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { copyToClipboard } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 import { PostStatus } from '@/types/post';
 interface SocialAccount {
     id: string;
@@ -109,9 +108,10 @@ interface Workspace {
 interface Props {
     workspace: Workspace;
     posts: ScrollPosts;
-    currentStatus: string | null;
+    currentTab: 'draft' | 'scheduled' | 'published' | null;
     labels: Label[];
     filters: {
+        tab: 'draft' | 'scheduled' | 'published' | null;
         search: string;
         labels: string[];
     };
@@ -123,12 +123,10 @@ const searchQuery = ref(props.filters.search);
 const selectedLabelIds = ref<string[]>(props.filters.labels ?? []);
 
 const buildFilterUrl = () => {
-    const url = props.currentStatus
-        ? postsIndex.url(props.currentStatus)
-        : postsIndex.url();
     router.get(
-        url,
+        postsIndex.url(),
         {
+            tab: props.currentTab || undefined,
             search: searchQuery.value || undefined,
             labels: selectedLabelIds.value.length
                 ? selectedLabelIds.value
@@ -138,7 +136,7 @@ const buildFilterUrl = () => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['posts', 'filters'],
+            only: ['posts', 'filters', 'currentTab'],
             reset: ['posts'],
         },
     );
@@ -149,12 +147,51 @@ const search = debounce(buildFilterUrl, 300);
 watch(searchQuery, () => search());
 watch(selectedLabelIds, () => buildFilterUrl(), { deep: true });
 
-const pageTitle = computed(() => {
-    if (props.currentStatus) {
-        return trans(`posts.status.${props.currentStatus}`);
-    }
-    return trans('posts.all_posts');
-});
+type PostTab = 'scheduled' | 'draft' | 'published';
+
+const postTabs = computed<
+    Array<{ value: PostTab | null; label: string; testId: string }>
+>(() => [
+    {
+        value: null,
+        label: trans('sidebar.posts.all'),
+        testId: 'posts-tab-all',
+    },
+    {
+        value: 'scheduled',
+        label: trans('sidebar.posts.scheduled'),
+        testId: 'posts-tab-scheduled',
+    },
+    {
+        value: 'draft',
+        label: trans('sidebar.posts.drafts'),
+        testId: 'posts-tab-draft',
+    },
+    {
+        value: 'published',
+        label: trans('sidebar.posts.posted'),
+        testId: 'posts-tab-published',
+    },
+]);
+
+const tabUrl = (tab: PostTab | null): string =>
+    postsIndex.url({
+        query: {
+            tab: tab ?? undefined,
+            search: searchQuery.value || undefined,
+            labels: selectedLabelIds.value.length
+                ? selectedLabelIds.value
+                : undefined,
+        },
+    });
+
+const tabClass = (tab: PostTab | null): string =>
+    cn(
+        'inline-flex h-10 shrink-0 items-center border-b-2 px-1 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+        props.currentTab === tab
+            ? 'border-amber-500 text-amber-950'
+            : 'border-transparent text-muted-foreground hover:border-amber-200 hover:text-foreground',
+    );
 
 const formatDateTime = (value: string | null): string => {
     if (!value) return '—';
@@ -217,48 +254,63 @@ useWorkspaceEcho(
 </script>
 
 <template>
-    <Head :title="pageTitle" />
+    <Head :title="$t('posts.title')" />
 
     <AppLayout full-width>
         <template #header>
-            <HeaderTitle :title="pageTitle" :total="posts.total" />
+            <HeaderTitle :title="$t('posts.title')" :total="posts.total" />
         </template>
 
         <template #header-actions>
-            <div class="flex min-w-0 items-center gap-2">
-                <div class="relative w-32 sm:w-48 lg:w-64">
-                    <IconSearch
-                        class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                    />
-                    <Input
-                        v-model="searchQuery"
-                        :placeholder="trans('posts.search')"
-                        class="w-full pl-9"
-                        autocomplete="off"
-                        data-testid="posts-search"
-                    />
-                </div>
-
-                <div v-if="labels.length" class="hidden xl:block">
-                    <LabelFilter v-model="selectedLabelIds" :labels="labels" />
-                </div>
-
-                <Link
-                    v-if="canCreatePost"
-                    :href="createPost.url()"
-                    data-testid="new-post-link"
-                >
-                    <Button>
-                        <IconPlus class="size-4" />
-                        <span class="hidden md:inline">{{
-                            $t('posts.new_post')
-                        }}</span>
-                    </Button>
-                </Link>
-            </div>
+            <PostsHeaderActions active-mode="list" />
         </template>
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div
+                class="flex shrink-0 flex-col gap-3 border-b border-border px-4 pt-2 pb-3 lg:flex-row lg:items-end lg:justify-between lg:gap-6 lg:pb-0"
+            >
+                <nav
+                    class="-mb-px flex min-w-0 gap-5 overflow-x-auto"
+                    data-testid="posts-tabs"
+                    :aria-label="$t('sidebar.groups.posts')"
+                >
+                    <Link
+                        v-for="tab in postTabs"
+                        :key="tab.testId"
+                        :href="tabUrl(tab.value)"
+                        :class="tabClass(tab.value)"
+                        :data-testid="tab.testId"
+                        :aria-current="
+                            currentTab === tab.value ? 'page' : undefined
+                        "
+                    >
+                        {{ tab.label }}
+                    </Link>
+                </nav>
+
+                <div class="flex min-w-0 items-center gap-2 pb-0 lg:pb-2">
+                    <div class="relative min-w-0 flex-1 sm:w-56 sm:flex-none">
+                        <IconSearch
+                            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                        />
+                        <Input
+                            v-model="searchQuery"
+                            :placeholder="trans('posts.search')"
+                            class="w-full pl-9"
+                            autocomplete="off"
+                            data-testid="posts-search"
+                        />
+                    </div>
+
+                    <div v-if="labels.length" class="shrink-0">
+                        <LabelFilter
+                            v-model="selectedLabelIds"
+                            :labels="labels"
+                        />
+                    </div>
+                </div>
+            </div>
+
             <EmptyState
                 v-if="posts.data.length === 0"
                 :icon="IconFileText"

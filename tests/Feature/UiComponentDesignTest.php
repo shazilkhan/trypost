@@ -106,12 +106,16 @@ test('post listings use the full-height scrolling table layout', function () {
     expect(resourceSource('pages/posts/Index.vue'))
         ->toContain('<AppLayout full-width>')
         ->toContain('<template #header-actions>')
+        ->toContain('<PostsHeaderActions active-mode="list"')
+        ->toContain('data-testid="posts-tabs"')
+        ->toContain("testId: 'posts-tab-scheduled'")
+        ->toContain('tab: props.currentTab || undefined')
         ->toContain('data-testid="posts-search"')
-        ->toContain('data-testid="new-post-link"')
         ->toContain('data-testid="posts-scroll"')
         ->toContain('<TableHeader sticky>')
         ->toContain('items-element="#posts-body"')
         ->toContain("reset: ['posts']")
+        ->not->toContain('postsIndex.url(props.currentStatus)')
         ->not->toContain('gap-6 px-6 py-8');
 });
 
