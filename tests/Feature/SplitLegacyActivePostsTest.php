@@ -6,7 +6,7 @@ use App\Actions\Post\UpdatePost;
 use App\Enums\Post\Status;
 use App\Events\PostCreated;
 use App\Models\Post;
-use App\Models\PostComment;
+use App\Models\PostNote;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -32,8 +32,8 @@ test('split preserves IDs and clones labels, media and nested comments once', fu
     $disabled = PostPlatform::factory()->disabled()->create(['post_id' => $post->id, 'social_account_id' => $accounts[2]->id]);
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
     $post->labels()->attach($label);
-    $comment = PostComment::factory()->create(['post_id' => $post->id, 'user_id' => $user->id]);
-    $reply = PostComment::factory()->reply($comment)->create([
+    $comment = PostNote::factory()->create(['post_id' => $post->id, 'user_id' => $user->id]);
+    $reply = PostNote::factory()->reply($comment)->create([
         'user_id' => $user->id,
         'updated_at' => now()->subDays(3),
     ]);
@@ -51,10 +51,10 @@ test('split preserves IDs and clones labels, media and nested comments once', fu
         ->and($clone->media)->toEqual($post->media)
         ->and($clone->scheduled_at->equalTo($post->scheduled_at))->toBeTrue()
         ->and($clone->labels()->pluck('workspace_labels.id')->all())->toBe([$label->id])
-        ->and($clone->comments()->count())->toBe(2)
-        ->and($clone->comments()->where('body', $reply->body)->sole()->parent_id)
-        ->toBe($clone->comments()->where('body', $comment->body)->sole()->id)
-        ->and($clone->comments()->where('body', $reply->body)->sole()->updated_at->equalTo($reply->updated_at))->toBeTrue();
+        ->and($clone->notes()->count())->toBe(2)
+        ->and($clone->notes()->where('body', $reply->body)->sole()->parent_id)
+        ->toBe($clone->notes()->where('body', $comment->body)->sole()->id)
+        ->and($clone->notes()->where('body', $reply->body)->sole()->updated_at->equalTo($reply->updated_at))->toBeTrue();
     Event::assertNotDispatched(PostCreated::class);
 });
 

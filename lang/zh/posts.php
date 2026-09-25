@@ -461,8 +461,8 @@ return [
             'compose' => '撰写',
             'preview' => '预览',
             'channels' => '渠道',
-            'comments' => '评论',
-            'comments_empty' => '暂无评论。',
+            'comments' => '备注',
+            'comments_empty' => '暂无备注。',
         ],
 
         'media_picker' => [

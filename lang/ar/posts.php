@@ -461,8 +461,8 @@ return [
             'compose' => 'الكتابة',
             'preview' => 'معاينة',
             'channels' => 'القنوات',
-            'comments' => 'التعليقات',
-            'comments_empty' => 'لا توجد تعليقات بعد.',
+            'comments' => 'ملاحظات',
+            'comments_empty' => 'لا توجد ملاحظات بعد.',
         ],
 
         'media_picker' => [

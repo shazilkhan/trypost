@@ -10,6 +10,7 @@ use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
 use App\Jobs\PublishPost;
 use App\Models\Post;
+use App\Models\PostNote;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -53,6 +54,28 @@ test('posts index shows posts for current workspace', function () {
         ->component('posts/Index', false)
         ->has('posts.data', 1)
     );
+});
+
+test('posts index exposes note counts and opens a note on an existing post', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    $note = PostNote::factory()->create([
+        'post_id' => $post->id,
+        'user_id' => $this->user->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['notes' => $post->id, 'note' => $note->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('posts/Index')
+            ->where('openPostNotesId', $post->id)
+            ->where('highlightNoteId', $note->id)
+            ->has('posts.data', 1)
+            ->where('posts.data.0.notes_count', 1)
+        );
 });
 
 test('posts index exposes workspace labels for filter dropdown', function () {

@@ -21,7 +21,7 @@ import {
 import dayjs from '@/dayjs';
 import { accounts } from '@/routes/app';
 import { archiveAll, index, read, readAll } from '@/routes/app/notifications';
-import { edit as editPost } from '@/routes/app/posts';
+import { edit as editPost, index as postsIndex } from '@/routes/app/posts';
 import type { SharedData } from '@/types';
 
 interface Notification {
@@ -155,13 +155,12 @@ const handleNotificationClick = (notification: Notification) => {
         notification.type === 'mentioned_in_comment' &&
         notification.data?.post_id
     ) {
-        const url = new URL(
-            editPost.url(notification.data.post_id),
-            window.location.origin,
-        );
-        url.searchParams.set('tab', 'comments');
-        if (notification.data?.comment_id) {
-            url.searchParams.set('comment', notification.data.comment_id);
+        const url = new URL(postsIndex.url(), window.location.origin);
+        url.searchParams.set('notes', notification.data.post_id);
+        const noteId =
+            notification.data?.note_id ?? notification.data?.comment_id;
+        if (noteId) {
+            url.searchParams.set('note', noteId);
         }
         router.visit(url.toString());
         return;

@@ -9,7 +9,7 @@ use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
-use App\Models\PostComment;
+use App\Models\PostNote;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -38,6 +38,7 @@ test('new post buttons open the global dialog without changing the page URL', fu
     $posts->assertVisible('@posts-tabs')
         ->click('@posts-new-post')
         ->assertVisible('@post-composer-dialog')
+        ->assertMissing('@composer-comments')
         ->assertScript('location.pathname + location.search', parse_url(route('app.posts.index'), PHP_URL_PATH));
 
     visit(route('app.posts.index'))
@@ -571,7 +572,7 @@ test('recovering an empty-target draft retains its caption media and labels', fu
         ->and($recovered->postPlatforms()->sole()->social_account_id)->toBe($account->id);
 });
 
-test('a comment deep link and AI assistant remain available in the edit dialog', function () {
+test('post notes open after creation while the edit dialog still has its AI assistant', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
     $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
@@ -585,18 +586,21 @@ test('a comment deep link and AI assistant remain available in the edit dialog',
         'content' => 'A draft to discuss',
     ]);
     PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $account->id]);
-    $comment = PostComment::factory()->create([
+    $note = PostNote::factory()->create([
         'post_id' => $post->id,
         'user_id' => $user->id,
         'body' => 'Please review the opening line',
     ]);
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.edit', ['post' => $post, 'tab' => 'comments', 'comment' => $comment->id]));
-    $page->assertVisible('@post-composer-dialog')
-        ->assertVisible('@composer-comments-panel')
+    $page = visit(route('app.posts.index', ['notes' => $post->id, 'note' => $note->id]));
+    $page->assertVisible("@post-notes-trigger-{$post->id}")
         ->assertSee('Please review the opening line')
-        ->click('@composer-back-to-post')
+        ->click("@post-notes-trigger-{$post->id}");
+
+    $page = visit(route('app.posts.edit', $post));
+    $page->assertVisible('@post-composer-dialog')
+        ->assertMissing('@composer-comments-panel')
         ->click('@composer-ai-assistant')
         ->assertVisible('@composer-assistant-panel')
         ->assertVisible('@composer-ai-rephrase')

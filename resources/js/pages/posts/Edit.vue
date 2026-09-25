@@ -422,14 +422,6 @@ const unschedulePost = () => {
 usePostEcho(post.value.id, '.post.platform.status.updated', () => {
     router.reload({ only: ['post'] });
 });
-
-// Echo: listen for real-time comments
-usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
-    if (e.mentioned_users) {
-        editorTabsRef.value?.registerMentionedUsers(e.mentioned_users);
-    }
-    editorTabsRef.value?.addCommentFromBroadcast(e.comment);
-});
 </script>
 
 <template>

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
-use App\Models\PostComment;
+use App\Models\PostNote;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -86,18 +86,17 @@ test('media tile actions are visible on a phone without hover', function () {
     $page->assertVisible('@media-remove');
 });
 
-test('comment actions are visible on a phone without hover', function () {
+test('post notes are accessible on a phone after the post exists', function () {
     $post = seedMobileEditorPost();
-    PostComment::factory()->create([
+    PostNote::factory()->create([
         'post_id' => $post->id,
         'user_id' => $post->user_id,
-        'body' => 'a comment on the go',
+        'body' => 'a note on the go',
     ]);
 
-    $page = visit(route('app.posts.edit', $post))->resize(375, 812);
+    $page = visit(route('app.posts.index'))->resize(375, 812);
 
-    $page->click('@editor-nav-comments');
-
-    waitForTestId($page, 'comment-reply');
-    $page->assertVisible('@comment-reply');
+    $page->click("@post-notes-trigger-{$post->id}");
+    waitForTestId($page, 'note-reply');
+    $page->assertVisible('@note-reply');
 });

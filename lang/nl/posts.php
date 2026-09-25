@@ -461,8 +461,8 @@ return [
             'compose' => 'Opstellen',
             'preview' => 'Voorbeeld',
             'channels' => 'Kanalen',
-            'comments' => 'Reacties',
-            'comments_empty' => 'Nog geen reacties.',
+            'comments' => 'Notities',
+            'comments_empty' => 'Nog geen notities.',
         ],
 
         'media_picker' => [

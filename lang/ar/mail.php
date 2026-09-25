@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => 'أشار إليك :name على TryPost',
         'title' => 'أشار إليك :name',
-        'intro' => 'أشار إليك :name في تعليق على منشور.',
-        'button' => 'عرض التعليق',
+        'intro' => 'أشار إليك :name في ملاحظة على منشور.',
+        'button' => 'عرض الملاحظة',
     ],
 
     'password_reset' => [

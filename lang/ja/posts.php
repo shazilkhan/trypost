@@ -461,8 +461,8 @@ return [
             'compose' => '作成',
             'preview' => 'プレビュー',
             'channels' => 'チャンネル',
-            'comments' => 'コメント',
-            'comments_empty' => 'まだコメントがありません。',
+            'comments' => 'メモ',
+            'comments_empty' => 'まだメモがありません。',
         ],
 
         'media_picker' => [

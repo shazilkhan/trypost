@@ -461,8 +461,8 @@ return [
             'compose' => 'Escrever',
             'preview' => 'Pré-visualização',
             'channels' => 'Canais',
-            'comments' => 'Comentários',
-            'comments_empty' => 'Nenhum comentário ainda.',
+            'comments' => 'Notas',
+            'comments_empty' => 'Nenhuma nota ainda.',
         ],
 
         'media_picker' => [

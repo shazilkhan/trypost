@@ -461,8 +461,8 @@ return [
             'compose' => 'Componi',
             'preview' => 'Anteprima',
             'channels' => 'Canali',
-            'comments' => 'Commenti',
-            'comments_empty' => 'Ancora nessun commento.',
+            'comments' => 'Note',
+            'comments_empty' => 'Ancora nessuna nota.',
         ],
 
         'media_picker' => [

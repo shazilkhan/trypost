@@ -49,10 +49,10 @@ test('a viewer cannot delete a post', function () {
 
 test('a viewer can comment on a post', function () {
     $this->actingAs($this->viewer)
-        ->postJson(route('app.posts.comments.store', $this->post), ['body' => 'Looks good!'])
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Looks good!'])
         ->assertSuccessful();
 
-    $this->assertDatabaseHas('post_comments', [
+    $this->assertDatabaseHas('post_notes', [
         'post_id' => $this->post->id,
         'user_id' => $this->viewer->id,
     ]);

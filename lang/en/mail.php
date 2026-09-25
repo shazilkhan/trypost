@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name mentioned you on TryPost',
         'title' => ':name mentioned you',
-        'intro' => ':name mentioned you in a post comment.',
-        'button' => 'View comment',
+        'intro' => ':name mentioned you in a post note.',
+        'button' => 'View note',
     ],
 
     'password_reset' => [

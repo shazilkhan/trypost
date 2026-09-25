@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
-import CommentsTab from '@/components/posts/editor/CommentsTab.vue';
+import PostNotesPanel from '@/components/posts/editor/PostNotesPanel.vue';
 import PreviewTab from '@/components/posts/editor/PreviewTab.vue';
 import ScheduleTab from '@/components/posts/editor/ScheduleTab.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -90,20 +90,11 @@ const emit = defineEmits<{
     ): void;
 }>();
 
-const commentsTabRef = ref<InstanceType<typeof CommentsTab> | null>(null);
-
 const previewablePlatforms = computed(() =>
     props.post.post_platforms.filter((pp) =>
         props.selectedPlatformIds.includes(pp.id),
     ),
 );
-
-defineExpose({
-    addCommentFromBroadcast: (comment: any) =>
-        commentsTabRef.value?.addCommentFromBroadcast(comment),
-    registerMentionedUsers: (users: any) =>
-        commentsTabRef.value?.registerMentionedUsers(users),
-});
 </script>
 
 <template>
@@ -168,11 +159,10 @@ defineExpose({
         </TabsContent>
 
         <TabsContent value="comments" class="flex-1 overflow-hidden">
-            <CommentsTab
-                ref="commentsTabRef"
+            <PostNotesPanel
                 :post-id="post.id"
                 :current-user-id="authUserId"
-                :highlight-comment-id="initialHighlightCommentId"
+                :highlight-note-id="initialHighlightCommentId"
             />
         </TabsContent>
     </Tabs>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Enums\UserWorkspace\Role;
 use App\Mail\MentionedInComment;
 use App\Models\Post;
-use App\Models\PostComment;
+use App\Models\PostNote;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -20,7 +20,7 @@ beforeEach(function () {
         'user_id' => $this->author->id,
     ]);
 
-    $this->comment = PostComment::factory()->create([
+    $this->comment = PostNote::factory()->create([
         'post_id' => $this->post->id,
         'user_id' => $this->author->id,
         'body' => 'Hey, please review this asap',
@@ -42,8 +42,8 @@ test('content view + payload + url include the comment context', function () {
     expect($content->with['authorName'])->toBe('Alice Author');
     expect($content->with['excerpt'])->toBe('short excerpt');
     expect($content->with['url'])->toContain((string) $this->post->id);
-    expect($content->with['url'])->toContain('tab=comments');
-    expect($content->with['url'])->toContain('comment='.$this->comment->id);
+    expect($content->with['url'])->toContain('notes='.$this->post->id);
+    expect($content->with['url'])->toContain('note='.$this->comment->id);
 });
 
 test('mailable has no attachments', function () {

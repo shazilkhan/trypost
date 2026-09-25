@@ -11,7 +11,6 @@ import {
     IconEye,
     IconLibraryPhoto,
     IconLoader2,
-    IconMessageCircle,
     IconPhotoPlus,
     IconPlus,
     IconSearch,
@@ -31,7 +30,6 @@ import AiRegenerateImageDialog from '@/components/posts/ai/AiRegenerateImageDial
 import ComposerAccountChip from '@/components/posts/composer/ComposerAccountChip.vue';
 import ComposerAccountStack from '@/components/posts/composer/ComposerAccountStack.vue';
 import ComposerEditorToolbar from '@/components/posts/composer/ComposerEditorToolbar.vue';
-import CommentsTab from '@/components/posts/editor/CommentsTab.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
 import FacebookSettings from '@/components/posts/editor/FacebookSettings.vue';
 import GoogleBusinessSettings from '@/components/posts/editor/GoogleBusinessSettings.vue';
@@ -87,10 +85,7 @@ const props = withDefaults(
         initialPost?: ComposerInitialPost | null;
         initialDraft?: ComposerInitialDraft | null;
         postId?: string | null;
-        currentUserId?: string | null;
-        openComments?: boolean;
         openAssistant?: boolean;
-        highlightCommentId?: string | null;
         labels?: { id: string; name: string; color: string }[];
         signatures?: { id: string; name: string; content: string }[];
         initialDate?: string | null;
@@ -115,10 +110,7 @@ const props = withDefaults(
         initialPost: null,
         initialDraft: null,
         postId: null,
-        currentUserId: null,
-        openComments: false,
         openAssistant: false,
-        highlightCommentId: null,
         labels: () => [],
         signatures: () => [],
         initialDate: null,
@@ -193,7 +185,6 @@ const cropTarget = ref<{
     media: MediaItem;
 } | null>(null);
 const cropError = ref(false);
-const commentsOpen = ref(props.openComments);
 const aiRegenerateOpen = ref(false);
 const aiMediaTarget = ref<{
     accountId: string;
@@ -846,27 +837,6 @@ const close = (): void => emit('update:open', false);
                     class="flex w-full min-w-0 items-center justify-end gap-1.5 sm:w-auto"
                 >
                     <Button
-                        v-if="postId && commentsOpen"
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        data-testid="composer-back-to-post"
-                        @click="commentsOpen = false"
-                        >{{ $t('posts.edit.tabs.preview') }}</Button
-                    >
-                    <Button
-                        v-if="postId && !commentsOpen"
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        data-testid="composer-comments"
-                        @click="commentsOpen = true"
-                        ><IconMessageCircle class="size-4" />{{
-                            $t('posts.edit.tabs.comments')
-                        }}</Button
-                    >
-                    <Button
-                        v-if="!commentsOpen"
                         type="button"
                         variant="ghost"
                         size="sm"
@@ -884,16 +854,15 @@ const close = (): void => emit('update:open', false);
                         type="button"
                         variant="ghost"
                         size="sm"
-                        :aria-pressed="!assistantOpen && !commentsOpen"
+                        :aria-pressed="!assistantOpen"
                         data-testid="composer-preview-toggle"
                         :class="
-                            !assistantOpen && !commentsOpen
+                            !assistantOpen
                                 ? 'bg-primary/10 text-primary hover:bg-primary/15'
                                 : ''
                         "
                         @click="
                             assistantOpen = false;
-                            commentsOpen = false;
                             mobilePanelOpen = true;
                         "
                         ><IconEye class="size-4" />{{
@@ -930,19 +899,6 @@ const close = (): void => emit('update:open', false);
             </SheetHeader>
 
             <div
-                v-if="commentsOpen && postId && currentUserId"
-                class="min-h-0 flex-1 p-5"
-                data-testid="composer-comments-panel"
-            >
-                <CommentsTab
-                    :post-id="postId"
-                    :current-user-id="currentUserId"
-                    :highlight-comment-id="highlightCommentId"
-                />
-            </div>
-
-            <div
-                v-else
                 class="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1fr)_minmax(420px,40%)]"
             >
                 <div

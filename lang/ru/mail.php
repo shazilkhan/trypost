@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name упомянул(а) вас в TryPost',
         'title' => ':name упомянул(а) вас',
-        'intro' => ':name упомянул(а) вас в комментарии к посту.',
-        'button' => 'Посмотреть комментарий',
+        'intro' => ':name упомянул(а) вас в заметке к посту.',
+        'button' => 'Посмотреть заметку',
     ],
 
     'password_reset' => [

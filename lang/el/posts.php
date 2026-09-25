@@ -461,8 +461,8 @@ return [
             'compose' => 'Σύνταξη',
             'preview' => 'Προεπισκόπηση',
             'channels' => 'Κανάλια',
-            'comments' => 'Σχόλια',
-            'comments_empty' => 'Δεν υπάρχουν σχόλια ακόμη.',
+            'comments' => 'Σημειώσεις',
+            'comments_empty' => 'Δεν υπάρχουν σημειώσεις ακόμη.',
         ],
 
         'media_picker' => [

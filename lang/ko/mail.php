@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name님이 TryPost에서 회원님을 멘션했습니다',
         'title' => ':name님이 회원님을 멘션했습니다',
-        'intro' => ':name님이 게시물 댓글에서 회원님을 멘션했습니다.',
-        'button' => '댓글 보기',
+        'intro' => ':name님이 게시물 메모에서 회원님을 멘션했습니다.',
+        'button' => '메모 보기',
     ],
 
     'password_reset' => [

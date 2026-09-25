@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\Post\Status;
 use App\Models\Post;
-use App\Models\PostComment;
+use App\Models\PostNote;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -54,7 +54,7 @@ class SplitLegacyActivePosts extends Command
         }
 
         $labelIds = $post->labels()->pluck('workspace_labels.id')->all();
-        $comments = $post->comments()->orderBy('id')->get();
+        $notes = $post->notes()->orderBy('id')->get();
 
         foreach ($targets->skip(1) as $target) {
             $clone = Post::withoutEvents(function () use ($post): Post {
@@ -66,26 +66,26 @@ class SplitLegacyActivePosts extends Command
                 return $clone;
             });
             $clone->labels()->sync($labelIds);
-            $commentIds = [];
+            $noteIds = [];
 
-            foreach ($comments as $comment) {
-                $copy = PostComment::withoutEvents(function () use ($comment, $clone): PostComment {
-                    $copy = $comment->replicate();
+            foreach ($notes as $note) {
+                $copy = PostNote::withoutEvents(function () use ($note, $clone): PostNote {
+                    $copy = $note->replicate();
                     $copy->post_id = $clone->id;
                     $copy->parent_id = null;
-                    $copy->created_at = $comment->created_at;
-                    $copy->updated_at = $comment->updated_at;
+                    $copy->created_at = $note->created_at;
+                    $copy->updated_at = $note->updated_at;
                     $copy->saveQuietly();
 
                     return $copy;
                 });
-                $commentIds[$comment->id] = $copy->id;
+                $noteIds[$note->id] = $copy->id;
             }
 
-            foreach ($comments as $comment) {
-                if ($comment->parent_id !== null) {
-                    DB::table('post_comments')->where('id', $commentIds[$comment->id])
-                        ->update(['parent_id' => $commentIds[$comment->parent_id]]);
+            foreach ($notes as $note) {
+                if ($note->parent_id !== null) {
+                    DB::table('post_notes')->where('id', $noteIds[$note->id])
+                        ->update(['parent_id' => $noteIds[$note->parent_id]]);
                 }
             }
 

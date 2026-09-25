@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name さんが TryPost であなたにメンションしました',
         'title' => ':name さんがあなたにメンションしました',
-        'intro' => ':name さんが投稿のコメントであなたにメンションしました。',
-        'button' => 'コメントを表示',
+        'intro' => ':name さんが投稿のメモであなたにメンションしました。',
+        'button' => 'メモを表示',
     ],
 
     'password_reset' => [

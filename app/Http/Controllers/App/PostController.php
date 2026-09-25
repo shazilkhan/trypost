@@ -61,7 +61,15 @@ class PostController extends Controller
         }
 
         $query = $workspace->posts()
-            ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount'), 'user', 'labels']);
+            ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount'), 'user', 'labels'])
+            ->withCount('notes');
+
+        $openPostNotesId = $request->query('notes');
+        $openPostNotesId = is_string($openPostNotesId) && $openPostNotesId !== '' ? $openPostNotesId : null;
+
+        if ($openPostNotesId) {
+            $query->whereKey($openPostNotesId);
+        }
 
         if ($status) {
             $query = match ($status) {
@@ -117,8 +125,8 @@ class PostController extends Controller
             'openComposer' => $composerRequested,
             'openComposerAssistant' => $request->boolean('assistant'),
             'initialComposerDate' => $request->query('date'),
-            'openComposerComments' => $request->query('tab') === 'comments',
-            'highlightCommentId' => $request->query('comment'),
+            'openPostNotesId' => $openPostNotesId,
+            'highlightNoteId' => is_string($request->query('note')) ? $request->query('note') : null,
             'authUserId' => $request->user()->id,
             'editPost' => $composerPost,
             ...$this->composerProps($workspace, $composerRequested),
@@ -328,14 +336,19 @@ class PostController extends Controller
 
         $this->authorize('view', $post);
 
+        if ($request->query('tab') === 'comments' || $request->filled('comment')) {
+            return redirect()->route('app.posts.index', [
+                'notes' => $post->id,
+                ...($request->filled('comment') ? ['note' => $request->query('comment')] : []),
+            ]);
+        }
+
         if (PostStatusRules::blocksEditing($post) || ! $this->canOpenComposer($post)) {
             return redirect()->route('app.posts.show', $post);
         }
 
         return redirect()->route('app.posts.index', [
             'edit' => $post->id,
-            ...($request->query('tab') === 'comments' ? ['tab' => 'comments'] : []),
-            ...($request->filled('comment') ? ['comment' => $request->query('comment')] : []),
         ]);
 
     }

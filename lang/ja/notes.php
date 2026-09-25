@@ -1,0 +1,21 @@
+<?php
+
+return [
+    'placeholder' => 'メモを書く...',
+    'title' => 'メモ',
+    'reply_placeholder' => '返信を書く...',
+    'reply' => '返信',
+    'react' => 'リアクション',
+    'unknown_user' => '誰か',
+    'edit' => '編集',
+    'delete' => '削除',
+    'edited' => '編集済み',
+    'save' => '保存',
+    'cancel' => 'キャンセル',
+    'send' => '送信',
+    'replying_to' => ':name への返信',
+    'empty' => 'まだメモがありません。会話を始めましょう。',
+    'load_more' => '過去のメモを読み込む',
+    'today' => '今日',
+    'yesterday' => '昨日',
+];

@@ -14,7 +14,7 @@ use App\Models\Notification;
 use App\Models\NotificationPreference;
 use App\Models\Plan;
 use App\Models\Post;
-use App\Models\PostComment;
+use App\Models\PostNote;
 use App\Models\PostPlatform;
 use App\Models\Repurpose;
 use App\Models\RepurposeItem;
@@ -105,7 +105,7 @@ class AppServiceProvider extends ServiceProvider
             'post' => Post::class,
             'repurpose' => Repurpose::class,
             'repurposeItem' => RepurposeItem::class,
-            'postComment' => PostComment::class,
+            'postComment' => PostNote::class,
             'postPlatform' => PostPlatform::class,
             'socialAccount' => SocialAccount::class,
             'subscription' => Subscription::class,

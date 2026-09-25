@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name hat dich auf TryPost erwähnt',
         'title' => ':name hat dich erwähnt',
-        'intro' => ':name hat dich in einem Beitragskommentar erwähnt.',
-        'button' => 'Kommentar ansehen',
+        'intro' => ':name hat dich in einer Beitragsnotiz erwähnt.',
+        'button' => 'Notiz ansehen',
     ],
 
     'password_reset' => [

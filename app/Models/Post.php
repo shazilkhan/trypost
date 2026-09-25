@@ -79,9 +79,9 @@ class Post extends Model
         return $this->hasMany(PostPlatform::class)->orderBy('id');
     }
 
-    public function comments(): HasMany
+    public function notes(): HasMany
     {
-        return $this->hasMany(PostComment::class);
+        return $this->hasMany(PostNote::class);
     }
 
     public function labels(): BelongsToMany

@@ -461,8 +461,8 @@ return [
             'compose' => 'Rédiger',
             'preview' => 'Aperçu',
             'channels' => 'Canaux',
-            'comments' => 'Commentaires',
-            'comments_empty' => 'Aucun commentaire pour le moment.',
+            'comments' => 'Notes',
+            'comments_empty' => 'Aucune note pour le moment.',
         ],
 
         'media_picker' => [

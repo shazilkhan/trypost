@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name 在 TryPost 上提到了你',
         'title' => ':name 提到了你',
-        'intro' => ':name 在一条帖子评论中提到了你。',
-        'button' => '查看评论',
+        'intro' => ':name 在一条帖子备注中提到了你。',
+        'button' => '查看备注',
     ],
 
     'password_reset' => [

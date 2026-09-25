@@ -463,8 +463,8 @@ return [
             'compose' => 'Verfassen',
             'preview' => 'Vorschau',
             'channels' => 'Kanäle',
-            'comments' => 'Kommentare',
-            'comments_empty' => 'Noch keine Kommentare.',
+            'comments' => 'Notizen',
+            'comments_empty' => 'Noch keine Notizen.',
         ],
 
         'media_picker' => [

@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name згадав(ла) вас у TryPost',
         'title' => ':name згадав(ла) вас',
-        'intro' => ':name згадав(ла) вас у коментарі до поста.',
-        'button' => 'Переглянути коментар',
+        'intro' => ':name згадав(ла) вас у нотатці до поста.',
+        'button' => 'Переглянути нотатку',
     ],
 
     'password_reset' => [

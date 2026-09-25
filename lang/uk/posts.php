@@ -461,8 +461,8 @@ return [
             'compose' => 'Написати',
             'preview' => 'Попередній перегляд',
             'channels' => 'Канали',
-            'comments' => 'Коментарі',
-            'comments_empty' => 'Поки що немає коментарів.',
+            'comments' => 'Нотатки',
+            'comments_empty' => 'Поки що немає нотаток.',
         ],
 
         'media_picker' => [

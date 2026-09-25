@@ -27,6 +27,7 @@ import HeaderTitle from '@/components/HeaderTitle.vue';
 import LabelBadge from '@/components/labels/LabelBadge.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostComposerDialog from '@/components/posts/composer/PostComposerDialog.vue';
+import PostNotesPopover from '@/components/posts/PostNotesPopover.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -107,6 +108,7 @@ interface Post {
     published_at: string | null;
     post_platforms: PostPlatform[];
     labels: Label[];
+    notes_count: number;
     media?: MediaItem[];
 }
 
@@ -135,8 +137,8 @@ interface Props {
     openComposer?: boolean;
     openComposerAssistant?: boolean;
     initialComposerDate?: string | null;
-    openComposerComments?: boolean;
-    highlightCommentId?: string | null;
+    openPostNotesId?: string | null;
+    highlightNoteId?: string | null;
     authUserId: string;
     editPost?: Post | null;
     socialAccounts?: ComposerAccount[];
@@ -362,6 +364,13 @@ const refreshPosts = () => router.reload({ only: ['posts'], reset: ['posts'] });
 useWorkspaceEcho(
     ['.post.created', '.post.deleted', '.post.platform.status.updated'],
     refreshPosts,
+);
+
+useWorkspaceEcho<{ post_id: string; change: string }>(
+    '.post.note.changed',
+    ({ change }) => {
+        if (change === 'created' || change === 'deleted') refreshPosts();
+    },
 );
 </script>
 
@@ -629,74 +638,99 @@ useWorkspaceEcho(
                                     }}
                                 </TableCell>
                                 <TableCell class="text-right" @click.stop>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger as-child>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                class="size-8"
-                                                @click.stop
-                                            >
-                                                <IconDots class="size-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                v-if="
-                                                    canCreatePost &&
-                                                    canEdit(post)
-                                                "
-                                                @click="
-                                                    router.visit(
-                                                        editPostRoute.url(
-                                                            post.id,
-                                                        ),
-                                                    )
-                                                "
-                                            >
-                                                <IconPencil class="size-4" />
-                                                {{ $t('posts.edit.title') }}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                v-if="canCreatePost"
-                                                @click="handleDuplicate(post)"
-                                            >
-                                                <IconCopyPlus class="size-4" />
-                                                {{
-                                                    $t(
-                                                        'posts.actions.duplicate',
-                                                    )
-                                                }}
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                @click="handleCopyId(post)"
-                                            >
-                                                <IconCopy class="size-4" />
-                                                {{
-                                                    $t('posts.actions.copy_id')
-                                                }}
-                                            </DropdownMenuItem>
-                                            <template
-                                                v-if="
-                                                    canCreatePost &&
-                                                    canDelete(post)
-                                                "
-                                            >
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    variant="destructive"
-                                                    @click="handleDelete(post)"
+                                    <div
+                                        class="flex items-center justify-end gap-2"
+                                    >
+                                        <PostNotesPopover
+                                            :post-id="post.id"
+                                            :count="post.notes_count"
+                                            :current-user-id="authUserId"
+                                            :initial-open="
+                                                openPostNotesId === post.id
+                                            "
+                                            :highlight-note-id="highlightNoteId"
+                                        />
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger as-child>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    class="size-8"
+                                                    @click.stop
                                                 >
-                                                    <IconTrash class="size-4" />
+                                                    <IconDots class="size-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    v-if="
+                                                        canCreatePost &&
+                                                        canEdit(post)
+                                                    "
+                                                    @click="
+                                                        router.visit(
+                                                            editPostRoute.url(
+                                                                post.id,
+                                                            ),
+                                                        )
+                                                    "
+                                                >
+                                                    <IconPencil
+                                                        class="size-4"
+                                                    />
+                                                    {{ $t('posts.edit.title') }}
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    v-if="canCreatePost"
+                                                    @click="
+                                                        handleDuplicate(post)
+                                                    "
+                                                >
+                                                    <IconCopyPlus
+                                                        class="size-4"
+                                                    />
                                                     {{
                                                         $t(
-                                                            'posts.actions.delete',
+                                                            'posts.actions.duplicate',
                                                         )
                                                     }}
                                                 </DropdownMenuItem>
-                                            </template>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                                <DropdownMenuItem
+                                                    @click="handleCopyId(post)"
+                                                >
+                                                    <IconCopy class="size-4" />
+                                                    {{
+                                                        $t(
+                                                            'posts.actions.copy_id',
+                                                        )
+                                                    }}
+                                                </DropdownMenuItem>
+                                                <template
+                                                    v-if="
+                                                        canCreatePost &&
+                                                        canDelete(post)
+                                                    "
+                                                >
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        variant="destructive"
+                                                        @click="
+                                                            handleDelete(post)
+                                                        "
+                                                    >
+                                                        <IconTrash
+                                                            class="size-4"
+                                                        />
+                                                        {{
+                                                            $t(
+                                                                'posts.actions.delete',
+                                                            )
+                                                        }}
+                                                    </DropdownMenuItem>
+                                                </template>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         </TableBody>
@@ -726,10 +760,7 @@ useWorkspaceEcho(
         :initial-post="initialPost"
         :initial-draft="recoveryDraft"
         :post-id="editPost?.id"
-        :current-user-id="authUserId"
-        :open-comments="openComposerComments"
         :open-assistant="openComposerAssistant"
-        :highlight-comment-id="highlightCommentId"
         :labels="labels"
         :signatures="signatures ?? []"
         :initial-date="initialComposerDate"

@@ -461,8 +461,8 @@ return [
             'compose' => '작성',
             'preview' => '미리보기',
             'channels' => '채널',
-            'comments' => '댓글',
-            'comments_empty' => '아직 댓글이 없습니다.',
+            'comments' => '메모',
+            'comments_empty' => '아직 메모가 없습니다.',
         ],
 
         'media_picker' => [

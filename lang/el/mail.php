@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => 'Ο/Η :name σας ανέφερε στο TryPost',
         'title' => 'Ο/Η :name σας ανέφερε',
-        'intro' => 'Ο/Η :name σας ανέφερε σε σχόλιο μιας δημοσίευσης.',
-        'button' => 'Προβολή σχολίου',
+        'intro' => 'Ο/Η :name σας ανέφερε σε σημείωση μιας δημοσίευσης.',
+        'button' => 'Προβολή σημείωσης',
     ],
 
     'password_reset' => [

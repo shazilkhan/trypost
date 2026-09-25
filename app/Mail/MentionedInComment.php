@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mail;
 
-use App\Models\PostComment;
+use App\Models\PostNote;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,7 +19,7 @@ class MentionedInComment extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public function __construct(
-        public PostComment $comment,
+        public PostNote $comment,
         public User $author,
         public string $excerpt,
     ) {}
@@ -40,10 +40,9 @@ class MentionedInComment extends Mailable implements ShouldQueue
                 'previewText' => Str::limit($this->excerpt, 100),
                 'authorName' => $this->author->name,
                 'excerpt' => $this->excerpt,
-                'url' => route('app.posts.edit', [
-                    'post' => $this->comment->post_id,
-                    'tab' => 'comments',
-                    'comment' => $this->comment->id,
+                'url' => route('app.posts.index', [
+                    'notes' => $this->comment->post_id,
+                    'note' => $this->comment->id,
                 ]),
             ],
         );

@@ -463,8 +463,8 @@ return [
             'compose' => 'Oluştur',
             'preview' => 'Önizleme',
             'channels' => 'Kanallar',
-            'comments' => 'Yorumlar',
-            'comments_empty' => 'Henüz yorum yok.',
+            'comments' => 'Notlar',
+            'comments_empty' => 'Henüz not yok.',
         ],
 
         'media_picker' => [

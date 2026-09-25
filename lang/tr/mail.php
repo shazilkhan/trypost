@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name sizden TryPost\'ta bahsetti',
         'title' => ':name sizden bahsetti',
-        'intro' => ':name bir gönderi yorumunda sizden bahsetti.',
-        'button' => 'Yorumu görüntüle',
+        'intro' => ':name bir gönderi notunda sizden bahsetti.',
+        'button' => 'Notu görüntüle',
     ],
 
     'password_reset' => [

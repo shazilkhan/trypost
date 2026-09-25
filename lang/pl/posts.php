@@ -461,8 +461,8 @@ return [
             'compose' => 'Utwórz',
             'preview' => 'Podgląd',
             'channels' => 'Kanały',
-            'comments' => 'Komentarze',
-            'comments_empty' => 'Brak komentarzy.',
+            'comments' => 'Notatki',
+            'comments_empty' => 'Brak notatek.',
         ],
 
         'media_picker' => [

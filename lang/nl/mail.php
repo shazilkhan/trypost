@@ -37,8 +37,8 @@ return [
     'mentioned_in_comment' => [
         'subject' => ':name heeft je genoemd op TryPost',
         'title' => ':name heeft je genoemd',
-        'intro' => ':name heeft je genoemd in een reactie op een post.',
-        'button' => 'Reactie bekijken',
+        'intro' => ':name heeft je genoemd in een notitie bij een post.',
+        'button' => 'Notitie bekijken',
     ],
 
     'password_reset' => [
