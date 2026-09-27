@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Posts',
+    'list_view' => 'Lijst',
+    'view_switcher' => 'Planningweergave',
     'search' => 'Posts zoeken...',
     'all_posts' => 'Alle posts',
     'new_post' => 'Nieuwe post',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Probeer een ander zoekwoord of wis de zoekopdracht.',
     'start_creating' => 'Begin met het aanmaken van je eerste post.',
     'filter_by_label' => 'Filteren op label',
+    'filter_by_channel' => 'Kanalen',
+    'channel_search_placeholder' => 'Zoek kanalen...',
+    'no_channels' => 'Geen kanalen gevonden.',
     'label_search_placeholder' => 'Labels zoeken...',
     'no_labels' => 'Geen labels gevonden.',
     'clear_label_filter' => 'Labelfilter wissen',

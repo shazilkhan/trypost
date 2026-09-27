@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Posts',
+    'list_view' => 'List',
+    'view_switcher' => 'Schedule view',
     'search' => 'Search posts...',
     'all_posts' => 'All Posts',
     'new_post' => 'New Post',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Try a different keyword or clear the search.',
     'start_creating' => 'Start by creating your first post.',
     'filter_by_label' => 'Filter by label',
+    'filter_by_channel' => 'Channels',
+    'channel_search_placeholder' => 'Search channels...',
+    'no_channels' => 'No channels found.',
     'label_search_placeholder' => 'Search labels...',
     'no_labels' => 'No labels found.',
     'clear_label_filter' => 'Clear label filter',

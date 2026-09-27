@@ -52,6 +52,7 @@ class PostController extends Controller
                 'tab' => $status ?? $request->query('tab'),
                 'search' => $request->query('search'),
                 'labels' => $request->query('labels'),
+                'channels' => $request->query('channels'),
             ]);
         }
 
@@ -60,8 +61,25 @@ class PostController extends Controller
             $status = null;
         }
 
-        $query = $workspace->posts()
-            ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount'), 'user', 'labels'])
+        $channelIds = $request->collect('channels')
+            ->filter(fn ($id) => is_string($id) && $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $channelPosts = $workspace->posts()->when($channelIds, fn ($query) => $query->whereHas(
+            'postPlatforms',
+            fn ($platforms) => $platforms->enabled()->whereIn('social_account_id', $channelIds),
+        ));
+
+        $query = (clone $channelPosts)
+            ->with([
+                'postPlatforms' => fn ($platforms) => $platforms->enabled()
+                    ->when($channelIds, fn ($platforms) => $platforms->whereIn('social_account_id', $channelIds))
+                    ->with('socialAccount'),
+                'user',
+                'labels',
+            ])
             ->withCount('notes');
 
         $openPostNotesId = $request->query('notes');
@@ -112,15 +130,17 @@ class PostController extends Controller
             'posts' => Inertia::scroll(fn () => $query->latest('scheduled_at')->paginate(config('app.pagination.default'))),
             'currentStatus' => $status,
             'tabCounts' => [
-                'all' => $workspace->posts()->count(),
-                'scheduled' => $workspace->posts()->scheduled()->count(),
-                'published' => $workspace->posts()->published()->count(),
-                'draft' => $workspace->posts()->draft()->count(),
+                'all' => (clone $channelPosts)->count(),
+                'scheduled' => (clone $channelPosts)->scheduled()->count(),
+                'published' => (clone $channelPosts)->published()->count(),
+                'draft' => (clone $channelPosts)->draft()->count(),
             ],
             'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
+            'filterAccounts' => SocialAccountResource::collection($workspace->socialAccounts()->orderBy('platform')->orderBy('username')->get()),
             'filters' => [
                 'search' => $request->input('search', ''),
                 'labels' => $labelIds,
+                'channels' => $channelIds,
             ],
             'openComposer' => $composerRequested,
             'openComposerAssistant' => $request->boolean('assistant'),
@@ -133,7 +153,7 @@ class PostController extends Controller
         ]);
     }
 
-    public function calendar(Request $request): Response|RedirectResponse
+    public function calendar(Request $request, ?string $view = null): Response|RedirectResponse
     {
         $workspace = $request->user()->currentWorkspace;
 
@@ -147,7 +167,7 @@ class PostController extends Controller
             $this->authorize('createPost', $workspace);
 
             return $this->redirectToComposer($request, 'app.calendar', [
-                'view' => $request->query('view'),
+                'view' => $view ?? $request->query('view'),
                 'day' => $request->query('day'),
                 'week' => $request->query('week'),
                 'month' => $request->query('month'),
@@ -155,7 +175,7 @@ class PostController extends Controller
         }
 
         $tz = 'UTC';
-        $view = $request->input('view', 'week');
+        $view ??= $request->input('view', 'week');
 
         $currentDay = $request->input('day')
             ? Carbon::parse($request->input('day'), $tz)->startOfDay()

@@ -2,6 +2,8 @@
 
 return [
     'title' => 'المنشورات',
+    'list_view' => 'قائمة',
+    'view_switcher' => 'عرض الجدول',
     'search' => 'البحث في المنشورات...',
     'all_posts' => 'جميع المنشورات',
     'new_post' => 'منشور جديد',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'جرّب كلمة مختلفة أو امسح البحث.',
     'start_creating' => 'ابدأ بإنشاء أول منشور لك.',
     'filter_by_label' => 'التصفية حسب التسمية',
+    'filter_by_channel' => 'القنوات',
+    'channel_search_placeholder' => 'ابحث عن القنوات...',
+    'no_channels' => 'لم يتم العثور على قنوات.',
     'label_search_placeholder' => 'البحث في التسميات...',
     'no_labels' => 'لم يتم العثور على تسميات.',
     'clear_label_filter' => 'مسح تصفية التسميات',

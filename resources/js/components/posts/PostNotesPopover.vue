@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { IconMessageCircle, IconX } from '@tabler/icons-vue';
+import {
+    IconMessageCircle,
+    IconMessageCircleFilled,
+    IconX,
+} from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
 
 import PostNotesPanel from '@/components/posts/editor/PostNotesPanel.vue';
@@ -40,17 +44,22 @@ watch(
             <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                class="gap-1.5"
+                size="icon"
+                class="size-10 rounded-xl"
                 :aria-label="$t('notes.title')"
                 :aria-expanded="open"
                 :data-testid="`post-notes-trigger-${postId}`"
             >
-                <IconMessageCircle
-                    class="size-4"
-                    :class="count ? 'fill-current' : ''"
+                <IconMessageCircleFilled
+                    v-if="count > 0"
+                    class="size-5 text-foreground"
+                    :data-testid="`post-notes-filled-icon-${postId}`"
                 />
-                <span v-if="count">{{ count }}</span>
+                <IconMessageCircle
+                    v-else
+                    class="size-5 text-muted-foreground"
+                    :data-testid="`post-notes-outline-icon-${postId}`"
+                />
             </Button>
         </PopoverTrigger>
         <PopoverContent align="end" class="w-[min(25rem,calc(100vw-2rem))] p-0">

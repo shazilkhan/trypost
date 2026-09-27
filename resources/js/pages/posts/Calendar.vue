@@ -4,6 +4,8 @@ import { IconChevronLeft, IconChevronRight, IconPlus } from '@tabler/icons-vue';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 import DatePicker from '@/components/DatePicker.vue';
+import HeaderTitle from '@/components/HeaderTitle.vue';
+import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -187,9 +189,10 @@ const getPostsForDay = (day: dayjs.Dayjs): Post[] => {
 const navigateDay = (direction: number) => {
     const newDay = currentDay.value.add(direction, 'day');
     router.get(
-        calendar.url({
-            query: { view: 'day', day: newDay.format('YYYY-MM-DD') },
-        }),
+        calendar.url(
+            { view: 'day' },
+            { query: { day: newDay.format('YYYY-MM-DD') } },
+        ),
         {},
         {
             preserveState: true,
@@ -200,9 +203,10 @@ const navigateDay = (direction: number) => {
 const navigateWeek = (direction: number) => {
     const newStart = weekStart.value.add(direction * 7, 'day');
     router.get(
-        calendar.url({
-            query: { view: 'week', week: newStart.format('YYYY-MM-DD') },
-        }),
+        calendar.url(
+            { view: 'week' },
+            { query: { week: newStart.format('YYYY-MM-DD') } },
+        ),
         {},
         {
             preserveState: true,
@@ -213,9 +217,10 @@ const navigateWeek = (direction: number) => {
 const navigateMonth = (direction: number) => {
     const newMonth = monthDate.value.add(direction, 'month');
     router.get(
-        calendar.url({
-            query: { view: 'month', month: newMonth.format('YYYY-MM-DD') },
-        }),
+        calendar.url(
+            { view: 'month' },
+            { query: { month: newMonth.format('YYYY-MM-DD') } },
+        ),
         {},
         {
             preserveState: true,
@@ -235,7 +240,7 @@ const navigate = (direction: number) => {
 
 const goToToday = () => {
     router.get(
-        calendar.url({ query: { view: effectiveView.value } }),
+        calendar.url({ view: effectiveView.value }),
         {},
         {
             preserveState: true,
@@ -246,7 +251,7 @@ const goToToday = () => {
 const goToDate = (dateStr: string) => {
     if (!dateStr) return;
     router.get(
-        calendar.url({ query: { view: 'day', day: dateStr } }),
+        calendar.url({ view: 'day' }, { query: { day: dateStr } }),
         {},
         {
             preserveState: true,
@@ -256,7 +261,7 @@ const goToDate = (dateStr: string) => {
 
 const switchView = (view: string | number) => {
     router.get(
-        calendar.url({ query: { view } }),
+        calendar.url({ view }),
         {},
         {
             preserveState: true,
@@ -301,9 +306,17 @@ const formatTime = (scheduledAt: string): string => {
 </script>
 
 <template>
-    <Head :title="$t('calendar.title')" />
+    <Head :title="$t('posts.title')" />
 
     <AppLayout :fullWidth="true">
+        <template #header>
+            <HeaderTitle :title="$t('posts.title')" />
+        </template>
+
+        <template #header-actions>
+            <ScheduleViewSwitch active-view="calendar" />
+        </template>
+
         <div class="flex h-full flex-col">
             <!-- Mobile header: nav + date jump on top, full-width New post below -->
             <header

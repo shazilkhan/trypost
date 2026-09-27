@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Пости',
+    'list_view' => 'Список',
+    'view_switcher' => 'Перегляд розкладу',
     'search' => 'Пошук постів...',
     'all_posts' => 'Усі пости',
     'new_post' => 'Новий пост',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Спробуйте інше ключове слово або очистіть пошук.',
     'start_creating' => 'Почніть із створення свого першого поста.',
     'filter_by_label' => 'Фільтр за міткою',
+    'filter_by_channel' => 'Канали',
+    'channel_search_placeholder' => 'Пошук каналів...',
+    'no_channels' => 'Каналів не знайдено.',
     'label_search_placeholder' => 'Пошук міток...',
     'no_labels' => 'Міток не знайдено.',
     'clear_label_filter' => 'Очистити фільтр міток',

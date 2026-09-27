@@ -2,6 +2,8 @@
 
 return [
     'title' => '投稿',
+    'list_view' => 'リスト',
+    'view_switcher' => 'スケジュール表示',
     'search' => '投稿を検索...',
     'all_posts' => 'すべての投稿',
     'new_post' => '新規投稿',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => '別のキーワードを試すか、検索をクリアしてください。',
     'start_creating' => 'まずは最初の投稿を作成しましょう。',
     'filter_by_label' => 'ラベルで絞り込む',
+    'filter_by_channel' => 'チャネル',
+    'channel_search_placeholder' => 'チャネルを検索...',
+    'no_channels' => 'チャネルが見つかりません。',
     'label_search_placeholder' => 'ラベルを検索...',
     'no_labels' => 'ラベルが見つかりません。',
     'clear_label_filter' => 'ラベルの絞り込みをクリア',

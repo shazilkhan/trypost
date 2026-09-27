@@ -35,6 +35,34 @@ beforeEach(function () {
 });
 
 // Index tests
+test('schedule routes keep list and calendar as separate pages', function () {
+    expect(route('app.posts.index', absolute: false))->toBe('/schedule')
+        ->and(route('app.calendar', ['view' => 'month'], absolute: false))->toBe('/schedule/calendar/month');
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('posts/Index'));
+
+    $this->get(route('app.calendar', ['view' => 'month']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('posts/Calendar')
+            ->where('view', 'month'));
+});
+
+test('old post and calendar URLs redirect to schedule without losing filters', function () {
+    $this->actingAs($this->user)
+        ->get('/posts?search=launch')
+        ->assertRedirect(route('app.posts.index', ['search' => 'launch']));
+
+    $this->get('/posts/draft?search=launch')
+        ->assertRedirect(route('app.posts.index', ['search' => 'launch', 'tab' => 'draft']));
+
+    $this->get('/calendar?view=month&month=2026-09-01')
+        ->assertRedirect(route('app.calendar', ['view' => 'month', 'month' => '2026-09-01']));
+});
+
 test('posts index requires authentication', function () {
     $response = $this->get(route('app.posts.index'));
 
@@ -163,6 +191,91 @@ test('posts index ignores blank label query params', function () {
         ->has('posts.data', 2)
         ->where('filters.labels', [])
     );
+});
+
+test('posts index exposes each workspace channel separately for filtering', function () {
+    $firstInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    $secondInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    SocialAccount::factory()->instagram()->create();
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('filterAccounts', 3)
+            ->where('filterAccounts', fn ($accounts) => collect($accounts)->pluck('id')->contains($firstInstagram->id)
+                && collect($accounts)->pluck('id')->contains($secondInstagram->id))
+            ->where('filters.channels', []));
+});
+
+test('posts index filters individual accounts and only displays selected targets', function () {
+    $firstInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    $secondInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    $sharedPost = Post::factory()->published()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    PostPlatform::factory()->instagram()->published()->create([
+        'post_id' => $sharedPost->id,
+        'social_account_id' => $firstInstagram->id,
+    ]);
+    PostPlatform::factory()->instagram()->published()->create([
+        'post_id' => $sharedPost->id,
+        'social_account_id' => $secondInstagram->id,
+    ]);
+    $otherPost = Post::factory()->draft()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    PostPlatform::factory()->instagram()->create([
+        'post_id' => $otherPost->id,
+        'social_account_id' => $secondInstagram->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['channels' => [$firstInstagram->id]]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $sharedPost->id)
+            ->has('posts.data.0.post_platforms', 1)
+            ->where('posts.data.0.post_platforms.0.social_account_id', $firstInstagram->id)
+            ->where('tabCounts.all', 1)
+            ->where('tabCounts.published', 1)
+            ->where('tabCounts.draft', 0)
+            ->where('filters.channels', [$firstInstagram->id]));
+});
+
+test('posts index combines selected channels with OR semantics and ignores disabled targets', function () {
+    $firstInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    $secondInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    $firstPost = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+    $secondPost = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+    $disabledPost = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+    PostPlatform::factory()->instagram()->create(['post_id' => $firstPost->id, 'social_account_id' => $firstInstagram->id]);
+    PostPlatform::factory()->instagram()->create(['post_id' => $secondPost->id, 'social_account_id' => $secondInstagram->id]);
+    PostPlatform::factory()->instagram()->disabled()->create(['post_id' => $disabledPost->id, 'social_account_id' => $firstInstagram->id]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['channels' => [$firstInstagram->id, $secondInstagram->id], 'tab' => 'draft']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('posts.data', 2)
+            ->where('tabCounts.all', 2)
+            ->where('filters.channels', [$firstInstagram->id, $secondInstagram->id]));
+});
+
+test('posts index does not accept a channel from another workspace', function () {
+    $otherAccount = SocialAccount::factory()->instagram()->create();
+    $post = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+    PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $this->socialAccount->id]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['channels' => [$otherAccount->id]]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('posts.data', 0)
+            ->where('tabCounts.all', 0));
 });
 
 test('posts index redirects to create workspace if no workspace', function () {

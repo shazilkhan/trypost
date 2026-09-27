@@ -48,6 +48,7 @@ use App\Http\Controllers\Auth\XController;
 use App\Http\Controllers\Auth\YouTubeController;
 use App\Http\Middleware\App\EnsureAccountReady;
 use App\Http\Middleware\App\EnsureHasWorkspace;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 // Subscription selection (requires auth but not subscription)
@@ -191,12 +192,24 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('app.analytics');
     Route::get('analytics/{account}', [AnalyticsController::class, 'show'])->name('app.analytics.show');
 
-    // Calendar
-    Route::get('calendar', [PostController::class, 'calendar'])->name('app.calendar');
+    // Schedule
+    Route::get('schedule', [PostController::class, 'index'])->name('app.posts.index');
+    Route::get('schedule/calendar/{view?}', [PostController::class, 'calendar'])
+        ->where('view', 'day|week|month')
+        ->name('app.calendar');
+
+    Route::get('calendar', fn (Request $request) => redirect()->route('app.calendar', [
+        ...$request->query(),
+        'view' => $request->query('view', 'week'),
+    ]));
+    Route::get('posts', fn (Request $request) => redirect()->route('app.posts.index', $request->query()));
+    Route::get('posts/{status}', fn (Request $request, string $status) => redirect()->route('app.posts.index', [
+        ...$request->query(),
+        'tab' => $status,
+    ]))->where('status', 'draft|scheduled|published');
 
     // Posts
     Route::get('posts/composer-data', [PostController::class, 'composerData'])->name('app.posts.composer-data');
-    Route::get('posts/{status?}', [PostController::class, 'index'])->name('app.posts.index')->where('status', 'draft|scheduled|published');
     Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');

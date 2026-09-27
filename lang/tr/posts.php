@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
     'title' => 'Gönderiler',
+    'list_view' => 'Liste',
+    'view_switcher' => 'Takvim görünümü',
     'search' => 'Gönderi ara...',
     'all_posts' => 'Tüm Gönderiler',
     'new_post' => 'Yeni Gönderi',
@@ -49,6 +51,9 @@ return [
     'try_different_search' => 'Farklı bir anahtar kelime deneyin veya aramayı temizleyin.',
     'start_creating' => 'İlk gönderinizi oluşturarak başlayın.',
     'filter_by_label' => 'Etikete göre filtrele',
+    'filter_by_channel' => 'Kanallar',
+    'channel_search_placeholder' => 'Kanal ara...',
+    'no_channels' => 'Kanal bulunamadı.',
     'label_search_placeholder' => 'Etiket ara...',
     'no_labels' => 'Etiket bulunamadı.',
     'clear_label_filter' => 'Etiket filtresini temizle',

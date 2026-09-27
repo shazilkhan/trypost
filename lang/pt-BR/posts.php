@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Posts',
+    'list_view' => 'Lista',
+    'view_switcher' => 'Visualização do agendamento',
     'search' => 'Buscar posts...',
     'all_posts' => 'Todos os Posts',
     'new_post' => 'Novo Post',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Tente outra palavra-chave ou limpe a busca.',
     'start_creating' => 'Comece criando seu primeiro post.',
     'filter_by_label' => 'Filtrar por label',
+    'filter_by_channel' => 'Canais',
+    'channel_search_placeholder' => 'Buscar canais...',
+    'no_channels' => 'Nenhum canal encontrado.',
     'label_search_placeholder' => 'Buscar labels...',
     'no_labels' => 'Nenhuma label encontrada.',
     'clear_label_filter' => 'Limpar filtro de labels',

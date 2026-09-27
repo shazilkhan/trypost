@@ -17,6 +17,112 @@ use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
 use App\Models\WorkspaceSignature;
 
+test('schedule view switch navigates between the list and month calendar', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    visit(route('app.posts.index'))
+        ->assertVisible('@schedule-view-list')
+        ->assertAttribute('@schedule-view-list', 'aria-current', 'page')
+        ->click('@schedule-view-calendar')
+        ->assertScript('location.pathname', '/schedule/calendar/month')
+        ->assertAttribute('@schedule-view-calendar', 'aria-current', 'page')
+        ->click('@schedule-view-list')
+        ->assertScript('location.pathname', '/schedule')
+        ->assertAttribute('@schedule-view-list', 'aria-current', 'page')
+        ->assertNoJavaScriptErrors();
+});
+
+test('posts label filter searches and selects multiple labels with checkboxes', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+
+    $marketing = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id, 'name' => 'Marketing']);
+    $sales = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id, 'name' => 'Sales']);
+    $marketingPost = Post::factory()->draft()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
+    $salesPost = Post::factory()->draft()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
+    $marketingPost->labels()->attach($marketing);
+    $salesPost->labels()->attach($sales);
+    $this->actingAs($user);
+
+    visit(route('app.posts.index'))
+        ->click('@posts-label-filter')
+        ->fill('@posts-label-search', 'Market')
+        ->assertVisible("@posts-label-option-{$marketing->id}")
+        ->assertMissing("@posts-label-option-{$sales->id}")
+        ->click("@posts-label-checkbox-{$marketing->id}")
+        ->assertVisible('@posts-label-search')
+        ->assertVisible("@post-card-{$marketingPost->id}")
+        ->assertMissing("@post-card-{$salesPost->id}")
+        ->fill('@posts-label-search', '')
+        ->click("@posts-label-option-{$sales->id}")
+        ->assertVisible("@post-card-{$marketingPost->id}")
+        ->assertVisible("@post-card-{$salesPost->id}")
+        ->click('@posts-label-toggle-all')
+        ->assertVisible("@post-card-{$marketingPost->id}")
+        ->assertVisible("@post-card-{$salesPost->id}")
+        ->assertScript('Array.from(new URLSearchParams(location.search).keys()).some((key) => key.startsWith("labels["))', false)
+        ->click('@posts-label-toggle-all')
+        ->assertScript('Array.from(new URLSearchParams(location.search).keys()).filter((key) => key.startsWith("labels[")).length', 2)
+        ->click('@posts-label-toggle-all')
+        ->assertScript('Array.from(new URLSearchParams(location.search).keys()).some((key) => key.startsWith("labels["))', false)
+        ->assertNoJavaScriptErrors();
+});
+
+test('posts channel filter keeps accounts distinct and persists across tabs', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $firstInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'username' => 'first_channel']);
+    $secondInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'username' => 'second_channel']);
+    $firstPost = Post::factory()->draft()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
+    $secondPost = Post::factory()->draft()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
+    PostPlatform::factory()->instagram()->create(['post_id' => $firstPost->id, 'social_account_id' => $firstInstagram->id]);
+    PostPlatform::factory()->instagram()->create(['post_id' => $secondPost->id, 'social_account_id' => $secondInstagram->id]);
+    $this->actingAs($user);
+
+    visit(route('app.posts.index'))
+        ->click('@posts-channel-filter')
+        ->fill('@posts-channel-search', 'first_channel')
+        ->assertVisible("@posts-channel-option-{$firstInstagram->id}")
+        ->assertMissing("@posts-channel-option-{$secondInstagram->id}")
+        ->click("@posts-channel-checkbox-{$firstInstagram->id}")
+        ->assertVisible("@post-card-{$firstPost->id}")
+        ->assertMissing("@post-card-{$secondPost->id}")
+        ->assertScript('history.state.page.props.tabCounts.all', 1)
+        ->assertSeeIn('@posts-tab-all', 'All 1')
+        ->click('@posts-channel-filter')
+        ->click('@posts-channel-filter')
+        ->assertVisible("@posts-channel-option-{$secondInstagram->id}")
+        ->click("@posts-channel-option-{$secondInstagram->id}")
+        ->assertVisible("@post-card-{$firstPost->id}")
+        ->assertVisible("@post-card-{$secondPost->id}")
+        ->click("@posts-channel-option-{$secondInstagram->id}")
+        ->assertMissing("@post-card-{$secondPost->id}")
+        ->assertScript('Array.from(new URLSearchParams(location.search).keys()).some((key) => key.startsWith("channels["))', true)
+        ->click('@posts-tab-draft')
+        ->assertVisible("@post-card-{$firstPost->id}")
+        ->assertMissing("@post-card-{$secondPost->id}");
+});
+
 test('new post buttons open the global dialog without changing the page URL', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create([
@@ -586,6 +692,12 @@ test('post notes open after creation while the edit dialog still has its AI assi
         'content' => 'A draft to discuss',
     ]);
     PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $account->id]);
+    $postWithoutNotes = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'status' => PostStatus::Draft,
+    ]);
+    PostPlatform::factory()->create(['post_id' => $postWithoutNotes->id, 'social_account_id' => $account->id]);
     $note = PostNote::factory()->create([
         'post_id' => $post->id,
         'user_id' => $user->id,
@@ -593,10 +705,35 @@ test('post notes open after creation while the edit dialog still has its AI assi
     ]);
     $this->actingAs($user);
 
+    visit(route('app.posts.index'))
+        ->assertVisible("@post-notes-filled-icon-{$post->id}")
+        ->assertVisible("@post-notes-outline-icon-{$postWithoutNotes->id}");
+
     $page = visit(route('app.posts.index', ['notes' => $post->id, 'note' => $note->id]));
     $page->assertVisible("@post-notes-trigger-{$post->id}")
-        ->assertSee('Please review the opening line')
-        ->click("@post-notes-trigger-{$post->id}");
+        ->assertSee('Please review the opening line');
+    expect($page->script("document.querySelector('[data-testid=\"post-notes-trigger-{$post->id}\"]').textContent.trim()"))->toBe('');
+
+    $layout = $page->script(<<<'JS'
+        (() => {
+            const row = document.querySelector('[data-testid^="post-card-"]');
+            const card = row.querySelector('article').getBoundingClientRect();
+            const notes = row.querySelector('[data-testid^="post-notes-trigger-"]').getBoundingClientRect();
+
+            return {
+                grid: getComputedStyle(row).display,
+                notesBesideCard: notes.left >= card.right,
+                hasTable: Boolean(document.querySelector('#posts-body table')),
+            };
+        })()
+    JS);
+    expect($layout)->toEqual([
+        'grid' => 'grid',
+        'notesBesideCard' => true,
+        'hasTable' => false,
+    ]);
+
+    $page->click("@post-notes-trigger-{$post->id}");
 
     $page = visit(route('app.posts.edit', $post));
     $page->assertVisible('@post-composer-dialog')

@@ -2,6 +2,8 @@
 
 return [
     'title' => '게시물',
+    'list_view' => '목록',
+    'view_switcher' => '일정 보기',
     'search' => '게시물 검색...',
     'all_posts' => '모든 게시물',
     'new_post' => '새 게시물',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => '다른 키워드로 시도하거나 검색을 지우세요.',
     'start_creating' => '첫 게시물을 만들어 시작하세요.',
     'filter_by_label' => '라벨로 필터',
+    'filter_by_channel' => '채널',
+    'channel_search_placeholder' => '채널 검색...',
+    'no_channels' => '채널을 찾을 수 없습니다.',
     'label_search_placeholder' => '라벨 검색...',
     'no_labels' => '라벨을 찾을 수 없습니다.',
     'clear_label_filter' => '라벨 필터 지우기',

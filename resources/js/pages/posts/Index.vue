@@ -27,7 +27,9 @@ import HeaderTitle from '@/components/HeaderTitle.vue';
 import LabelBadge from '@/components/labels/LabelBadge.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostComposerDialog from '@/components/posts/composer/PostComposerDialog.vue';
+import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import PostNotesPopover from '@/components/posts/PostNotesPopover.vue';
+import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,15 +40,6 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableLoadMore,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Tooltip,
     TooltipContent,
@@ -70,6 +63,7 @@ import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import date from '@/date';
 import debounce from '@/debounce';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { isImage } from '@/lib/mediaType';
 import { copyToClipboard } from '@/lib/utils';
 import type { MediaItem } from '@/types/media';
 import { PostStatus } from '@/types/post';
@@ -104,8 +98,10 @@ interface Post {
     card_key?: string;
     content: string | null;
     status: string;
+    created_at: string;
     scheduled_at: string | null;
     published_at: string | null;
+    user: { name: string } | null;
     post_platforms: PostPlatform[];
     labels: Label[];
     notes_count: number;
@@ -130,9 +126,11 @@ interface Props {
     currentStatus: string | null;
     tabCounts: Record<'all' | 'scheduled' | 'published' | 'draft', number>;
     labels: Label[];
+    filterAccounts: SocialAccount[];
     filters: {
         search: string;
         labels: string[];
+        channels: string[];
     };
     openComposer?: boolean;
     openComposerAssistant?: boolean;
@@ -243,6 +241,7 @@ const submitComposition = (
 
 const searchQuery = ref(props.filters.search);
 const selectedLabelIds = ref<string[]>(props.filters.labels ?? []);
+const selectedChannelIds = ref<string[]>(props.filters.channels ?? []);
 
 const buildFilterUrl = () => {
     router.get(
@@ -253,11 +252,16 @@ const buildFilterUrl = () => {
             labels: selectedLabelIds.value.length
                 ? selectedLabelIds.value
                 : undefined,
+            channels: selectedChannelIds.value.length
+                ? selectedChannelIds.value
+                : undefined,
         },
         {
             preserveState: true,
             preserveScroll: true,
             replace: true,
+            only: ['posts', 'tabCounts', 'filters'],
+            reset: ['posts'],
         },
     );
 };
@@ -266,6 +270,7 @@ const search = debounce(buildFilterUrl, 300);
 
 watch(searchQuery, () => search());
 watch(selectedLabelIds, () => buildFilterUrl(), { deep: true });
+watch(selectedChannelIds, () => buildFilterUrl(), { deep: true });
 
 const pageTitle = computed(() => trans('posts.title'));
 const statusTabs = [
@@ -275,12 +280,15 @@ const statusTabs = [
     { key: 'draft', status: 'draft', label: 'sidebar.posts.drafts' },
 ] as const;
 const tabUrl = (status: string | null): string =>
-    postsIndex.url(undefined, {
+    postsIndex.url({
         query: {
             tab: status ?? undefined,
             search: searchQuery.value || undefined,
             labels: selectedLabelIds.value.length
                 ? selectedLabelIds.value
+                : undefined,
+            channels: selectedChannelIds.value.length
+                ? selectedChannelIds.value
                 : undefined,
         },
     });
@@ -315,6 +323,9 @@ const displayPosts = computed<Post[]>(() =>
 
 const getPostPreview = (post: Post): string =>
     post.content?.trim() || trans('calendar.no_content');
+
+const getPostImage = (post: Post): MediaItem | undefined =>
+    post.media?.find(isImage);
 
 const EDITABLE_STATUSES: readonly string[] = [
     PostStatus.Draft,
@@ -356,7 +367,10 @@ const handleCopyId = (post: Post) =>
 const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 
 const hasActiveFilters = computed(
-    () => hasActiveSearch.value || selectedLabelIds.value.length > 0,
+    () =>
+        hasActiveSearch.value ||
+        selectedLabelIds.value.length > 0 ||
+        selectedChannelIds.value.length > 0,
 );
 
 const refreshPosts = () => router.reload({ only: ['posts'], reset: ['posts'] });
@@ -380,6 +394,10 @@ useWorkspaceEcho<{ post_id: string; change: string }>(
     <AppLayout full-width>
         <template #header>
             <HeaderTitle :title="pageTitle" />
+        </template>
+
+        <template #header-actions>
+            <ScheduleViewSwitch active-view="list" />
         </template>
 
         <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -426,6 +444,12 @@ useWorkspaceEcho<{ post_id: string; change: string }>(
                         />
                     </div>
 
+                    <PostChannelFilter
+                        v-if="filterAccounts.length"
+                        v-model="selectedChannelIds"
+                        :channels="filterAccounts"
+                    />
+
                     <LabelFilter
                         v-if="labels.length"
                         v-model="selectedLabelIds"
@@ -467,219 +491,265 @@ useWorkspaceEcho<{ post_id: string; change: string }>(
                     items-element="#posts-body"
                     preserve-url
                 >
-                    <Table>
-                        <TableHeader sticky>
-                            <TableRow>
-                                <TableHead>{{
-                                    $t('posts.table.post')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('posts.table.status')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('posts.table.scheduled_at')
-                                }}</TableHead>
-                                <TableHead class="text-right">{{
-                                    $t('posts.table.actions')
-                                }}</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody id="posts-body">
-                            <TableRow
-                                v-for="post in displayPosts"
-                                :key="post.card_key ?? post.id"
-                                :data-testid="`post-card-${post.card_key ?? post.id}`"
-                                class="cursor-pointer"
-                                @click="router.visit(postUrl(post))"
+                    <div
+                        id="posts-body"
+                        class="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 pt-3 pb-12 sm:px-6"
+                    >
+                        <div
+                            v-for="post in displayPosts"
+                            :key="post.card_key ?? post.id"
+                            :data-testid="`post-card-${post.card_key ?? post.id}`"
+                            class="grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-3 gap-y-2 md:grid-cols-[8rem_minmax(0,1fr)_2.5rem]"
+                        >
+                            <div
+                                class="col-span-2 flex items-center gap-2 pl-1 md:col-span-1 md:flex-col md:items-start md:gap-1 md:pt-4 md:pl-0"
                             >
-                                <TableCell class="max-w-md py-3">
-                                    <div class="space-y-1.5">
-                                        <div class="flex items-center gap-2">
-                                            <div
-                                                v-if="
-                                                    getEnabledPlatforms(post)
-                                                        .length
-                                                "
-                                                class="flex -space-x-1.5"
-                                            >
-                                                <TooltipProvider
-                                                    v-for="pp in getEnabledPlatforms(
-                                                        post,
-                                                    ).slice(0, 4)"
-                                                    :key="pp.id"
-                                                    :delay-duration="200"
-                                                >
-                                                    <Tooltip>
-                                                        <TooltipTrigger
-                                                            as-child
-                                                        >
-                                                            <span
-                                                                class="inline-flex size-6 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
-                                                            >
-                                                                <img
-                                                                    :src="
-                                                                        getPlatformLogo(
-                                                                            pp.platform,
-                                                                        )
-                                                                    "
-                                                                    :alt="
-                                                                        pp.platform
-                                                                    "
-                                                                    class="size-full object-cover"
-                                                                />
-                                                            </span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <div
-                                                                class="space-y-0.5 text-xs"
-                                                            >
-                                                                <p
-                                                                    class="font-semibold"
-                                                                >
-                                                                    {{
-                                                                        pp
-                                                                            .social_account
-                                                                            ?.display_label ??
-                                                                        pp.platform
-                                                                    }}<span
-                                                                        v-if="
-                                                                            pp
-                                                                                .social_account
-                                                                                ?.username
-                                                                        "
-                                                                        class="font-normal opacity-80"
-                                                                        >&nbsp;·&nbsp;@{{
-                                                                            pp
-                                                                                .social_account
-                                                                                .username
-                                                                        }}</span
-                                                                    >
-                                                                </p>
-                                                                <p
-                                                                    class="opacity-70"
-                                                                >
-                                                                    {{
-                                                                        getPlatformLabel(
-                                                                            pp.platform,
-                                                                        )
-                                                                    }}
-                                                                </p>
-                                                            </div>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <span
-                                                v-if="
-                                                    getEnabledPlatforms(post)
-                                                        .length > 4
-                                                "
-                                                class="text-xs font-bold text-foreground/60"
-                                                >+{{
-                                                    getEnabledPlatforms(post)
-                                                        .length - 4
-                                                }}</span
-                                            >
-                                            <div
-                                                v-if="post.labels?.length"
-                                                class="ml-1 flex flex-wrap items-center gap-1"
-                                            >
-                                                <LabelBadge
-                                                    v-for="label in post.labels.slice(
-                                                        0,
-                                                        3,
-                                                    )"
-                                                    :key="label.id"
-                                                    :label="label"
-                                                />
-                                                <span
-                                                    v-if="
-                                                        post.labels.length > 3
-                                                    "
-                                                    class="text-xs font-bold text-foreground/60"
-                                                >
-                                                    +{{
-                                                        post.labels.length - 3
-                                                    }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <p class="truncate text-foreground/80">
-                                            {{ getPostPreview(post) }}
-                                        </p>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        :variant="
-                                            getPostStatusConfig(post.status)
-                                                .variant
-                                        "
-                                    >
-                                        <component
-                                            :is="
-                                                getPostStatusConfig(post.status)
-                                                    .icon
-                                            "
-                                            class="size-3"
-                                        />
-                                        {{
-                                            getPostStatusConfig(post.status)
-                                                .label
-                                        }}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
+                                <time
+                                    v-if="
+                                        post.scheduled_at ?? post.published_at
+                                    "
+                                    class="text-xs font-medium text-foreground"
+                                    :datetime="
+                                        post.scheduled_at ??
+                                        post.published_at ??
+                                        undefined
+                                    "
+                                >
                                     {{
                                         formatDateTime(
                                             post.scheduled_at ??
                                                 post.published_at,
                                         )
                                     }}
-                                </TableCell>
-                                <TableCell class="text-right" @click.stop>
-                                    <div
-                                        class="flex items-center justify-end gap-2"
-                                    >
-                                        <PostNotesPopover
-                                            :post-id="post.id"
-                                            :count="post.notes_count"
-                                            :current-user-id="authUserId"
-                                            :initial-open="
-                                                openPostNotesId === post.id
+                                </time>
+                                <Badge
+                                    :variant="
+                                        getPostStatusConfig(post.status).variant
+                                    "
+                                    class="gap-1"
+                                >
+                                    <component
+                                        :is="
+                                            getPostStatusConfig(post.status)
+                                                .icon
+                                        "
+                                        class="size-3"
+                                    />
+                                    {{ getPostStatusConfig(post.status).label }}
+                                </Badge>
+                            </div>
+
+                            <article
+                                class="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs transition-colors hover:border-primary/40"
+                            >
+                                <Link
+                                    :href="postUrl(post)"
+                                    class="block px-4 pt-4 pb-5 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring sm:px-5"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            v-if="
+                                                getEnabledPlatforms(post).length
                                             "
-                                            :highlight-note-id="highlightNoteId"
+                                            class="flex shrink-0 -space-x-2"
+                                        >
+                                            <TooltipProvider
+                                                v-for="pp in getEnabledPlatforms(
+                                                    post,
+                                                ).slice(0, 3)"
+                                                :key="pp.id"
+                                                :delay-duration="200"
+                                            >
+                                                <Tooltip>
+                                                    <TooltipTrigger as-child>
+                                                        <span
+                                                            class="relative inline-flex size-9 items-center justify-center rounded-lg border-2 border-card bg-muted"
+                                                        >
+                                                            <img
+                                                                :src="
+                                                                    pp
+                                                                        .social_account
+                                                                        ?.avatar_url ??
+                                                                    getPlatformLogo(
+                                                                        pp.platform,
+                                                                    )
+                                                                "
+                                                                :alt="
+                                                                    pp
+                                                                        .social_account
+                                                                        ?.display_label ??
+                                                                    getPlatformLabel(
+                                                                        pp.platform,
+                                                                    )
+                                                                "
+                                                                class="size-full rounded-md object-cover"
+                                                            />
+                                                            <img
+                                                                v-if="
+                                                                    pp
+                                                                        .social_account
+                                                                        ?.avatar_url
+                                                                "
+                                                                :src="
+                                                                    getPlatformLogo(
+                                                                        pp.platform,
+                                                                    )
+                                                                "
+                                                                :alt="
+                                                                    getPlatformLabel(
+                                                                        pp.platform,
+                                                                    )
+                                                                "
+                                                                class="absolute -right-1 -bottom-1 size-4 rounded-full border border-card bg-card"
+                                                            />
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        {{
+                                                            pp.social_account
+                                                                ?.display_label ??
+                                                            getPlatformLabel(
+                                                                pp.platform,
+                                                            )
+                                                        }}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            <p
+                                                class="truncate text-sm font-semibold text-foreground"
+                                            >
+                                                {{
+                                                    getEnabledPlatforms(post)[0]
+                                                        ?.social_account
+                                                        ?.display_label ??
+                                                    getPlatformLabel(
+                                                        getEnabledPlatforms(
+                                                            post,
+                                                        )[0]?.platform ?? '',
+                                                    )
+                                                }}
+                                            </p>
+                                            <p
+                                                v-if="
+                                                    getEnabledPlatforms(post)[0]
+                                                        ?.social_account
+                                                        ?.username
+                                                "
+                                                class="truncate text-xs text-muted-foreground"
+                                            >
+                                                @{{
+                                                    getEnabledPlatforms(post)[0]
+                                                        ?.social_account
+                                                        ?.username
+                                                }}
+                                            </p>
+                                        </div>
+                                        <span
+                                            v-if="
+                                                getEnabledPlatforms(post)
+                                                    .length > 3
+                                            "
+                                            class="text-xs font-medium text-muted-foreground"
+                                            >+{{
+                                                getEnabledPlatforms(post)
+                                                    .length - 3
+                                            }}</span
+                                        >
+                                    </div>
+                                    <div class="mt-4 flex items-start gap-4">
+                                        <p
+                                            class="line-clamp-3 min-w-0 flex-1 text-sm leading-6 whitespace-pre-line text-foreground/85"
+                                        >
+                                            {{ getPostPreview(post) }}
+                                        </p>
+                                        <img
+                                            v-if="getPostImage(post)"
+                                            :src="getPostImage(post)?.url"
+                                            alt=""
+                                            class="size-20 shrink-0 rounded-lg border border-border object-cover sm:size-24"
+                                            loading="lazy"
                                         />
+                                    </div>
+                                    <div
+                                        v-if="post.labels?.length"
+                                        class="mt-4 flex flex-wrap items-center gap-1.5"
+                                    >
+                                        <LabelBadge
+                                            v-for="label in post.labels.slice(
+                                                0,
+                                                3,
+                                            )"
+                                            :key="label.id"
+                                            :label="label"
+                                        />
+                                        <span
+                                            v-if="post.labels.length > 3"
+                                            class="text-xs text-muted-foreground"
+                                            >+{{ post.labels.length - 3 }}</span
+                                        >
+                                    </div>
+                                </Link>
+
+                                <div
+                                    class="flex min-h-12 items-center justify-between gap-2 border-t border-border px-4 py-2 sm:px-5"
+                                >
+                                    <p
+                                        class="min-w-0 truncate text-xs text-muted-foreground"
+                                    >
+                                        <span
+                                            v-if="post.user?.name"
+                                            class="font-medium text-foreground/80"
+                                            >{{ post.user.name }}</span
+                                        >
+                                        <span v-if="post.user?.name"> · </span>
+                                        <span
+                                            :title="
+                                                formatDateTime(post.created_at)
+                                            "
+                                            >{{
+                                                date.diffForHumans(
+                                                    post.created_at,
+                                                )
+                                            }}</span
+                                        >
+                                    </p>
+                                    <div
+                                        class="flex shrink-0 items-center gap-1.5"
+                                    >
+                                        <Button
+                                            v-if="
+                                                canCreatePost && canEdit(post)
+                                            "
+                                            variant="outline"
+                                            size="icon"
+                                            class="size-8"
+                                            :aria-label="$t('posts.edit.title')"
+                                            @click="
+                                                router.visit(
+                                                    editPostRoute.url(post.id),
+                                                )
+                                            "
+                                        >
+                                            <IconPencil class="size-4" />
+                                        </Button>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger as-child>
                                                 <Button
                                                     variant="outline"
                                                     size="icon"
                                                     class="size-8"
-                                                    @click.stop
+                                                    :aria-label="
+                                                        $t(
+                                                            'posts.table.actions',
+                                                        )
+                                                    "
                                                 >
                                                     <IconDots class="size-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem
-                                                    v-if="
-                                                        canCreatePost &&
-                                                        canEdit(post)
-                                                    "
-                                                    @click="
-                                                        router.visit(
-                                                            editPostRoute.url(
-                                                                post.id,
-                                                            ),
-                                                        )
-                                                    "
-                                                >
-                                                    <IconPencil
-                                                        class="size-4"
-                                                    />
-                                                    {{ $t('posts.edit.title') }}
-                                                </DropdownMenuItem>
                                                 <DropdownMenuItem
                                                     v-if="canCreatePost"
                                                     @click="
@@ -731,13 +801,29 @@ useWorkspaceEcho<{ post_id: string; change: string }>(
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                                </div>
+                            </article>
+
+                            <div class="pt-0.5">
+                                <PostNotesPopover
+                                    :post-id="post.id"
+                                    :count="post.notes_count"
+                                    :current-user-id="authUserId"
+                                    :initial-open="openPostNotesId === post.id"
+                                    :highlight-note-id="highlightNoteId"
+                                />
+                            </div>
+                        </div>
+                    </div>
 
                     <template #next="{ loading }">
-                        <TableLoadMore v-if="loading" />
+                        <p
+                            v-if="loading"
+                            class="py-5 text-center text-sm text-muted-foreground"
+                            role="status"
+                        >
+                            {{ $t('common.loading_more') }}
+                        </p>
                     </template>
                 </InfiniteScroll>
             </div>

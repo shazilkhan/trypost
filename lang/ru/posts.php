@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Посты',
+    'list_view' => 'Список',
+    'view_switcher' => 'Вид расписания',
     'search' => 'Поиск постов...',
     'all_posts' => 'Все посты',
     'new_post' => 'Новый пост',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Попробуйте другое ключевое слово или очистите поиск.',
     'start_creating' => 'Начните с создания первого поста.',
     'filter_by_label' => 'Фильтр по метке',
+    'filter_by_channel' => 'Каналы',
+    'channel_search_placeholder' => 'Поиск каналов...',
+    'no_channels' => 'Каналы не найдены.',
     'label_search_placeholder' => 'Поиск меток...',
     'no_labels' => 'Метки не найдены.',
     'clear_label_filter' => 'Сбросить фильтр по метке',

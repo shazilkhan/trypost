@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Publications',
+    'list_view' => 'Liste',
+    'view_switcher' => 'Vue du calendrier',
     'search' => 'Rechercher des publications...',
     'all_posts' => 'Toutes les publications',
     'new_post' => 'Nouvelle publication',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Essayez un autre mot-clé ou effacez la recherche.',
     'start_creating' => 'Commencez par créer votre première publication.',
     'filter_by_label' => 'Filtrer par étiquette',
+    'filter_by_channel' => 'Canaux',
+    'channel_search_placeholder' => 'Rechercher des canaux...',
+    'no_channels' => 'Aucun canal trouvé.',
     'label_search_placeholder' => 'Rechercher des étiquettes...',
     'no_labels' => 'Aucune étiquette trouvée.',
     'clear_label_filter' => 'Effacer le filtre d\'étiquette',

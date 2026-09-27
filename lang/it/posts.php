@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Post',
+    'list_view' => 'Elenco',
+    'view_switcher' => 'Vista programmazione',
     'search' => 'Cerca post...',
     'all_posts' => 'Tutti i post',
     'new_post' => 'Nuovo post',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => 'Prova con un\'altra parola chiave o cancella la ricerca.',
     'start_creating' => 'Inizia creando il tuo primo post.',
     'filter_by_label' => 'Filtra per etichetta',
+    'filter_by_channel' => 'Canali',
+    'channel_search_placeholder' => 'Cerca canali...',
+    'no_channels' => 'Nessun canale trovato.',
     'label_search_placeholder' => 'Cerca etichette...',
     'no_labels' => 'Nessuna etichetta trovata.',
     'clear_label_filter' => 'Cancella filtro etichetta',

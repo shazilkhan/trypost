@@ -2,6 +2,8 @@
 
 return [
     'title' => '帖子',
+    'list_view' => '列表',
+    'view_switcher' => '日程视图',
     'search' => '搜索帖子…',
     'all_posts' => '所有帖子',
     'new_post' => '新建帖子',
@@ -47,6 +49,9 @@ return [
     'try_different_search' => '换一个关键词，或清除搜索。',
     'start_creating' => '先从创建你的第一条帖子开始吧。',
     'filter_by_label' => '按标签筛选',
+    'filter_by_channel' => '频道',
+    'channel_search_placeholder' => '搜索频道...',
+    'no_channels' => '未找到频道。',
     'label_search_placeholder' => '搜索标签…',
     'no_labels' => '未找到标签。',
     'clear_label_filter' => '清除标签筛选',

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
     'title' => 'Beiträge',
+    'list_view' => 'Liste',
+    'view_switcher' => 'Planungsansicht',
     'search' => 'Beiträge suchen...',
     'all_posts' => 'Alle Beiträge',
     'new_post' => 'Neuer Beitrag',
@@ -49,6 +51,9 @@ return [
     'try_different_search' => 'Versuche ein anderes Stichwort oder setze die Suche zurück.',
     'start_creating' => 'Beginne, indem du deinen ersten Beitrag erstellst.',
     'filter_by_label' => 'Nach Label filtern',
+    'filter_by_channel' => 'Kanäle',
+    'channel_search_placeholder' => 'Kanäle suchen...',
+    'no_channels' => 'Keine Kanäle gefunden.',
     'label_search_placeholder' => 'Labels suchen...',
     'no_labels' => 'Keine Labels gefunden.',
     'clear_label_filter' => 'Label-Filter zurücksetzen',
