@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\AssetController;
 use App\Http\Controllers\Api\LabelController;
@@ -22,6 +23,12 @@ Route::post('/uploads/{token}', [UploadController::class, 'store'])
     ->name('api.uploads.store');
 
 Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(function () {
+    // Analytics
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('api.analytics.index');
+    Route::get('/analytics/publications/{publication}', [AnalyticsController::class, 'showPublication'])
+        ->whereUuid('publication')
+        ->name('api.analytics.publications.show');
+
     // Posts
     Route::get('/posts', [PostController::class, 'index'])->name('api.posts.index');
     Route::post('/posts/batch', [PostController::class, 'storeBatch'])->name('api.posts.batch.store');

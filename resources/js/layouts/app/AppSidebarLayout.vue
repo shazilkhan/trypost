@@ -61,9 +61,11 @@ onBeforeUnmount(() => {
             </AppHeader>
             <SidebarTrigger
                 v-else
+                data-testid="app-sidebar-trigger"
                 class="absolute top-3 left-4 z-30 size-10 rounded-md border border-border bg-card text-foreground shadow-xs md:hidden"
             />
             <div
+                data-testid="app-layout-scroller"
                 :class="
                     fullWidth
                         ? 'flex min-h-0 flex-1 flex-col overflow-y-auto'
@@ -71,13 +73,12 @@ onBeforeUnmount(() => {
                 "
             >
                 <div
+                    data-testid="app-layout-content"
                     :class="[
                         fullWidth
                             ? 'flex min-h-0 flex-1 flex-col'
                             : 'mx-auto w-full max-w-7xl',
-                        !fullWidth &&
-                        !$slots['header'] &&
-                        !$slots['header-actions']
+                        !$slots['header'] && !$slots['header-actions']
                             ? 'pt-14 md:pt-0'
                             : '',
                     ]"

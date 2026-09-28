@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\Ai;
 
+use App\Actions\Ai\RecordAiUsage;
 use App\Actions\Post\CreatePosts;
 use App\Ai\Agents\PostContentGenerator;
 use App\Ai\Agents\PostContentHumanizer;
@@ -23,7 +24,6 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
-use App\Services\Ai\RecordAiUsage;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePoll } from '@inertiajs/vue3';
 import {
     IconArrowLeft,
     IconCalendar,
@@ -8,7 +8,7 @@ import {
     IconLoader2,
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import ImagePreviewDialog from '@/components/ImagePreviewDialog.vue';
 import LabelBadge from '@/components/labels/LabelBadge.vue';
@@ -43,6 +43,10 @@ import {
     MediaType,
 } from '@/lib/mediaType';
 import { index as postsIndex } from '@/routes/app/posts';
+import type {
+    PublicationAnalyticsDetail,
+    UnsupportedPublicationAnalytics,
+} from '@/types/analytics';
 import type { MediaItem } from '@/types/media';
 import { PostPlatformStatus } from '@/types/post';
 
@@ -95,7 +99,33 @@ interface Workspace {
 const props = defineProps<{
     workspace: Workspace;
     post: Post;
+    postMetrics: Record<
+        string,
+        PublicationAnalyticsDetail | UnsupportedPublicationAnalytics
+    >;
 }>();
+
+const awaitingMetrics = computed(() =>
+    Object.values(props.postMetrics).some(
+        (result) =>
+            ('available' in result && result.snapshot === null) ||
+            ('unsupported' in result && result.reason === 'not_collected'),
+    ),
+);
+const { start: startMetricsPolling, stop: stopMetricsPolling } = usePoll(
+    10000,
+    { only: ['postMetrics'] },
+    { autoStart: false },
+);
+
+onMounted(() => {
+    if (awaitingMetrics.value) startMetricsPolling();
+});
+
+watch(awaitingMetrics, (waiting) => {
+    if (waiting) startMetricsPolling();
+    else stopMetricsPolling();
+});
 
 const enabledPlatforms = computed(() =>
     props.post.platforms
@@ -145,7 +175,7 @@ const openLightbox = (i: number) => {
 };
 
 usePostEcho(props.post.id, '.post.platform.status.updated', () => {
-    router.reload({ only: ['post'] });
+    router.reload({ only: ['post', 'postMetrics'] });
 });
 </script>
 
@@ -454,8 +484,7 @@ usePostEcho(props.post.id, '.post.platform.status.updated', () => {
                                         pp.status ===
                                         PostPlatformStatus.Published
                                     "
-                                    :post-id="post.id"
-                                    :post-platform-id="pp.id"
+                                    :detail="postMetrics[pp.id]"
                                 />
                             </CardContent>
                         </Card>
