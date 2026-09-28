@@ -105,7 +105,7 @@ const previewablePlatforms = computed(() =>
             <TabsTrigger value="preview" data-testid="editor-tab-preview">{{
                 $t('posts.edit.tabs.preview')
             }}</TabsTrigger>
-            <TabsTrigger value="schedule">{{
+            <TabsTrigger value="schedule" data-testid="editor-tab-channels">{{
                 $t('posts.edit.tabs.channels')
             }}</TabsTrigger>
             <TabsTrigger value="comments">{{

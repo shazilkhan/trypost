@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { usePageErrors } from '@/composables/usePageErrors';
 import { getPlatformLogo } from '@/composables/usePlatformLogo';
+import { toNullableText } from '@/lib/utils';
 import type { PinterestBoard } from '@/types';
 import { ContentType } from '@/types/content-type';
 import type { MediaItem } from '@/types/media';

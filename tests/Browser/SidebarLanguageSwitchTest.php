@@ -116,7 +116,7 @@ test('the calendar header follows the language, not the previous one', function 
 
     $this->actingAs($user);
 
-    $page = visit(route('app.calendar'));
+    $page = visit(route('app.calendar', ['view' => 'week', 'week' => '2026-09-14']));
     waitForSidebarLanguageTestId($page, 'sidebar-workspace-menu');
 
     $page->script(<<<'JS'
@@ -153,7 +153,7 @@ test('the month view header follows the language too', function () {
 
     $this->actingAs($user);
 
-    $page = visit(route('app.calendar', ['view' => 'month']));
+    $page = visit(route('app.calendar', ['view' => 'month', 'month' => '2026-09-01']));
     waitForSidebarLanguageTestId($page, 'sidebar-workspace-menu');
 
     $page->script(<<<'JS'

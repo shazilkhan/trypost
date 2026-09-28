@@ -38,7 +38,7 @@ function seedChannelMediaIssuePost(): PostPlatform
         ]],
     ]);
 
-    $postPlatform = PostPlatform::factory()->disabled()->create([
+    $postPlatform = PostPlatform::factory()->create([
         'post_id' => $post->id,
         'social_account_id' => $account->id,
         'platform' => Platform::X,
@@ -78,36 +78,134 @@ function waitForChannelIssueCondition(mixed $page, string $testId, string $condi
     JS);
 }
 
-test('a channel the media does not fit stays selectable and shows the issue badge', function () {
+test('an independent channel draft with incompatible media remains editable', function () {
     $postPlatform = seedChannelMediaIssuePost();
 
     $page = visit(route('app.posts.edit', $postPlatform->post));
-    waitForChannelIssueTestId($page, "channel-{$postPlatform->id}");
+    waitForChannelIssueTestId($page, 'post-composer-dialog');
 
-    $page->assertEnabled("@channel-{$postPlatform->id}")
-        ->assertAttribute("@channel-{$postPlatform->id}", 'aria-pressed', 'false')
-        ->assertPresent("@channel-issue-{$postPlatform->id}");
-
-    $page->click("@channel-{$postPlatform->id}");
-    waitForChannelIssuePressed($page, "channel-{$postPlatform->id}");
-
-    $page->assertAttribute("@channel-{$postPlatform->id}", 'aria-pressed', 'true')
-        ->assertPresent("@channel-issue-{$postPlatform->id}")
+    $page->assertVisible('@post-composer-dialog')
+        ->assertVisible('@composer-customization')
         ->assertNoJavaScriptErrors();
 });
 
-test('the channel issue tooltip links to the network section of the media docs', function () {
-    $postPlatform = seedChannelMediaIssuePost();
+test('an Instagram media warning links to the network limits', function () {
+    [$post] = seedInstagramFeedImagePost(size: 9 * 1024 * 1024);
 
-    $page = visit(route('app.posts.edit', $postPlatform->post));
+    $page = visit(route('app.posts.edit', $post));
+    $page->click('@instagram-settings-toggle');
+    waitForChannelIssueTestId($page, 'media-rules-warning');
+
+    expect($page->script('document.querySelector("[data-testid=media-rules-warning] a")?.href'))
+        ->toBe('https://docs.trypost.it/knowledge-base/media#instagram');
+    $page->assertNoJavaScriptErrors();
+});
+
+/**
+ * @param  array<string, string>  $platformMeta
+ * @param  array<string, int>  $imageMeta
+ * @return array{Post, PostPlatform}
+ */
+function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'original'], array $imageMeta = ['width' => 1080, 'height' => 1440], int $size = 1024): array
+{
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $post = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'content' => 'A five-image carousel',
+        'media' => array_map(fn (int $index): array => [
+            'id' => "image-{$index}",
+            'type' => 'image',
+            'mime_type' => 'image/jpeg',
+            'path' => "uploads/image-{$index}.jpg",
+            'url' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+            'size' => $size,
+            'meta' => $imageMeta,
+        ], range(1, 5)),
+    ]);
+    $postPlatform = PostPlatform::factory()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Instagram,
+        'content_type' => ContentType::InstagramFeed,
+        'meta' => $platformMeta,
+    ]);
+
+    test()->actingAs($user);
+
+    return [$post, $postPlatform];
+}
+
+test('Instagram feed aspect choices do not reject the source image in the editor', function () {
+    [$post, $postPlatform] = seedInstagramFeedImagePost();
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, 'post-composer-dialog');
+
+    $page->click('@instagram-settings-toggle');
+
+    foreach (['1-1' => 1.0, '4-5' => 5 / 4, '16-9' => 9 / 16, 'original' => 4 / 3] as $option => $expectedHeightToWidth) {
+        $page->click("@instagram-aspect-{$option}")
+            ->assertMissing('@media-rules-warning')
+            ->assertEnabled('@composer-submit');
+
+        waitForChannelIssueTestId($page, 'instagram-feed-media');
+
+        $heightToWidth = $page->script('(() => { const frame = document.querySelector("[data-testid=instagram-feed-media]"); const rect = frame.getBoundingClientRect(); return rect.height / rect.width; })()');
+
+        expect(abs($heightToWidth - $expectedHeightToWidth))->toBeLessThan(0.01);
+
+    }
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('Instagram feed without a saved aspect ratio uses the original image', function () {
+    [$post, $postPlatform] = seedInstagramFeedImagePost([]);
+
+    $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, "channel-{$postPlatform->id}");
 
-    $page->hover("@channel-{$postPlatform->id}");
-    waitForChannelIssueTestId($page, "channel-issue-docs-{$postPlatform->id}");
+    $page->click('@instagram-settings-toggle');
 
-    $page->assertAttribute(
-        "@channel-issue-docs-{$postPlatform->id}",
-        'href',
-        'https://docs.trypost.it/knowledge-base/media#x-twitter',
-    )->assertNoJavaScriptErrors();
+    $originalSelected = $page->script('document.querySelector("[data-testid=instagram-aspect-original]").classList.contains("bg-amber-100")');
+
+    expect($originalSelected)->toBeTrue();
+
+    $page->assertMissing('@media-rules-warning')
+        ->assertEnabled('@composer-submit')
+        ->assertNoJavaScriptErrors();
+
+    waitForChannelIssueTestId($page, 'instagram-feed-media');
+
+    $heightToWidth = $page->script('(() => { const frame = document.querySelector("[data-testid=instagram-feed-media]"); const rect = frame.getBoundingClientRect(); return rect.height / rect.width; })()');
+
+    expect(abs($heightToWidth - 4 / 3))->toBeLessThan(0.01);
+});
+
+test('Instagram original preview falls back to square when image dimensions are unavailable', function () {
+    [$post] = seedInstagramFeedImagePost(imageMeta: []);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, 'instagram-feed-media');
+
+    $heightToWidth = $page->script('(() => { const frame = document.querySelector("[data-testid=instagram-feed-media]"); const rect = frame.getBoundingClientRect(); return rect.height / rect.width; })()');
+
+    expect(abs($heightToWidth - 1.0))->toBeLessThan(0.01);
+});
+
+test('Instagram aspect selection still enforces image size limits', function () {
+    [$post] = seedInstagramFeedImagePost(size: 9 * 1024 * 1024);
+
+    $page = visit(route('app.posts.edit', $post));
+    $page->click('@instagram-settings-toggle');
+    waitForChannelIssueTestId($page, 'media-rules-warning');
+
+    $page->assertPresent('@media-rules-warning')
+        ->assertNoJavaScriptErrors();
 });

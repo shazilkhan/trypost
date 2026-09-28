@@ -91,6 +91,7 @@ const activeContentType = computed((): string | undefined => {
                             <button
                                 type="button"
                                 class="relative cursor-pointer transition-opacity"
+                                :data-testid="`preview-platform-${pp.id}`"
                                 :class="
                                     activeId === pp.id
                                         ? 'opacity-100'

@@ -37,6 +37,7 @@ import InstagramSettings from '@/components/posts/editor/InstagramSettings.vue';
 import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
+import YouTubeSettings from '@/components/posts/editor/YouTubeSettings.vue';
 import MediaPickerDialog from '@/components/posts/MediaPickerDialog.vue';
 import PickTimePopover from '@/components/posts/PickTimePopover.vue';
 import PlatformPreview from '@/components/posts/previews/PlatformPreview.vue';
@@ -1691,6 +1692,19 @@ const close = (): void => emit('update:open', false);
                                         $event,
                                     )
                                 "
+                                @update:meta="
+                                    composition.setOverride(
+                                        expandedAccount.id,
+                                        'meta',
+                                        $event,
+                                    )
+                                "
+                            />
+                            <YouTubeSettings
+                                v-else-if="expandedAccount.platform === 'youtube'"
+                                :social-account="expandedAccount"
+                                :platform-index="selectedAccounts.findIndex((account) => account.id === expandedAccountId)"
+                                :meta="expandedDestination.meta"
                                 @update:meta="
                                     composition.setOverride(
                                         expandedAccount.id,

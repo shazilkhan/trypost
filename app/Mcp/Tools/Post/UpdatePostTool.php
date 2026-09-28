@@ -108,7 +108,7 @@ class UpdatePostTool extends Tool
                 ->items($schema->string())
                 ->description('Workspace label IDs to attach (replaces existing labels).'),
             'content_type' => $schema->string()->description('New format for the post’s existing social account.'),
-            'meta' => $schema->object()->description('Settings for the existing account, merged with stored settings.'),
+            'meta' => $schema->object()->description('Settings for the existing account, merged with stored settings. YouTube Shorts: description is optional plain text, at most 5000 bytes. Omit it to keep the current override; pass null to use the post content as description.'),
         ];
     }
 }
