@@ -8,7 +8,6 @@ use App\Ai\Agents\PostWritingAssistant;
 use App\Enums\Ai\PostAssistantMode;
 use App\Models\User;
 use App\Models\Workspace;
-use App\Services\Ai\RecordAiUsage;
 
 final class AssistPostContent
 {

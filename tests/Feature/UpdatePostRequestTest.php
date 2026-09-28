@@ -176,16 +176,11 @@ beforeEach(function () {
     ]);
 
     // Media payload used by tests that need to satisfy ContentTypeCompatibleWithMedia.
-    $this->mediaPayload = [
-        [
-            'id' => 'test-media-video',
-            'path' => 'media/2026-01/test-video.mp4',
-            'url' => 'https://example.com/media/2026-01/test-video.mp4',
-            'type' => 'video',
-            'mime_type' => 'video/mp4',
-            'original_filename' => 'test-video.mp4',
-        ],
-    ];
+    $video = Media::factory()->video()->assets()->for($this->workspace, 'mediable')->create([
+        'size' => 100_000,
+        'meta' => ['duration' => 30],
+    ]);
+    $this->mediaPayload = [MediaItem::fromMedia($video)->toArray()];
     $this->socialAccount = SocialAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
         'platform' => Platform::TikTok,
