@@ -22,7 +22,7 @@ test('app surfaces use clean icon panels instead of tilted sticker treatments', 
         ->not->toContain('border-2 border-dashed');
 })->with([
     'accounts' => 'components/accounts/ConnectedAccountsByNetwork.vue',
-    'analytics metrics' => 'components/analytics/MetricsGrid.vue',
+    'analytics metrics' => 'components/analytics/workspace/SummaryCards.vue',
     'asset gallery' => 'components/assets/GalleryBrowser.vue',
     'notifications' => 'components/NotificationBell.vue',
     'post create' => 'pages/posts/Create.vue',
@@ -62,7 +62,8 @@ test('the app layout wraps the main content in a rounded desktop shell', functio
         ->toContain('md:ml-0')
         ->toContain('md:rounded-xl')
         ->toContain('md:border md:border-border')
-        ->toContain('overflow-hidden bg-card');
+        ->toContain('class="bg-card md:m-2')
+        ->toContain("fullWidth ? 'overflow-hidden'");
 });
 
 test('shared page headers pair a reusable icon treatment with the title', function () {

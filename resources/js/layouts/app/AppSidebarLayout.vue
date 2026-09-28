@@ -44,8 +44,9 @@ onBeforeUnmount(() => {
     <SidebarProvider :default-open="true" class="bg-sidebar">
         <AppSidebar />
         <SidebarInset
-            class="overflow-hidden bg-card md:m-2 md:ml-0 md:rounded-xl md:border md:border-border md:shadow-xs"
+            class="bg-card md:m-2 md:ml-0 md:rounded-xl md:border md:border-border md:shadow-xs"
             data-testid="app-content-shell"
+            :class="fullWidth ? 'overflow-hidden' : 'overflow-x-hidden'"
         >
             <AppHeader v-if="$slots['header'] || $slots['header-actions']">
                 <template v-if="$slots['header']" #left>
@@ -57,9 +58,11 @@ onBeforeUnmount(() => {
             </AppHeader>
             <SidebarTrigger
                 v-else
+                data-testid="app-sidebar-trigger"
                 class="absolute top-3 left-4 z-30 size-10 rounded-md border border-border bg-card text-foreground shadow-xs md:hidden"
             />
             <div
+                data-testid="app-layout-scroller"
                 :class="
                     fullWidth
                         ? 'flex min-h-0 flex-1 flex-col overflow-y-auto'
@@ -67,13 +70,12 @@ onBeforeUnmount(() => {
                 "
             >
                 <div
+                    data-testid="app-layout-content"
                     :class="[
                         fullWidth
                             ? 'flex min-h-0 flex-1 flex-col'
                             : 'mx-auto w-full max-w-7xl',
-                        !fullWidth &&
-                        !$slots['header'] &&
-                        !$slots['header-actions']
+                        !$slots['header'] && !$slots['header-actions']
                             ? 'pt-14 md:pt-0'
                             : '',
                     ]"
