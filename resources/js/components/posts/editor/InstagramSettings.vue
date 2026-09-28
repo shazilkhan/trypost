@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-vue';
+import {
+    IconAlertTriangle,
+    IconChevronDown,
+    IconChevronUp,
+} from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import MediaRulesWarning from '@/components/posts/editor/MediaRulesWarning.vue';
 import { Avatar } from '@/components/ui/avatar';
 import { getPlatformLogo } from '@/composables/usePlatformLogo';
+import { getInstagramOriginalImageAspectIssues } from '@/lib/instagramImageAspect';
 import { AspectRatio, type AspectRatioValue } from '@/types/aspect-ratio';
 import { ContentType } from '@/types/content-type';
 import type { MediaItem } from '@/types/media';
@@ -25,19 +30,28 @@ interface Props {
     media: MediaItem[];
     meta?: Record<string, any>;
     disabled?: boolean;
+    showVariant?: boolean;
+    initiallyOpen?: boolean;
+    mediaEditing?: boolean;
+    compact?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
     meta: () => ({}),
+    showVariant: true,
+    initiallyOpen: false,
+    mediaEditing: false,
+    compact: false,
 });
 
 const emit = defineEmits<{
     'update:contentType': [value: string];
     'update:meta': [meta: Record<string, any>];
+    'edit:media': [index: number];
 }>();
 
-const open = ref(false);
+const open = ref(props.initiallyOpen);
 
 const variants = [
     {
@@ -55,14 +69,35 @@ const variants = [
 ] as const;
 
 const aspectRatios = [
-    { value: AspectRatio.Square, labelKey: 'posts.form.instagram.aspect.square' },
-    { value: AspectRatio.Portrait, labelKey: 'posts.form.instagram.aspect.portrait' },
-    { value: AspectRatio.Landscape, labelKey: 'posts.form.instagram.aspect.landscape' },
-    { value: AspectRatio.Original, labelKey: 'posts.form.instagram.aspect.original' },
+    {
+        value: AspectRatio.Square,
+        labelKey: 'posts.form.instagram.aspect.square',
+    },
+    {
+        value: AspectRatio.Portrait,
+        labelKey: 'posts.form.instagram.aspect.portrait',
+    },
+    {
+        value: AspectRatio.Landscape,
+        labelKey: 'posts.form.instagram.aspect.landscape',
+    },
+    {
+        value: AspectRatio.Original,
+        labelKey: 'posts.form.instagram.aspect.original',
+    },
 ] as const;
 
 const isFeed = computed(() => props.contentType === ContentType.InstagramFeed);
-const selectedAspectRatio = computed(() => props.meta.aspect_ratio ?? AspectRatio.Original);
+const selectedAspectRatio = computed(
+    () => props.meta.aspect_ratio ?? AspectRatio.Original,
+);
+const originalImageIssues = computed(() =>
+    getInstagramOriginalImageAspectIssues(
+        props.contentType,
+        props.media,
+        selectedAspectRatio.value,
+    ),
+);
 
 const pickVariant = (value: string) => {
     if (props.disabled) return;
@@ -78,6 +113,7 @@ const pickAspectRatio = (value: AspectRatioValue) => {
 <template>
     <div class="rounded-xl border border-border bg-card shadow-2xs">
         <button
+            v-if="!compact"
             type="button"
             class="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-sm"
             data-testid="instagram-settings-toggle"
@@ -117,11 +153,12 @@ const pickAspectRatio = (value: AspectRatioValue) => {
         </button>
 
         <div
-            v-if="open"
-            class="space-y-5 border-t border-border px-4 pt-4 pb-4"
+            v-if="open || compact"
+            class="space-y-5 px-4 py-4"
+            :class="compact ? '' : 'border-t border-border'"
         >
             <div
-                v-if="socialAccount"
+                v-if="socialAccount && !compact"
                 class="flex items-center gap-3 rounded-lg bg-foreground/5 p-3"
             >
                 <Avatar
@@ -148,7 +185,7 @@ const pickAspectRatio = (value: AspectRatioValue) => {
                 </div>
             </div>
 
-            <div class="space-y-2">
+            <div v-if="showVariant" class="space-y-2">
                 <p
                     class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
                 >
@@ -196,6 +233,39 @@ const pickAspectRatio = (value: AspectRatioValue) => {
                     >
                         {{ $t(ratio.labelKey) }}
                     </button>
+                </div>
+                <div
+                    v-for="issue in originalImageIssues"
+                    :key="issue.index"
+                    class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950"
+                    :data-testid="`instagram-image-aspect-issue-${issue.index}`"
+                >
+                    <IconAlertTriangle class="mt-0.5 size-4 shrink-0" />
+                    <div class="min-w-0 flex-1">
+                        <p>
+                            {{
+                                $t(
+                                    'posts.composer.instagram_image_aspect_issue',
+                                    {
+                                        image: String(issue.index + 1),
+                                        current: issue.ratio.toFixed(2),
+                                        min: issue.min.toFixed(2),
+                                        max: issue.max.toFixed(2),
+                                    },
+                                )
+                            }}
+                        </p>
+                        <button
+                            v-if="mediaEditing"
+                            type="button"
+                            class="mt-1 font-semibold underline underline-offset-2"
+                            :data-testid="`instagram-edit-image-${issue.index}`"
+                            :disabled="disabled"
+                            @click="emit('edit:media', issue.index)"
+                        >
+                            {{ $t('posts.composer.adjust_image') }}
+                        </button>
+                    </div>
                 </div>
             </div>
 

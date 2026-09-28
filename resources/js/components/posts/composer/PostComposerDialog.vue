@@ -71,11 +71,15 @@ import {
 } from '@/composables/usePostComposition';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import date from '@/date';
+import { getInstagramOriginalImageAspectIssues } from '@/lib/instagramImageAspect';
 import { isImage } from '@/lib/mediaType';
 import { storeChunked as assetsStoreChunked } from '@/routes/app/assets';
 import { assist as assistPostAi } from '@/routes/app/posts/ai';
 import type { PinterestBoardsPayload } from '@/types';
+import { AspectRatio } from '@/types/aspect-ratio';
+import { ContentType } from '@/types/content-type';
 import type { MediaItem } from '@/types/media';
+import { Platform } from '@/types/platform';
 import type { TikTokPrivacyLevelValue } from '@/types/tiktok-privacy';
 import { uploadChunked } from '@/utils/chunkedUpload';
 
@@ -206,6 +210,8 @@ watch(
 );
 
 const selectedAccounts = composition.selectedAccounts;
+const isInstagramPlatform = (platform: string): boolean =>
+    platform === Platform.Instagram || platform === Platform.InstagramFacebook;
 const selectedLabels = computed(() =>
     props.labels.filter((label) =>
         composition.labelIds.value.includes(label.id),
@@ -300,6 +306,23 @@ const canSubmit = computed(
         !props.submitting &&
         !cropUploading.value &&
         !mediaUploading.value,
+);
+const hasUnsupportedInstagramOriginal = computed(() =>
+    selectedAccounts.value.some((account) => {
+        if (!isInstagramPlatform(account.platform)) {
+            return false;
+        }
+
+        const destination = composition.resolvedDestination(account);
+
+        return (
+            getInstagramOriginalImageAspectIssues(
+                destination.content_type,
+                destination.media,
+                destination.meta.aspect_ratio,
+            ).length > 0
+        );
+    }),
 );
 const scheduleLabel = computed(() =>
     scheduleMode.value === 'custom' && composition.scheduledAt.value
@@ -579,15 +602,64 @@ const beginCrop = (accountId: string, index: number, item: MediaItem): void => {
 };
 
 const cropDimensions = computed(() => {
-    const type = expandedDestination.value?.content_type ?? '';
+    const account = selectedAccounts.value.find(
+        (candidate) => candidate.id === cropTarget.value?.accountId,
+    );
+    const type = account
+        ? composition.resolvedDestination(account).content_type
+        : '';
     if (type.endsWith('_story') || type.endsWith('_reel'))
         return { width: 540, height: 960 };
-    if (type === 'instagram_feed') return { width: 864, height: 1080 };
+    if (type === ContentType.InstagramFeed)
+        return { width: 1080, height: 1350 };
     if (type.startsWith('pinterest_')) return { width: 720, height: 1080 };
     return { width: 1080, height: 1080 };
 });
 
-const onCropped = async (file: File): Promise<void> => {
+const instagramCropPresets = computed(() => {
+    const account = selectedAccounts.value.find(
+        (candidate) => candidate.id === cropTarget.value?.accountId,
+    );
+    if (!account || !isInstagramPlatform(account.platform)) {
+        return [];
+    }
+
+    const destination = composition.resolvedDestination(account);
+    if (destination.content_type !== ContentType.InstagramFeed) {
+        return [];
+    }
+
+    const presets = [
+        {
+            value: AspectRatio.Portrait,
+            label: trans('posts.form.instagram.aspect.portrait'),
+            width: 1080,
+            height: 1350,
+        },
+        {
+            value: AspectRatio.Square,
+            label: trans('posts.form.instagram.aspect.square'),
+            width: 1080,
+            height: 1080,
+        },
+        {
+            value: AspectRatio.Landscape,
+            label: trans('posts.form.instagram.aspect.landscape'),
+            width: 1600,
+            height: 900,
+        },
+    ];
+    const selectedRatio = destination.meta.aspect_ratio ?? AspectRatio.Original;
+
+    return selectedRatio === AspectRatio.Original
+        ? presets
+        : presets.filter((preset) => preset.value === selectedRatio);
+});
+
+const onCropped = async (
+    file: File,
+    dimensions: { width: number; height: number },
+): Promise<void> => {
     const target = cropTarget.value;
     if (!target) return;
     cropUploading.value = true;
@@ -616,8 +688,8 @@ const onCropped = async (file: File): Promise<void> => {
             size: uploaded.size,
             meta: {
                 ...(target.media.meta ?? {}),
-                width: cropDimensions.value.width,
-                height: cropDimensions.value.height,
+                width: dimensions.width,
+                height: dimensions.height,
             },
         };
         composition.setOverride(target.accountId, 'media', items);
@@ -630,6 +702,26 @@ const onCropped = async (file: File): Promise<void> => {
     }
 };
 
+const onAltTextSaved = (altText: string | null): void => {
+    const target = cropTarget.value;
+    if (!target) return;
+
+    const account = selectedAccounts.value.find(
+        (candidate) => candidate.id === target.accountId,
+    );
+    if (!account) return;
+
+    const items = [...composition.resolvedDestination(account).media];
+    if (items[target.index]?.id !== target.media.id) return;
+
+    items[target.index] = {
+        ...items[target.index],
+        meta: { ...items[target.index].meta, alt_text: altText ?? undefined },
+    };
+    composition.setOverride(target.accountId, 'media', items);
+    cropTarget.value = null;
+};
+
 const goToCustomization = (): void => {
     if (!selectedAccounts.value.length) return;
     step.value = 2;
@@ -638,7 +730,11 @@ const goToCustomization = (): void => {
 };
 
 const submit = (status: PostComposition['status']): void => {
-    if (!canSubmit.value) return;
+    if (
+        !canSubmit.value ||
+        (status !== 'draft' && hasUnsupportedInstagramOriginal.value)
+    )
+        return;
     const payload = composition.materialize(status);
     if (status === 'scheduled') {
         payload.scheduled_at = date.formatLocalDateTimeForApi(
@@ -1379,6 +1475,9 @@ const close = (): void => emit('update:open', false);
                             </div>
                             <div
                                 v-if="
+                                    !isInstagramPlatform(
+                                        expandedAccount.platform,
+                                    ) &&
                                     getContentTypeOptions(
                                         expandedAccount.platform,
                                     ).length > 1
@@ -1416,6 +1515,42 @@ const close = (): void => emit('update:open', false);
                                     </option>
                                 </select>
                             </div>
+                            <InstagramSettings
+                                v-if="
+                                    isInstagramPlatform(
+                                        expandedAccount.platform,
+                                    )
+                                "
+                                :social-account="expandedAccount"
+                                :content-type="expandedDestination.content_type"
+                                :media="expandedDestination.media"
+                                :meta="expandedDestination.meta"
+                                :initially-open="true"
+                                :compact="true"
+                                :show-variant="true"
+                                :media-editing="true"
+                                @update:content-type="
+                                    composition.setOverride(
+                                        expandedAccount.id,
+                                        'content_type',
+                                        $event,
+                                    )
+                                "
+                                @update:meta="
+                                    composition.setOverride(
+                                        expandedAccount.id,
+                                        'meta',
+                                        $event,
+                                    )
+                                "
+                                @edit:media="
+                                    beginCrop(
+                                        expandedAccount.id,
+                                        $event,
+                                        expandedDestination.media[$event],
+                                    )
+                                "
+                            />
                             <div class="flex min-h-40 flex-1 flex-col">
                                 <div
                                     class="mb-1 flex items-center justify-between"
@@ -1620,36 +1755,8 @@ const close = (): void => emit('update:open', false);
                                     @save-signature="saveSignature"
                                 />
                             </div>
-                            <InstagramSettings
-                                v-if="
-                                    [
-                                        'instagram',
-                                        'instagram-facebook',
-                                    ].includes(expandedAccount.platform)
-                                "
-                                :social-account="expandedAccount"
-                                :content-type="expandedDestination.content_type"
-                                :media="expandedDestination.media"
-                                :meta="expandedDestination.meta"
-                                @update:content-type="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'content_type',
-                                        $event,
-                                    )
-                                "
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
                             <FacebookSettings
-                                v-else-if="
-                                    expandedAccount.platform === 'facebook'
-                                "
+                                v-if="expandedAccount.platform === 'facebook'"
                                 :social-account="expandedAccount"
                                 :content-type="expandedDestination.content_type"
                                 :media="expandedDestination.media"
@@ -1701,9 +1808,16 @@ const close = (): void => emit('update:open', false);
                                 "
                             />
                             <YouTubeSettings
-                                v-else-if="expandedAccount.platform === 'youtube'"
+                                v-else-if="
+                                    expandedAccount.platform === 'youtube'
+                                "
                                 :social-account="expandedAccount"
-                                :platform-index="selectedAccounts.findIndex((account) => account.id === expandedAccountId)"
+                                :platform-index="
+                                    selectedAccounts.findIndex(
+                                        (account) =>
+                                            account.id === expandedAccountId,
+                                    )
+                                "
                                 :meta="expandedDestination.meta"
                                 @update:meta="
                                     composition.setOverride(
@@ -2218,6 +2332,7 @@ const close = (): void => emit('update:open', false);
                             :data-schedule-mode="scheduleMode"
                             :disabled="
                                 !canSubmit ||
+                                hasUnsupportedInstagramOriginal ||
                                 (scheduleMode === 'custom' &&
                                     !composition.scheduledAt.value)
                             "
@@ -2250,7 +2365,12 @@ const close = (): void => emit('update:open', false);
         :mime-type="cropTarget?.media.mime_type ?? 'image/png'"
         :output-width="cropDimensions.width"
         :output-height="cropDimensions.height"
+        :aspect-presets="instagramCropPresets"
+        :enable-alt-text="true"
+        :enable-appearance="true"
+        :alt-text="cropTarget?.media.meta?.alt_text"
         @cropped="onCropped"
+        @alt-text-saved="onAltTextSaved"
     />
     <AiRegenerateImageDialog
         v-if="postId"

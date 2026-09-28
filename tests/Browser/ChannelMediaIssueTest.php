@@ -2,14 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * A post carrying a PDF with one deselected X channel. X never accepts a
@@ -93,7 +96,6 @@ test('an Instagram media warning links to the network limits', function () {
     [$post] = seedInstagramFeedImagePost(size: 9 * 1024 * 1024);
 
     $page = visit(route('app.posts.edit', $post));
-    $page->click('@instagram-settings-toggle');
     waitForChannelIssueTestId($page, 'media-rules-warning');
 
     expect($page->script('document.querySelector("[data-testid=media-rules-warning] a")?.href'))
@@ -106,7 +108,7 @@ test('an Instagram media warning links to the network limits', function () {
  * @param  array<string, int>  $imageMeta
  * @return array{Post, PostPlatform}
  */
-function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'original'], array $imageMeta = ['width' => 1080, 'height' => 1440], int $size = 1024): array
+function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'original'], array $imageMeta = ['width' => 1080, 'height' => 1440], int $size = 1024, int $imageCount = 5): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
@@ -126,7 +128,7 @@ function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'or
             'url' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
             'size' => $size,
             'meta' => $imageMeta,
-        ], range(1, 5)),
+        ], range(1, $imageCount)),
     ]);
     $postPlatform = PostPlatform::factory()->create([
         'post_id' => $post->id,
@@ -141,15 +143,13 @@ function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'or
     return [$post, $postPlatform];
 }
 
-test('Instagram feed aspect choices do not reject the source image in the editor', function () {
+test('Instagram feed fixed aspect choices allow publishing while unsupported original asks for adjustment', function () {
     [$post, $postPlatform] = seedInstagramFeedImagePost();
 
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, 'post-composer-dialog');
 
-    $page->click('@instagram-settings-toggle');
-
-    foreach (['1-1' => 1.0, '4-5' => 5 / 4, '16-9' => 9 / 16, 'original' => 4 / 3] as $option => $expectedHeightToWidth) {
+    foreach (['1-1' => 1.0, '4-5' => 5 / 4, '16-9' => 9 / 16] as $option => $expectedHeightToWidth) {
         $page->click("@instagram-aspect-{$option}")
             ->assertMissing('@media-rules-warning')
             ->assertEnabled('@composer-submit');
@@ -162,6 +162,11 @@ test('Instagram feed aspect choices do not reject the source image in the editor
 
     }
 
+    $page->click('@instagram-aspect-original')
+        ->assertVisible('@instagram-image-aspect-issue-0')
+        ->assertDisabled('@composer-submit')
+        ->assertVisible('@instagram-edit-image-0');
+
     $page->assertNoJavaScriptErrors();
 });
 
@@ -171,14 +176,12 @@ test('Instagram feed without a saved aspect ratio uses the original image', func
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, "channel-{$postPlatform->id}");
 
-    $page->click('@instagram-settings-toggle');
-
     $originalSelected = $page->script('document.querySelector("[data-testid=instagram-aspect-original]").classList.contains("bg-amber-100")');
 
     expect($originalSelected)->toBeTrue();
 
-    $page->assertMissing('@media-rules-warning')
-        ->assertEnabled('@composer-submit')
+    $page->assertVisible('@instagram-image-aspect-issue-0')
+        ->assertDisabled('@composer-submit')
         ->assertNoJavaScriptErrors();
 
     waitForChannelIssueTestId($page, 'instagram-feed-media');
@@ -203,9 +206,123 @@ test('Instagram aspect selection still enforces image size limits', function () 
     [$post] = seedInstagramFeedImagePost(size: 9 * 1024 * 1024);
 
     $page = visit(route('app.posts.edit', $post));
-    $page->click('@instagram-settings-toggle');
     waitForChannelIssueTestId($page, 'media-rules-warning');
 
     $page->assertPresent('@media-rules-warning')
         ->assertNoJavaScriptErrors();
+});
+
+test('supported Instagram original image keeps its own aspect and can publish', function () {
+    [$post] = seedInstagramFeedImagePost(imageMeta: ['width' => 1080, 'height' => 1350]);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, 'post-composer-dialog');
+
+    $page->assertMissing('@instagram-image-aspect-issue-0')
+        ->assertEnabled('@composer-submit')
+        ->assertNoJavaScriptErrors();
+});
+
+test('Instagram image adjustment offers supported crop presets and clears the original warning', function () {
+    [$post] = seedInstagramFeedImagePost(imageCount: 1);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, 'instagram-edit-image-0');
+
+    $page->click('@instagram-edit-image-0')
+        ->assertVisible('@crop-aspect-4-5')
+        ->assertVisible('@crop-aspect-1-1')
+        ->assertVisible('@crop-aspect-16-9')
+        ->click('@crop-aspect-1-1')
+        ->click('@crop-save');
+
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (!document.querySelector('[data-testid="instagram-image-aspect-issue-0"]')
+                    && !document.querySelector('[data-testid="crop-save"]')) return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })();
+    JS);
+
+    $page->assertMissing('@instagram-image-aspect-issue-0')
+        ->assertEnabled('@composer-submit')
+        ->assertNoJavaScriptErrors();
+});
+
+test('Instagram image editor saves alt text on the selected slide', function () {
+    [$post] = seedInstagramFeedImagePost(imageCount: 1);
+    $asset = Media::factory()->assets()->for($post->workspace, 'mediable')->create([
+        'meta' => ['width' => 1080, 'height' => 1440],
+    ]);
+    $post->update(['media' => [MediaItem::fromMedia($asset)->toArray()]]);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, 'instagram-edit-image-0');
+
+    $page->click('@instagram-edit-image-0')
+        ->click('@media-editor-alt-tab')
+        ->fill('@media-editor-alt-text', 'A bright room with a wooden table')
+        ->click('@crop-save')
+        ->click('@composer-save-draft')
+        ->assertNoJavaScriptErrors();
+
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 80; attempt++) {
+                if (!document.querySelector('[data-testid="post-composer-dialog"]')) return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })();
+    JS);
+
+    expect($page->script('Boolean(document.querySelector("[data-testid=post-composer-dialog]"))'))->toBeFalse();
+    expect(data_get($post->fresh()->media, '0.meta.alt_text'))
+        ->toBe('A bright room with a wooden table');
+});
+
+test('appearance filter saves a new image without cropping its original dimensions', function () {
+    [$post, $postPlatform] = seedInstagramFeedImagePost(imageMeta: ['width' => 200, 'height' => 200], imageCount: 1);
+    $base64 = base64_encode((string) file_get_contents(base_path('tests/fixtures/crop-quadrants.png')));
+    $media = $post->media;
+    $media[0]['url'] = "data:image/png;base64,{$base64}";
+    $post->update(['media' => $media]);
+
+    $page = visit(route('app.posts.edit', $post));
+
+    $page->click("@composer-crop-{$postPlatform->social_account_id}-0")
+        ->click('@media-editor-appearance-tab')
+        ->click('@media-filter-mono');
+
+    $page->script(<<<'JS'
+        const slider = document.querySelector('[data-testid="media-adjust-brightness"]');
+        slider.value = '50';
+        slider.dispatchEvent(new Event('input', { bubbles: true }));
+    JS);
+
+    $page->assertSee('50%')
+        ->assertEnabled('@crop-save')
+        ->click('@crop-save');
+
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (!document.querySelector('[data-testid="crop-save"]')
+                    && !document.querySelector('[data-testid="composer-save-draft"]')?.disabled) return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })();
+    JS);
+
+    $newAsset = Media::where('mediable_id', $post->workspace_id)->where('collection', 'assets')->sole();
+    $image = imagecreatefromstring(Storage::get($newAsset->path));
+    expect($image)->toBeInstanceOf(GdImage::class)
+        ->and(imagesx($image))->toBe(200)
+        ->and(imagesy($image))->toBe(200);
+
+    $pixel = imagecolorsforindex($image, imagecolorat($image, 50, 50));
+    expect(abs($pixel['red'] - $pixel['green']))->toBeLessThan(5)
+        ->and(abs($pixel['green'] - $pixel['blue']))->toBeLessThan(5)
+        ->and($pixel['red'])->toBeGreaterThan(70);
 });
