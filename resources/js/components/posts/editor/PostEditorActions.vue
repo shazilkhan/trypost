@@ -114,6 +114,7 @@ const scheduledAtError = computed(() => errors.value.scheduled_at);
                             <Button
                                 type="button"
                                 class="w-full lg:w-auto"
+                                data-testid="post-submit"
                                 :disabled="isPostActionDisabled"
                                 @click="
                                     emit(

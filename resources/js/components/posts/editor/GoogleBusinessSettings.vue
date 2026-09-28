@@ -30,6 +30,7 @@ import {
     type GoogleBusinessCtaActionValue,
     type GoogleBusinessTopicTypeValue,
 } from '@/lib/googleBusiness';
+import { toNullableText } from '@/lib/utils';
 
 interface SocialAccount {
     id: string;
@@ -46,12 +47,10 @@ interface Props {
     platformIndex: number;
     meta: Record<string, any>;
     disabled?: boolean;
-    previewOnly?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
-    previewOnly: false,
 });
 
 const emit = defineEmits<{
@@ -59,7 +58,6 @@ const emit = defineEmits<{
 }>();
 
 const open = ref(false);
-const isLocked = computed(() => props.disabled || props.previewOnly);
 
 const updateMeta = (patch: Record<string, any>) => {
     emit('update:meta', { ...props.meta, ...patch });
@@ -119,15 +117,14 @@ const ctaUrl = computed<string>({
         updateMeta({
             call_to_action: {
                 ...props.meta?.call_to_action,
-                url: value.trim() === '' ? null : value,
+                url: toNullableText(value),
             },
         }),
 });
 
 const eventTitle = computed<string>({
     get: () => props.meta?.event?.title || '',
-    set: (value: string) =>
-        updateEvent({ title: value.trim() === '' ? null : value }),
+    set: (value: string) => updateEvent({ title: toNullableText(value) }),
 });
 
 const eventDateTime = (
@@ -170,7 +167,7 @@ const offerField = (
             updateMeta({
                 offer: {
                     ...props.meta?.offer,
-                    [key]: value.trim() === '' ? null : value,
+                    [key]: toNullableText(value),
                 },
             }),
     });
@@ -278,7 +275,7 @@ const ctaUrlError = findError('call_to_action.url');
                                 ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-xs'
                                 : 'border-border bg-card text-muted-foreground hover:border-amber-200 hover:bg-amber-50 hover:text-foreground'
                         "
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :data-testid="`google-business-topic-${type.value}`"
                         @click="topicType = type.value"
                     >
@@ -297,7 +294,7 @@ const ctaUrlError = findError('call_to_action.url');
                         v-model="eventTitle"
                         type="text"
                         :placeholder="$t(eventTitlePlaceholderKey)"
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :class="eventTitleError ? 'border-rose-500' : undefined"
                     />
                     <InputError :message="eventTitleError" />
@@ -313,7 +310,7 @@ const ctaUrlError = findError('call_to_action.url');
                         v-model="eventStart"
                         align="start"
                         :show-time="true"
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :placeholder="
                             $t('posts.form.google_business.event_start_date')
                         "
@@ -338,7 +335,7 @@ const ctaUrlError = findError('call_to_action.url');
                         v-model="eventEnd"
                         align="start"
                         :show-time="true"
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :placeholder="
                             $t('posts.form.google_business.event_end_date')
                         "
@@ -378,7 +375,7 @@ const ctaUrlError = findError('call_to_action.url');
                     <Input
                         v-model="offerCouponCode"
                         type="text"
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :class="
                             offerCouponCodeError ? 'border-rose-500' : undefined
                         "
@@ -395,7 +392,7 @@ const ctaUrlError = findError('call_to_action.url');
                     <Input
                         v-model="offerRedeemUrl"
                         type="text"
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :class="
                             offerRedeemUrlError ? 'border-rose-500' : undefined
                         "
@@ -412,7 +409,7 @@ const ctaUrlError = findError('call_to_action.url');
                     <Input
                         v-model="offerTerms"
                         type="text"
-                        :disabled="isLocked"
+                        :disabled="disabled"
                         :class="offerTermsError ? 'border-rose-500' : undefined"
                     />
                     <InputError :message="offerTermsError" />
@@ -424,7 +421,7 @@ const ctaUrlError = findError('call_to_action.url');
                     class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
                     >{{ $t('posts.form.google_business.cta_label') }}</Label
                 >
-                <Select v-model="ctaActionType" :disabled="isLocked">
+                <Select v-model="ctaActionType" :disabled="disabled">
                     <SelectTrigger
                         class="w-full"
                         :aria-invalid="ctaActionTypeError ? true : undefined"
@@ -455,7 +452,7 @@ const ctaUrlError = findError('call_to_action.url');
                     :placeholder="
                         $t('posts.form.google_business.cta_url_placeholder')
                     "
-                    :disabled="isLocked"
+                    :disabled="disabled"
                     :class="ctaUrlError ? 'border-rose-500' : undefined"
                 />
                 <InputError :message="ctaUrlError" />

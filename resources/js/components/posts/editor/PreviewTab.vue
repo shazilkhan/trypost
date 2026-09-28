@@ -96,6 +96,7 @@ const activeContentType = computed((): string | undefined => {
                                         ? 'opacity-100'
                                         : 'opacity-40 hover:opacity-70'
                                 "
+                                :data-testid="`preview-platform-${pp.id}`"
                                 @click="activeId = pp.id"
                             >
                                 <Avatar
