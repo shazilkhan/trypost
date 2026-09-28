@@ -12,6 +12,7 @@ import {
     IconLibraryPhoto,
     IconLoader2,
     IconPhotoPlus,
+    IconPlayerPlayFilled,
     IconPlus,
     IconSearch,
     IconSparkles,
@@ -72,7 +73,7 @@ import {
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import date from '@/date';
 import { getInstagramOriginalImageAspectIssues } from '@/lib/instagramImageAspect';
-import { isImage } from '@/lib/mediaType';
+import { isImage, isVideo } from '@/lib/mediaType';
 import { storeChunked as assetsStoreChunked } from '@/routes/app/assets';
 import { assist as assistPostAi } from '@/routes/app/posts/ai';
 import type { PinterestBoardsPayload } from '@/types';
@@ -1258,6 +1259,19 @@ const close = (): void => emit('update:open', false);
                                             alt=""
                                             class="size-full object-cover"
                                         />
+                                        <template v-else-if="isVideo(item)">
+                                            <video
+                                                :src="item.url"
+                                                class="size-full object-cover"
+                                                muted
+                                                playsinline
+                                                preload="metadata"
+                                            />
+                                            <IconPlayerPlayFilled
+                                                aria-hidden="true"
+                                                class="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white"
+                                            />
+                                        </template>
                                         <span v-else class="p-2 text-xs">{{
                                             item.original_filename
                                         }}</span>
@@ -1657,6 +1671,7 @@ const close = (): void => emit('update:open', false);
                                             item, index
                                         ) in expandedDestination.media"
                                         :key="`${item.id}-${index}`"
+                                        data-testid="composer-custom-media-item"
                                         class="relative size-28 overflow-hidden rounded-lg border"
                                     >
                                         <img
@@ -1665,6 +1680,19 @@ const close = (): void => emit('update:open', false);
                                             alt=""
                                             class="size-full object-cover"
                                         />
+                                        <template v-else-if="isVideo(item)">
+                                            <video
+                                                :src="item.url"
+                                                class="size-full object-cover"
+                                                muted
+                                                playsinline
+                                                preload="metadata"
+                                            />
+                                            <IconPlayerPlayFilled
+                                                aria-hidden="true"
+                                                class="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white"
+                                            />
+                                        </template>
                                         <span v-else class="p-2 text-xs">{{
                                             item.original_filename
                                         }}</span>

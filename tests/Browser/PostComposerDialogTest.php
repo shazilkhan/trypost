@@ -975,6 +975,43 @@ test('animated GIFs and videos do not offer the static image crop action', funct
         ->assertMissing("@composer-crop-{$account->id}-1");
 });
 
+test('video thumbnails appear in shared and channel media', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    $page->click('@composer-add-account')->click("@composer-account-option-{$account->id}")
+        ->click('@composer-base-media');
+
+    $video = base64_encode((string) file_get_contents(base_path('tests/fixtures/sample.mp4')));
+    $page->script(<<<JS
+        (async () => {
+            const input = document.querySelector('input[type="file"]');
+            const bytes = Uint8Array.from(atob('{$video}'), (character) => character.charCodeAt(0));
+            const transfer = new DataTransfer();
+            transfer.items.add(new File([bytes], 'sample.mp4', { type: 'video/mp4' }));
+            input.files = transfer.files;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (document.querySelector('[role="dialog"] video')) return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })();
+    JS);
+    $page->click('[role="dialog"] video')->click('@media-picker-confirm');
+    $source = $page->script('document.querySelector("[data-testid=composer-media-item] video")?.getAttribute("src")');
+    expect($source)->toBeString()->not->toBeEmpty();
+
+    $page->click('@composer-next');
+    expect($page->script('document.querySelector("[data-testid=composer-custom-media-item] video")?.getAttribute("src")'))->toBe($source);
+    $page->assertNoJavaScriptErrors();
+});
+
 test('failed crop upload keeps the original asset selected', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
