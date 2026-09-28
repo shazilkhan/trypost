@@ -9,8 +9,7 @@ import { computed, ref } from 'vue';
 import MediaRulesWarning from '@/components/posts/editor/MediaRulesWarning.vue';
 import { Avatar } from '@/components/ui/avatar';
 import { getPlatformLogo } from '@/composables/usePlatformLogo';
-import { getInstagramOriginalImageAspectIssues } from '@/lib/instagramImageAspect';
-import { AspectRatio, type AspectRatioValue } from '@/types/aspect-ratio';
+import { getInstagramImageAspectIssues } from '@/lib/instagramImageAspect';
 import { ContentType } from '@/types/content-type';
 import type { MediaItem } from '@/types/media';
 import { Platform } from '@/types/platform';
@@ -28,7 +27,6 @@ interface Props {
     socialAccount: SocialAccount | null;
     contentType: string;
     media: MediaItem[];
-    meta?: Record<string, any>;
     disabled?: boolean;
     showVariant?: boolean;
     initiallyOpen?: boolean;
@@ -38,7 +36,6 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     disabled: false,
-    meta: () => ({}),
     showVariant: true,
     initiallyOpen: false,
     mediaEditing: false,
@@ -47,7 +44,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
     'update:contentType': [value: string];
-    'update:meta': [meta: Record<string, any>];
     'edit:media': [index: number];
 }>();
 
@@ -68,45 +64,13 @@ const variants = [
     },
 ] as const;
 
-const aspectRatios = [
-    {
-        value: AspectRatio.Square,
-        labelKey: 'posts.form.instagram.aspect.square',
-    },
-    {
-        value: AspectRatio.Portrait,
-        labelKey: 'posts.form.instagram.aspect.portrait',
-    },
-    {
-        value: AspectRatio.Landscape,
-        labelKey: 'posts.form.instagram.aspect.landscape',
-    },
-    {
-        value: AspectRatio.Original,
-        labelKey: 'posts.form.instagram.aspect.original',
-    },
-] as const;
-
-const isFeed = computed(() => props.contentType === ContentType.InstagramFeed);
-const selectedAspectRatio = computed(
-    () => props.meta.aspect_ratio ?? AspectRatio.Original,
-);
 const originalImageIssues = computed(() =>
-    getInstagramOriginalImageAspectIssues(
-        props.contentType,
-        props.media,
-        selectedAspectRatio.value,
-    ),
+    getInstagramImageAspectIssues(props.contentType, props.media),
 );
 
 const pickVariant = (value: string) => {
     if (props.disabled) return;
     emit('update:contentType', value);
-};
-
-const pickAspectRatio = (value: AspectRatioValue) => {
-    if (props.disabled) return;
-    emit('update:meta', { ...props.meta, aspect_ratio: value });
 };
 </script>
 
@@ -210,30 +174,7 @@ const pickAspectRatio = (value: AspectRatioValue) => {
                 </div>
             </div>
 
-            <div v-if="isFeed" class="space-y-2">
-                <p
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                >
-                    {{ $t('posts.form.instagram.aspect_label') }}
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    <button
-                        v-for="ratio in aspectRatios"
-                        :key="ratio.value"
-                        type="button"
-                        :data-testid="`instagram-aspect-${ratio.value.replace(':', '-')}`"
-                        class="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="
-                            selectedAspectRatio === ratio.value
-                                ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-xs'
-                                : 'border-border bg-card text-muted-foreground hover:border-amber-200 hover:bg-amber-50 hover:text-foreground'
-                        "
-                        :disabled="disabled"
-                        @click="pickAspectRatio(ratio.value)"
-                    >
-                        {{ $t(ratio.labelKey) }}
-                    </button>
-                </div>
+            <div v-if="originalImageIssues.length" class="space-y-2">
                 <div
                     v-for="issue in originalImageIssues"
                     :key="issue.index"

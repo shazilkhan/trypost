@@ -1,6 +1,5 @@
 import { getMediaRulesForContentType } from '@/composables/useMediaRules';
 import { isImage } from '@/lib/mediaType';
-import { AspectRatio } from '@/types/aspect-ratio';
 import { ContentType } from '@/types/content-type';
 import type { MediaItem } from '@/types/media';
 
@@ -11,15 +10,11 @@ export interface InstagramImageAspectIssue {
     max: number;
 }
 
-export const getInstagramOriginalImageAspectIssues = (
+export const getInstagramImageAspectIssues = (
     contentType: string,
     media: MediaItem[],
-    selectedRatio: string | undefined,
 ): InstagramImageAspectIssue[] => {
-    if (
-        contentType !== ContentType.InstagramFeed ||
-        (selectedRatio ?? AspectRatio.Original) !== AspectRatio.Original
-    ) {
+    if (contentType !== ContentType.InstagramFeed) {
         return [];
     }
 

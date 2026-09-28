@@ -108,7 +108,7 @@ test('an Instagram media warning links to the network limits', function () {
  * @param  array<string, int>  $imageMeta
  * @return array{Post, PostPlatform}
  */
-function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'original'], array $imageMeta = ['width' => 1080, 'height' => 1440], int $size = 1024, int $imageCount = 5): array
+function seedInstagramFeedImagePost(array $platformMeta = [], array $imageMeta = ['width' => 1080, 'height' => 1440], int $size = 1024, int $imageCount = 5): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
@@ -143,29 +143,21 @@ function seedInstagramFeedImagePost(array $platformMeta = ['aspect_ratio' => 'or
     return [$post, $postPlatform];
 }
 
-test('Instagram feed fixed aspect choices allow publishing while unsupported original asks for adjustment', function () {
-    [$post, $postPlatform] = seedInstagramFeedImagePost();
+test('Instagram feed has no global aspect control and asks to adjust unsupported images', function () {
+    [$post] = seedInstagramFeedImagePost(['aspect_ratio' => '1:1']);
 
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, 'post-composer-dialog');
 
-    foreach (['1-1' => 1.0, '4-5' => 5 / 4, '16-9' => 9 / 16] as $option => $expectedHeightToWidth) {
-        $page->click("@instagram-aspect-{$option}")
-            ->assertMissing('@media-rules-warning')
-            ->assertEnabled('@composer-submit');
-
-        waitForChannelIssueTestId($page, 'instagram-feed-media');
-
-        $heightToWidth = $page->script('(() => { const frame = document.querySelector("[data-testid=instagram-feed-media]"); const rect = frame.getBoundingClientRect(); return rect.height / rect.width; })()');
-
-        expect(abs($heightToWidth - $expectedHeightToWidth))->toBeLessThan(0.01);
-
-    }
-
-    $page->click('@instagram-aspect-original')
+    $page->assertMissing('@instagram-aspect-original')
+        ->assertMissing('@instagram-aspect-1-1')
         ->assertVisible('@instagram-image-aspect-issue-0')
         ->assertDisabled('@composer-submit')
         ->assertVisible('@instagram-edit-image-0');
+
+    waitForChannelIssueTestId($page, 'instagram-feed-media');
+    $heightToWidth = $page->script('(() => { const frame = document.querySelector("[data-testid=instagram-feed-media]"); const rect = frame.getBoundingClientRect(); return rect.height / rect.width; })()');
+    expect(abs($heightToWidth - 4 / 3))->toBeLessThan(0.01);
 
     $page->assertNoJavaScriptErrors();
 });
@@ -176,11 +168,8 @@ test('Instagram feed without a saved aspect ratio uses the original image', func
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, "channel-{$postPlatform->id}");
 
-    $originalSelected = $page->script('document.querySelector("[data-testid=instagram-aspect-original]").classList.contains("bg-amber-100")');
-
-    expect($originalSelected)->toBeTrue();
-
-    $page->assertVisible('@instagram-image-aspect-issue-0')
+    $page->assertMissing('@instagram-aspect-original')
+        ->assertVisible('@instagram-image-aspect-issue-0')
         ->assertDisabled('@composer-submit')
         ->assertNoJavaScriptErrors();
 
@@ -189,6 +178,34 @@ test('Instagram feed without a saved aspect ratio uses the original image', func
     $heightToWidth = $page->script('(() => { const frame = document.querySelector("[data-testid=instagram-feed-media]"); const rect = frame.getBoundingClientRect(); return rect.height / rect.width; })()');
 
     expect(abs($heightToWidth - 4 / 3))->toBeLessThan(0.01);
+});
+
+test('saving an Instagram post removes its legacy global aspect ratio', function () {
+    [$post, $postPlatform] = seedInstagramFeedImagePost(['aspect_ratio' => '1:1'], ['width' => 1080, 'height' => 1350], imageCount: 1);
+    $asset = Media::factory()->assets()->for($post->workspace, 'mediable')->create([
+        'meta' => ['width' => 1080, 'height' => 1350],
+    ]);
+    $post->update(['media' => [MediaItem::fromMedia($asset)->toArray()]]);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, 'composer-save-draft');
+
+    $page->assertMissing('@instagram-aspect-original')
+        ->assertMissing('@instagram-image-aspect-issue-0')
+        ->click('@composer-save-draft')
+        ->assertNoJavaScriptErrors();
+
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 80; attempt++) {
+                if (!document.querySelector('[data-testid="post-composer-dialog"]')) return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })();
+    JS);
+
+    expect($page->script('Boolean(document.querySelector("[data-testid=post-composer-dialog]"))'))->toBeFalse();
+    expect(data_get($postPlatform->fresh()->meta, 'aspect_ratio'))->toBeNull();
 });
 
 test('Instagram original preview falls back to square when image dimensions are unavailable', function () {
@@ -202,7 +219,7 @@ test('Instagram original preview falls back to square when image dimensions are 
     expect(abs($heightToWidth - 1.0))->toBeLessThan(0.01);
 });
 
-test('Instagram aspect selection still enforces image size limits', function () {
+test('Instagram feed still enforces image size limits', function () {
     [$post] = seedInstagramFeedImagePost(size: 9 * 1024 * 1024);
 
     $page = visit(route('app.posts.edit', $post));
@@ -224,7 +241,7 @@ test('supported Instagram original image keeps its own aspect and can publish', 
 });
 
 test('Instagram image adjustment offers supported crop presets and clears the original warning', function () {
-    [$post] = seedInstagramFeedImagePost(imageCount: 1);
+    [$post] = seedInstagramFeedImagePost(['aspect_ratio' => '4:5'], imageCount: 1);
 
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, 'instagram-edit-image-0');

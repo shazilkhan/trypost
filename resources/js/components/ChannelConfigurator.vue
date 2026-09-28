@@ -228,7 +228,8 @@ const settingsProps = (channel: Channel) => ({
                     channel.platform === Platform.Instagram ||
                     channel.platform === Platform.InstagramFacebook
                 "
-                v-bind="settingsProps(channel)"
+                :social-account="channel.socialAccount"
+                :disabled="disabled"
                 :content-type="channel.contentType"
                 :media="media"
                 @update:content-type="

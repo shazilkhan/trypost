@@ -2,6 +2,7 @@ import { computed, ref } from 'vue';
 
 import { getContentTypeOptions } from '@/composables/usePlatformLogo';
 import type { MediaItem } from '@/types/media';
+import { Platform } from '@/types/platform';
 
 export interface ComposerAccount {
     id: string;
@@ -128,13 +129,21 @@ export const usePostComposition = (
         account: ComposerAccount,
     ): DestinationDraft & { content: string; media: MediaItem[] } => {
         const override = overrides.value[account.id] ?? {};
+        const meta = override.meta ?? {};
+        const isInstagram =
+            account.platform === Platform.Instagram ||
+            account.platform === Platform.InstagramFacebook;
+
         return {
             social_account_id: account.id,
             content_type:
                 override.content_type ??
                 getContentTypeOptions(account.platform)[0]?.value ??
                 '',
-            meta: override.meta ?? {},
+            meta:
+                isInstagram && owns(meta, 'aspect_ratio')
+                    ? { ...meta, aspect_ratio: null }
+                    : meta,
             content: owns(override, 'content')
                 ? (override.content ?? '')
                 : content.value,

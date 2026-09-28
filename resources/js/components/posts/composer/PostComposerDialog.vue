@@ -72,7 +72,7 @@ import {
 } from '@/composables/usePostComposition';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import date from '@/date';
-import { getInstagramOriginalImageAspectIssues } from '@/lib/instagramImageAspect';
+import { getInstagramImageAspectIssues } from '@/lib/instagramImageAspect';
 import { isImage, isVideo } from '@/lib/mediaType';
 import { storeChunked as assetsStoreChunked } from '@/routes/app/assets';
 import { assist as assistPostAi } from '@/routes/app/posts/ai';
@@ -308,7 +308,7 @@ const canSubmit = computed(
         !cropUploading.value &&
         !mediaUploading.value,
 );
-const hasUnsupportedInstagramOriginal = computed(() =>
+const hasUnsupportedInstagramImage = computed(() =>
     selectedAccounts.value.some((account) => {
         if (!isInstagramPlatform(account.platform)) {
             return false;
@@ -317,10 +317,9 @@ const hasUnsupportedInstagramOriginal = computed(() =>
         const destination = composition.resolvedDestination(account);
 
         return (
-            getInstagramOriginalImageAspectIssues(
+            getInstagramImageAspectIssues(
                 destination.content_type,
                 destination.media,
-                destination.meta.aspect_ratio,
             ).length > 0
         );
     }),
@@ -650,11 +649,7 @@ const instagramCropPresets = computed(() => {
             height: 900,
         },
     ];
-    const selectedRatio = destination.meta.aspect_ratio ?? AspectRatio.Original;
-
-    return selectedRatio === AspectRatio.Original
-        ? presets
-        : presets.filter((preset) => preset.value === selectedRatio);
+    return presets;
 });
 
 const onCropped = async (
@@ -733,7 +728,7 @@ const goToCustomization = (): void => {
 const submit = (status: PostComposition['status']): void => {
     if (
         !canSubmit.value ||
-        (status !== 'draft' && hasUnsupportedInstagramOriginal.value)
+        (status !== 'draft' && hasUnsupportedInstagramImage.value)
     )
         return;
     const payload = composition.materialize(status);
@@ -1538,7 +1533,6 @@ const close = (): void => emit('update:open', false);
                                 :social-account="expandedAccount"
                                 :content-type="expandedDestination.content_type"
                                 :media="expandedDestination.media"
-                                :meta="expandedDestination.meta"
                                 :initially-open="true"
                                 :compact="true"
                                 :show-variant="true"
@@ -1547,13 +1541,6 @@ const close = (): void => emit('update:open', false);
                                     composition.setOverride(
                                         expandedAccount.id,
                                         'content_type',
-                                        $event,
-                                    )
-                                "
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
                                         $event,
                                     )
                                 "
@@ -2360,7 +2347,7 @@ const close = (): void => emit('update:open', false);
                             :data-schedule-mode="scheduleMode"
                             :disabled="
                                 !canSubmit ||
-                                hasUnsupportedInstagramOriginal ||
+                                hasUnsupportedInstagramImage ||
                                 (scheduleMode === 'custom' &&
                                     !composition.scheduledAt.value)
                             "

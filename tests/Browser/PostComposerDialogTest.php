@@ -1009,7 +1009,9 @@ test('video thumbnails appear in shared and channel media', function () {
 
     $page->click('@composer-next');
     expect($page->script('document.querySelector("[data-testid=composer-custom-media-item] video")?.getAttribute("src")'))->toBe($source);
-    $page->assertNoJavaScriptErrors();
+    $page->assertMissing('@instagram-aspect-original')
+        ->assertMissing('@instagram-aspect-1-1')
+        ->assertNoJavaScriptErrors();
 });
 
 test('failed crop upload keeps the original asset selected', function () {
