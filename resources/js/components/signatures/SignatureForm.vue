@@ -40,7 +40,7 @@ const emit = defineEmits<{
                     :placeholder="trans(`signatures.${mode}.name_placeholder`)"
                     :aria-invalid="Boolean(props.errors.name)"
                 />
-                <p v-if="props.errors.name" class="text-sm text-destructive">
+                <p v-if="props.errors.name" class="text-sm text-destructive-text">
                     {{ props.errors.name }}
                 </p>
             </div>
@@ -61,15 +61,21 @@ const emit = defineEmits<{
                 <p class="text-xs text-muted-foreground">
                     {{ $t(`signatures.${mode}.content_hint`) }}
                 </p>
-                <p v-if="props.errors.content" class="text-sm text-destructive">
+                <p v-if="props.errors.content" class="text-sm text-destructive-text">
                     {{ props.errors.content }}
                 </p>
             </div>
         </div>
-        <div class="mt-auto flex justify-end gap-2 pt-4">
+        <div
+            :class="
+                compact
+                    ? 'mt-auto flex justify-end gap-2 pt-4'
+                    : 'mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end [&>[data-slot=button]]:h-10 [&>[data-slot=button]]:px-4'
+            "
+        >
             <Button
                 type="button"
-                variant="outline"
+                variant="ghost"
                 :data-testid="`cancel-${idPrefix}`"
                 @click="emit('cancel')"
             >

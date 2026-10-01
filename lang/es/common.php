@@ -12,7 +12,7 @@ return [
         'type' => 'Escribe',
         'to_confirm' => 'para confirmar.',
         'copy_to_clipboard' => 'Copiar al portapapeles',
-        'delete_keyword' => 'eliminar',
+        'delete_keyword' => 'ELIMINAR',
     ],
 
     'photo_upload' => [

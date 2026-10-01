@@ -32,14 +32,10 @@ class PostAtRisk extends Mailable implements ShouldQueue
      * serialized size stays small and the account/post details reflect
      * state as of send time, not as of dispatch time.
      *
-     * $count drives the subject and preview text specifically — kept as the
-     * dispatch-time value (rather than re-derived from the rehydrated rows)
-     * so it always matches the in-app notification's title, which is built
-     * from this same count in VerifyUpcomingPostConnections::notifyOwner().
-     * If a row disappears between dispatch and send, the subject may then
-     * differ from the number of rows actually listed in the body — an
-     * acceptable rare edge case, in exchange for the subject never
-     * disagreeing with the in-app notification.
+     * $count drives the subject and preview text and is the dispatch-time
+     * value, not re-derived from the rehydrated rows. If a row disappears
+     * between dispatch and send, the subject may differ from the number of
+     * rows actually listed in the body — an acceptable rare edge case.
      *
      * @param  array<int, string>  $postPlatformIds
      */
@@ -71,7 +67,7 @@ class PostAtRisk extends Mailable implements ShouldQueue
                 ]),
                 'workspaceName' => $this->workspace->name,
                 'atRiskGroups' => $this->atRiskGroups(),
-                'url' => route('app.accounts'),
+                'url' => route('app.workspace.channels'),
             ],
         );
     }

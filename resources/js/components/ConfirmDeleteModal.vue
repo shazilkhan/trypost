@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { IconCopy } from '@tabler/icons-vue';
+import { IconCheck, IconCopy } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +47,11 @@ const props = defineProps({
         type: String,
         default: 'delete',
     },
+
+    actionTestId: {
+        type: String,
+        default: 'confirm-delete-action',
+    },
 });
 
 const emit = defineEmits(['deleted', 'closed']);
@@ -56,11 +61,42 @@ const processing = ref(false);
 const url = ref<string | null>(null);
 const confirmInput = ref('');
 const confirmText = ref('');
+const payload = ref<Record<string, unknown>>({});
+const request = ref<(() => Promise<void>) | null>(null);
+
+const keywordCopied = ref(false);
+let keywordCopiedTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const copyKeyword = async () => {
+    const didCopy = await copyToClipboard(confirmText.value, undefined, {
+        showSuccessToast: false,
+    });
+
+    if (!didCopy) {
+        return;
+    }
+
+    keywordCopied.value = true;
+
+    if (keywordCopiedTimeout) {
+        clearTimeout(keywordCopiedTimeout);
+    }
+
+    keywordCopiedTimeout = setTimeout(() => {
+        keywordCopied.value = false;
+    }, 2000);
+};
+
+onBeforeUnmount(() => {
+    if (keywordCopiedTimeout) {
+        clearTimeout(keywordCopiedTimeout);
+    }
+});
 
 const requiresConfirmation = computed(() => confirmText.value.length > 0);
 const isConfirmed = computed(
     () =>
-        !requiresConfirmation.value || confirmInput.value === confirmText.value,
+        !requiresConfirmation.value || confirmInput.value.trim() === confirmText.value,
 );
 
 const remove = () => {
@@ -69,6 +105,20 @@ const remove = () => {
     }
 
     processing.value = true;
+
+    if (request.value) {
+        request.value()
+            .then(() => {
+                close();
+                emit('deleted');
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                processing.value = false;
+            });
+
+        return;
+    }
 
     const options = {
         preserveState: true,
@@ -85,14 +135,26 @@ const remove = () => {
     const method = props.method as 'delete' | 'get' | 'post' | 'put' | 'patch';
 
     if (method === 'delete' || method === 'get') {
-        router[method](url.value, options as any);
+        router[method](
+            url.value,
+            (Object.keys(payload.value).length
+                ? { ...options, data: payload.value }
+                : options) as any,
+        );
     } else {
-        router[method](url.value, {}, options as any);
+        router[method](url.value, payload.value as any, options as any);
     }
 };
 
-const open = (data: { url: string; confirmText?: string }) => {
+const open = (data: {
+    url: string;
+    confirmText?: string;
+    data?: Record<string, unknown>;
+    request?: () => Promise<void>;
+}) => {
     url.value = data.url;
+    payload.value = data.data ?? {};
+    request.value = data.request ?? null;
     confirmText.value = data.confirmText ?? '';
     processing.value = false;
     confirmInput.value = '';
@@ -126,7 +188,7 @@ defineExpose({
                 <DialogTitle>{{ title }}</DialogTitle>
                 <DialogDescription class="space-y-1">
                     <span class="block">{{ description }}</span>
-                    <span class="block font-medium text-destructive">
+                    <span class="block font-medium text-destructive-text">
                         {{ trans('common.confirm_modal.cannot_be_undone') }}
                     </span>
                 </DialogDescription>
@@ -148,16 +210,15 @@ defineExpose({
                                         type="button"
                                         tabindex="-1"
                                         class="inline-flex shrink-0 cursor-pointer items-center rounded text-muted-foreground hover:text-foreground"
-                                        @click="
-                                            copyToClipboard(
-                                                confirmText,
-                                                trans(
-                                                    'common.confirm_modal.copy_to_clipboard',
-                                                ),
-                                            )
-                                        "
+                                        data-testid="confirm-delete-copy-keyword"
+                                        @click="copyKeyword"
                                     >
-                                        <IconCopy class="size-3" />
+                                        <IconCheck
+                                            v-if="keywordCopied"
+                                            class="size-3 text-success-text"
+                                            data-testid="confirm-delete-keyword-copied"
+                                        />
+                                        <IconCopy v-else class="size-3" />
                                     </button>
                                 </TooltipTrigger>
                                 <TooltipContent>
@@ -184,7 +245,7 @@ defineExpose({
 
             <DialogFooter>
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     data-testid="confirm-delete-cancel"
                     @click="close"
                 >
@@ -192,7 +253,7 @@ defineExpose({
                 </Button>
                 <Button
                     variant="destructive"
-                    data-testid="confirm-delete-action"
+                    :data-testid="actionTestId"
                     :disabled="processing || !isConfirmed"
                     @click="remove"
                 >

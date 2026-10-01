@@ -9,7 +9,7 @@ use App\Enums\SocialAccount\Platform;
 use App\Exceptions\Social\BlueskyPublishException;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
-use App\Services\Brand\SafeHttpFetcher;
+use App\Services\Http\SafeHttpFetcher;
 use App\Services\Media\MediaOptimizer;
 use App\Services\Social\Concerns\HasSocialHttpClient;
 use App\Services\Social\LinkCard\LinkCardFetcher;
@@ -21,7 +21,6 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
-use RuntimeException;
 use Throwable;
 
 class BlueskyPublisher
@@ -197,24 +196,23 @@ class BlueskyPublisher
      * the upload fails. A JPEG hint routes it through the image optimizer, which
      * re-encodes any static image and enforces Bluesky's 1MB blob limit.
      */
+    private function safeHttp(): SafeHttpFetcher
+    {
+        return app(SafeHttpFetcher::class);
+    }
+
     private function uploadCardThumb(SocialAccount $account, string $service, LinkCardMetadata $card): ?array
     {
         if ($card->imageUrl === null) {
             return null;
         }
 
-        try {
-            app(SafeHttpFetcher::class)->guardAgainstSsrf($card->imageUrl);
-        } catch (RuntimeException) {
-            return null;
-        }
-
-        return $this->uploadBlob($account, $service, $card->imageUrl, 'image/jpeg', self::THUMB_DOWNLOAD_TIMEOUT, followRedirects: false);
+        return $this->uploadBlob($account, $service, $card->imageUrl, 'image/jpeg', self::THUMB_DOWNLOAD_TIMEOUT, untrusted: true);
     }
 
-    private function uploadBlob(SocialAccount $account, string $service, string $url, string $mimeType, int $downloadTimeout = self::DOWNLOAD_TIMEOUT, bool $followRedirects = true): ?array
+    private function uploadBlob(SocialAccount $account, string $service, string $url, string $mimeType, int $downloadTimeout = self::DOWNLOAD_TIMEOUT, bool $untrusted = false): ?array
     {
-        $tempFile = $this->downloadToTempFile($url, 'bsky_blob_', $downloadTimeout, $followRedirects);
+        $tempFile = $this->downloadToTempFile($url, 'bsky_blob_', $downloadTimeout, $untrusted);
 
         if ($tempFile === null) {
             return null;
@@ -273,14 +271,12 @@ class BlueskyPublisher
      * null (after cleaning up) if the temp file can't be created, the download
      * fails, or the downloaded file is empty.
      *
-     * $followRedirects defaults to true for the media/video paths, which
-     * download from our own storage/CDN URLs. The card thumb path passes
-     * false because the source is an attacker-influenceable og:image that
-     * was only guarded against SSRF on its original URL — a redirect on that
-     * hop must not be followed without re-guarding, so it is simply not
-     * followed at all (the thumb degrades to null instead).
+     * The media/video paths download from our own storage/CDN URLs. The card
+     * thumb is an attacker-influenceable og:image, so `$untrusted` sends it
+     * through SafeHttpFetcher: SSRF guard with the address pinned, no
+     * redirects, and the image size cap (the thumb degrades to null instead).
      */
-    private function downloadToTempFile(string $url, string $prefix, int $timeoutSeconds = self::DOWNLOAD_TIMEOUT, bool $followRedirects = true): ?string
+    private function downloadToTempFile(string $url, string $prefix, int $timeoutSeconds = self::DOWNLOAD_TIMEOUT, bool $untrusted = false): ?string
     {
         $tempFile = tempnam(sys_get_temp_dir(), $prefix);
 
@@ -291,13 +287,9 @@ class BlueskyPublisher
         }
 
         try {
-            $options = ['sink' => $tempFile];
-
-            if (! $followRedirects) {
-                $options['allow_redirects'] = false;
-            }
-
-            $response = Http::withOptions($options)->timeout($timeoutSeconds)->get($url);
+            $response = $untrusted
+                ? $this->safeHttp()->limitTransfer($this->safeHttp()->guardedRequest($url, followRedirects: false), MediaType::Image->maxSizeInBytes(), timeoutSeconds: $timeoutSeconds)->sink($tempFile)->get($url)
+                : Http::withOptions(['sink' => $tempFile])->timeout($timeoutSeconds)->get($url);
 
             if ($response->failed()) {
                 throw new Exception('HTTP '.$response->status());

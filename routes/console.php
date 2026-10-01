@@ -8,11 +8,14 @@ use App\Console\Commands\Analytics\DispatchPublicationMetrics;
 use App\Console\Commands\CheckSocialConnections;
 use App\Console\Commands\CheckUpcomingPostConnections;
 use App\Console\Commands\ProcessScheduledPosts;
+use App\Console\Commands\PruneExpiredPostHistoryCommand;
+use App\Console\Commands\PruneTemporaryUploadsCommand;
 use App\Console\Commands\PruneWebhookLogs;
 use App\Console\Commands\ReconcileGoogleBusinessPosts;
 use App\Console\Commands\RecoverStuckPosts;
 use App\Console\Commands\RefreshExpiringTokens;
 use App\Console\Commands\Repurpose\PollRepurposes;
+use App\Console\Commands\RssFeed\PollRssFeeds;
 use App\Jobs\Analytics\FinalizeAccountDailySnapshots;
 use Illuminate\Support\Facades\Schedule;
 
@@ -23,7 +26,10 @@ Schedule::command(RefreshExpiringTokens::class)->everyFifteenMinutes()->withoutO
 Schedule::command(RecoverStuckPosts::class)->everyThirtyMinutes()->withoutOverlapping()->onOneServer();
 Schedule::command(ReconcileGoogleBusinessPosts::class)->everyFiveMinutes()->withoutOverlapping()->onOneServer();
 Schedule::command(PruneWebhookLogs::class)->daily()->withoutOverlapping()->onOneServer();
+Schedule::command(PruneExpiredPostHistoryCommand::class)->daily()->withoutOverlapping()->onOneServer();
+Schedule::command(PruneTemporaryUploadsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
 Schedule::command(PollRepurposes::class)->everyFiveMinutes()->withoutOverlapping()->onOneServer();
+Schedule::command(PollRssFeeds::class)->everyFiveMinutes()->withoutOverlapping()->onOneServer();
 Schedule::command(DispatchAccountDailyAnalytics::class)
     ->dailyAt('02:00')
     ->timezone('UTC')

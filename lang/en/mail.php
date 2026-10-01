@@ -34,13 +34,6 @@ return [
         'ignore' => 'If you did not create an account, you can safely ignore this email.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name mentioned you on TryPost',
-        'title' => ':name mentioned you',
-        'intro' => ':name mentioned you in a post note.',
-        'button' => 'View note',
-    ],
-
     'password_reset' => [
         'subject' => 'Reset your password',
         'preview' => 'Reset your password.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count post scheduled: :times UTC|[0,*] :count posts scheduled: :times UTC',
         'reconnect_cta' => 'Please reconnect these accounts now to avoid missing your scheduled posts.',
         'button' => 'Reconnect Accounts',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author added a note to a post',
+        'title' => 'New note from :author',
+        'heading' => 'New note on a post',
+        'body' => ':author added a note to a post in the :workspace workspace.',
+        'post_title' => 'Post',
+        'post_without_text' => 'This post has no text yet.',
+        'button' => 'View note',
     ],
 
     'post_publish_failed' => [

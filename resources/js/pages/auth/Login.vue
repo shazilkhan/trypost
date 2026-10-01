@@ -44,12 +44,13 @@ const pageErrors = usePageErrors();
     <AuthBase
         :title="$t('auth.login.title')"
         :description="$t('auth.login.description')"
+        panel
     >
         <Head :title="$t('auth.login.page_title')" />
 
         <div
             v-if="status"
-            class="mb-4 text-center text-sm font-medium text-green-600"
+            class="rounded-lg bg-success-subtle px-3 py-2 text-center text-sm font-medium text-success-text"
         >
             {{ status }}
         </div>
@@ -71,9 +72,11 @@ const pageErrors = usePageErrors();
                     name="invite"
                     :value="invite"
                 />
-                <div class="grid gap-6">
+                <div class="grid gap-4">
                     <div class="grid gap-2">
-                        <Label for="email">{{ $t('auth.login.email') }}</Label>
+                        <Label for="email" class="text-base leading-6">{{
+                            $t('auth.login.email')
+                        }}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -83,13 +86,14 @@ const pageErrors = usePageErrors();
                             autocomplete="email"
                             placeholder="email@example.com"
                             :default-value="email ?? ''"
+                            class="h-10 rounded-lg px-3 text-base"
                         />
                         <InputError :message="errors.email || pageErrors.email" />
                     </div>
 
                     <div class="grid gap-2">
                         <div class="flex items-center justify-between">
-                            <Label for="password">{{
+                            <Label for="password" class="text-base leading-6">{{
                                 $t('auth.login.password')
                             }}</Label>
                             <TextLink
@@ -108,6 +112,7 @@ const pageErrors = usePageErrors();
                                 :tabindex="2"
                                 autocomplete="current-password"
                                 :placeholder="$t('auth.login.password')"
+                                class="h-10 rounded-lg ps-3 pe-10 text-base"
                             />
                             <div
                                 class="absolute inset-y-0 end-0 flex items-center pe-3"
@@ -156,7 +161,7 @@ const pageErrors = usePageErrors();
                     <div class="flex items-center justify-between">
                         <Label
                             for="remember"
-                            class="flex items-center space-x-3"
+                            class="flex items-center gap-2 text-sm font-normal"
                         >
                             <Checkbox
                                 id="remember"
@@ -169,8 +174,9 @@ const pageErrors = usePageErrors();
 
                     <Button
                         type="submit"
+                        size="lg"
                         data-testid="login-submit"
-                        class="mt-4 w-full"
+                        class="w-full text-base"
                         :tabindex="4"
                         :disabled="processing"
                         data-test="login-button"
@@ -182,7 +188,7 @@ const pageErrors = usePageErrors();
 
                 <div
                     v-if="!isSelfHosted"
-                    class="text-center text-sm text-muted-foreground"
+                    class="text-center text-base text-foreground"
                 >
                     {{ $t('auth.login.no_account') }}
                     <TextLink

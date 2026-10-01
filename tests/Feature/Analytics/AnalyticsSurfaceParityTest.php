@@ -226,3 +226,58 @@ test('web API and MCP expose imported publication metrics and isolate workspaces
 
     Http::assertNothingSent();
 });
+
+test('the analytics API resolves a range preset in the user time zone without clamping', function () {
+    $this->travelTo('2026-09-30 12:00 UTC');
+    $access = createApiTestToken();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $access['workspace']->id]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $access['workspace']->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'network' => $account->platform->network(),
+        'platform_user_id' => $account->platform_user_id,
+        'platform' => $account->platform,
+        'date' => '2026-09-28',
+        'followers_count' => 50,
+    ]);
+
+    $this->withHeaders(['Authorization' => "Bearer {$access['plain_token']}"])
+        ->getJson(route('api.analytics.index', ['range' => '7d', 'start' => '', 'end' => '']))
+        ->assertOk()
+        ->assertJsonPath('range.start', '2026-09-24')
+        ->assertJsonPath('range.end', '2026-09-30')
+        ->assertJsonPath('previous_range.start', '2026-09-17')
+        ->assertJsonPath('bounds.max', '2026-09-28');
+});
+
+test('the analytics API keeps the last 30 days of available data when no range is sent', function () {
+    $this->travelTo('2026-09-30 12:00 UTC');
+    $access = createApiTestToken();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $access['workspace']->id]);
+
+    foreach (['2026-07-01', '2026-08-10'] as $date) {
+        AnalyticsAccountDailySnapshot::factory()->create([
+            'workspace_id' => $access['workspace']->id,
+            'social_account_id' => $account->id,
+            'social_account_key' => $account->id,
+            'network' => $account->platform->network(),
+            'platform_user_id' => $account->platform_user_id,
+            'platform' => $account->platform,
+            'date' => $date,
+            'followers_count' => 50,
+        ]);
+    }
+
+    $this->withHeaders(['Authorization' => "Bearer {$access['plain_token']}"])
+        ->getJson(route('api.analytics.index'))
+        ->assertOk()
+        ->assertJsonPath('range.start', '2026-07-12')
+        ->assertJsonPath('range.end', '2026-08-10');
+
+    $this->withHeaders(['Authorization' => "Bearer {$access['plain_token']}"])
+        ->getJson(route('api.analytics.index', ['range' => '30d']))
+        ->assertOk()
+        ->assertJsonPath('range.start', '2026-09-01')
+        ->assertJsonPath('range.end', '2026-09-30');
+});

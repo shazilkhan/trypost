@@ -160,7 +160,7 @@ test('google business callback reconnects the original location when google retu
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::GoogleBusiness)->count())->toBe(1)
@@ -425,7 +425,7 @@ test('select reconnects an existing account when a reconnect id is present', fun
     $response->assertOk();
     $response->assertInertia(fn (AssertableInertia $page) => $page
         ->where('success', true)
-        ->where('message', __('accounts.popup_callback.reconnected'))
+        ->where('message', null)
     );
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::GoogleBusiness)->count())->toBe(1);
@@ -582,7 +582,7 @@ test('google business callback reconnects a single matching location', function 
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::GoogleBusiness)->count())->toBe(1);
@@ -727,7 +727,7 @@ test('select keeps the existing refresh token when google omits a new one', func
     $response->assertOk();
     $response->assertInertia(fn (AssertableInertia $page) => $page
         ->where('success', true)
-        ->where('message', __('accounts.popup_callback.reconnected'))
+        ->where('message', null)
     );
 
     $existingAccount->refresh();

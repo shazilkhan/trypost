@@ -25,7 +25,7 @@ class AuditLegacyPosts extends Command
         $unavailableScheduled = Post::query()->scheduled()
             ->whereHas('postPlatforms', fn ($query) => $query->enabled()->where(function ($target): void {
                 $target->whereNull('social_account_id')
-                    ->orWhereDoesntHave('socialAccount', fn ($account) => $account->where('is_active', true));
+                    ->orWhereDoesntHave('socialAccount');
             }))->count();
         $settledAggregates = Post::query()
             ->whereIn('status', [Status::Published, Status::PartiallyPublished, Status::Failed])

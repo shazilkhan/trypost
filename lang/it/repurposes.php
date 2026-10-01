@@ -13,15 +13,12 @@ return [
     ],
 
     'publish_mode' => [
-
         'title' => 'Pubblicazione',
 
         'description' => 'Cosa succede quando compare un nuovo post.',
-
     ],
 
     'publish_modes' => [
-
         'publish' => 'Pubblica automaticamente',
 
         'publish_hint' => 'Ogni nuovo post viene programmato appena viene trovato.',
@@ -29,7 +26,6 @@ return [
         'draft' => 'Crea come bozza',
 
         'draft_hint' => 'Ogni nuovo post diventa una bozza da rivedere e pubblicare qui.',
-
     ],
 
     'formats' => [
@@ -58,8 +54,6 @@ return [
     ],
 
     'table' => [
-        'flow' => 'Flusso',
-        'status' => 'Stato',
         'published' => 'Replicati',
         'last_polled' => 'Ultimo controllo',
     ],
@@ -97,7 +91,6 @@ return [
     ],
 
     'destinations' => [
-        'paused_note' => 'Disattivati e ignorati finché non li riattivi: :accounts',
         'title' => 'Destinazioni',
         'description' => 'Scegli gli account che lo riceveranno. Ognuno pubblica nel formato che imposti.',
         'hint' => 'La didascalia viene adattata per rete solo quando supera il limite di quella rete.',
@@ -150,9 +143,7 @@ return [
     ],
 
     'menu' => [
-
         'label' => 'Altre azioni',
-
     ],
 
     'danger' => [

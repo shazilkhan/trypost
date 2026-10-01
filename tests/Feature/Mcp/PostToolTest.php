@@ -2,13 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Ai\Agents\PostWritingAssistant;
-use App\Dto\MediaItem;
 use App\Enums\Post\CreatedVia;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
 use App\Mcp\Servers\TryPostServer;
-use App\Mcp\Tools\Post\AssistPostContentTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
 use App\Mcp\Tools\Post\CreatePostTool;
 use App\Mcp\Tools\Post\DeletePostTool;
@@ -22,9 +19,11 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\Fluent\AssertableJson;
 
 beforeEach(function () {
+    Storage::fake();
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
     $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
@@ -34,21 +33,6 @@ beforeEach(function () {
         'workspace_id' => $this->workspace->id,
         'platform' => Platform::LinkedIn,
     ]);
-});
-
-test('assistant tool returns a suggestion without creating a post', function () {
-    PostWritingAssistant::fake(['A revised caption']);
-
-    TryPostServer::actingAs($this->user)
-        ->tool(AssistPostContentTool::class, [
-            'mode' => 'rephrase',
-            'current_content' => 'The original caption',
-        ])
-        ->assertOk()
-        ->assertStructuredContent(fn (AssertableJson $json) => $json
-            ->where('content', 'A revised caption'));
-
-    $this->assertDatabaseCount('posts', 0);
 });
 
 test('list posts returns wrapped posts array with PostResource shape', function () {
@@ -63,7 +47,7 @@ test('list posts returns wrapped posts array with PostResource shape', function 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
             $json->has('posts', 3, function (AssertableJson $post) {
-                $post->hasAll(['id', 'content', 'media', 'status', 'scheduled_at', 'published_at', 'platforms', 'labels', 'created_at', 'updated_at'])
+                $post->hasAll(['id', 'content', 'media', 'status', 'schedule_mode', 'scheduled_at', 'published_at', 'platforms', 'labels', 'created_at', 'updated_at'])
                     ->missing('user_id')
                     ->missing('workspace_id');
             });
@@ -240,23 +224,25 @@ test('create post with platforms enables only those', function () {
     expect($enabled->first()->content_type->value)->toBe('linkedin_post');
 });
 
-test('the single MCP create tool accepts a previously uploaded workspace asset', function () {
-    $asset = Media::factory()->assets()->for($this->workspace, 'mediable')->create();
+test('the single MCP create tool adopts a temporary upload submitted by id', function () {
+    $asset = Media::factory()->stored()->temporaryUpload($this->workspace)->create();
 
     TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
-        'media' => [MediaItem::fromMedia($asset)->toArray()],
+        'media' => [['id' => $asset->id]],
         'platforms' => [
             ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post'],
         ],
     ])->assertOk();
 
-    expect(Post::query()->where('workspace_id', $this->workspace->id)->sole()->media[0]['id'])->toBe($asset->id);
+    $post = Post::query()->where('workspace_id', $this->workspace->id)->sole();
+
+    expect($post->ownedMedia()->sole()->id)->toBe($asset->id)
+        ->and(data_get($post->media, '0.id'))->toBe($asset->id);
 });
 
 test('the single MCP create tool rejects multiple accounts', function () {
     $secondAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
@@ -272,7 +258,6 @@ test('the single MCP create tool rejects multiple accounts', function () {
 test('the MCP batch tool creates ordered independent posts', function () {
     $secondAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     TryPostServer::actingAs($this->user)->tool(CreatePostsTool::class, [
@@ -296,7 +281,6 @@ test('the MCP batch tool rejects a foreign account without creating a partial ba
     $foreignWorkspace = Workspace::factory()->create();
     $foreignAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $foreignWorkspace->id,
-        'is_active' => true,
     ]);
 
     TryPostServer::actingAs($this->user)->tool(CreatePostsTool::class, [
@@ -332,23 +316,6 @@ test('the MCP edit tool rejects a replacement social account', function () {
 test('create post rejects scheduled_at in the past', function () {
     $response = TryPostServer::actingAs($this->user)
         ->tool(CreatePostTool::class, ['scheduled_at' => '2020-01-01T00:00:00Z']);
-
-    $response->assertHasErrors();
-});
-
-test('create post rejects an inactive social account', function () {
-    $inactive = SocialAccount::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'platform' => Platform::LinkedIn,
-        'is_active' => false,
-    ]);
-
-    $response = TryPostServer::actingAs($this->user)
-        ->tool(CreatePostTool::class, [
-            'platforms' => [
-                ['social_account_id' => $inactive->id, 'content_type' => 'linkedin_post'],
-            ],
-        ]);
 
     $response->assertHasErrors();
 });
@@ -419,6 +386,20 @@ test('create post rejects a label_id from another workspace', function () {
         ]);
 
     $response->assertHasErrors();
+});
+
+test('create post rejects a deleted label', function () {
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
+    $label->delete();
+
+    TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'platforms' => [
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post'],
+            ],
+            'label_ids' => [$label->id],
+        ])
+        ->assertHasErrors();
 });
 
 test('delete post removes from db', function () {
@@ -686,4 +667,12 @@ test('viewers cannot create update or delete posts via mcp', function () {
         ->assertHasErrors(['Not authorized to delete this post.']);
 
     expect($post->fresh()->content)->toBe('Protected');
+});
+
+test('the mcp server exposes no ai tools', function () {
+    $tools = (new ReflectionClass(TryPostServer::class))->getDefaultProperties()['tools'];
+
+    expect(collect($tools)->map(fn (string $tool): string => class_basename($tool))->all())
+        ->not->toContain('AssistPostContentTool')
+        ->not->toContain('GenerateMediaAltTextTool');
 });

@@ -45,19 +45,19 @@ watch(
                 type="button"
                 variant="outline"
                 size="icon"
-                class="size-10 rounded-xl"
+                class="size-10 data-[state=open]:bg-accent"
                 :aria-label="$t('notes.title')"
                 :aria-expanded="open"
                 :data-testid="`post-notes-trigger-${postId}`"
             >
                 <IconMessageCircleFilled
                     v-if="count > 0"
-                    class="size-5 text-foreground"
+                    class="size-4 text-foreground"
                     :data-testid="`post-notes-filled-icon-${postId}`"
                 />
                 <IconMessageCircle
                     v-else
-                    class="size-5 text-muted-foreground"
+                    class="size-4 text-muted-foreground"
                     :data-testid="`post-notes-outline-icon-${postId}`"
                 />
             </Button>

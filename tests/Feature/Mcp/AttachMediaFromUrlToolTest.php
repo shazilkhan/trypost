@@ -47,7 +47,7 @@ test('attaches an image from url and creates a media row', function () {
 
     $response->assertOk();
 
-    expect(Media::where('mediable_id', $this->workspace->id)->count())->toBe(1);
+    expect($this->post->ownedMedia()->count())->toBe(1);
     expect($this->post->fresh()->media)->toHaveCount(1);
 });
 
@@ -110,7 +110,7 @@ test('reports failures and successes separately', function () {
     $response->assertOk()
         ->assertSee(['example.com/missing.png']);
 
-    expect(Media::where('mediable_id', $this->workspace->id)->count())->toBe(1);
+    expect($this->post->ownedMedia()->count())->toBe(1);
     expect($this->post->fresh()->media)->toHaveCount(1);
 });
 
@@ -233,4 +233,17 @@ test('rejects more than 10 urls per call', function () {
         ]);
 
     $response->assertHasErrors();
+});
+
+test('requests the url uncompressed so a compressed bomb cannot expand on disk', function () {
+    Http::fake(['example.com/photo.jpg' => Http::response(gzencode(str_repeat('0', 4096)), 200, ['Content-Type' => 'image/jpeg', 'Content-Encoding' => 'gzip'])]);
+
+    TryPostServer::actingAs($this->user)
+        ->tool(AttachMediaFromUrlTool::class, [
+            'post_id' => $this->post->id,
+            'urls' => [['url' => 'https://example.com/photo.jpg']],
+        ]);
+
+    Http::assertSent(fn ($request) => $request->hasHeader('Accept-Encoding', 'identity'));
+    expect(Media::where('mediable_id', $this->workspace->id)->count())->toBe(0);
 });

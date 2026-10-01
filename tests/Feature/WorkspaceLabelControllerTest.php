@@ -58,7 +58,8 @@ test('store label creates label', function () {
         'color' => '#FF5733',
     ]);
 
-    $response->assertRedirect(route('app.labels.index'));
+    $response->assertRedirect(route('app.labels.index'))
+        ->assertSessionMissing('flash.banner');
 
     $this->assertDatabaseHas('workspace_labels', [
         'workspace_id' => $this->workspace->id,
@@ -105,7 +106,8 @@ test('update label updates the label', function () {
         'color' => '#00FF00',
     ]);
 
-    $response->assertRedirect(route('app.labels.index'));
+    $response->assertRedirect(route('app.labels.index'))
+        ->assertSessionMissing('flash.banner');
 
     $label->refresh();
     expect($label->name)->toBe('Updated Label');
@@ -138,7 +140,8 @@ test('destroy label deletes the label', function () {
 
     $response = $this->actingAs($this->user)->delete(route('app.labels.destroy', $label));
 
-    $response->assertRedirect(route('app.labels.index'));
+    $response->assertRedirect(route('app.labels.index'))
+        ->assertSessionMissing('flash.banner');
     expect(WorkspaceLabel::find($label->id))->toBeNull();
 });
 

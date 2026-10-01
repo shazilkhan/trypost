@@ -11,6 +11,7 @@ use App\Rules\ContentFitsPlatformLimits;
 use App\Rules\ContentTypeMatchesPlatform;
 use App\Support\PostMediaRules;
 use App\Support\PostPlatformMetaRules;
+use App\Support\PostStatusRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -32,19 +33,18 @@ class StorePostRequest extends FormRequest
                 'string',
                 'max:10000',
                 Rule::when(
-                    $this->filled('scheduled_at'),
+                    $this->filled('scheduled_at') || $this->filled('queue'),
                     [new ContentFitsPlatformLimits($this->resolveSelectedPlatforms($workspaceId))]
                 ),
             ],
-            ...PostMediaRules::rules(hosted: false),
+            ...PostMediaRules::rules(),
             'platforms' => ['required', 'array', 'size:1'],
             'status' => ['sometimes', 'string', Rule::in(['draft', 'scheduled', 'publishing'])],
             'platforms.*.social_account_id' => [
                 'required',
                 'uuid',
                 Rule::exists('social_accounts', 'id')
-                    ->where('workspace_id', $workspaceId)
-                    ->where('is_active', true),
+                    ->where('workspace_id', $workspaceId),
             ],
             'platforms.*.content_type' => [
                 'required',
@@ -54,6 +54,7 @@ class StorePostRequest extends FormRequest
             ],
             ...PostPlatformMetaRules::rules(),
             'scheduled_at' => ['nullable', 'date', 'after:now', 'before:2038-01-19'],
+            'queue' => PostStatusRules::queueRules(),
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => [
                 'uuid',
@@ -67,7 +68,7 @@ class StorePostRequest extends FormRequest
      */
     public function messages(): array
     {
-        return PostPlatformMetaRules::messages();
+        return [...PostPlatformMetaRules::messages(), ...PostStatusRules::queueMessages()];
     }
 
     /**

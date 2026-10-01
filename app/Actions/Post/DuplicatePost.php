@@ -8,7 +8,7 @@ use App\Enums\Post\CreatedVia;
 use App\Enums\Post\Status as PostStatus;
 use App\Models\Post;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use App\Support\Media\MediaCopyBatch;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -18,10 +18,10 @@ class DuplicatePost
 {
     public static function execute(Post $original, User $user, ?string $targetId = null): Post
     {
-        return DB::transaction(function () use ($original, $user, $targetId): Post {
+        return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($original, $user, $targetId): Post {
             $targets = $original->postPlatforms()
                 ->enabled()
-                ->whereHas('socialAccount', fn ($query) => $query->where('is_active', true))
+                ->whereHas('socialAccount')
                 ->get();
             $target = $targetId === null && $targets->count() === 1
                 ? $targets->first()
@@ -35,14 +35,19 @@ class DuplicatePost
 
             return CreateChannelPost::execute($original->workspace, $user, [
                 'content' => $original->content,
-                'media' => $original->media ?? [],
+                'media' => array_map(fn (array $item): array => [
+                    'id' => data_get($item, 'id'),
+                    'meta' => data_get($item, 'meta'),
+                    ...array_intersect_key($item, array_flip(['source', 'source_meta'])),
+                ], $original->media ?? []),
                 'status' => PostStatus::Draft->value,
                 'created_via' => CreatedVia::Web,
                 'social_account_id' => $target->social_account_id,
                 'content_type' => $target->content_type->value,
                 'meta' => $target->meta ?? [],
                 'label_ids' => $original->labels()->pluck('workspace_labels.id')->all(),
-            ]);
+                'legacy_media' => $original->media ?? [],
+            ], $batch);
         });
     }
 }

@@ -355,22 +355,6 @@ test('the api exposes why a repurpose stopped and refuses to resume it while bro
         ->assertJsonValidationErrors('source_social_account_id');
 });
 
-test('the api accepts a switched-off account as a destination', function () {
-    $repurpose = Repurpose::factory()->for($this->workspace)->create([
-        'source_social_account_id' => $this->source->id,
-    ]);
-
-    $this->tiktok->update(['is_active' => false]);
-
-    $this->withHeaders(apiHeaders($this->token))
-        ->putJson(route('api.repurposes.update', $repurpose), [
-            'destinations' => [tiktokDestinationPayload($this->tiktok)],
-        ])
-        ->assertOk();
-
-    expect($repurpose->fresh()->destinations)->toHaveCount(1);
-});
-
 test('the api activity list carries each replicated post status', function () {
     $repurpose = Repurpose::factory()->for($this->workspace)->create([
         'source_social_account_id' => $this->source->id,

@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Dto\MediaItem;
 use App\Enums\Post\CreatedVia;
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\Repurpose\ItemReason;
@@ -18,12 +20,12 @@ use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Jobs\PublishPost;
 use App\Jobs\Repurpose\ProcessRepurposeItem;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Repurpose;
 use App\Models\RepurposeItem;
 use App\Models\SocialAccount;
-use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Post\MediaAttacher;
 use App\Services\Repurpose\CaptionAdapter;
@@ -95,6 +97,7 @@ test('it creates one post per destination and publishes each', function () {
     foreach ($posts as $post) {
         expect($post->created_via)->toBe(CreatedVia::Repurpose)
             ->and($post->status)->toBe(PostStatus::Scheduled)
+            ->and($post->schedule_mode)->toBe(ScheduleMode::Custom)
             ->and($post->media)->toHaveCount(1)
             ->and($post->postPlatforms()->enabled()->count())->toBe(1);
     }
@@ -104,7 +107,7 @@ test('it creates one post per destination and publishes each', function () {
     Bus::assertNotDispatched(PublishPost::class);
 });
 
-test('the video is downloaded once and reused by every post', function () {
+test('the video is downloaded once and every post owns its own copy', function () {
     Bus::fake([PublishPost::class]);
     fakeVideoDownload();
 
@@ -118,7 +121,7 @@ test('the video is downloaded once and reused by every post', function () {
         ->map(fn (Post $post) => data_get($post->media, '0.path'));
 
     expect($paths->filter())->toHaveCount(2)
-        ->and($paths->unique())->toHaveCount(1);
+        ->and($paths->unique())->toHaveCount(2);
 });
 
 test('destination meta is carried onto the post platform', function () {
@@ -291,22 +294,6 @@ test('a caption survives characters the sanitizer would treat as markup', functi
         ->toContain('link na bio');
 });
 
-test('a destination switched off is skipped instead of publishing nowhere', function () {
-    Bus::fake([PublishPost::class]);
-    fakeVideoDownload();
-
-    $item = repurposeWithTwoDestinations();
-    $tiktokId = data_get($item->repurpose->destinations, '0.social_account_id');
-    SocialAccount::whereKey($tiktokId)->update(['is_active' => false]);
-
-    processItem($item->fresh());
-
-    $posts = Post::where('repurpose_item_id', $item->id)->get();
-
-    expect($posts)->toHaveCount(1)
-        ->and($posts->first()->postPlatforms()->enabled()->count())->toBe(1);
-});
-
 test('a destination pointing outside the workspace is skipped, never published to', function () {
     Bus::fake([PublishPost::class]);
     fakeVideoDownload();
@@ -402,9 +389,8 @@ test('an item with no usable destination records why', function () {
 
     $workspace = Workspace::factory()->create();
     $source = SocialAccount::factory()->for($workspace)->create(['platform' => Platform::Instagram]);
-    $off = SocialAccount::factory()->for($workspace)->create([
+    $off = SocialAccount::factory()->for(Workspace::factory()->create())->create([
         'platform' => Platform::TikTok,
-        'is_active' => false,
     ]);
 
     $repurpose = Repurpose::factory()->active()->create([
@@ -476,36 +462,93 @@ test('an exhausted draft-mode item keeps its drafts but does not call the run a 
         ->and($item->fresh()->error)->toContain('gave up');
 });
 
-test('a draft run that died halfway is rebuilt by the retry instead of passing as finished', function () {
+test('a draft-mode retry deletes the leftover draft of a run that died halfway, with its media file, and rebuilds the drafts', function () {
     Bus::fake([PublishPost::class]);
     fakeVideoDownload();
 
     $item = repurposeWithTwoDestinations();
     $item->repurpose->update(['publish_mode' => PublishMode::Draft]);
+    $item->update(['status' => ItemStatus::Processing]);
 
-    app()->instance(CaptionAdapter::class, new class(app(ContentSanitizer::class)) extends CaptionAdapter
-    {
-        private int $calls = 0;
+    $leftover = Post::factory()->create([
+        'workspace_id' => $item->repurpose->workspace_id,
+        'repurpose_item_id' => $item->id,
+        'status' => PostStatus::Draft,
+    ]);
+    $leftoverMedia = Media::factory()->video()->ownedByPost($leftover)->stored()->create();
+    $leftover->update(['media' => [MediaItem::fromMedia($leftoverMedia)->toArray()]]);
 
-        public function adapt(Workspace $workspace, ?User $user, string $caption, Platform $platform): string
-        {
-            if (++$this->calls === 2) {
-                throw new RuntimeException('the worker went away');
-            }
+    expect(Storage::exists($leftoverMedia->path))->toBeTrue();
 
-            return $caption;
+    processItem($item->fresh());
+
+    $drafts = Post::where('repurpose_item_id', $item->id)->get();
+
+    expect($drafts)->toHaveCount(2)
+        ->and($drafts->pluck('id'))->not->toContain($leftover->id)
+        ->and($drafts->every(fn (Post $post): bool => $post->status === PostStatus::Draft))->toBeTrue()
+        ->and($item->fresh()->status)->toBe(ItemStatus::Drafted)
+        ->and(Post::query()->whereKey($leftover->id)->exists())->toBeFalse()
+        ->and(Media::query()->whereKey($leftoverMedia->id)->exists())->toBeFalse()
+        ->and(Storage::exists($leftoverMedia->path))->toBeFalse();
+
+    foreach ($drafts as $draft) {
+        expect(Storage::exists(data_get($draft->media, '0.path')))->toBeTrue();
+    }
+});
+
+test('a run that fails while creating the posts leaves no post, row or file behind', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+
+    $item = repurposeWithTwoDestinations();
+    $failCopies = true;
+    Media::created(function (Media $media) use (&$failCopies): void {
+        if ($failCopies && data_get($media->meta, 'copied_from') !== null) {
+            throw new RuntimeException('the worker went away');
         }
     });
 
     expect(fn () => processItem($item->fresh()))->toThrow(RuntimeException::class);
-    expect(Post::where('repurpose_item_id', $item->id)->count())->toBe(1);
 
-    app()->instance(CaptionAdapter::class, new CaptionAdapter(app(ContentSanitizer::class)));
+    expect(Post::where('repurpose_item_id', $item->id)->count())->toBe(0)
+        ->and(Media::query()->count())->toBe(0)
+        ->and(Storage::allFiles())->toBe([]);
 
+    $failCopies = false;
     processItem($item->fresh());
 
     expect(Post::where('repurpose_item_id', $item->id)->count())->toBe(2)
-        ->and($item->fresh()->status)->toBe(ItemStatus::Drafted);
+        ->and($item->fresh()->status)->toBe(ItemStatus::Published);
+});
+
+test('three destinations download the video once and end with one row and path per post', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+
+    $item = repurposeWithTwoDestinations();
+    $extra = SocialAccount::factory()->for($item->repurpose->workspace)->create(['platform' => Platform::YouTube]);
+    $item->repurpose->update(['destinations' => [
+        ...$item->repurpose->destinations,
+        ['social_account_id' => $extra->id, 'content_type' => ContentType::YouTubeShort->value, 'meta' => []],
+    ]]);
+
+    processItem($item->fresh());
+
+    $posts = Post::where('repurpose_item_id', $item->id)->with('ownedMedia')->get();
+    $rows = $posts->flatMap(fn (Post $post) => $post->ownedMedia);
+    $moved = $rows->first(fn (Media $media) => data_get($media->meta, 'copied_from') === null);
+
+    Http::assertSentCount(1);
+    expect($posts)->toHaveCount(3)
+        ->and($posts->every(fn (Post $post) => $post->ownedMedia->count() === 1))->toBeTrue()
+        ->and(Media::query()->count())->toBe(3)
+        ->and($rows->pluck('path')->unique())->toHaveCount(3)
+        ->and($rows->every(fn (Media $media) => Storage::exists($media->path)))->toBeTrue()
+        ->and($moved)->not->toBeNull()
+        ->and($moved->collection)->toBe(Media::COLLECTION_MEDIA)
+        ->and($rows->reject(fn (Media $media) => $media->is($moved))->map(fn (Media $media) => data_get($media->meta, 'copied_from'))->unique()->values()->all())
+        ->toBe([$moved->id]);
 });
 
 test('the stored error never carries the signed source url', function () {

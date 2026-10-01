@@ -13,15 +13,12 @@ return [
     ],
 
     'publish_mode' => [
-
         'title' => '发布',
 
         'description' => '发现新内容时会发生什么。',
-
     ],
 
     'publish_modes' => [
-
         'publish' => '自动发布',
 
         'publish_hint' => '每条新内容一被发现就会排入发布计划。',
@@ -29,7 +26,6 @@ return [
         'draft' => '创建为草稿',
 
         'draft_hint' => '每条新内容都会在这里生成草稿，供你检查后发布。',
-
     ],
 
     'formats' => [
@@ -58,8 +54,6 @@ return [
     ],
 
     'table' => [
-        'flow' => '流程',
-        'status' => '状态',
         'published' => '已同步',
         'last_polled' => '上次检查',
     ],
@@ -97,7 +91,6 @@ return [
     ],
 
     'destinations' => [
-        'paused_note' => '已关闭，重新开启前将被跳过：:accounts',
         'title' => '目标',
         'description' => '选择接收的账号。每个账号按你指定的格式发布。',
         'hint' => '只有当文案超出该平台上限时，才会按平台调整。',
@@ -150,9 +143,7 @@ return [
     ],
 
     'menu' => [
-
         'label' => '更多操作',
-
     ],
 
     'danger' => [

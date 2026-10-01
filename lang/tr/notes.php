@@ -8,7 +8,6 @@ return [
     'reply_placeholder' => 'Bir yanıt yazın...',
     'reply' => 'Yanıtla',
     'react' => 'Tepki ver',
-    'unknown_user' => 'birisi',
     'edit' => 'Düzenle',
     'delete' => 'Sil',
     'edited' => 'düzenlendi',

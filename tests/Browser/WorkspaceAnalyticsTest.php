@@ -84,6 +84,9 @@ test('workspace dashboard separates accounts and switches follower and post char
         ->assertSee('@first')
         ->assertSee('@second')
         ->assertSee('Top 5 Posts')
+        ->assertPresent('@analytics-top-post')
+        ->assertPresent('@header-icon')
+        ->assertPresent('@insights-range-caption')
         ->assertSee('Performance')
         ->assertPresent('@accounts-unovis-bar-chart')
         ->hover('[data-testid="analytics-account-bar"] >> nth=0')
@@ -127,7 +130,7 @@ test('workspace dashboard explains the empty state without inventing follower to
         ->assertNoConsoleLogs();
 });
 
-test('date presets use the latest available observation when analytics history is old', function () {
+test('the custom preset opens the calendar without a second trigger or quick presets', function () {
     Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
     $user = User::factory()->create(['locale' => Locale::PortugueseBrazil]);
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
@@ -152,26 +155,64 @@ test('date presets use the latest available observation when analytics history i
     $this->actingAs($user);
     Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.analytics', ['start' => '2026-01-01', 'end' => '2026-02-01']));
-    waitForWorkspaceAnalyticsTestId($page, 'date-range-picker-trigger');
+    waitForWorkspaceAnalyticsTestId($page, 'insights-range-custom');
 
-    $page->assertScript('document.querySelector("[data-testid=date-range-picker-trigger]")?.textContent.includes("janeiro")', true)
-        ->click('@date-range-picker-trigger');
-    waitForWorkspaceAnalyticsTestId($page, 'date-range-preset-last_30_days');
-
-    $page->assertMissing('@date-range-preset-today')
-        ->click('@date-range-preset-last_30_days');
+    $page->assertMissing('@date-range-picker-trigger')
+        ->assertScript('document.querySelector("[data-testid=insights-range-custom]")?.getAttribute("aria-pressed")', 'true')
+        ->assertScript('document.querySelector("[data-testid=insights-range-presets] [role=group]")?.getAttribute("aria-label")', 'Período')
+        ->click('@insights-range-custom');
     $page->script(<<<'JS'
         (async () => {
             for (let attempt = 0; attempt < 100; attempt++) {
-                const query = new URLSearchParams(location.search);
-                if (query.get('start') === '2026-06-02' && query.get('end') === '2026-07-01') return;
+                if (document.querySelector('[role="dialog"]')) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+
+    $page->assertScript('document.querySelector("[role=dialog]") !== null', true)
+        ->assertMissing('@date-range-preset-last_30_days')
+        ->assertMissing('@date-range-preset-today')
+        ->assertNoJavaScriptErrors()
+        ->assertNoConsoleLogs();
+});
+
+test('a range preset on the workspace dashboard reloads with that range', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'platform' => $account->platform,
+        'network' => $account->platform->network(),
+        'platform_user_id' => $account->platform_user_id,
+        'date' => now('UTC')->toDateString(),
+        'followers_count' => 100,
+    ]);
+
+    $this->actingAs($user);
+    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
+    $page = visit(route('app.analytics'));
+    waitForWorkspaceAnalyticsTestId($page, 'insights-range-7d');
+
+    $page->click('@insights-range-7d');
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (new URLSearchParams(location.search).get('range') === '7d') return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
         })();
     JS);
 
-    $page->assertScript('new URLSearchParams(location.search).get("start")', '2026-06-02')
-        ->assertScript('new URLSearchParams(location.search).get("end")', '2026-07-01')
+    $page->assertScript('new URLSearchParams(location.search).get("range")', '7d')
+        ->assertScript('document.querySelector("[data-testid=insights-range-7d]")?.getAttribute("aria-pressed")', 'true')
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 });
@@ -285,7 +326,7 @@ test('follower chart localizes tooltip values and names accounts without usernam
         'platform_user_id' => $account->platform_user_id,
         'account_display_name' => null,
         'account_username' => null,
-        'date' => '2026-09-23',
+        'date' => now('UTC')->subDays(3)->toDateString(),
         'followers_count' => 1234,
     ]);
 

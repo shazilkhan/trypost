@@ -11,18 +11,22 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
-use Illuminate\Foundation\Vite;
+use Illuminate\Support\Facades\Storage;
+
+afterEach(function () {
+    Storage::delete(Media::query()->pluck('path')->all());
+});
 
 function seedYouTubeDescriptionEditor(): array
 {
-    app(Vite::class)->useHotFile(storage_path('framework/testing-youtube.hot'));
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
     $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
     $user->update(['current_workspace_id' => $workspace->id]);
-    $asset = Media::factory()->assets()->video()->for($workspace, 'mediable')->create([
+    $asset = Media::factory()->video()->temporaryUpload($workspace)->create([
         'size' => filesize(base_path('tests/fixtures/sample.mp4')),
     ]);
+    Storage::put($asset->path, (string) file_get_contents(base_path('tests/fixtures/sample.mp4')));
 
     $platforms = collect(range(1, 2))->map(function (int $number) use ($workspace, $user, $asset) {
         $account = SocialAccount::factory()->youtube()->create([
@@ -65,9 +69,8 @@ function waitForYouTubeElement(mixed $page, string $testId): void
 test('youtube description editor counts UTF-8 bytes and saves only its independent post', function (int $width, int $height) {
     [$post, $platforms] = seedYouTubeDescriptionEditor();
     $page = visit(route('app.posts.edit', $post))->resize($width, $height);
-    waitForYouTubeElement($page, 'youtube-settings-toggle-0');
-    $page->click('@youtube-settings-toggle-0')
-        ->assertValue('@youtube-description-0', 'Channel 1');
+    waitForYouTubeElement($page, 'youtube-description-0');
+    $page->assertValue('@youtube-description-0', 'Channel 1');
 
     $page->fill('@youtube-description-0', str_repeat('é', 2500))
         ->assertAttributeMissing('@youtube-description-0', 'aria-invalid');
@@ -97,9 +100,8 @@ test('youtube description editor counts UTF-8 bytes and saves only its independe
 test('youtube description clearing restores content fallback without changing another post', function (string $description) {
     [$post, $platforms] = seedYouTubeDescriptionEditor();
     $page = visit(route('app.posts.edit', $post))->resize(375, 812);
-    waitForYouTubeElement($page, 'youtube-settings-toggle-0');
-    $page->click('@youtube-settings-toggle-0')
-        ->fill('@youtube-description-0', $description)
+    waitForYouTubeElement($page, 'youtube-description-0');
+    $page->fill('@youtube-description-0', $description)
         ->click('@composer-save-draft')
         ->assertMissing('@post-composer-dialog');
 
@@ -116,7 +118,7 @@ test('youtube description clearing restores content fallback without changing an
     'whitespace description' => [" \t\n\u{00A0}"],
 ]);
 
-test('youtube description long preview stays above the phone navigation', function (int $width, int $height) {
+test('youtube description long preview stays inside the preview card', function (int $width, int $height) {
     [$post, $platforms] = seedYouTubeDescriptionEditor();
     $description = "Full description\n".str_repeat('https://example.com/'.str_repeat('a', 100)."\n", 35);
     $platforms[0]->update(['meta' => ['description' => $description]]);
@@ -129,15 +131,16 @@ test('youtube description long preview stays above the phone navigation', functi
     $layout = $page->script(<<<'JS'
         (() => {
             const description = document.querySelector('[data-testid=youtube-preview-description]');
-            const navigation = description.parentElement.parentElement.parentElement.lastElementChild;
+            const card = description.closest('[data-testid=youtube-preview]').getBoundingClientRect();
+            const rect = description.getBoundingClientRect();
             return {
                 scrolls: description.scrollHeight > description.clientHeight,
                 bounded: description.clientHeight <= 128,
-                aboveNavigation: description.getBoundingClientRect().bottom <= navigation.getBoundingClientRect().top,
+                insideCard: rect.top >= card.top && rect.bottom <= card.bottom,
                 noOverflow: document.documentElement.scrollWidth <= window.innerWidth,
             };
         })();
     JS);
-    expect($layout)->toEqual(['scrolls' => true, 'bounded' => true, 'aboveNavigation' => true, 'noOverflow' => true]);
+    expect($layout)->toEqual(['scrolls' => true, 'bounded' => true, 'insideCard' => true, 'noOverflow' => true]);
     $page->assertNoJavaScriptErrors();
 })->with([[1280, 900], [375, 812]]);

@@ -4,19 +4,26 @@ declare(strict_types=1);
 
 namespace App\Jobs\Repurpose;
 
+use App\Actions\Media\DeleteOwnedMedia;
 use App\Actions\Post\CreateChannelPost;
 use App\Enums\Post\CreatedVia;
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\Repurpose\ItemReason;
 use App\Enums\Repurpose\ItemStatus;
 use App\Enums\Repurpose\PublishMode;
 use App\Exceptions\Repurpose\SourceDownloadException;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\RepurposeItem;
+use App\Models\SocialAccount;
+use App\Models\User;
+use App\Models\Workspace;
 use App\Services\Post\MediaAttacher;
 use App\Services\Repurpose\CaptionAdapter;
 use App\Services\Social\TokenRedactor;
+use App\Support\Media\MediaCopyBatch;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -78,50 +85,49 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        $this->item->posts()->each(fn (Post $post) => $post->forceDelete());
+        $this->item->posts()->each(fn (Post $post) => self::deletePost($post));
 
         $this->item->update(['status' => ItemStatus::Processing]);
 
-        $posts = [];
-        $snapshot = null;
+        $targets = [];
 
         foreach ($repurpose->destinations as $destination) {
             $account = $workspace->socialAccounts()->find(data_get($destination, 'social_account_id'));
 
-            if ($account === null || ! $account->is_active) {
-                continue;
+            if ($account !== null) {
+                $targets[] = [
+                    'account' => $account,
+                    'destination' => $destination,
+                    'content' => e($captions->adapt($workspace, $user, $this->caption, $account->platform)),
+                ];
             }
-
-            $post = CreateChannelPost::execute($workspace, $user, [
-                'content' => e($captions->adapt($workspace, $user, $this->caption, $account->platform)),
-                'media' => [],
-                'status' => PostStatus::Draft->value,
-                'created_via' => CreatedVia::Repurpose,
-                'social_account_id' => $account->id,
-                'content_type' => data_get($destination, 'content_type') ?? ContentType::defaultFor($account->platform)->value,
-                'meta' => data_get($destination, 'meta', []),
-                'label_ids' => [],
-            ]);
-
-            $post->update(['repurpose_item_id' => $this->item->id]);
-
-            if ($snapshot === null) {
-                $snapshot = data_get($media->attachFromUrls($post, [['url' => $this->downloadUrl]]), 'attached', []);
-
-                if ($snapshot === []) {
-                    $this->failDownload([...$posts, $post]);
-                }
-            } else {
-                $post->appendMedia($snapshot);
-            }
-
-            $posts[] = $post;
         }
 
-        if ($posts === []) {
+        if ($targets === []) {
             $this->item->update(['status' => ItemStatus::Failed, 'reason' => ItemReason::NoUsableDestinations]);
 
             return;
+        }
+
+        $upload = $media->hostUpload(
+            $workspace,
+            Post::allowedMediaTypesFor(collect([data_get($targets, '0.account')->platform])),
+            $this->downloadUrl,
+        );
+
+        if ($upload === null) {
+            throw new SourceDownloadException("Could not download the source video for repurpose item {$this->item->id}.");
+        }
+
+        try {
+            $posts = MediaCopyBatch::run(fn (MediaCopyBatch $batch): array => array_map(
+                fn (array $target): Post => $this->createPost($workspace, $user, $target, $upload, $batch),
+                $targets,
+            ));
+        } catch (Throwable $exception) {
+            DB::transaction(fn () => DeleteOwnedMedia::forRows([$upload->id]));
+
+            throw $exception;
         }
 
         if ($repurpose->publish_mode === PublishMode::Draft) {
@@ -132,7 +138,7 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
 
         DB::transaction(function () use ($posts): void {
             foreach ($posts as $post) {
-                $post->update(['status' => PostStatus::Scheduled, 'scheduled_at' => now()]);
+                $post->update(['status' => PostStatus::Scheduled, 'scheduled_at' => now(), 'schedule_mode' => ScheduleMode::Custom]);
             }
         });
 
@@ -145,7 +151,7 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             $this->item->posts()
                 ->where('status', PostStatus::Draft)
                 ->get()
-                ->each(fn (Post $post) => $post->forceDelete());
+                ->each(fn (Post $post) => self::deletePost($post));
         }
 
         $this->item->update([
@@ -153,6 +159,14 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             'reason' => $exception instanceof SourceDownloadException ? ItemReason::DownloadFailed : $this->item->reason,
             'error' => $this->safeError($exception),
         ]);
+    }
+
+    private static function deletePost(Post $post): void
+    {
+        DB::transaction(function () use ($post): void {
+            DeleteOwnedMedia::forPosts([$post->id]);
+            $post->forceDelete();
+        });
     }
 
     private function safeError(Throwable $exception): string
@@ -163,14 +177,28 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
     }
 
     /**
-     * @param  array<int, Post>  $posts
+     * The first post moves the downloaded upload; the others copy it.
+     *
+     * @param  array{account: SocialAccount, destination: array<string, mixed>, content: string}  $target
      */
-    private function failDownload(array $posts): never
+    private function createPost(Workspace $workspace, User $user, array $target, Media $upload, MediaCopyBatch $batch): Post
     {
-        foreach ($posts as $post) {
-            $post->forceDelete();
-        }
+        $account = data_get($target, 'account');
+        $destination = data_get($target, 'destination');
 
-        throw new SourceDownloadException("Could not download the source video for repurpose item {$this->item->id}.");
+        $post = CreateChannelPost::execute($workspace, $user, [
+            'content' => data_get($target, 'content'),
+            'media' => [['id' => $upload->id]],
+            'status' => PostStatus::Draft->value,
+            'created_via' => CreatedVia::Repurpose,
+            'social_account_id' => $account->id,
+            'content_type' => data_get($destination, 'content_type') ?? ContentType::defaultFor($account->platform)->value,
+            'meta' => data_get($destination, 'meta', []),
+            'label_ids' => [],
+        ], $batch);
+
+        $post->update(['repurpose_item_id' => $this->item->id]);
+
+        return $post;
     }
 }

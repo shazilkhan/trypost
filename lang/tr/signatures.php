@@ -53,10 +53,4 @@ return [
         'confirm' => 'Sil',
         'cancel' => 'İptal',
     ],
-
-    'flash' => [
-        'created' => 'İmza oluşturuldu.',
-        'updated' => 'İmza güncellendi.',
-        'deleted' => 'İmza silindi.',
-    ],
 ];

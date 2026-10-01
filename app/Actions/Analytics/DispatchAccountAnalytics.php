@@ -20,7 +20,6 @@ class DispatchAccountAnalytics
         try {
             $currentAccount = SocialAccount::query()
                 ->connected()
-                ->active()
                 ->includedInAnalytics()
                 ->find($socialAccount->id);
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Actions\SocialAccount\ToggleSocialAccount;
 use App\Enums\PostPlatform\Status as PostPlatformStatus;
 use App\Enums\Repurpose\Status as RepurposeStatus;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
@@ -12,7 +11,6 @@ use App\Enums\SocialAccount\Status;
 use App\Exceptions\SocialAccount\ConnectPopupException;
 use App\Exceptions\SocialAccount\NetworkAlreadyConnectedException;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\App\SocialAccountResource;
 use App\Models\PostPlatform;
 use App\Models\Repurpose;
 use App\Models\SocialAccount;
@@ -42,21 +40,6 @@ class SocialController extends Controller
         if (! $this->platform->isEnabled()) {
             abort(SymfonyResponse::HTTP_FORBIDDEN, 'This platform is currently unavailable.');
         }
-    }
-
-    public function index(Request $request): Response
-    {
-        $workspace = $request->user()->currentWorkspace;
-
-        $this->authorize('manageAccounts', $workspace);
-
-        return Inertia::render('accounts/Index', [
-            'workspace' => $workspace,
-            'platforms' => SocialPlatform::connectableOptions(),
-            'connectedAccounts' => SocialAccountResource::collection(
-                $workspace->socialAccounts()->orderBy('id')->get(),
-            )->resolve(),
-        ]);
     }
 
     public function disconnect(Request $request, SocialAccount $account): RedirectResponse
@@ -90,26 +73,7 @@ class SocialController extends Controller
 
         $account->delete();
 
-        $this->flashAccountChange('disconnected', $before);
-
-        return back();
-    }
-
-    public function toggleActive(Request $request, SocialAccount $account): RedirectResponse
-    {
-        $workspace = $request->user()->currentWorkspace;
-
-        $this->authorize('manageAccounts', $workspace);
-
-        if ($account->workspace_id !== $workspace->id) {
-            abort(403);
-        }
-
-        $before = $this->repurposeStatesFor($account);
-
-        ToggleSocialAccount::execute($account);
-
-        $this->flashAccountChange($account->is_active ? 'activated' : 'deactivated', $before);
+        $this->flashAccountChange($before);
 
         return back();
     }
@@ -227,7 +191,7 @@ class SocialController extends Controller
 
             $avatarPath = uploadFromUrl($socialUser->getAvatar());
 
-            SocialAccount::connectIdentity(
+            $account = SocialAccount::connectIdentity(
                 $workspace,
                 $this->platform,
                 $socialUser->getId(),
@@ -246,7 +210,7 @@ class SocialController extends Controller
                 $reconnect,
             );
 
-            return $this->connectedCallback($reconnect);
+            return $this->connectedCallback($account, $reconnect);
         } catch (NetworkAlreadyConnectedException $e) {
             return $this->popupCallback(false, __("accounts.popup_callback.{$e->messageKey}"), $this->platform->value);
         } catch (\Exception $e) {
@@ -260,14 +224,18 @@ class SocialController extends Controller
     }
 
     /**
-     * Close the popup on a successful connect, wording it as a reconnect when
-     * the flow updated an existing card.
+     * Close the popup on a successful connect. Only a brand-new account is
+     * flagged as created, which is what opens the posting goal in the opener.
      */
-    protected function connectedCallback(?SocialAccount $reconnect): Response
+    protected function connectedCallback(SocialAccount $account, ?SocialAccount $reconnect): Response
     {
-        return $this->popupCallback(true, $reconnect
-            ? __('accounts.popup_callback.reconnected')
-            : __('accounts.popup_callback.connected'), $this->platform->value);
+        return $this->popupCallback(
+            true,
+            null,
+            $this->platform->value,
+            $account->id,
+            $account->wasRecentlyCreated && $reconnect === null,
+        );
     }
 
     protected function forgetSocialConnectSession(): void
@@ -280,7 +248,7 @@ class SocialController extends Controller
      * popup. Used by both the GET OAuth callbacks (a fresh popup page load) and
      * the XHR selection submits (an Inertia visit that swaps to this page).
      */
-    protected function popupCallback(bool $success, string $message, ?string $platform = null): Response
+    protected function popupCallback(bool $success, ?string $message, ?string $platform = null, ?string $accountId = null, bool $created = false): Response
     {
         $this->forgetSocialConnectSession();
 
@@ -288,6 +256,8 @@ class SocialController extends Controller
             'success' => $success,
             'message' => $message,
             'platform' => $platform,
+            'accountId' => $accountId,
+            'created' => $created,
         ]);
     }
 
@@ -306,7 +276,7 @@ class SocialController extends Controller
     /**
      * @param  Collection<string, RepurposeStatus>  $before
      */
-    private function flashAccountChange(string $action, Collection $before): void
+    private function flashAccountChange(Collection $before): void
     {
         $after = Repurpose::query()->whereKey($before->keys())->pluck('status', 'id');
 
@@ -315,16 +285,9 @@ class SocialController extends Controller
                 && $after->get($id) === RepurposeStatus::Paused)
             ->count();
 
-        $resumed = $before
-            ->filter(fn (RepurposeStatus $status, string $id): bool => $status === RepurposeStatus::Paused
-                && $after->get($id) === RepurposeStatus::Active)
-            ->count();
-
-        session()->flash('flash.banner', match (true) {
-            $paused > 0 => trans_choice("accounts.flash.{$action}_paused_repurposes", $paused, ['count' => $paused]),
-            $resumed > 0 => trans_choice("accounts.flash.{$action}_resumed_repurposes", $resumed, ['count' => $resumed]),
-            default => __("accounts.flash.{$action}"),
-        });
+        session()->flash('flash.banner', $paused > 0
+            ? trans_choice('accounts.flash.disconnected_paused_repurposes', $paused, ['count' => $paused])
+            : __('accounts.flash.disconnected'));
         session()->flash('flash.bannerStyle', 'success');
     }
 }

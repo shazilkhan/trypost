@@ -90,6 +90,13 @@ return [
         'no_post_data' => 'No published posts in this period.',
         'no_ranked_posts' => 'No posts with measured reactions or comments in this period.',
         'no_performance' => 'No channel performance in this period.',
+        'filtered_no_posts' => 'No posts for the selected channels or labels in this period. Try another date range or clear the filters.',
+        'filtered_no_followers' => 'No follower data for the selected channels in this period. Try another date range or clear the channel filter.',
+        'filtered_no_data_title' => 'Nothing matches these filters',
+        'filtered_no_data_body' => 'The selected channels have no analytics data yet. Pick other channels or clear the filters.',
+        'posts_sent_axis' => 'Posts sent',
+        'followers_gained_detail' => 'Started at :start · gained :change (:percent)',
+        'followers_lost_detail' => 'Started at :start · lost :change (:percent)',
         'no_excerpt' => 'No text preview available.',
         'published_via_trypost' => 'Published via TryPost',
         'published_on_network' => 'Published on the social network',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => 'Search terms',
         'estimated' => 'Google withholds the exact count for this term',
+    ],
+
+    'ranges' => [
+        '7d' => '7 days',
+        '30d' => '30 days',
+        'mtd' => 'Month to date',
+        'last_month' => 'Last month',
+        'custom' => 'Custom',
+        'compared_to' => ':current · compared to :previous',
+        'label' => 'Date range',
+    ],
+
+    'channel' => [
+        'title' => 'Insights',
+        'page_title' => 'Insights · :channel',
+        'unsupported_title' => 'No analytics for this network',
+        'unsupported_body' => ':network does not share analytics with third-party apps, so there is nothing to show here yet.',
+        'performance' => 'Performance per post',
+        'this_period' => 'This period',
+        'previous_period' => 'Previous period',
+        'post' => 'Post',
+        'posts_count' => 'Posts · :count',
+        'no_posts' => 'No posts published in this period.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Total followers',
+                'about' => 'Followers at the end of the period.',
+            ],
+            'posts' => [
+                'label' => 'Posts',
+                'about' => 'Posts published in the period.',
+            ],
+            'reactions' => [
+                'label' => 'Reactions',
+                'about' => 'Likes and reactions on posts published in the period.',
+            ],
+            'comments' => [
+                'label' => 'Comments',
+                'about' => 'Comments on posts published in the period.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Eng. rate',
+                'about' => 'Engagements divided by reach or impressions.',
+            ],
+            'views' => [
+                'label' => 'Views',
+                'about' => 'Views on posts published in the period. Only posts where the network reports views are counted.',
+            ],
+            'shares' => [
+                'label' => 'Shares',
+                'about' => 'Shares of posts published in the period.',
+            ],
+            'saves' => [
+                'label' => 'Saves',
+                'about' => 'Saves of posts published in the period.',
+            ],
+            'follows_gained' => [
+                'label' => 'Follows gained from posts',
+                'about' => 'New followers attributed to posts published in the period.',
+            ],
+            'reach' => [
+                'label' => 'Reach',
+                'about' => 'Unique accounts reached by posts published in the period.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'Watch time (min)',
+                'about' => 'Total minutes watched on videos published in the period.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Avg. watch time (sec)',
+                'about' => 'Average seconds watched per view.',
+            ],
+        ],
     ],
 
     'metrics' => [

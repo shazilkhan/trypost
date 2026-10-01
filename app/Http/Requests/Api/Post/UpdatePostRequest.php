@@ -48,7 +48,7 @@ class UpdatePostRequest extends FormRequest
                     [new ContentFitsPlatformLimits($this->resolveSelectedPlatforms())]
                 ),
             ],
-            ...PostMediaRules::rules(hosted: false),
+            ...PostMediaRules::rules(),
             'social_account_id' => ['prohibited'],
             'content_type' => ['sometimes', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
             'meta' => ['sometimes', 'array'],
@@ -61,9 +61,10 @@ class UpdatePostRequest extends FormRequest
                 new ContentTypeMatchesPostPlatform,
             ],
             ...PostPlatformMetaRules::rules(),
-            'scheduled_at' => PostStatusRules::scheduledAtRules($this->route('post'), $status),
+            'scheduled_at' => PostStatusRules::scheduledAtRules($this->route('post'), $status, $this->filled('queue')),
+            'queue' => PostStatusRules::queueRules(),
             'label_ids' => ['sometimes', 'array'],
-            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)],
+            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)->withoutTrashed()],
         ];
     }
 
@@ -72,7 +73,7 @@ class UpdatePostRequest extends FormRequest
      */
     public function messages(): array
     {
-        return PostPlatformMetaRules::messages();
+        return [...PostPlatformMetaRules::messages(), ...PostStatusRules::queueMessages()];
     }
 
     /**
@@ -124,9 +125,10 @@ class UpdatePostRequest extends FormRequest
         $entries = ContentTypeCompatibleWithMedia::entriesForUpdate(
             $post,
             $this->has('platforms') ? (array) $this->input('platforms', []) : null,
+            is_array($this->input('meta')) ? (array) $this->input('meta') : null,
         );
 
-        foreach (ContentTypeCompatibleWithMedia::errorsFor($entries, $media) as $key => $message) {
+        foreach (ContentTypeCompatibleWithMedia::errorsFor($entries, $media, $post->workspace) as $key => $message) {
             $validator->errors()->add($key, $message);
         }
     }

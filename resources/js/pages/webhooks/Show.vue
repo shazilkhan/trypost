@@ -12,9 +12,8 @@ import WebhookActionsMenu from '@/components/webhook/WebhookActionsMenu.vue';
 import WebhookLogViewer from '@/components/webhook/WebhookLogViewer.vue';
 import WebhookOverview from '@/components/webhook/WebhookOverview.vue';
 import date from '@/date';
-import AppLayout from '@/layouts/AppLayout.vue';
+import SettingsLayout from '@/layouts/SettingsLayout.vue';
 import { destroy, index } from '@/routes/app/webhooks';
-import type { BreadcrumbItem } from '@/types';
 import type { WebhookLog, WebhookWithSecret } from '@/types/webhook';
 import { webhookStatusVariant } from '@/types/webhook-status';
 
@@ -33,11 +32,6 @@ const endpointLabel = computed((): string => {
     }
 });
 
-const breadcrumbs = computed((): BreadcrumbItem[] => [
-    { title: trans('webhooks.title'), href: index.url() },
-    { title: endpointLabel.value },
-]);
-
 const editDialogOpen = ref(false);
 const rotateSecretDialogOpen = ref(false);
 const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
@@ -55,10 +49,15 @@ const openDelete = () => {
 <template>
     <Head :title="$t('webhooks.title')" />
 
-    <AppLayout full-width>
+    <SettingsLayout full-width>
         <template #header>
             <div class="flex min-w-0 items-center gap-3">
-                <Breadcrumbs :breadcrumbs="breadcrumbs" />
+                <Breadcrumbs
+                    :breadcrumbs="[
+                        { title: $t('webhooks.title'), href: index.url() },
+                        { title: endpointLabel },
+                    ]"
+                />
                 <Badge
                     :variant="webhookStatusVariant(webhook.status)"
                     class="shrink-0"
@@ -116,5 +115,5 @@ const openDelete = () => {
             :action="$t('webhooks.delete.confirm')"
             :cancel="$t('webhooks.delete.cancel')"
         />
-    </AppLayout>
+    </SettingsLayout>
 </template>

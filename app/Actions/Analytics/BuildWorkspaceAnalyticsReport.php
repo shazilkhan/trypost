@@ -6,6 +6,7 @@ namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
 use App\Models\AnalyticsSyncState;
+use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Support\Analytics\MetricComparison;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,35 +18,65 @@ class BuildWorkspaceAnalyticsReport
         private readonly BuildFollowerAnalyticsReport $followers,
         private readonly GetAnalyticsBounds $bounds,
         private readonly ResolveAnalyticsDateRange $dateRange,
+        private readonly ResolveAnalyticsAccountKey $accountKey,
     ) {}
 
     /**
      * @param  array{start?: string, end?: string}  $selected
+     * @param  array<string, string>|null  $channelKeys  Analytics key of each selected social account (already resolved for tenancy), keyed by account id; null means every channel.
+     * @param  list<string>  $labelIds  Workspace label ids already resolved for tenancy; restricts post metrics only.
+     * @param  bool  $untagged  Also count TryPost posts without labels (a union with $labelIds); restricts post metrics only.
      * @return array<string, mixed>
      */
-    public function forSelection(Workspace $workspace, array $selected = []): array
+    public function forSelection(Workspace $workspace, array $selected = [], ?array $channelKeys = null, bool $clampToBounds = true, array $labelIds = [], bool $untagged = false): array
     {
-        $bounds = $this->bounds->execute($workspace);
+        ['bounds' => $bounds, 'range' => $range] = $this->resolveRange($workspace, $selected, $this->keys($channelKeys), $clampToBounds);
 
-        return $this->execute($workspace, $this->dateRange->execute($bounds, $selected), $bounds);
+        return $this->report($workspace, $range, $bounds, $channelKeys, $labelIds, $untagged);
+    }
+
+    /**
+     * @param  array{start?: string, end?: string}  $selected
+     * @param  list<string>|null  $accountKeys
+     * @return array{bounds: array{min: ?string, max: ?string}, range: DateRange}
+     */
+    public function resolveRange(Workspace $workspace, array $selected = [], ?array $accountKeys = null, bool $clampToBounds = true): array
+    {
+        $bounds = $this->bounds->execute($workspace, $accountKeys);
+
+        return ['bounds' => $bounds, 'range' => $this->dateRange->execute($bounds, $selected, $clampToBounds)];
     }
 
     /**
      * @param  array{min: ?string, max: ?string}|null  $bounds
      * @return array<string, mixed>
      */
-    public function execute(Workspace $workspace, DateRange $range, ?array $bounds = null): array
+    public function execute(Workspace $workspace, DateRange $range, ?array $bounds = null, ?SocialAccount $channel = null, ?string $accountKey = null): array
     {
+        $channelKeys = $channel === null ? null : [$channel->id => $accountKey ?? $this->accountKey->for($channel)];
+
+        return $this->report($workspace, $range, $bounds, $channelKeys);
+    }
+
+    /**
+     * @param  array{min: ?string, max: ?string}|null  $bounds
+     * @param  array<string, string>|null  $channelKeys
+     * @param  list<string>  $labelIds
+     * @return array<string, mixed>
+     */
+    private function report(Workspace $workspace, DateRange $range, ?array $bounds, ?array $channelKeys, array $labelIds = [], bool $untagged = false): array
+    {
+        $accountKeys = $this->keys($channelKeys);
         $previous = $range->previous();
-        $publications = $this->publications->execute($workspace, $previous, $range);
-        $followers = $this->followers->execute($workspace, $previous, $range);
+        $publications = $this->publications->execute($workspace, $previous, $range, $accountKeys, $labelIds, $untagged);
+        $followers = $this->followers->execute($workspace, $previous, $range, $channelKeys);
         $current = data_get($publications, 'current_totals');
         $prior = data_get($publications, 'previous_totals');
         $currentFollowers = data_get($followers, 'current_total');
         $previousFollowers = data_get($followers, 'previous_total');
 
         return [
-            'bounds' => $bounds ?? $this->bounds->execute($workspace),
+            'bounds' => $bounds ?? $this->bounds->execute($workspace, $accountKeys),
             'range' => $range->toArray(),
             'previous_range' => $previous->toArray(),
             'summary' => [
@@ -59,23 +90,42 @@ class BuildWorkspaceAnalyticsReport
                 'reactions' => MetricComparison::between(data_get($current, 'reactions'), data_get($prior, 'reactions')),
                 'comments' => MetricComparison::between(data_get($current, 'comments'), data_get($prior, 'comments')),
                 'engagement_rate' => MetricComparison::between(data_get($current, 'engagement_rate'), data_get($prior, 'engagement_rate')),
+                'views' => MetricComparison::between(data_get($current, 'views'), data_get($prior, 'views')),
+                'reach' => MetricComparison::between(data_get($current, 'reach'), data_get($prior, 'reach')),
+                'shares' => MetricComparison::between(data_get($current, 'shares'), data_get($prior, 'shares')),
+                'saves' => MetricComparison::between(data_get($current, 'saves'), data_get($prior, 'saves')),
+                'watch_time_minutes' => MetricComparison::between(data_get($current, 'watch_time_minutes'), data_get($prior, 'watch_time_minutes')),
+                'average_watch_time_seconds' => MetricComparison::between(data_get($current, 'average_watch_time_seconds'), data_get($prior, 'average_watch_time_seconds')),
+                'follows_gained' => MetricComparison::between(data_get($current, 'follows_gained'), data_get($prior, 'follows_gained')),
             ],
             'followers' => data_get($followers, 'followers'),
             'posts' => data_get($publications, 'posts'),
             'top_posts' => data_get($publications, 'top_posts'),
             'performance' => data_get($publications, 'performance'),
-            'coverage' => $this->coverage($workspace),
+            'coverage' => $this->coverage($workspace, $channelKeys === null ? null : array_keys($channelKeys)),
         ];
     }
 
-    /** @return list<array<string, mixed>> */
-    private function coverage(Workspace $workspace): array
+    /**
+     * @param  array<string, string>|null  $channelKeys
+     * @return list<string>|null
+     */
+    private function keys(?array $channelKeys): ?array
+    {
+        return $channelKeys === null ? null : array_values(array_unique($channelKeys));
+    }
+
+    /**
+     * @param  list<string>|null  $accountIds
+     * @return list<array<string, mixed>>
+     */
+    private function coverage(Workspace $workspace, ?array $accountIds): array
     {
         return AnalyticsSyncState::query()
+            ->when($accountIds !== null, fn (Builder $states): Builder => $states->whereIn('social_account_id', $accountIds))
             ->whereHas('socialAccount', fn (Builder $accounts): Builder => $accounts
                 ->whereBelongsTo($workspace)
                 ->connected()
-                ->active()
                 ->includedInAnalytics())
             ->select([
                 'social_account_id', 'collector', 'status',

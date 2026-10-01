@@ -1,22 +1,19 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { trans } from 'laravel-vue-i18n';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
-import HeadingSmall from '@/components/HeadingSmall.vue';
-import SettingsTabsNav from '@/components/settings/SettingsTabsNav.vue';
+import SettingsSection from '@/components/settings/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { edit as editAuthentication } from '@/routes/app/authentication';
+import SettingsLayout from '@/layouts/SettingsLayout.vue';
 import { preferences as preferencesRoute } from '@/routes/app/notifications';
-import { edit as editProfile } from '@/routes/app/profile';
 
 interface Preferences {
     post_published: boolean;
     post_failed: boolean;
     account_disconnected: boolean;
+    post_note_added: boolean;
 }
 
 interface Props {
@@ -28,25 +25,15 @@ const props = defineProps<Props>();
 const postPublished = ref(props.preferences.post_published);
 const postFailed = ref(props.preferences.post_failed);
 const accountDisconnected = ref(props.preferences.account_disconnected);
+const postNoteAdded = ref(props.preferences.post_note_added);
 const processing = ref(false);
 
-const tabs = computed(() => [
-    {
-        name: 'profile',
-        label: trans('settings.nav.profile'),
-        href: editProfile().url,
-    },
-    {
-        name: 'authentication',
-        label: trans('settings.nav.authentication'),
-        href: editAuthentication().url,
-    },
-    {
-        name: 'notifications',
-        label: trans('settings.nav.notifications'),
-        href: preferencesRoute().url,
-    },
-]);
+const options = [
+    { id: 'post_published', model: postPublished },
+    { id: 'post_failed', model: postFailed },
+    { id: 'account_disconnected', model: accountDisconnected },
+    { id: 'post_note_added', model: postNoteAdded },
+] as const;
 
 const submit = () => {
     processing.value = true;
@@ -57,6 +44,7 @@ const submit = () => {
             post_published: postPublished.value,
             post_failed: postFailed.value,
             account_disconnected: accountDisconnected.value,
+            post_note_added: postNoteAdded.value,
         },
         {
             preserveScroll: true,
@@ -71,108 +59,47 @@ const submit = () => {
 <template>
     <Head :title="$t('settings.notifications.title')" />
 
-    <AppLayout :title="$t('settings.hub.title')">
-        <div class="mx-auto max-w-4xl space-y-8 px-6 py-8">
-            <p class="text-sm text-muted-foreground">
-                {{ $t('settings.hub.description') }}
-            </p>
-
-            <SettingsTabsNav :tabs="tabs" active="notifications" />
-
-            <section class="space-y-12">
-                <div class="flex flex-col space-y-6">
-                    <HeadingSmall
-                        :title="$t('settings.notifications.heading')"
-                        :description="$t('settings.notifications.description')"
-                    />
-
-                    <div class="space-y-3">
-                        <div
-                            class="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-2xs"
+    <SettingsLayout :title="$t('settings.notifications.title')">
+        <SettingsSection
+            :title="$t('settings.notifications.heading')"
+            :description="$t('settings.notifications.description')"
+        >
+            <div class="flex flex-col gap-6">
+                <div
+                    v-for="option in options"
+                    :key="option.id"
+                    class="flex items-start justify-between gap-4"
+                >
+                    <div class="flex max-w-[440px] min-w-0 flex-col gap-2">
+                        <Label
+                            :for="option.id"
+                            class="text-sm leading-tight font-emphasis"
                         >
-                            <div class="space-y-0.5">
-                                <Label
-                                    for="post_published"
-                                    class="text-sm font-bold"
-                                    >{{
-                                        $t(
-                                            'settings.notifications.post_published',
-                                        )
-                                    }}</Label
-                                >
-                                <p class="text-sm text-foreground/70">
-                                    {{
-                                        $t(
-                                            'settings.notifications.post_published_description',
-                                        )
-                                    }}
-                                </p>
-                            </div>
-                            <Switch
-                                id="post_published"
-                                v-model="postPublished"
-                            />
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-2xs"
-                        >
-                            <div class="space-y-0.5">
-                                <Label
-                                    for="post_failed"
-                                    class="text-sm font-bold"
-                                    >{{
-                                        $t('settings.notifications.post_failed')
-                                    }}</Label
-                                >
-                                <p class="text-sm text-foreground/70">
-                                    {{
-                                        $t(
-                                            'settings.notifications.post_failed_description',
-                                        )
-                                    }}
-                                </p>
-                            </div>
-                            <Switch id="post_failed" v-model="postFailed" />
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 shadow-2xs"
-                        >
-                            <div class="space-y-0.5">
-                                <Label
-                                    for="account_disconnected"
-                                    class="text-sm font-bold"
-                                    >{{
-                                        $t(
-                                            'settings.notifications.account_disconnected',
-                                        )
-                                    }}</Label
-                                >
-                                <p class="text-sm text-foreground/70">
-                                    {{
-                                        $t(
-                                            'settings.notifications.account_disconnected_description',
-                                        )
-                                    }}
-                                </p>
-                            </div>
-                            <Switch
-                                id="account_disconnected"
-                                v-model="accountDisconnected"
-                            />
-                        </div>
+                            {{ $t(`settings.notifications.${option.id}`) }}
+                        </Label>
+                        <p class="text-sm text-muted-foreground">
+                            {{
+                                $t(
+                                    `settings.notifications.${option.id}_description`,
+                                )
+                            }}
+                        </p>
                     </div>
-
-                    <Button
-                        :disabled="processing"
-                        class="self-start"
-                        @click="submit"
-                    >
-                        {{ $t('settings.notifications.save') }}
-                    </Button>
+                    <Switch
+                        :id="option.id"
+                        v-model="option.model.value"
+                        class="shrink-0"
+                    />
                 </div>
-            </section>
-        </div>
-    </AppLayout>
+            </div>
+
+            <Button
+                :disabled="processing"
+                class="self-start"
+                @click="submit"
+            >
+                {{ $t('settings.notifications.save') }}
+            </Button>
+        </SettingsSection>
+    </SettingsLayout>
 </template>

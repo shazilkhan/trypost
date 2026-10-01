@@ -674,7 +674,7 @@ test('facebook reconnect keeps the original card when multiple pages are returne
     $response->assertInertia(fn (AssertableInertia $page) => $page
         ->component('accounts/PopupCallback')
         ->where('success', true)
-        ->where('message', __('accounts.popup_callback.reconnected'))
+        ->where('message', null)
     );
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Facebook)->count())->toBe(1);

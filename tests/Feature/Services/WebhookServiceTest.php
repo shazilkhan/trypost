@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\Webhook;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
+use App\Services\Http\HostResolver;
 use App\Services\WebhookService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -354,7 +355,6 @@ test('postPayload matches the published webhook example', function () {
                 'platform' => Platform::Instagram->value,
                 'display_name' => 'TryPost',
                 'username' => 'trypost',
-                'is_active' => true,
                 'status' => 'connected',
             ],
         ])
@@ -379,7 +379,6 @@ test('postPayload matches the published webhook example', function () {
                 'platform' => Platform::LinkedIn->value,
                 'display_name' => 'Paulo Castellano',
                 'username' => 'paulocastellano',
-                'is_active' => true,
                 'status' => 'connected',
             ],
         ])
@@ -404,7 +403,6 @@ test('postPayload matches the published webhook example', function () {
                 'platform' => Platform::X->value,
                 'display_name' => 'TryPost',
                 'username' => 'trypost',
-                'is_active' => true,
                 'status' => 'connected',
             ],
         ])
@@ -492,4 +490,56 @@ test('postPayload keeps display fields when the social account is gone', functio
         ->and(data_get($payload, 'platforms.0.social_account'))->toBeNull()
         ->and(data_get($payload, 'platforms.0.display_name'))->toBe('TryPost')
         ->and(data_get($payload, 'platforms.0.display_username'))->toBe('trypost');
+});
+
+function webhookServiceDns(array $answers): void
+{
+    $calls = [];
+
+    test()->mock(HostResolver::class)
+        ->shouldReceive('addresses')
+        ->andReturnUsing(function (string $host) use ($answers, &$calls): array {
+            $index = $calls[$host] = ($calls[$host] ?? -1) + 1;
+            $replies = $answers[$host] ?? [[]];
+
+            return $replies[min($index, count($replies) - 1)];
+        });
+}
+
+test('ping posts to the vetted address only, even when the host rebinds', function () {
+    webhookServiceDns(['hooks.example.test' => [['93.184.216.34'], ['127.0.0.1']]]);
+    $pins = [];
+    Http::fake(function ($request, array $options) use (&$pins) {
+        $pins[] = data_get($options, 'curl.'.CURLOPT_RESOLVE);
+
+        return Http::response([], 200);
+    });
+
+    app(WebhookService::class)->ping('https://hooks.example.test/hook', 'whsec_test');
+
+    expect($pins)->toBe([['hooks.example.test:443:93.184.216.34']]);
+});
+
+test('ping does not follow a redirect', function () {
+    Http::fake([
+        'https://93.184.216.34/hook' => Http::response('', 302, ['Location' => 'https://93.184.216.35/hook']),
+        'https://93.184.216.35/*' => Http::response([], 200),
+    ]);
+
+    expect(fn () => $this->service->ping('https://93.184.216.34/hook', 'whsec_test'))->toThrow(RuntimeException::class);
+
+    Http::assertNotSent(fn ($request) => str_contains($request->url(), '93.184.216.35'));
+});
+
+test('ping streams the response instead of buffering its body', function () {
+    $options = null;
+    Http::fake(function ($request, array $requestOptions) use (&$options) {
+        $options = $requestOptions;
+
+        return Http::response(str_repeat('a', 3 * 1024 * 1024), 200);
+    });
+
+    $this->service->ping('https://93.184.216.34/hook', 'whsec_test');
+
+    expect(data_get($options, 'stream'))->toBeTrue();
 });

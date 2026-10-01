@@ -13,15 +13,12 @@ return [
     ],
 
     'publish_mode' => [
-
         'title' => 'Publikowanie',
 
         'description' => 'Co się dzieje, gdy pojawia się nowy post.',
-
     ],
 
     'publish_modes' => [
-
         'publish' => 'Publikuj automatycznie',
 
         'publish_hint' => 'Każdy nowy post jest planowany zaraz po znalezieniu.',
@@ -29,7 +26,6 @@ return [
         'draft' => 'Utwórz jako wersję roboczą',
 
         'draft_hint' => 'Każdy nowy post trafia tu jako wersja robocza do sprawdzenia i publikacji.',
-
     ],
 
     'formats' => [
@@ -58,8 +54,6 @@ return [
     ],
 
     'table' => [
-        'flow' => 'Przepływ',
-        'status' => 'Status',
         'published' => 'Zreplikowane',
         'last_polled' => 'Ostatnie sprawdzenie',
     ],
@@ -97,7 +91,6 @@ return [
     ],
 
     'destinations' => [
-        'paused_note' => 'Wyłączone i pomijane do czasu ponownego włączenia: :accounts',
         'title' => 'Cele',
         'description' => 'Wybierz konta, które go otrzymają. Każde publikuje w wybranym przez ciebie formacie.',
         'hint' => 'Opis jest dostosowywany do sieci tylko wtedy, gdy przekracza jej limit.',
@@ -150,9 +143,7 @@ return [
     ],
 
     'menu' => [
-
         'label' => 'Więcej akcji',
-
     ],
 
     'danger' => [

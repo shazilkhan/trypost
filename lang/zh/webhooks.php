@@ -9,8 +9,6 @@ return [
     'empty_title' => '还没有 webhook',
     'empty_description' => '创建一个 webhook，即可实时接收事件通知。',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => '正在监听',
         'status' => '状态',
         'last_sent' => '上次发送',
     ],

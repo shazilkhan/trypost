@@ -230,7 +230,7 @@ test('instagram callback reconnects the original card', function () {
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($this->workspace->socialAccounts()->count())->toBe(1)

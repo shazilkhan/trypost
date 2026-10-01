@@ -34,13 +34,6 @@ return [
         'ignore' => 'アカウントを作成していない場合は、このメールを無視してください。',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name さんが TryPost であなたにメンションしました',
-        'title' => ':name さんがあなたにメンションしました',
-        'intro' => ':name さんが投稿のメモであなたにメンションしました。',
-        'button' => 'メモを表示',
-    ],
-
     'password_reset' => [
         'subject' => 'パスワードを再設定してください',
         'preview' => 'パスワードを再設定してください。',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count 件の予約投稿: :times UTC|[0,*] :count 件の予約投稿: :times UTC',
         'reconnect_cta' => '予約投稿を逃さないよう、今すぐこれらのアカウントを再接続してください。',
         'button' => 'アカウントを再接続',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author さんが投稿にメモを追加しました',
+        'title' => ':author さんからの新しいメモ',
+        'heading' => '投稿への新しいメモ',
+        'body' => ':author さんがワークスペース :workspace の投稿にメモを追加しました。',
+        'post_title' => '投稿',
+        'post_without_text' => 'この投稿にはまだテキストがありません。',
+        'button' => 'メモを見る',
     ],
 
     'post_publish_failed' => [

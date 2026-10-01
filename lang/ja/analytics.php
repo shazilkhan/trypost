@@ -90,6 +90,13 @@ return [
         'no_post_data' => 'この期間に公開された投稿はありません。',
         'no_ranked_posts' => 'この期間にリアクションやコメントが測定された投稿はありません。',
         'no_performance' => 'この期間のチャンネル別パフォーマンスはありません。',
+        'filtered_no_posts' => 'この期間、選択したチャネルまたはラベルの投稿はありません。別の期間を試すか、フィルターをクリアしてください。',
+        'filtered_no_followers' => 'この期間、選択したチャネルのフォロワーデータはありません。別の期間を試すか、チャネルフィルターをクリアしてください。',
+        'filtered_no_data_title' => 'このフィルターに一致するものはありません',
+        'filtered_no_data_body' => '選択したチャネルにはまだ分析データがありません。別のチャネルを選ぶか、フィルターをクリアしてください。',
+        'posts_sent_axis' => '送信した投稿',
+        'followers_gained_detail' => '開始時 :start · :change 増加 (:percent)',
+        'followers_lost_detail' => '開始時 :start · :change 減少 (:percent)',
         'no_excerpt' => 'テキストのプレビューはありません。',
         'published_via_trypost' => 'TryPostから公開',
         'published_on_network' => 'SNS上で公開',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => '検索キーワード',
         'estimated' => 'この語句の正確な件数は Google が非公開にしています',
+    ],
+
+    'ranges' => [
+        '7d' => '7日間',
+        '30d' => '30日間',
+        'mtd' => '今月',
+        'last_month' => '先月',
+        'custom' => 'カスタム',
+        'compared_to' => ':current · :previous と比較',
+        'label' => '期間',
+    ],
+
+    'channel' => [
+        'title' => 'インサイト',
+        'page_title' => 'インサイト · :channel',
+        'unsupported_title' => 'このネットワークの分析はありません',
+        'unsupported_body' => ':network は分析データをサードパーティ製アプリと共有していないため、ここに表示できるものはまだありません。',
+        'performance' => '投稿ごとのパフォーマンス',
+        'this_period' => '今期',
+        'previous_period' => '前期',
+        'post' => '投稿',
+        'posts_count' => '投稿 · :count',
+        'no_posts' => 'この期間に公開された投稿はありません。',
+        'metrics' => [
+            'followers' => [
+                'label' => 'フォロワー総数',
+                'about' => '期間末時点のフォロワー数。',
+            ],
+            'posts' => [
+                'label' => '投稿',
+                'about' => '期間中に公開された投稿。',
+            ],
+            'reactions' => [
+                'label' => 'リアクション',
+                'about' => '期間中に公開された投稿へのいいねとリアクション。',
+            ],
+            'comments' => [
+                'label' => 'コメント',
+                'about' => '期間中に公開された投稿へのコメント。',
+            ],
+            'engagement_rate' => [
+                'label' => 'エンゲージメント率',
+                'about' => 'エンゲージメントをリーチまたはインプレッションで割った値。',
+            ],
+            'views' => [
+                'label' => '表示回数',
+                'about' => '期間中に公開された投稿の表示回数。ネットワークが表示回数を報告する投稿のみ集計されます。',
+            ],
+            'shares' => [
+                'label' => 'シェア',
+                'about' => '期間中に公開された投稿のシェア数。',
+            ],
+            'saves' => [
+                'label' => '保存',
+                'about' => '期間中に公開された投稿の保存数。',
+            ],
+            'follows_gained' => [
+                'label' => '投稿で獲得したフォロワー',
+                'about' => '期間中に公開された投稿によって増えた新規フォロワー。',
+            ],
+            'reach' => [
+                'label' => 'リーチ',
+                'about' => '期間中に公開された投稿が届いたユニークアカウント数。',
+            ],
+            'watch_time_minutes' => [
+                'label' => '視聴時間（分）',
+                'about' => '期間中に公開された動画の合計視聴分数。',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => '平均視聴時間（秒）',
+                'about' => '1回の表示あたりの平均視聴秒数。',
+            ],
+        ],
     ],
 
     'metrics' => [

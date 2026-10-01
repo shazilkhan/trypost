@@ -35,7 +35,6 @@ beforeEach(function () {
         'refresh_token' => 'refresh_token_123',
         'token_expires_at' => now()->addHours(2),
         'status' => AccountStatus::Connected,
-        'is_active' => true,
         'meta' => [
             'channel_id' => 'UC_test_channel_123',
             'google_user_id' => 'google_user_123',
@@ -199,6 +198,7 @@ test('youtube analytics throws exception on token refresh failure', function () 
 
 test('youtube follower facts appear in the workspace analytics report', function () {
     config(['trypost.self_hosted' => true]);
+    $this->travelTo('2026-09-30 12:00 UTC');
 
     AnalyticsAccountDailySnapshot::factory()->create([
         'workspace_id' => $this->workspace->id,

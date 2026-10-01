@@ -289,9 +289,8 @@ test('an active repurpose cannot be updated into a state it could not be activat
     expect(fn () => UpdateRepurpose::execute($repurpose, ['destinations' => []]))
         ->toThrow(ValidationException::class);
 
-    $switchedOff = SocialAccount::factory()->for($workspace)->create([
+    $switchedOff = SocialAccount::factory()->for(Workspace::factory()->create())->create([
         'platform' => Platform::Discord,
-        'is_active' => false,
     ]);
 
     expect(fn () => UpdateRepurpose::execute($repurpose, ['destinations' => [[
@@ -366,9 +365,8 @@ test('an update the activation rules reject leaves the stored destinations untou
         'destinations' => [$destination],
     ]);
 
-    $pinterest = SocialAccount::factory()->for($workspace)->create([
+    $pinterest = SocialAccount::factory()->for(Workspace::factory()->create())->create([
         'platform' => Platform::Pinterest,
-        'is_active' => false,
     ]);
 
     expect(fn () => UpdateRepurpose::execute($repurpose, ['destinations' => [[

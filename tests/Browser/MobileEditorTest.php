@@ -48,44 +48,6 @@ function waitForTestId(mixed $page, string $testId): void
     JS);
 }
 
-test('the schedule/publish action bar is reachable on a phone', function () {
-    $post = seedMobileEditorPost();
-
-    $page = visit(route('app.posts.edit', $post))->resize(375, 812);
-
-    waitForTestId($page, 'editor-action-bar');
-    $page->assertVisible('@editor-action-bar');
-});
-
-test('the mobile switcher reveals the channels panel', function () {
-    $post = seedMobileEditorPost();
-
-    $page = visit(route('app.posts.edit', $post))->resize(375, 812);
-
-    $page->assertVisible('@editor-mobile-nav')
-        ->click('@editor-nav-channels');
-
-    waitForTestId($page, 'channels-panel');
-    $page->assertVisible('@channels-panel');
-});
-
-test('media tile actions are visible on a phone without hover', function () {
-    $post = seedMobileEditorPost([
-        'media' => [[
-            'id' => 'm1',
-            'type' => 'image',
-            'mime_type' => 'image/png',
-            'path' => 'uploads/x.png',
-            'url' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-        ]],
-    ]);
-
-    $page = visit(route('app.posts.edit', $post))->resize(375, 812);
-
-    waitForTestId($page, 'media-remove');
-    $page->assertVisible('@media-remove');
-});
-
 test('post notes are accessible on a phone after the post exists', function () {
     $post = seedMobileEditorPost();
     PostNote::factory()->create([
@@ -94,7 +56,7 @@ test('post notes are accessible on a phone after the post exists', function () {
         'body' => 'a note on the go',
     ]);
 
-    $page = visit(route('app.posts.index'))->resize(375, 812);
+    $page = visit(route('app.posts.index', ['tab' => 'drafts']))->resize(375, 812);
 
     $page->click("@post-notes-trigger-{$post->id}");
     waitForTestId($page, 'note-reply');

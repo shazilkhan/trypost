@@ -12,8 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 test('a destination inherits shared fields unless its override is explicitly empty', function () {
     $workspace = Workspace::factory()->create();
-    $first = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $second = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $first = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $second = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
 
     $composition = [
         'status' => 'draft',
@@ -35,7 +35,7 @@ test('a destination inherits shared fields unless its override is explicitly emp
 
 test('duplicate social accounts are rejected by account ID', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
     $destination = ['social_account_id' => $account->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => []];
 
     try {
@@ -49,31 +49,28 @@ test('duplicate social accounts are rejected by account ID', function () {
     }
 });
 
-test('inactive and foreign workspace accounts cannot be selected', function () {
+test('foreign workspace accounts cannot be selected', function () {
     $workspace = Workspace::factory()->create();
-    $inactive = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => false]);
-    $foreign = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $foreign = SocialAccount::factory()->instagram()->create();
 
-    foreach ([$inactive, $foreign] as $account) {
-        try {
-            PostCompositionValidator::validate($workspace, [
-                'status' => 'draft', 'content' => 'Hello', 'media' => [],
-                'destinations' => [[
-                    'social_account_id' => $account->id,
-                    'content_type' => ContentType::InstagramFeed->value,
-                    'meta' => [],
-                ]],
-            ]);
-            test()->fail('Unavailable account was accepted.');
-        } catch (ValidationException $exception) {
-            expect($exception->errors())->toHaveKey('destinations.0.social_account_id');
-        }
+    try {
+        PostCompositionValidator::validate($workspace, [
+            'status' => 'draft', 'content' => 'Hello', 'media' => [],
+            'destinations' => [[
+                'social_account_id' => $foreign->id,
+                'content_type' => ContentType::InstagramFeed->value,
+                'meta' => [],
+            ]],
+        ]);
+        test()->fail('Foreign workspace account was accepted.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey('destinations.0.social_account_id');
     }
 });
 
 test('a content type from another network is rejected', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
 
     try {
         PostCompositionValidator::validate($workspace, [
@@ -92,7 +89,7 @@ test('a content type from another network is rejected', function () {
 
 test('scheduling a media-required format without media is rejected', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
 
     try {
         PostCompositionValidator::validate($workspace, [
@@ -112,9 +109,9 @@ test('scheduling a media-required format without media is rejected', function ()
 
 test('scheduled network settings and sanitized caption limits are validated per destination', function () {
     $workspace = Workspace::factory()->create();
-    $pinterest = SocialAccount::factory()->pinterest()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $asset = Media::factory()->assets()->for($workspace, 'mediable')->create();
+    $pinterest = SocialAccount::factory()->pinterest()->create(['workspace_id' => $workspace->id]);
+    $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $asset = Media::factory()->temporaryUpload($workspace)->create();
 
     try {
         PostCompositionValidator::validate($workspace, [
@@ -135,8 +132,8 @@ test('scheduled network settings and sanitized caption limits are validated per 
 test('a destination cannot reference another workspace asset', function () {
     $workspace = Workspace::factory()->create();
     $otherWorkspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $foreignAsset = Media::factory()->assets()->for($otherWorkspace, 'mediable')->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $foreignAsset = Media::factory()->temporaryUpload($otherWorkspace)->create();
 
     try {
         PostCompositionValidator::validate($workspace, [
@@ -155,8 +152,8 @@ test('a destination cannot reference another workspace asset', function () {
 
 test('a destination cannot replace an owned asset path with another path', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $asset = Media::factory()->assets()->for($workspace, 'mediable')->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $asset = Media::factory()->temporaryUpload($workspace)->create();
     $spoofed = MediaItem::fromMedia($asset)->toArray();
     $spoofed['path'] = 'media/another-workspace/private.jpg';
 
@@ -177,8 +174,8 @@ test('a destination cannot replace an owned asset path with another path', funct
 
 test('a destination cannot replace an owned asset URL', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $asset = Media::factory()->assets()->for($workspace, 'mediable')->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $asset = Media::factory()->temporaryUpload($workspace)->create();
     $spoofed = MediaItem::fromMedia($asset)->toArray();
     $spoofed['url'] = 'https://untrusted.example/image.jpg';
 
@@ -199,8 +196,8 @@ test('a destination cannot replace an owned asset URL', function () {
 
 test('an owned image with valid network settings can be scheduled', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->pinterest()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $asset = Media::factory()->assets()->for($workspace, 'mediable')->create();
+    $account = SocialAccount::factory()->pinterest()->create(['workspace_id' => $workspace->id]);
+    $asset = Media::factory()->temporaryUpload($workspace)->create();
 
     $resolved = PostCompositionValidator::validate($workspace, [
         'status' => 'scheduled', 'scheduled_at' => now()->addDay()->toIso8601String(),
@@ -215,15 +212,20 @@ test('an owned image with valid network settings can be scheduled', function () 
     expect($resolved['destinations'][0]['media'][0]['id'])->toBe($asset->id);
 });
 
-test('owned media metadata comes from the asset while per-post alt text is retained', function () {
+test('owned media metadata comes from the asset while per-post alt text and user tags are retained', function () {
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $asset = Media::factory()->assets()->for($workspace, 'mediable')->create(['meta' => ['width' => 1080, 'height' => 1080]]);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $asset = Media::factory()->temporaryUpload($workspace)->create(['meta' => ['width' => 1080, 'height' => 1080]]);
     $spoofed = MediaItem::fromMedia($asset)->toArray();
     $spoofed['type'] = 'video';
     $spoofed['mime_type'] = 'video/mp4';
     $spoofed['size'] = 1;
-    $spoofed['meta'] = ['width' => 1, 'height' => 1, 'alt_text' => 'Accessible caption'];
+    $spoofed['meta'] = [
+        'width' => 1,
+        'height' => 1,
+        'alt_text' => 'Accessible caption',
+        'user_tags' => [['username' => 'trypost', 'x' => 0.5, 'y' => 0.25]],
+    ];
 
     $resolved = PostCompositionValidator::validate($workspace, [
         'status' => 'draft', 'content' => 'Hello', 'media' => [$spoofed],
@@ -238,13 +240,18 @@ test('owned media metadata comes from the asset while per-post alt text is retai
         ->and($resolved['destinations'][0]['media'][0]['mime_type'])->toBe($asset->mime_type)
         ->and($resolved['destinations'][0]['media'][0]['size'])->toBe($asset->size)
         ->and($resolved['destinations'][0]['media'][0]['meta'])
-        ->toEqual(['width' => 1080, 'height' => 1080, 'alt_text' => 'Accessible caption']);
+        ->toEqual([
+            'width' => 1080,
+            'height' => 1080,
+            'alt_text' => 'Accessible caption',
+            'user_tags' => [['username' => 'trypost', 'x' => 0.5, 'y' => 0.25]],
+        ]);
 });
 
 test('the X length check uses the sanitized and defused caption', function () {
     config()->set('trypost.platforms.x.defuse_links', true);
     $workspace = Workspace::factory()->create();
-    $account = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $account = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
 
     $resolved = PostCompositionValidator::validate($workspace, [
         'status' => 'scheduled', 'scheduled_at' => now()->addDay()->toIso8601String(),
@@ -257,4 +264,46 @@ test('the X length check uses the sanitized and defused caption', function () {
     ]);
 
     expect($resolved['destinations'][0]['content'])->toStartWith('https://example.com');
+});
+
+test('media already on the post may change its alt text and people tags, in any key order, but nothing else', function () {
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $existing = [
+        'id' => 'legacy-image',
+        'path' => 'uploads/legacy.jpg',
+        'url' => 'https://cdn.test/legacy.jpg',
+        'type' => 'image',
+        'meta' => ['width' => 1080, 'height' => 1080, 'alt_text' => 'Old'],
+    ];
+    $composition = fn (array $media): array => [
+        'status' => 'draft',
+        'content' => 'Hello',
+        'media' => [$media],
+        'destinations' => [[
+            'social_account_id' => $account->id,
+            'content_type' => ContentType::InstagramFeed->value,
+            'meta' => [],
+        ]],
+    ];
+
+    $edited = [
+        'url' => 'https://cdn.test/legacy.jpg',
+        'id' => 'legacy-image',
+        'type' => 'image',
+        'path' => 'uploads/legacy.jpg',
+        'meta' => [
+            'alt_text' => 'New',
+            'height' => 1080,
+            'width' => 1080,
+            'user_tags' => [['username' => 'trypost', 'x' => 0.5, 'y' => 0.5]],
+        ],
+    ];
+    $resolved = PostCompositionValidator::validate($workspace, $composition($edited), [$existing]);
+
+    expect($resolved['destinations'][0]['media'][0]['meta'])->toEqual($edited['meta']);
+
+    $moved = [...$edited, 'url' => 'https://cdn.test/other.jpg'];
+    expect(fn () => PostCompositionValidator::validate($workspace, $composition($moved), [$existing]))
+        ->toThrow(ValidationException::class);
 });

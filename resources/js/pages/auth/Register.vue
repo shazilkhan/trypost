@@ -28,6 +28,7 @@ defineProps<{
 }>();
 
 const { locale } = useGuestLocale();
+const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
 
 const showPassword = ref(false);
 const showEmailForm = ref(false);
@@ -48,6 +49,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
     <AuthBase
         :title="$t('auth.register.title')"
         :description="$t('auth.register.description')"
+        panel
     >
         <Head :title="$t('auth.register.page_title')" />
 
@@ -59,7 +61,8 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                     v-if="!showEmailForm"
                     type="button"
                     variant="outline"
-                    class="w-full"
+                    size="lg"
+                    class="w-full bg-card text-base"
                     @click="showEmailForm = true"
                 >
                     <IconMail class="size-4" />
@@ -75,22 +78,25 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
             >
                 <input v-if="invite" type="hidden" name="invite" :value="invite" />
                 <input type="hidden" name="locale" :value="locale" />
+                <input type="hidden" name="timezone" :value="browserTimezone" data-testid="register-timezone" />
 
                 <div
                     v-if="hasSocial && showEmailForm"
-                    class="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border"
+                    class="flex items-center gap-3 text-sm text-muted-foreground"
                 >
-                    <span class="relative z-10 bg-background px-2 text-muted-foreground">{{ $t('auth.or_continue_with_email') }}</span>
+                    <span class="h-px flex-1 bg-border-strong" />
+                    {{ $t('auth.or_continue_with_email') }}
+                    <span class="h-px flex-1 bg-border-strong" />
                 </div>
 
                 <Transition
-                    enter-active-class="transition-all duration-300 ease-out"
-                    enter-from-class="-translate-y-2 opacity-0"
+                    enter-active-class="transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none"
+                    enter-from-class="-translate-y-1 opacity-0"
                     enter-to-class="translate-y-0 opacity-100"
                 >
-                    <div v-if="emailFormVisible" class="grid gap-6">
+                    <div v-if="emailFormVisible" class="grid gap-4">
                         <div class="grid gap-2">
-                            <Label for="name">{{ $t('auth.register.name') }}</Label>
+                            <Label for="name" class="text-base leading-6">{{ $t('auth.register.name') }}</Label>
                             <Input
                                 id="name"
                                 type="text"
@@ -99,12 +105,13 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                 autocomplete="name"
                                 name="name"
                                 :placeholder="$t('auth.register.name_placeholder')"
+                                class="h-10 rounded-lg px-3 text-base"
                             />
                             <InputError :message="errors.name" />
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="email">{{ $t('auth.register.email') }}</Label>
+                            <Label for="email" class="text-base leading-6">{{ $t('auth.register.email') }}</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -115,13 +122,13 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                 :default-value="email ?? ''"
                                 :readonly="Boolean(invite)"
                                 :aria-readonly="Boolean(invite)"
-                                :class="{ 'pointer-events-none opacity-60': invite }"
+                                :class="['h-10 rounded-lg px-3 text-base', { 'pointer-events-none bg-muted text-muted-foreground': invite }]"
                             />
                             <InputError :message="errors.email" />
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="password">{{ $t('auth.register.password') }}</Label>
+                            <Label for="password" class="text-base leading-6">{{ $t('auth.register.password') }}</Label>
                             <div class="relative">
                                 <Input
                                     id="password"
@@ -130,6 +137,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                     autocomplete="new-password"
                                     name="password"
                                     :placeholder="$t('auth.register.password')"
+                                    class="h-10 rounded-lg ps-3 pe-10 text-base"
                                 />
                                 <div class="absolute inset-y-0 end-0 flex items-center pe-3">
                                     <TooltipProvider>
@@ -157,7 +165,8 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
 
                         <Button
                             type="submit"
-                            class="mt-2 w-full"
+                            size="lg"
+                            class="w-full text-base"
                             tabindex="4"
                             :disabled="processing"
                             data-test="register-user-button"
@@ -168,11 +177,10 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                     </div>
                 </Transition>
 
-                <div class="text-center text-sm text-muted-foreground">
+                <div class="text-center text-base text-foreground">
                     {{ $t('auth.register.has_account') }}
                     <TextLink
                         :href="login()"
-                        class="underline underline-offset-4"
                         :tabindex="5"
                         >{{ $t('auth.register.log_in') }}</TextLink
                     >

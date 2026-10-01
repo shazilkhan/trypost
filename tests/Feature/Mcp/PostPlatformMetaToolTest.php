@@ -23,6 +23,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\Fluent\AssertableJson;
 
@@ -128,6 +129,7 @@ test('youtube description checks effective MCP metadata on schedule and publish'
 ]);
 
 beforeEach(function () {
+    Storage::fake();
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
     $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
@@ -359,7 +361,7 @@ test('attach media from upload accepts a PDF for a LinkedIn post', function () {
     $uploadToken = (string) Str::uuid();
     $this->workspace->media()->create([
         'group_id' => (string) Str::uuid(),
-        'collection' => 'assets',
+        'collection' => 'uploads',
         'type' => 'document',
         'path' => 'medias/deck.pdf',
         'original_filename' => 'deck.pdf',
@@ -368,6 +370,7 @@ test('attach media from upload accepts a PDF for a LinkedIn post', function () {
         'order' => 0,
         'upload_token' => $uploadToken,
     ]);
+    Storage::put('medias/deck.pdf', 'pdf bytes');
 
     $response = TryPostServer::actingAs($this->user)
         ->tool(AttachMediaFromUploadTool::class, [
@@ -587,7 +590,7 @@ test('create post rejects invalid Pinterest destination link', function () {
 
 test('updating an independent Pinterest draft cannot schedule without its stored board', function () {
     $pinterest = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Pinterest]);
-    $image = Media::factory()->assets()->for($this->workspace, 'mediable')->create();
+    $image = Media::factory()->stored()->temporaryUpload($this->workspace)->create();
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,

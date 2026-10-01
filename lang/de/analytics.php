@@ -92,6 +92,13 @@ return [
         'no_post_data' => 'In diesem Zeitraum wurden keine Beiträge veröffentlicht.',
         'no_ranked_posts' => 'Keine Beiträge mit erfassten Reaktionen oder Kommentaren in diesem Zeitraum.',
         'no_performance' => 'Keine Kanalleistung für diesen Zeitraum verfügbar.',
+        'filtered_no_posts' => 'Keine Beiträge der ausgewählten Kanäle oder Labels in diesem Zeitraum. Versuche einen anderen Zeitraum oder setze die Filter zurück.',
+        'filtered_no_followers' => 'Keine Follower-Daten der ausgewählten Kanäle in diesem Zeitraum. Versuche einen anderen Zeitraum oder setze den Kanalfilter zurück.',
+        'filtered_no_data_title' => 'Nichts entspricht diesen Filtern',
+        'filtered_no_data_body' => 'Die ausgewählten Kanäle haben noch keine Analysedaten. Wähle andere Kanäle oder setze die Filter zurück.',
+        'posts_sent_axis' => 'Gesendete Beiträge',
+        'followers_gained_detail' => 'Start bei :start · :change gewonnen (:percent)',
+        'followers_lost_detail' => 'Start bei :start · :change verloren (:percent)',
         'no_excerpt' => 'Keine Textvorschau verfügbar.',
         'published_via_trypost' => 'Über TryPost veröffentlicht',
         'published_on_network' => 'Im sozialen Netzwerk veröffentlicht',
@@ -112,6 +119,79 @@ return [
     'search_keywords' => [
         'title' => 'Suchbegriffe',
         'estimated' => 'Google gibt für diesen Begriff keine genaue Zahl an',
+    ],
+
+    'ranges' => [
+        '7d' => '7 Tage',
+        '30d' => '30 Tage',
+        'mtd' => 'Aktueller Monat',
+        'last_month' => 'Letzter Monat',
+        'custom' => 'Benutzerdefiniert',
+        'compared_to' => ':current · verglichen mit :previous',
+        'label' => 'Zeitraum',
+    ],
+
+    'channel' => [
+        'title' => 'Insights',
+        'page_title' => 'Insights · :channel',
+        'unsupported_title' => 'Keine Analysen für dieses Netzwerk',
+        'unsupported_body' => ':network teilt keine Analysedaten mit Drittanbieter-Apps, daher gibt es hier noch nichts anzuzeigen.',
+        'performance' => 'Leistung pro Beitrag',
+        'this_period' => 'Dieser Zeitraum',
+        'previous_period' => 'Vorheriger Zeitraum',
+        'post' => 'Beitrag',
+        'posts_count' => 'Beiträge · :count',
+        'no_posts' => 'Keine Beiträge in diesem Zeitraum veröffentlicht.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Follower gesamt',
+                'about' => 'Follower am Ende des Zeitraums.',
+            ],
+            'posts' => [
+                'label' => 'Beiträge',
+                'about' => 'Im Zeitraum veröffentlichte Beiträge.',
+            ],
+            'reactions' => [
+                'label' => 'Reaktionen',
+                'about' => 'Likes und Reaktionen auf im Zeitraum veröffentlichte Beiträge.',
+            ],
+            'comments' => [
+                'label' => 'Kommentare',
+                'about' => 'Kommentare zu im Zeitraum veröffentlichten Beiträgen.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Interaktionsrate',
+                'about' => 'Interaktionen geteilt durch Reichweite oder Impressionen.',
+            ],
+            'views' => [
+                'label' => 'Aufrufe',
+                'about' => 'Aufrufe der im Zeitraum veröffentlichten Beiträge. Es zählen nur Beiträge, für die das Netzwerk Aufrufe meldet.',
+            ],
+            'shares' => [
+                'label' => 'Geteilt',
+                'about' => 'Wie oft die im Zeitraum veröffentlichten Beiträge geteilt wurden.',
+            ],
+            'saves' => [
+                'label' => 'Gespeichert',
+                'about' => 'Wie oft die im Zeitraum veröffentlichten Beiträge gespeichert wurden.',
+            ],
+            'follows_gained' => [
+                'label' => 'Durch Beiträge gewonnene Follower',
+                'about' => 'Neue Follower, die den im Zeitraum veröffentlichten Beiträgen zugeordnet werden.',
+            ],
+            'reach' => [
+                'label' => 'Reichweite',
+                'about' => 'Einzelne Konten, die von den im Zeitraum veröffentlichten Beiträgen erreicht wurden.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'Wiedergabezeit (Min.)',
+                'about' => 'Gesamte Wiedergabeminuten der im Zeitraum veröffentlichten Videos.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Ø Wiedergabezeit (Sek.)',
+                'about' => 'Durchschnittlich angesehene Sekunden pro Aufruf.',
+            ],
+        ],
     ],
 
     'metrics' => [

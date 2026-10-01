@@ -92,6 +92,13 @@ return [
         'no_post_data' => 'Bu dönemde yayınlanan gönderi yok.',
         'no_ranked_posts' => 'Bu dönemde ölçülmüş tepki veya yorumu olan gönderi yok.',
         'no_performance' => 'Bu dönem için kanal performansı mevcut değil.',
+        'filtered_no_posts' => 'Bu dönemde seçili kanallar veya etiketler için gönderi yok. Başka bir tarih aralığı deneyin veya filtreleri temizleyin.',
+        'filtered_no_followers' => 'Bu dönemde seçili kanallar için takipçi verisi yok. Başka bir tarih aralığı deneyin veya kanal filtresini temizleyin.',
+        'filtered_no_data_title' => 'Bu filtrelerle eşleşen bir şey yok',
+        'filtered_no_data_body' => 'Seçili kanalların henüz analiz verisi yok. Başka kanallar seçin veya filtreleri temizleyin.',
+        'posts_sent_axis' => 'Gönderilen gönderiler',
+        'followers_gained_detail' => 'Başlangıç :start · :change kazanıldı (:percent)',
+        'followers_lost_detail' => 'Başlangıç :start · :change kaybedildi (:percent)',
         'no_excerpt' => 'Metin önizlemesi mevcut değil.',
         'published_via_trypost' => 'TryPost aracılığıyla yayınlandı',
         'published_on_network' => 'Sosyal ağda yayınlandı',
@@ -112,6 +119,79 @@ return [
     'search_keywords' => [
         'title' => 'Arama terimleri',
         'estimated' => 'Google bu terim için kesin sayıyı paylaşmıyor',
+    ],
+
+    'ranges' => [
+        '7d' => '7 gün',
+        '30d' => '30 gün',
+        'mtd' => 'Bu ay',
+        'last_month' => 'Geçen ay',
+        'custom' => 'Özel',
+        'compared_to' => ':current · :previous ile karşılaştırıldı',
+        'label' => 'Tarih aralığı',
+    ],
+
+    'channel' => [
+        'title' => 'İçgörüler',
+        'page_title' => 'İçgörüler · :channel',
+        'unsupported_title' => 'Bu ağ için analiz yok',
+        'unsupported_body' => ':network analizleri üçüncü taraf uygulamalarla paylaşmadığı için burada henüz gösterilecek bir şey yok.',
+        'performance' => 'Gönderi başına performans',
+        'this_period' => 'Bu dönem',
+        'previous_period' => 'Önceki dönem',
+        'post' => 'Gönderi',
+        'posts_count' => 'Gönderiler · :count',
+        'no_posts' => 'Bu dönemde yayınlanmış gönderi yok.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Toplam takipçi',
+                'about' => 'Dönem sonundaki takipçi sayısı.',
+            ],
+            'posts' => [
+                'label' => 'Gönderiler',
+                'about' => 'Dönemde yayınlanan gönderiler.',
+            ],
+            'reactions' => [
+                'label' => 'Tepkiler',
+                'about' => 'Dönemde yayınlanan gönderilerdeki beğeniler ve tepkiler.',
+            ],
+            'comments' => [
+                'label' => 'Yorumlar',
+                'about' => 'Dönemde yayınlanan gönderilerdeki yorumlar.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Etkileşim oranı',
+                'about' => 'Etkileşimlerin erişime veya gösterimlere bölünmesi.',
+            ],
+            'views' => [
+                'label' => 'Görüntülenme',
+                'about' => 'Dönemde yayınlanan gönderilerin görüntülenmeleri. Yalnızca ağın görüntülenme bildirdiği gönderiler sayılır.',
+            ],
+            'shares' => [
+                'label' => 'Paylaşımlar',
+                'about' => 'Dönemde yayınlanan gönderilerin paylaşımları.',
+            ],
+            'saves' => [
+                'label' => 'Kaydedilenler',
+                'about' => 'Dönemde yayınlanan gönderilerin kaydedilme sayısı.',
+            ],
+            'follows_gained' => [
+                'label' => 'Gönderilerden kazanılan takipçiler',
+                'about' => 'Dönemde yayınlanan gönderilere atfedilen yeni takipçiler.',
+            ],
+            'reach' => [
+                'label' => 'Erişim',
+                'about' => 'Dönemde yayınlanan gönderilerin ulaştığı benzersiz hesaplar.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'İzlenme süresi (dk)',
+                'about' => 'Dönemde yayınlanan videolarda izlenen toplam dakika.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Ort. izlenme süresi (sn)',
+                'about' => 'Görüntülenme başına izlenen ortalama saniye.',
+            ],
+        ],
     ],
 
     'metrics' => [

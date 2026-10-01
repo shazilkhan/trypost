@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use App\Ai\Agents\PostContentShortener;
 use App\Enums\SocialAccount\Platform;
-use App\Models\AiUsageLog;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Repurpose\CaptionAdapter;
 use App\Services\Social\ContentSanitizer;
+use Laravel\Ai\Prompts\AgentPrompt;
 
 test('a caption that fits is returned untouched', function () {
     $workspace = Workspace::factory()->create();
@@ -41,7 +41,7 @@ test('truncation respects the tightest limit we support', function () {
         ->and($result)->toStartWith('A really long YouTube Short caption');
 });
 
-test('ai shortens the caption and the workspace is billed for it', function () {
+test('ai shortens the caption', function () {
     config()->set('trypost.self_hosted', true);
     PostContentShortener::fake(['A tight caption that fits.']);
 
@@ -50,8 +50,8 @@ test('ai shortens the caption and the workspace is billed for it', function () {
 
     $result = app(CaptionAdapter::class)->adapt($workspace, $user, str_repeat('palavra ', 2000), Platform::YouTube);
 
-    expect($result)->toBe('A tight caption that fits.')
-        ->and(AiUsageLog::where('workspace_id', $workspace->id)->count())->toBe(1);
+    expect($result)->toBe('A tight caption that fits.');
+    PostContentShortener::assertPrompted(fn (AgentPrompt $prompt): bool => $prompt->prompt === str_repeat('palavra ', 2000));
 });
 
 test('a shortened caption that still overflows falls back to truncation', function () {
@@ -109,28 +109,14 @@ test('a caption with no word boundary is cut hard rather than emptied', function
         ->and(Platform::YouTube->contentOverflow($result))->toBe(0);
 });
 
-test('the shortener prompt leaves out brand context the workspace does not have', function () {
-    $bare = new PostContentShortener(
-        workspace: Workspace::factory()->make(['name' => '', 'brand_voice_traits' => []]),
-        platformLabel: 'YouTube Shorts',
-        limit: 100,
-    );
+test('the shortener prompt carries no brand context', function () {
+    $instructions = (new PostContentShortener(platformLabel: 'TikTok', limit: 2200))->instructions();
 
-    expect($bare->instructions())
-        ->not->toContain('the brand ""')
+    expect($instructions)
+        ->toContain('2200 characters')
         ->not->toContain('Brand voice')
-        ->toContain('100 characters')
-        ->toContain('95 characters');
-
-    $branded = new PostContentShortener(
-        workspace: Workspace::factory()->make(['name' => 'Acme', 'brand_voice_traits' => ['casual']]),
-        platformLabel: 'TikTok',
-        limit: 2200,
-    );
-
-    expect($branded->instructions())
-        ->toContain('the brand "Acme"')
-        ->toContain('Keep a casual, relaxed register.');
+        ->not->toContain('register')
+        ->and(strtolower($instructions))->not->toContain('brand');
 });
 
 test('a self-hosted install with no ai configured still gets a caption that fits', function () {
@@ -179,7 +165,12 @@ test('newlines and repeated spaces survive truncation', function () {
 
 test('two networks sharing a character limit ask the shortener once, not twice', function () {
     config()->set('trypost.self_hosted', true);
-    PostContentShortener::fake(['A tight caption that fits.']);
+    $calls = 0;
+    PostContentShortener::fake(function () use (&$calls): string {
+        $calls++;
+
+        return 'A tight caption that fits.';
+    });
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
@@ -193,12 +184,15 @@ test('two networks sharing a character limit ask the shortener once, not twice',
     expect(Platform::Threads->maxContentLength())->toBe(Platform::Mastodon->maxContentLength())
         ->and($threads)->toBe('A tight caption that fits.')
         ->and($mastodon)->toBe('A tight caption that fits.')
-        ->and(AiUsageLog::where('workspace_id', $workspace->id)->count())->toBe(1);
+        ->and($calls)->toBe(1);
 });
 
 test('a tighter limit still gets its own call instead of reusing a longer answer', function () {
     config()->set('trypost.self_hosted', true);
-    PostContentShortener::fake(['A tight caption that fits.', 'Short one.']);
+    $calls = 0;
+    PostContentShortener::fake(function () use (&$calls): string {
+        return ['A tight caption that fits.', 'Short one.'][$calls++];
+    });
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
@@ -206,8 +200,10 @@ test('a tighter limit still gets its own call instead of reusing a longer answer
     $caption = str_repeat('palavra ', 2000);
     $adapter = app(CaptionAdapter::class);
 
-    $adapter->adapt($workspace, $user, $caption, Platform::Threads);
-    $adapter->adapt($workspace, $user, $caption, Platform::YouTube);
+    $threads = $adapter->adapt($workspace, $user, $caption, Platform::Threads);
+    $youtube = $adapter->adapt($workspace, $user, $caption, Platform::YouTube);
 
-    expect(AiUsageLog::where('workspace_id', $workspace->id)->count())->toBe(2);
+    expect($calls)->toBe(2)
+        ->and($threads)->toBe('A tight caption that fits.')
+        ->and($youtube)->toBe('Short one.');
 });

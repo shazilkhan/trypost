@@ -12,7 +12,7 @@ return [
         'type' => 'Digita',
         'to_confirm' => 'per confermare.',
         'copy_to_clipboard' => 'Copia negli appunti',
-        'delete_keyword' => 'elimina',
+        'delete_keyword' => 'ELIMINA',
     ],
 
     'photo_upload' => [

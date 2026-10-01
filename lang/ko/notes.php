@@ -6,7 +6,6 @@ return [
     'reply_placeholder' => '답글을 작성하세요...',
     'reply' => '답글',
     'react' => '반응',
-    'unknown_user' => '누군가',
     'edit' => '편집',
     'delete' => '삭제',
     'edited' => '수정됨',

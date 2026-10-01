@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Media\ResolveWorkspaceMedia;
+use App\Actions\Media\SyncOwnedMedia;
 use App\Dto\MediaItem;
+use App\Enums\Post\QueuePosition;
 use App\Enums\PostPlatform\ContentType;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
@@ -34,18 +37,32 @@ class PostCompositionValidator
             'destinations.*.meta' => ['sometimes', 'array'],
             'destinations.*.content' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'destinations.*.media' => ['sometimes', 'array'],
-            'scheduled_at' => ['required_if:status,scheduled', 'nullable', 'date', 'after:now', 'before:2038-01-19'],
+            'scheduled_at' => [
+                Rule::requiredIf(fn (): bool => data_get($composition, 'status') === 'scheduled' && blank(data_get($composition, 'queue'))),
+                'nullable',
+                'date',
+                'after:now',
+                'before:2038-01-19',
+            ],
+            'queue' => PostStatusRules::queueRules(),
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)],
-        ])->validate();
+        ], PostStatusRules::queueMessages())->validate();
+
+        $composition['queue'] = filled(data_get($composition, 'queue'))
+            ? QueuePosition::from(data_get($composition, 'queue'))
+            : null;
 
         $composition['destinations'] = collect($composition['destinations'] ?? [])
-            ->map(function (array $destination) use ($composition): array {
+            ->map(function (array $destination, int $index) use ($composition): array {
+                $destination['media_error_key'] = array_key_exists('media', $destination)
+                    ? "destinations.{$index}.media"
+                    : 'media';
                 $destination['content'] = array_key_exists('content', $destination)
                     ? $destination['content']
                     : ($composition['content'] ?? '');
                 $destination['media'] = array_key_exists('media', $destination)
-                    ? $destination['media']
+                    ? self::inheritSharedAltText($destination['media'], $composition['media'] ?? [])
                     : ($composition['media'] ?? []);
 
                 return $destination;
@@ -61,7 +78,7 @@ class PostCompositionValidator
             ->flatMap(fn (array $destination): array => array_column($destination['media'], 'id'))
             ->filter(fn (mixed $id): bool => is_string($id) && Str::isUuid($id))
             ->unique();
-        $assets = $workspace->media()->whereIn('id', $mediaIds)->get()->keyBy('id');
+        $assets = ResolveWorkspaceMedia::execute($workspace, $mediaIds->values()->all());
 
         foreach ($composition['destinations'] as &$destination) {
             foreach ($destination['media'] as &$media) {
@@ -71,13 +88,17 @@ class PostCompositionValidator
                 }
 
                 $canonical = MediaItem::fromMedia($asset)->toArray();
-                if (is_array(data_get($media, 'meta')) && array_key_exists('alt_text', $media['meta'])) {
-                    $canonical['meta'] = [...($asset->meta ?? []), 'alt_text' => $media['meta']['alt_text']];
+                $edits = array_intersect_key((array) data_get($media, 'meta', []), array_flip(SyncOwnedMedia::EDITABLE_META));
+                if ($edits !== []) {
+                    $canonical['meta'] = [...($asset->meta ?? []), ...$edits];
                 }
                 foreach (['source', 'source_meta'] as $field) {
                     if (array_key_exists($field, $media)) {
                         $canonical[$field] = $media[$field];
                     }
+                }
+                if (filled(data_get($media, 'upload_token'))) {
+                    $canonical['upload_token'] = $media['upload_token'];
                 }
                 $media = $canonical;
             }
@@ -86,7 +107,7 @@ class PostCompositionValidator
         unset($destination);
 
         $mediaRules = [];
-        foreach (PostMediaRules::rules(hosted: true) as $key => $rules) {
+        foreach (PostMediaRules::hostedRules() as $key => $rules) {
             $mediaRules[str_replace('media', 'destinations.*.media', $key)] = $rules;
         }
         $metaRules = [];
@@ -108,7 +129,7 @@ class PostCompositionValidator
         }
 
         $validator = Validator::make($composition, [...$mediaRules, ...$metaRules], $metaMessages, $metaAttributes);
-        $validator->after(function (LaravelValidator $validator) use ($composition, $accounts, $assets, $existingMedia): void {
+        $validator->after(function (LaravelValidator $validator) use ($composition, $accounts, $assets, $existingMedia, $workspace): void {
             $seen = [];
 
             foreach ($composition['destinations'] as $index => $destination) {
@@ -121,10 +142,14 @@ class PostCompositionValidator
                 }
                 $seen[$accountId] = true;
 
-                if (! $account?->is_active) {
+                if ($account === null) {
                     $validator->errors()->add("{$key}.social_account_id", trans('validation.exists', ['attribute' => 'social account']));
 
                     continue;
+                }
+
+                if ($composition['queue'] !== null && ! $account->hasPostingSchedule()) {
+                    $validator->errors()->add("{$key}.social_account_id", __('posts.errors.queue_requires_schedule'));
                 }
 
                 $contentType = ContentType::tryFrom($destination['content_type']);
@@ -134,12 +159,14 @@ class PostCompositionValidator
 
                 foreach ($destination['media'] as $mediaIndex => $media) {
                     $asset = $assets->get(data_get($media, 'id'));
-                    if (in_array($media, $existingMedia, true)) {
+                    if (in_array(self::comparableMedia($media), array_map(self::comparableMedia(...), $existingMedia), true)) {
                         continue;
                     }
 
                     if (! $asset || $asset->path !== data_get($media, 'path')) {
-                        $validator->errors()->add("{$key}.media.{$mediaIndex}.id", trans('validation.exists', ['attribute' => 'media']));
+                        $validator->errors()->add("{$key}.media.{$mediaIndex}.id", ! $asset && filled(data_get($media, 'upload_token'))
+                            ? __('posts.errors.media_expired')
+                            : trans('validation.exists', ['attribute' => 'media']));
 
                         continue;
                     }
@@ -174,7 +201,8 @@ class PostCompositionValidator
                 foreach (ContentTypeCompatibleWithMedia::errorsFor([[
                     'key' => "{$key}.content_type",
                     'content_type' => $destination['content_type'],
-                ]], $destination['media']) as $field => $message) {
+                    'aspect_ratio' => data_get($destination, 'meta.aspect_ratio'),
+                ]], $destination['media'], $workspace) as $field => $message) {
                     $validator->errors()->add($field, $message);
                 }
             }
@@ -185,5 +213,68 @@ class PostCompositionValidator
         }
 
         return $composition;
+    }
+
+    /**
+     * A destination's own media keeps its alt text; an item without one takes
+     * the alt text of the same shared item, so the shared alt reaches every channel.
+     *
+     * @param  array<int, mixed>  $media
+     * @param  array<int, mixed>  $shared
+     * @return array<int, mixed>
+     */
+    private static function inheritSharedAltText(array $media, array $shared): array
+    {
+        $sharedAltText = collect($shared)
+            ->filter(fn (mixed $item): bool => is_array($item) && is_string(data_get($item, 'id')) && filled(data_get($item, 'meta.alt_text')))
+            ->mapWithKeys(fn (array $item): array => [data_get($item, 'id') => data_get($item, 'meta.alt_text')]);
+
+        return array_map(function (mixed $item) use ($sharedAltText): mixed {
+            if (! is_array($item) || ! is_string($id = data_get($item, 'id')) || filled(data_get($item, 'meta.alt_text'))) {
+                return $item;
+            }
+
+            $altText = $sharedAltText->get($id);
+
+            if ($altText !== null) {
+                $item['meta'] = [...(array) data_get($item, 'meta', []), 'alt_text' => $altText];
+            }
+
+            return $item;
+        }, $media);
+    }
+
+    /**
+     * Alt text, people tags and the video cover offset (`SyncOwnedMedia::EDITABLE_META`)
+     * are the per-post edits the composer may make to a media item it did not
+     * upload, so they are ignored when matching it to the post's stored media.
+     * Keys are sorted because neither the browser nor MySQL's JSON column keeps
+     * the stored key order.
+     *
+     * @param  array<string, mixed>  $media
+     * @return array<string, mixed>
+     */
+    private static function comparableMedia(array $media): array
+    {
+        if (is_array(data_get($media, 'meta'))) {
+            $media['meta'] = array_diff_key($media['meta'], array_flip(SyncOwnedMedia::EDITABLE_META));
+        }
+
+        $media = array_filter($media, fn (mixed $value): bool => $value !== null && $value !== []);
+
+        return self::sortKeys($media);
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $value
+     * @return array<array-key, mixed>
+     */
+    private static function sortKeys(array $value): array
+    {
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return array_map(fn (mixed $item): mixed => is_array($item) ? self::sortKeys($item) : $item, $value);
     }
 }

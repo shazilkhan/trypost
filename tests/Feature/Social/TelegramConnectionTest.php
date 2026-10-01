@@ -56,9 +56,10 @@ it('issues a signed connect code carrying the workspace', function () {
     $response = $this->actingAs($this->user)
         ->postJson(route('app.social.telegram.connect'))
         ->assertOk()
-        ->assertJsonStructure(['code', 'nonce', 'bot_username', 'expires_at']);
+        ->assertJsonStructure(['code', 'nonce', 'bot_username', 'bot_url', 'expires_at']);
 
-    expect($response->json('bot_username'))->toBe('TryPostBot');
+    expect($response->json('bot_username'))->toBe('TryPostBot')
+        ->and($response->json('bot_url'))->toBe(config('trypost.platforms.telegram.deep_link').'/TryPostBot');
     expect(data_get(TelegramConnectCode::decode($response->json('code')), 'workspace_id'))
         ->toBe($this->workspace->id);
     expect($response->json('nonce'))
@@ -399,7 +400,9 @@ it('broadcasts to the workspace with the nonce when a channel connects', functio
     Event::assertDispatched(
         TelegramChannelConnected::class,
         fn (TelegramChannelConnected $event) => $event->workspaceId === $this->workspace->id
-            && $event->nonce === $nonce,
+            && $event->nonce === $nonce
+            && $event->created === true
+            && $event->accountId === SocialAccount::where('platform', Platform::Telegram)->value('id'),
     );
 });
 

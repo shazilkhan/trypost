@@ -6,7 +6,6 @@ return [
     'reply_placeholder' => '返信を書く...',
     'reply' => '返信',
     'react' => 'リアクション',
-    'unknown_user' => '誰か',
     'edit' => '編集',
     'delete' => '削除',
     'edited' => '編集済み',

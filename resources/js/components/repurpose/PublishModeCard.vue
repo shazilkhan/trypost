@@ -32,29 +32,34 @@ const mode = defineModel<RepurposePublishMode>({ required: true });
                 v-for="option in modes"
                 :key="option.value"
                 type="button"
-                class="flex w-full items-start gap-3 rounded-md border p-3 text-left transition-[color,border-color,background-color,box-shadow] hover:shadow-sm"
+                class="flex w-full cursor-pointer items-start gap-3 rounded-lg border p-3 text-left transition-control focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                 :class="
                     mode === option.value
-                        ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-xs'
-                        : 'border-border bg-card hover:border-amber-200 hover:bg-amber-50'
+                        ? 'border-primary-strong bg-primary-subtle text-foreground'
+                        : 'border-border-strong bg-card hover:bg-accent'
                 "
                 :data-testid="`publish-mode-${option.value}`"
                 @click="mode = option.value"
             >
                 <span
-                    class="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-border"
+                    class="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border"
+                    :class="
+                        mode === option.value
+                            ? 'border-primary-strong bg-primary-strong'
+                            : 'border-input bg-card'
+                    "
                 >
                     <span
                         v-if="mode === option.value"
-                        class="size-2 rounded-full bg-foreground"
+                        class="size-1.5 rounded-full bg-white"
                     />
                 </span>
 
                 <span class="min-w-0">
-                    <span class="block text-sm font-bold">{{
+                    <span class="block text-sm leading-tight font-emphasis">{{
                         option.label
                     }}</span>
-                    <span class="block text-xs text-muted-foreground">{{
+                    <span class="mt-1 block text-sm text-muted-foreground">{{
                         option.description
                     }}</span>
                 </span>

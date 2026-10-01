@@ -56,7 +56,6 @@ class CollectAccountDailySnapshot implements ShouldQueue
     ): void {
         $account = SocialAccount::query()
             ->connected()
-            ->active()
             ->find($this->socialAccountId);
 
         if (! $account

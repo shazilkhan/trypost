@@ -11,6 +11,7 @@ use App\Services\Media\ChunkedAssetReceiver;
 use App\Services\Media\ChunkedCloudUploader;
 use App\Services\Media\ChunkReceipt;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     Storage::fake();
@@ -39,7 +40,7 @@ test('chunk receipt completed response merges media resource fields', function (
     $media = Media::factory()->create([
         'mediable_type' => $this->workspace->getMorphClass(),
         'mediable_id' => $this->workspace->id,
-        'collection' => 'assets',
+        'collection' => Media::COLLECTION_UPLOADS,
         'type' => 'video',
         'path' => 'medias/clip.mp4',
         'original_filename' => 'clip.mp4',
@@ -103,7 +104,7 @@ test('receiver reports progress for intermediate local chunks', function () {
 
     expect($receipt->done)->toBeFalse();
     expect($receipt->progress)->toBe(40);
-    expect($this->workspace->getMedia('assets')->count())->toBe(0);
+    expect($this->workspace->getMedia(Media::COLLECTION_UPLOADS)->count())->toBe(0);
 });
 
 test('receiver completes multipart uploads through the cloud uploader', function () {
@@ -159,7 +160,7 @@ test('receiver returns in-progress when multipart chunk is not final', function 
 
     expect($receipt->done)->toBeFalse();
     expect($receipt->progress)->toBe(55);
-    expect($this->workspace->getMedia('assets')->count())->toBe(0);
+    expect($this->workspace->getMedia(Media::COLLECTION_UPLOADS)->count())->toBe(0);
 });
 
 test('receiver deletes the cloud object when media registration fails after multipart', function () {
@@ -191,5 +192,64 @@ test('receiver deletes the cloud object when media registration fails after mult
     ))->toThrow(InvalidArgumentException::class);
 
     Storage::assertMissing('medias/orphan.mp4');
-    expect($this->workspace->getMedia('assets')->count())->toBe(0);
+    expect($this->workspace->getMedia(Media::COLLECTION_UPLOADS)->count())->toBe(0);
+});
+
+test('receiver stores the completed file in the requested collection on both paths', function (bool $multipart) {
+    $bytes = "\0\0\0\x18ftypmp42\0\0\0\0mp42isom".str_repeat("\0", 64);
+    Storage::put('medias/from-cloud.mp4', $bytes);
+
+    $cloud = Mockery::mock(ChunkedCloudUploader::class);
+    $cloud->shouldReceive('shouldUseMultipart')->andReturn($multipart);
+    $cloud->shouldReceive('receiveChunk')->andReturn([
+        'done' => true,
+        'progress' => 100,
+        'path' => 'medias/from-cloud.mp4',
+        'size' => strlen($bytes),
+        'mime_type' => 'video/mp4',
+    ]);
+    $cloud->shouldReceive('readRange')->andReturnUsing(fn (string $path, int $offset, int $length): string => substr($bytes, $offset, $length));
+
+    $receipt = (new ChunkedAssetReceiver($cloud))->receive(
+        $this->workspace,
+        $this->user,
+        'clip.mp4',
+        $bytes,
+        0,
+        strlen($bytes) - 1,
+        strlen($bytes),
+        'attempt-1',
+    );
+
+    expect($receipt->media->collection)->toBe(Media::COLLECTION_UPLOADS)
+        ->and($receipt->media->workspace_id)->toBe($this->workspace->id);
+})->with(['multipart' => true, 'local assemble' => false]);
+
+test('receiver rejects and deletes a multipart object over the cap of its detected type', function () {
+    config()->set('trypost.media.max_size_mb.image', 1);
+    Storage::put('medias/too-big.png', 'bytes');
+
+    $cloud = Mockery::mock(ChunkedCloudUploader::class);
+    $cloud->shouldReceive('shouldUseMultipart')->andReturn(true);
+    $cloud->shouldReceive('receiveChunk')->andReturn([
+        'done' => true,
+        'progress' => 100,
+        'path' => 'medias/too-big.png',
+        'size' => 1024 * 1024 + 1,
+        'mime_type' => 'image/png',
+    ]);
+
+    expect(fn () => (new ChunkedAssetReceiver($cloud))->receive(
+        $this->workspace,
+        $this->user,
+        'clip.mp4',
+        'x',
+        0,
+        0,
+        1024 * 1024 + 1,
+        'attempt-1',
+    ))->toThrow(ValidationException::class);
+
+    Storage::assertMissing('medias/too-big.png');
+    expect(Media::query()->count())->toBe(0);
 });

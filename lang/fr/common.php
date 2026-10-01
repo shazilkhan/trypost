@@ -12,7 +12,7 @@ return [
         'type' => 'Saisissez',
         'to_confirm' => 'pour confirmer.',
         'copy_to_clipboard' => 'Copier dans le presse-papiers',
-        'delete_keyword' => 'supprimer',
+        'delete_keyword' => 'SUPPRIMER',
     ],
 
     'photo_upload' => [

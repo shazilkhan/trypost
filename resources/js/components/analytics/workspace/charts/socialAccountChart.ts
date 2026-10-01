@@ -3,9 +3,8 @@ import {
     getPlatformLabel,
     getPlatformLogo,
 } from '@/composables/usePlatformLogo';
-import { formatNumberCompact } from '@/lib/utils';
-
 import { accountColor } from '@/lib/analyticsColors';
+import { formatNumberCompact } from '@/lib/utils';
 import type { AccountIdentityData } from '@/types/analytics';
 
 export const socialAccountChartConfig = (

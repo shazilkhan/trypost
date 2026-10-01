@@ -53,6 +53,7 @@ test('imported Reel detail shows origin and watch time without publishing action
         ->assertScript('document.querySelector("[data-testid=analytics-metric-watch_time_milliseconds]")?.innerText.includes("67.4K min")', true)
         ->assertScript('document.querySelector("[data-testid=analytics-metric-watch_time_milliseconds]")?.innerText.includes("67368.4 min")', false)
         ->assertMissing('@edit-publication')
+        ->assertPresent('@analytics-publication-close')
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 });

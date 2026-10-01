@@ -449,7 +449,7 @@ test('instagram-facebook reconnect updates the original card via connectIdentity
     $response->assertInertia(fn (AssertableInertia $page) => $page
         ->component('accounts/PopupCallback')
         ->where('success', true)
-        ->where('message', __('accounts.popup_callback.reconnected'))
+        ->where('message', null)
     );
 
     $account->refresh();

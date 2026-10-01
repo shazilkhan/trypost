@@ -5,9 +5,6 @@ declare(strict_types=1);
 use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
 use App\Mcp\Servers\TryPostServer;
-use App\Mcp\Tools\Asset\AttachExistingAssetTool;
-use App\Mcp\Tools\Asset\GetAssetTool;
-use App\Mcp\Tools\Asset\ListAssetsTool;
 use App\Mcp\Tools\Label\CreateLabelTool;
 use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
@@ -23,7 +20,6 @@ use App\Mcp\Tools\Signature\UpdateSignatureTool;
 use App\Mcp\Tools\SocialAccount\ListDiscordChannelsTool;
 use App\Mcp\Tools\SocialAccount\ListPinterestBoardsTool;
 use App\Mcp\Tools\SocialAccount\ListSocialAccountsTool;
-use App\Mcp\Tools\SocialAccount\ToggleSocialAccountTool;
 use App\Mcp\Tools\Webhook\CreateWebhookTool;
 use App\Mcp\Tools\Webhook\ListWebhooksTool;
 use App\Models\Media;
@@ -82,12 +78,7 @@ test('viewers can list labels signatures and social accounts via mcp', function 
 
 test('viewers cannot publish attach media or request uploads via mcp', function () {
     $uploadToken = (string) Str::uuid();
-    Media::factory()->create([
-        'mediable_type' => (new Workspace)->getMorphClass(),
-        'mediable_id' => $this->workspace->id,
-        'collection' => 'assets',
-        'upload_token' => $uploadToken,
-    ]);
+    Media::factory()->temporaryUpload($this->workspace)->create(['upload_token' => $uploadToken]);
 
     TryPostServer::actingAs($this->viewer)
         ->tool(PublishPostTool::class, ['post_id' => $this->post->id])
@@ -110,21 +101,6 @@ test('viewers cannot publish attach media or request uploads via mcp', function 
     TryPostServer::actingAs($this->viewer)
         ->tool(RequestMediaUploadTool::class, [])
         ->assertHasErrors(['Not authorized to upload media.']);
-
-    TryPostServer::actingAs($this->viewer)
-        ->tool(ListAssetsTool::class, [])
-        ->assertHasErrors(['Not authorized to view assets.']);
-
-    TryPostServer::actingAs($this->viewer)
-        ->tool(GetAssetTool::class, ['asset_id' => (string) Str::uuid()])
-        ->assertHasErrors(['Not authorized to view assets.']);
-
-    TryPostServer::actingAs($this->viewer)
-        ->tool(AttachExistingAssetTool::class, [
-            'post_id' => $this->post->id,
-            'asset_id' => (string) Str::uuid(),
-        ])
-        ->assertHasErrors(['Not authorized to update this post.']);
 });
 
 test('viewers cannot manage labels or signatures via mcp', function () {
@@ -167,12 +143,7 @@ test('viewers cannot manage labels or signatures via mcp', function () {
         ->and($signature->fresh())->not->toBeNull();
 });
 
-test('viewers cannot toggle social accounts or list compose helpers via mcp', function () {
-    $linkedin = SocialAccount::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'platform' => Platform::LinkedIn,
-        'is_active' => true,
-    ]);
+test('viewers cannot list compose helpers via mcp', function () {
     $discord = SocialAccount::factory()->discord()->create([
         'workspace_id' => $this->workspace->id,
     ]);
@@ -181,46 +152,12 @@ test('viewers cannot toggle social accounts or list compose helpers via mcp', fu
     ]);
 
     TryPostServer::actingAs($this->viewer)
-        ->tool(ToggleSocialAccountTool::class, ['account_id' => $linkedin->id])
-        ->assertHasErrors(['Not authorized to manage social accounts.']);
-
-    TryPostServer::actingAs($this->viewer)
         ->tool(ListDiscordChannelsTool::class, ['account_id' => $discord->id])
         ->assertHasErrors(['Not authorized to manage posts.']);
 
     TryPostServer::actingAs($this->viewer)
         ->tool(ListPinterestBoardsTool::class, ['account_id' => $pinterest->id])
         ->assertHasErrors(['Not authorized to manage posts.']);
-
-    expect($linkedin->fresh()->is_active)->toBeTrue();
-});
-
-test('members cannot toggle social accounts via mcp', function () {
-    $account = SocialAccount::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'platform' => Platform::LinkedIn,
-        'is_active' => true,
-    ]);
-
-    TryPostServer::actingAs($this->member)
-        ->tool(ToggleSocialAccountTool::class, ['account_id' => $account->id])
-        ->assertHasErrors(['Not authorized to manage social accounts.']);
-
-    expect($account->fresh()->is_active)->toBeTrue();
-});
-
-test('admins can toggle social accounts via mcp', function () {
-    $account = SocialAccount::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'platform' => Platform::LinkedIn,
-        'is_active' => true,
-    ]);
-
-    TryPostServer::actingAs($this->owner)
-        ->tool(ToggleSocialAccountTool::class, ['account_id' => $account->id])
-        ->assertOk();
-
-    expect($account->fresh()->is_active)->toBeFalse();
 });
 
 test('viewers and members cannot list or create webhooks via mcp', function (Role $role) {

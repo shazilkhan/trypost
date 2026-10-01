@@ -51,6 +51,9 @@ test('members page shows members and invites', function () {
         ->component('settings/workspace/Members', false)
         ->has('workspace')
         ->has('members')
+        ->has('members.0', fn ($member) => $member
+            ->hasAll(['id', 'name', 'email', 'photo_url', 'role'])
+        )
         ->has('invites')
         ->has('owner')
         ->has('roles')

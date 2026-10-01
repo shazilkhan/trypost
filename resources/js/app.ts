@@ -11,6 +11,7 @@ import { initializeDataLayer } from './datalayer';
 import { bootLocale, i18nConfig, syncLocale } from './language';
 import { syncContentTypeMediaRules } from './lib/contentTypeMediaRules';
 import { capturePageview, initializePostHog, syncPostHogContext } from './posthog';
+import { syncPreferences } from './preferences';
 import type { Auth } from './types';
 
 const appName = import.meta.env.VITE_APP_NAME || 'TryPost.it';
@@ -24,6 +25,7 @@ createInertiaApp({
         ),
     setup({ el, App, props, plugin }) {
         const locale = bootLocale(props.initialPage.props);
+        syncPreferences(props.initialPage.props);
 
         const auth = props.initialPage.props.auth as Auth | undefined;
         const flash = props.initialPage.props.flash as
@@ -51,6 +53,7 @@ createInertiaApp({
         // reporting a navigation.
         router.on('success', (event) => {
             syncLocale(event.detail.page.props);
+            syncPreferences(event.detail.page.props);
         });
 
         router.on('navigate', (event) => {

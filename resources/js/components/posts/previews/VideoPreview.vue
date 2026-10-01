@@ -41,13 +41,13 @@ const toggle = () => {
         <button
             v-show="!isPlaying"
             type="button"
-            class="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/10 transition-colors hover:bg-black/20"
+            class="absolute inset-0 flex cursor-pointer items-center justify-center"
             aria-label="Play"
         >
             <span
-                class="flex size-14 items-center justify-center rounded-full bg-black/55 ring-1 ring-white/30 backdrop-blur-sm transition-transform hover:scale-110"
+                class="flex size-12 items-center justify-center rounded-full bg-white/90 transition-transform hover:scale-105"
             >
-                <IconPlayerPlayFilled class="size-7 text-white drop-shadow" />
+                <IconPlayerPlayFilled class="size-6 text-black" />
             </span>
         </button>
     </div>

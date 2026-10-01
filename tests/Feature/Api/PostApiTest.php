@@ -88,7 +88,6 @@ it('creates a post', function () {
 it('rejects multiple destinations on the single post endpoint', function () {
     $secondAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
@@ -107,7 +106,6 @@ it('rejects multiple destinations on the single post endpoint', function () {
 it('creates an ordered batch of independent posts', function () {
     $secondAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     $response = $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
@@ -134,7 +132,6 @@ it('rejects the whole batch when a destination belongs to another workspace', fu
     $foreignWorkspace = Workspace::factory()->create();
     $foreignAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $foreignWorkspace->id,
-        'is_active' => true,
     ]);
 
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
@@ -155,17 +152,13 @@ it('rejects malformed hosted media identifiers with a validation response', func
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.batch.store'), [
             'status' => 'draft',
-            'media' => [[
-                'id' => 'not-a-uuid',
-                'path' => 'media/photo.jpg',
-                'url' => 'https://example.com/photo.jpg',
-            ]],
+            'media' => [['id' => 'not-a-uuid']],
             'destinations' => [
                 ['social_account_id' => $this->socialAccount->id, 'content_type' => ContentType::LinkedInPost->value],
             ],
         ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors('destinations.0.media.0.id');
+        ->assertJsonValidationErrors('media.0.id');
 });
 
 it('ignores a client-supplied created_via and always records api', function () {
@@ -216,22 +209,6 @@ it('creates a post with content, media, and labels', function () {
     expect($post->labels()->pluck('workspace_labels.id')->all())->toContain($label->id);
 
     $response->assertJsonPath('content', 'Hello from the API');
-});
-
-it('rejects creating a post with an inactive social account', function () {
-    $inactive = SocialAccount::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'platform' => Platform::LinkedIn,
-        'is_active' => false,
-    ]);
-
-    $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
-        ->postJson(route('api.posts.store'), [
-            'platforms' => [
-                ['social_account_id' => $inactive->id, 'content_type' => 'linkedin_post'],
-            ],
-        ])
-        ->assertJsonValidationErrors(['platforms.0.social_account_id']);
 });
 
 it('deletes a post', function () {
@@ -298,7 +275,6 @@ it('keeps the account fixed when updating through the API', function () {
     ]);
     $otherAccount = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
@@ -491,6 +467,22 @@ it('validates post update label_ids must be uuids', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->putJson(route('api.posts.update', $post), [
             'label_ids' => ['not-a-uuid'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['label_ids.0']);
+});
+
+it('rejects a deleted label on post update', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
+    $label->delete();
+
+    $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+        ->putJson(route('api.posts.update', $post), [
+            'label_ids' => [$label->id],
         ])
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['label_ids.0']);

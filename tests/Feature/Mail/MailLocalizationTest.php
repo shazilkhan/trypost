@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Actions\Invite\CreateInvite;
-use App\Enums\Notification\Channel;
 use App\Enums\Notification\Type;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\User\Locale;
@@ -42,11 +41,7 @@ test('an email is rendered in the recipient locale, not the app default', functi
 
     (new SendNotification(
         user: $user,
-        workspaceId: $user->current_workspace_id,
         type: Type::AccountDisconnected,
-        channel: Channel::Email,
-        title: 'x',
-        body: 'x',
         mailable: new AccountDisconnected($account),
     ))->handle();
 
@@ -67,11 +62,7 @@ test('each recipient gets their own locale for the same mailable', function () {
 
         (new SendNotification(
             user: $user,
-            workspaceId: $user->current_workspace_id,
             type: Type::AccountDisconnected,
-            channel: Channel::Email,
-            title: 'x',
-            body: 'x',
             mailable: new AccountDisconnected($account),
         ))->handle();
     }

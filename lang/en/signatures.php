@@ -51,10 +51,4 @@ return [
         'confirm' => 'Delete',
         'cancel' => 'Cancel',
     ],
-
-    'flash' => [
-        'created' => 'Signature created.',
-        'updated' => 'Signature updated.',
-        'deleted' => 'Signature deleted.',
-    ],
 ];

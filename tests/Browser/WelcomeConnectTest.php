@@ -145,3 +145,17 @@ test('connect step shows the backend error when the account disappears before su
         ->assertSee(trans('welcome.connect.required'))
         ->assertNoJavaScriptErrors();
 });
+
+test('picking instagram during onboarding opens the method step', function () {
+    config(['trypost.self_hosted' => false]);
+
+    $this->actingAs(welcomeOwnerOnConnectStep());
+
+    $page = visit(route('app.welcome.connect'));
+
+    waitForWelcomeTestId($page, 'connect-channel-instagram');
+    $page->click('@connect-channel-instagram');
+    waitForWelcomeTestId($page, 'instagram-connect-standalone');
+
+    $page->assertVisible('@instagram-connect-standalone')->assertNoJavaScriptErrors();
+});

@@ -55,7 +55,7 @@ class PollRepurposeSource implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        if ($this->account->disconnected_at !== null || $this->account->is_active === false) {
+        if ($this->account->disconnected_at !== null) {
             $this->reschedule($repurposes);
 
             return;

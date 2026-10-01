@@ -45,8 +45,9 @@ class UpdatePostRequest extends FormRequest
                     [new ContentFitsPlatformLimits($this->resolveSelectedPlatforms())]
                 ),
             ],
-            ...PostMediaRules::rules(hosted: true),
-            'scheduled_at' => PostStatusRules::scheduledAtRules($this->route('post'), $status),
+            ...PostMediaRules::hostedRules(),
+            'scheduled_at' => PostStatusRules::scheduledAtRules($this->route('post'), $status, $this->filled('queue')),
+            'queue' => PostStatusRules::queueRules(),
             'social_account_id' => ['prohibited'],
             'content_type' => ['sometimes', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
             'meta' => ['sometimes', 'array'],
@@ -56,11 +57,11 @@ class UpdatePostRequest extends FormRequest
                 $enforcesMediaCompatibility ? 'required' : 'sometimes',
                 'string',
                 Rule::in(array_column(ContentType::cases(), 'value')),
-                Rule::when($enforcesMediaCompatibility, [new ContentTypeCompatibleWithMedia]),
+                Rule::when($enforcesMediaCompatibility, [new ContentTypeCompatibleWithMedia(workspace: $this->route('post')->workspace)]),
             ],
             ...PostPlatformMetaRules::rules(),
             'label_ids' => ['sometimes', 'array'],
-            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)],
+            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)->withoutTrashed()],
         ];
     }
 
@@ -69,7 +70,7 @@ class UpdatePostRequest extends FormRequest
      */
     public function messages(): array
     {
-        return PostPlatformMetaRules::messages();
+        return [...PostPlatformMetaRules::messages(), ...PostStatusRules::queueMessages()];
     }
 
     /**

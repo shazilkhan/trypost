@@ -13,15 +13,12 @@ return [
     ],
 
     'publish_mode' => [
-
         'title' => 'Publicación',
 
         'description' => 'Qué ocurre cuando aparece una publicación nueva.',
-
     ],
 
     'publish_modes' => [
-
         'publish' => 'Publicar automáticamente',
 
         'publish_hint' => 'Cada publicación nueva se programa en cuanto se encuentra.',
@@ -29,7 +26,6 @@ return [
         'draft' => 'Crear como borrador',
 
         'draft_hint' => 'Cada publicación nueva se convierte en un borrador para que lo revises y publiques.',
-
     ],
 
     'formats' => [
@@ -58,8 +54,6 @@ return [
     ],
 
     'table' => [
-        'flow' => 'Flujo',
-        'status' => 'Estado',
         'published' => 'Replicados',
         'last_polled' => 'Última comprobación',
     ],
@@ -97,7 +91,6 @@ return [
     ],
 
     'destinations' => [
-        'paused_note' => 'Desactivadas y omitidas hasta que las reactives: :accounts',
         'title' => 'Destinos',
         'description' => 'Elige las cuentas que lo recibirán. Cada una publica en el formato que elijas.',
         'hint' => 'El texto solo se adapta por red cuando supera el límite de esa red.',
@@ -150,9 +143,7 @@ return [
     ],
 
     'menu' => [
-
         'label' => 'Más acciones',
-
     ],
 
     'danger' => [

@@ -3,6 +3,7 @@ import {
     IconBan,
     IconCircleCheck,
     IconClock,
+    IconEdit,
     IconFileText,
     IconHourglass,
     IconLoader2,
@@ -11,7 +12,7 @@ import { trans } from 'laravel-vue-i18n';
 
 import { PostPlatformStatus, PostStatus } from '@/types/post';
 
-type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'success' | 'warning' | 'outline';
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'success' | 'warning' | 'info' | 'outline';
 
 interface StatusConfig {
     variant: BadgeVariant;
@@ -20,7 +21,7 @@ interface StatusConfig {
 }
 
 const CONFIGS: Record<string, Pick<StatusConfig, 'variant' | 'icon'>> = {
-    draft: { variant: 'outline', icon: IconFileText },
+    draft: { variant: 'info', icon: IconEdit },
     scheduled: { variant: 'default', icon: IconClock },
     publishing: { variant: 'warning', icon: IconLoader2 },
     retrying: { variant: 'warning', icon: IconLoader2 },

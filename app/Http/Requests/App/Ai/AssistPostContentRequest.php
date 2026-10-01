@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests\App\Ai;
 
 use App\Enums\Ai\PostAssistantMode;
+use App\Enums\SocialAccount\Platform;
+use App\Rules\PromptHasMinimumWords;
 use App\Support\AiPromptRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -21,20 +23,25 @@ class AssistPostContentRequest extends FormRequest
      */
     public function rules(): array
     {
+        $mode = PostAssistantMode::tryFrom((string) $this->input('mode'));
+
         return [
             'mode' => ['required', Rule::enum(PostAssistantMode::class)],
+            'prompt' => [
+                Rule::requiredIf(fn (): bool => $mode?->requiresPrompt() ?? false),
+                'nullable',
+                'string',
+                'max:'.AiPromptRules::PROMPT_MAX_LENGTH,
+                new PromptHasMinimumWords,
+            ],
             'current_content' => [
-                Rule::requiredIf(fn (): bool => PostAssistantMode::tryFrom((string) $this->input('mode'))?->requiresContent() ?? false),
+                Rule::requiredIf(fn (): bool => $mode?->requiresContent() ?? false),
                 'nullable',
                 'string',
                 'max:10000',
             ],
-            'prompt' => [
-                Rule::requiredIf(fn (): bool => $this->input('mode') === PostAssistantMode::WriteMore->value),
-                'nullable',
-                'string',
-                'max:'.AiPromptRules::PROMPT_MAX_LENGTH,
-            ],
+            'previous_content' => ['nullable', 'string', 'max:10000'],
+            'platform' => ['nullable', Rule::enum(Platform::class)],
         ];
     }
 }

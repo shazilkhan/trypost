@@ -12,7 +12,7 @@ return [
         'type' => 'Введите',
         'to_confirm' => 'для подтверждения.',
         'copy_to_clipboard' => 'Копировать в буфер обмена',
-        'delete_keyword' => 'удалить',
+        'delete_keyword' => 'УДАЛИТЬ',
     ],
 
     'photo_upload' => [

@@ -46,9 +46,7 @@ class FinalizeAccountDailySnapshots implements ShouldQueue
 
         SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
-            ->reorder()
             ->lazyById(200)
             ->each(function (SocialAccount $account) use ($date): void {
                 FinalizeAccountDailySnapshot::dispatch($account->id, $date);

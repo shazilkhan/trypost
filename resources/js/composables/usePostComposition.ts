@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { getContentTypeOptions } from '@/composables/usePlatformLogo';
 import type { MediaItem } from '@/types/media';
 import { Platform } from '@/types/platform';
+import type { QueuePositionValue, ScheduleModeValue } from '@/types/post';
 
 export interface ComposerAccount {
     id: string;
@@ -12,6 +13,7 @@ export interface ComposerAccount {
     display_label: string;
     handle_label: string;
     avatar_url: string | null;
+    has_posting_schedule?: boolean;
 }
 
 export interface DestinationDraft {
@@ -26,6 +28,7 @@ export interface PostComposition {
     content: string;
     media: MediaItem[];
     scheduled_at: string | null;
+    queue?: QueuePositionValue | null;
     status: 'draft' | 'scheduled' | 'publishing';
     label_ids: string[];
     destinations: DestinationDraft[];
@@ -36,6 +39,7 @@ export interface ComposerInitialPost {
     media: MediaItem[];
     scheduled_at: string | null;
     status: string;
+    schedule_mode?: ScheduleModeValue | null;
     social_account_id: string;
     content_type: string;
     meta: Record<string, any>;
@@ -49,9 +53,11 @@ export interface ComposerInitialDraft {
     label_ids: string[];
 }
 
-type Override = Partial<
+export type DestinationOverride = Partial<
     Pick<DestinationDraft, 'content' | 'media' | 'content_type' | 'meta'>
 >;
+
+type Override = DestinationOverride;
 
 const owns = (value: object, key: string): boolean =>
     Object.prototype.hasOwnProperty.call(value, key);
@@ -99,6 +105,7 @@ export const usePostComposition = (
             const next = { ...overrides.value };
             delete next[id];
             overrides.value = next;
+            adoptSingleDestination();
         } else if (accounts().some((account) => account.id === id)) {
             selectedAccountIds.value = [...selectedAccountIds.value, id];
         }
@@ -113,6 +120,18 @@ export const usePostComposition = (
             return;
         }
 
+        if (selectedAccountIds.value.length === 1 && field === 'content') {
+            content.value = (value as string | undefined) ?? '';
+
+            return;
+        }
+
+        if (selectedAccountIds.value.length === 1 && field === 'media') {
+            media.value = (value as MediaItem[] | undefined) ?? [];
+
+            return;
+        }
+
         overrides.value = {
             ...overrides.value,
             [id]: { ...(overrides.value[id] ?? {}), [field]: value },
@@ -123,6 +142,38 @@ export const usePostComposition = (
         const next = { ...(overrides.value[id] ?? {}) };
         delete next[field];
         overrides.value = { ...overrides.value, [id]: next };
+    };
+
+    const withSharedAltText = (items: MediaItem[]): MediaItem[] =>
+        items.map((item) => {
+            const altText = item.meta?.alt_text?.trim()
+                ? null
+                : media.value.find((shared) => shared.id === item.id)?.meta
+                      ?.alt_text;
+
+            return altText
+                ? { ...item, meta: { ...item.meta, alt_text: altText } }
+                : item;
+        });
+
+    const adoptSingleDestination = (): void => {
+        if (selectedAccountIds.value.length !== 1) {
+            return;
+        }
+
+        const [id] = selectedAccountIds.value;
+        const override = overrides.value[id] ?? {};
+        const { content: ownContent, media: ownMedia, ...rest } = override;
+
+        if (owns(override, 'content')) {
+            content.value = ownContent ?? '';
+        }
+
+        if (owns(override, 'media')) {
+            media.value = withSharedAltText(ownMedia ?? []);
+        }
+
+        overrides.value = { ...overrides.value, [id]: rest };
     };
 
     const resolvedDestination = (
@@ -148,17 +199,20 @@ export const usePostComposition = (
                 ? (override.content ?? '')
                 : content.value,
             media: owns(override, 'media')
-                ? (override.media ?? [])
+                ? withSharedAltText(override.media ?? [])
                 : media.value,
         };
     };
 
     const materialize = (
         status: PostComposition['status'],
+        queue: QueuePositionValue | null = null,
     ): PostComposition => ({
         content: content.value,
         media: [...media.value],
-        scheduled_at: status === 'scheduled' ? scheduledAt.value || null : null,
+        scheduled_at:
+            status === 'scheduled' && !queue ? scheduledAt.value || null : null,
+        queue: status === 'scheduled' ? queue : null,
         status,
         label_ids: [...labelIds.value],
         destinations: selectedAccounts.value.map((account) =>
@@ -177,6 +231,7 @@ export const usePostComposition = (
         toggleAccount,
         setOverride,
         clearOverride,
+        adoptSingleDestination,
         resolvedDestination,
         materialize,
     };

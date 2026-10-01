@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Mcp\Tools\Post;
 
+use App\Actions\Media\ResolveWorkspaceMedia;
 use App\Dto\MediaItem;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
-use App\Models\Media;
 use App\Models\Post;
-use App\Models\Workspace;
 use App\Support\PostMediaRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -45,14 +44,10 @@ class AttachMediaFromUploadTool extends Tool
             return $denied;
         }
 
-        $media = Media::query()
-            ->where('upload_token', data_get($validated, 'upload_token'))
-            ->where('mediable_type', (new Workspace)->getMorphClass())
-            ->where('mediable_id', $workspaceId)
-            ->first();
+        $media = ResolveWorkspaceMedia::byUploadTokens($post->workspace, [(string) data_get($validated, 'upload_token')])->first();
 
         if (! $media) {
-            return Response::error('Upload not found.');
+            return Response::error(__('posts.errors.media_expired'));
         }
 
         if (! in_array($media->type, $post->allowedMediaTypes(), true)) {

@@ -155,7 +155,7 @@ test('youtube callback connects the first channel and warns when google returns 
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.connected'))
+            ->where('message', null)
         );
 
     $this->assertDatabaseHas('social_accounts', [
@@ -320,7 +320,7 @@ test('youtube reconnect keeps the original card for a single channel', function 
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::YouTube)->count())->toBe(1)
@@ -421,7 +421,7 @@ test('youtube reconnect narrows a multi channel response to its own card', funct
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($account->fresh()->platform_user_id)->toBe('UC_target')

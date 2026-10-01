@@ -11,10 +11,10 @@ import {
 import { trans } from 'laravel-vue-i18n';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
-import MentionTextarea from '@/components/MentionTextarea.vue';
 import NoteBody from '@/components/NoteBody.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
     Tooltip,
     TooltipContent,
@@ -61,7 +61,6 @@ interface PaginatedResponse {
     current_page: number;
     last_page: number;
     next_page_url: string | null;
-    mentioned_users?: Record<string, string>;
 }
 
 const props = defineProps<{
@@ -89,7 +88,7 @@ const editBody = ref('');
 const emojiPickerNoteId = ref<string | null>(null);
 
 const scrollContainer = ref<HTMLDivElement | null>(null);
-const textareaRef = ref<InstanceType<typeof MentionTextarea> | null>(null);
+const textareaRef = ref<InstanceType<typeof Textarea> | null>(null);
 
 const hasOlderNotes = computed(() => currentPage.value < lastPage.value);
 
@@ -166,13 +165,6 @@ const loadNotes = async (page = 1) => {
         const data: PaginatedResponse = await response.json();
         currentPage.value = data.current_page;
         lastPage.value = data.last_page;
-
-        if (data.mentioned_users) {
-            memberNames.value = {
-                ...memberNames.value,
-                ...data.mentioned_users,
-            };
-        }
 
         if (page === 1) {
             // Reverse so newest is at bottom
@@ -420,12 +412,6 @@ const handleEditKeydown = (event: KeyboardEvent) => {
     }
 };
 
-const memberNames = ref<Record<string, string>>({});
-
-const registerMention = (member: { id: string; name: string }) => {
-    memberNames.value = { ...memberNames.value, [member.id]: member.name };
-};
-
 const highlightedId = ref<string | null>(null);
 
 const focusNote = async (noteId: string) => {
@@ -521,7 +507,7 @@ watch(
                             class="group relative rounded-lg px-2 py-1.5 transition-colors"
                             :class="
                                 highlightedId === note.id
-                                    ? 'bg-amber-100 ring-2 ring-amber-300'
+                                    ? 'bg-primary-subtle ring-2 ring-primary-strong'
                                     : 'hover:bg-foreground/5'
                             "
                             @mouseleave="emojiPickerNoteId = null"
@@ -531,12 +517,10 @@ watch(
                                 v-if="editingNote?.id === note.id"
                                 class="space-y-2"
                             >
-                                <MentionTextarea
+                                <Textarea
                                     v-model="editBody"
-                                    :member-names="memberNames"
                                     class="min-h-[60px] resize-none text-sm"
                                     @keydown="handleEditKeydown"
-                                    @mention="registerMention"
                                 />
                                 <div class="flex items-center gap-1.5">
                                     <Button
@@ -616,7 +600,6 @@ watch(
                                         >
                                             <NoteBody
                                                 :body="note.body"
-                                                :members="memberNames"
                                             />
                                         </div>
 
@@ -636,7 +619,7 @@ watch(
                                                 class="inline-flex cursor-pointer items-center gap-1 rounded-full border-2 px-2 py-0.5 text-xs font-bold transition-colors"
                                                 :class="
                                                     r.hasReacted
-                                                        ? 'border-amber-300 bg-amber-100'
+                                                        ? 'border-primary-strong bg-primary-subtle'
                                                         : 'border-foreground/30 hover:border-foreground'
                                                 "
                                                 @click="
@@ -787,7 +770,7 @@ watch(
                                 class="group relative ml-8 rounded-lg px-2 py-1.5 transition-colors"
                                 :class="
                                     highlightedId === reply.id
-                                        ? 'bg-amber-100 ring-2 ring-amber-300'
+                                        ? 'bg-primary-subtle ring-2 ring-primary-strong'
                                         : 'hover:bg-foreground/5'
                                 "
                                 @mouseleave="emojiPickerNoteId = null"
@@ -797,12 +780,10 @@ watch(
                                     v-if="editingNote?.id === reply.id"
                                     class="space-y-2"
                                 >
-                                    <MentionTextarea
+                                    <Textarea
                                         v-model="editBody"
-                                        :member-names="memberNames"
                                         class="min-h-[60px] resize-none text-sm"
                                         @keydown="handleEditKeydown"
-                                        @mention="registerMention"
                                     />
                                     <div class="flex items-center gap-1.5">
                                         <Button
@@ -889,7 +870,6 @@ watch(
                                             >
                                                 <NoteBody
                                                     :body="reply.body"
-                                                    :members="memberNames"
                                                 />
                                             </div>
 
@@ -910,7 +890,7 @@ watch(
                                                     class="inline-flex cursor-pointer items-center gap-1 rounded-full border-2 px-2 py-0.5 text-xs font-bold transition-colors"
                                                     :class="
                                                         r.hasReacted
-                                                            ? 'border-amber-300 bg-amber-100'
+                                                            ? 'border-primary-strong bg-primary-subtle'
                                                             : 'border-foreground/30 hover:border-foreground'
                                                     "
                                                     @click="
@@ -1079,10 +1059,10 @@ watch(
             </div>
 
             <div class="flex items-end gap-1.5">
-                <MentionTextarea
+                <Textarea
                     ref="textareaRef"
                     v-model="newBody"
-                    :member-names="memberNames"
+                    data-testid="note-input"
                     :placeholder="
                         replyingTo
                             ? $t('notes.reply_placeholder')
@@ -1091,11 +1071,11 @@ watch(
                     class="max-h-[120px] min-h-10 flex-1 resize-none text-sm"
                     :rows="1"
                     @keydown="handleKeydown"
-                    @mention="registerMention"
                 />
                 <Button
                     size="icon"
                     class="shrink-0"
+                    data-testid="note-send"
                     :disabled="!newBody.trim() || sending"
                     @click="sendNote"
                 >

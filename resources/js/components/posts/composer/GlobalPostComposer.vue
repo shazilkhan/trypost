@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { router, useHttp, usePage } from '@inertiajs/vue3';
 import { IconLoader2 } from '@tabler/icons-vue';
+import { transChoice } from 'laravel-vue-i18n';
 import { computed, provide, ref, watch } from 'vue';
+import { toast } from 'vue-sonner';
 
 import PostComposerDialog from '@/components/posts/composer/PostComposerDialog.vue';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { clearComposerAutosave } from '@/composables/useComposerAutosave';
 import {
     closePostComposer,
     openPostComposer,
@@ -25,6 +28,7 @@ import {
     composerData as composerDataRoute,
     store as storePost,
 } from '@/routes/app/posts';
+import type { SharedData } from '@/types';
 
 type ComposerData = {
     socialAccounts: ComposerAccount[];
@@ -36,7 +40,7 @@ type ComposerData = {
     xLinkTlds: string[];
 };
 
-const page = usePage();
+const page = usePage<SharedData>();
 const http = useHttp<Record<string, never>, ComposerData>({});
 const data = ref<ComposerData | null>(null);
 const loading = ref(false);
@@ -111,7 +115,19 @@ const submitComposition = (
     router.post(storePost.url(), payload, {
         preserveScroll: true,
         onSuccess: () => {
+            clearComposerAutosave(
+                page.props.auth?.user?.id,
+                page.props.auth?.currentWorkspace?.id,
+            );
             closePostComposer();
+            if (composition.queue) {
+                const count = composition.destinations.length;
+                toast.success(
+                    transChoice('posts.composer.queue.added', count, {
+                        count: String(count),
+                    }),
+                );
+            }
             if (createAnother) openPostComposer();
         },
         onFinish: () => {
@@ -127,10 +143,11 @@ const submitComposition = (
         :key="postComposerRequest.id"
         :open="true"
         :social-accounts="data.socialAccounts"
-        :current-user-id="(page.props.auth as any)?.user?.id"
         :labels="data.labels"
         :signatures="data.signatures"
         :initial-date="postComposerRequest.date"
+        :initial-account-ids="postComposerRequest.socialAccountIds"
+        :initial-draft="postComposerRequest.draft"
         :open-assistant="postComposerRequest.assistant"
         :submitting="submitting"
         :platform-configs="data.platformConfigs"
@@ -146,6 +163,7 @@ const submitComposition = (
     >
         <DialogContent
             class="sm:max-w-md"
+            :aria-describedby="undefined"
             data-testid="global-composer-loading"
         >
             <DialogHeader

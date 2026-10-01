@@ -34,13 +34,6 @@ return [
         'ignore' => 'Als je geen account hebt aangemaakt, kun je deze e-mail negeren.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name heeft je genoemd op TryPost',
-        'title' => ':name heeft je genoemd',
-        'intro' => ':name heeft je genoemd in een notitie bij een post.',
-        'button' => 'Notitie bekijken',
-    ],
-
     'password_reset' => [
         'subject' => 'Stel je wachtwoord opnieuw in',
         'preview' => 'Stel je wachtwoord opnieuw in.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count post ingepland: :times UTC|[0,*] :count posts ingepland: :times UTC',
         'reconnect_cta' => 'Verbind deze accounts nu opnieuw zodat je ingeplande posts niet worden gemist.',
         'button' => 'Accounts opnieuw verbinden',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author heeft een notitie aan een bericht toegevoegd',
+        'title' => 'Nieuwe notitie van :author',
+        'heading' => 'Nieuwe notitie bij een bericht',
+        'body' => ':author heeft een notitie toegevoegd aan een bericht in de werkruimte :workspace.',
+        'post_title' => 'Bericht',
+        'post_without_text' => 'Dit bericht heeft nog geen tekst.',
+        'button' => 'Notitie bekijken',
     ],
 
     'post_publish_failed' => [

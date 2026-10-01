@@ -6,23 +6,14 @@ import { computed, ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import HeaderSearch from '@/components/HeaderSearch.vue';
-import HeaderTitle from '@/components/HeaderTitle.vue';
-import CreateSheet from '@/components/signatures/CreateSheet.vue';
-import EditSheet from '@/components/signatures/EditSheet.vue';
+import SettingsListRow from '@/components/settings/SettingsListRow.vue';
+import SettingsSearch from '@/components/settings/SettingsSearch.vue';
+import CreateDialog from '@/components/signatures/CreateDialog.vue';
+import EditDialog from '@/components/signatures/EditDialog.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableLoadMore,
-    TableRow,
-} from '@/components/ui/table';
-import date from '@/date';
+import { TableLoadMore } from '@/components/ui/table';
 import debounce from '@/debounce';
-import AppLayout from '@/layouts/AppLayout.vue';
+import SettingsLayout from '@/layouts/SettingsLayout.vue';
 import {
     destroy as signaturesDestroy,
     index as signaturesIndex,
@@ -37,7 +28,6 @@ interface Signature {
     id: string;
     name: string;
     content: string;
-    created_at: string;
 }
 
 interface ScrollSignatures {
@@ -66,23 +56,22 @@ const search = debounce(() => {
 watch(searchQuery, () => search());
 
 const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
-const isCreateSheetOpen = ref(false);
-const isEditSheetOpen = ref(false);
+const isCreateDialogOpen = ref(false);
+const isEditDialogOpen = ref(false);
 const editingSignature = ref<Signature | null>(null);
 
-const openEditSheet = (signature: Signature) => {
+const openEditDialog = (signature: Signature) => {
     editingSignature.value = signature;
-    isEditSheetOpen.value = true;
+    isEditDialogOpen.value = true;
 };
 
 const handleDelete = (signature: Signature) => {
     deleteModal.value?.open({
         url: signaturesDestroy.url(signature.id),
-        confirmText: signature.name,
+        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 
-const formatDate = (value: string): string => date.formatDate(value);
 
 const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 </script>
@@ -90,41 +79,45 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 <template>
     <Head :title="$t('signatures.title')" />
 
-    <AppLayout>
-        <template #header>
-            <HeaderTitle :title="$t('signatures.title')" :icon="IconHash" />
-        </template>
-
-        <template #header-actions>
-            <HeaderSearch
-                v-model="searchQuery"
-                :placeholder="trans('signatures.search')"
-            />
+    <SettingsLayout
+        :title="$t('signatures.title')"
+        :description="$t('signatures.description')"
+    >
+        <template #actions>
             <Button
                 data-testid="create-signature-button"
                 :aria-label="$t('signatures.new')"
-                @click="isCreateSheetOpen = true"
+                @click="isCreateDialogOpen = true"
             >
-                <IconPlus class="size-4 sm:hidden" />
+                <IconPlus class="size-4" />
                 <span class="hidden sm:inline">{{ $t('signatures.new') }}</span>
             </Button>
         </template>
 
-        <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">
-            <EmptyState
-                v-if="signatures.data.length === 0"
-                :icon="IconHash"
-                :title="
-                    hasActiveSearch
-                        ? $t('signatures.no_search_results')
-                        : $t('signatures.empty_title')
-                "
-                :description="
-                    hasActiveSearch
-                        ? $t('signatures.try_different_search')
-                        : $t('signatures.empty_description')
-                "
+        <div class="flex flex-col gap-3">
+            <SettingsSearch
+                v-model="searchQuery"
+                :placeholder="$t('signatures.search')"
             />
+
+            <div
+                v-if="signatures.data.length === 0"
+                class="rounded-xl border border-dashed border-border-strong"
+            >
+                <EmptyState
+                    :icon="IconHash"
+                    :title="
+                        hasActiveSearch
+                            ? $t('signatures.no_search_results')
+                            : $t('signatures.empty_title')
+                    "
+                    :description="
+                        hasActiveSearch
+                            ? $t('signatures.try_different_search')
+                            : $t('signatures.empty_description')
+                    "
+                />
+            </div>
 
             <div v-else>
                 <InfiniteScroll
@@ -132,68 +125,47 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                     items-element="#signatures-body"
                     preserve-url
                 >
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>{{
-                                    $t('signatures.table.name')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('signatures.table.content')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('signatures.table.created_at')
-                                }}</TableHead>
-                                <TableHead class="text-right" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody id="signatures-body">
-                            <TableRow
-                                v-for="signature in signatures.data"
-                                :key="signature.id"
-                                class="cursor-pointer"
-                                @click="openEditSheet(signature)"
+                    <ul id="signatures-body" class="flex flex-col gap-2">
+                        <SettingsListRow
+                            v-for="signature in signatures.data"
+                            :key="signature.id"
+                            class="cursor-pointer"
+                            :data-testid="`signature-row-${signature.id}`"
+                            @click="openEditDialog(signature)"
+                        >
+                            <p
+                                class="truncate text-sm font-strong text-foreground"
                             >
-                                <TableCell>{{ signature.name }}</TableCell>
-                                <TableCell class="max-w-[160px] sm:max-w-md">
-                                    <p class="truncate">
-                                        {{ signature.content }}
-                                    </p>
-                                </TableCell>
-                                <TableCell>{{
-                                    formatDate(signature.created_at)
-                                }}</TableCell>
-                                <TableCell class="text-right" @click.stop>
-                                    <div class="flex justify-end gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            class="size-8"
-                                            :aria-label="
-                                                $t('signatures.actions.edit')
-                                            "
-                                            @click="openEditSheet(signature)"
-                                        >
-                                            <IconPencil class="size-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            class="size-8 bg-rose-100 hover:bg-rose-200"
-                                            :aria-label="
-                                                $t('signatures.actions.delete')
-                                            "
-                                            @click="handleDelete(signature)"
-                                        >
-                                            <IconTrash
-                                                class="size-4 text-rose-700"
-                                            />
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                                {{ signature.name }}
+                            </p>
+                            <p class="truncate text-sm text-muted-foreground">
+                                {{ signature.content }}
+                            </p>
+                            <template #actions>
+                                <div class="flex shrink-0 gap-1" @click.stop>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="text-muted-foreground"
+                                        :aria-label="$t('signatures.actions.edit')"
+                                        @click="openEditDialog(signature)"
+                                    >
+                                        <IconPencil class="size-4" />
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        class="text-destructive-text"
+                                        :aria-label="$t('signatures.actions.delete')"
+                                        :data-testid="`delete-signature-${signature.id}`"
+                                        @click="handleDelete(signature)"
+                                    >
+                                        <IconTrash class="size-4" />
+                                    </Button>
+                                </div>
+                            </template>
+                        </SettingsListRow>
+                    </ul>
 
                     <template #next="{ loading }">
                         <TableLoadMore v-if="loading" />
@@ -201,10 +173,10 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                 </InfiniteScroll>
             </div>
         </div>
-    </AppLayout>
+    </SettingsLayout>
 
-    <CreateSheet v-model:open="isCreateSheetOpen" />
-    <EditSheet v-model:open="isEditSheetOpen" :signature="editingSignature" />
+    <CreateDialog v-model:open="isCreateDialogOpen" />
+    <EditDialog v-model:open="isEditDialogOpen" :signature="editingSignature" />
 
     <ConfirmDeleteModal
         ref="deleteModal"

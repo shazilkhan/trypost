@@ -90,6 +90,13 @@ return [
         'no_post_data' => '이 기간에 게시된 게시물이 없습니다.',
         'no_ranked_posts' => '이 기간에 반응이나 댓글이 측정된 게시물이 없습니다.',
         'no_performance' => '이 기간의 채널별 성과가 없습니다.',
+        'filtered_no_posts' => '이 기간에 선택한 채널 또는 라벨의 게시물이 없습니다. 다른 기간을 선택하거나 필터를 지우세요.',
+        'filtered_no_followers' => '이 기간에 선택한 채널의 팔로워 데이터가 없습니다. 다른 기간을 선택하거나 채널 필터를 지우세요.',
+        'filtered_no_data_title' => '이 필터와 일치하는 항목이 없습니다',
+        'filtered_no_data_body' => '선택한 채널에 아직 분석 데이터가 없습니다. 다른 채널을 선택하거나 필터를 지우세요.',
+        'posts_sent_axis' => '보낸 게시물',
+        'followers_gained_detail' => '시작 :start · :change 증가 (:percent)',
+        'followers_lost_detail' => '시작 :start · :change 감소 (:percent)',
         'no_excerpt' => '텍스트 미리보기가 없습니다.',
         'published_via_trypost' => 'TryPost를 통해 게시',
         'published_on_network' => '소셜 네트워크에 게시',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => '검색어',
         'estimated' => 'Google가 이 검색어의 정확한 수를 공개하지 않습니다',
+    ],
+
+    'ranges' => [
+        '7d' => '7일',
+        '30d' => '30일',
+        'mtd' => '이번 달',
+        'last_month' => '지난달',
+        'custom' => '사용자 지정',
+        'compared_to' => ':current · :previous 대비',
+        'label' => '기간',
+    ],
+
+    'channel' => [
+        'title' => '인사이트',
+        'page_title' => '인사이트 · :channel',
+        'unsupported_title' => '이 네트워크는 분석을 제공하지 않습니다',
+        'unsupported_body' => ':network은(는) 타사 앱과 분석 데이터를 공유하지 않아 아직 표시할 내용이 없습니다.',
+        'performance' => '게시물별 성과',
+        'this_period' => '이번 기간',
+        'previous_period' => '이전 기간',
+        'post' => '게시물',
+        'posts_count' => '게시물 · :count',
+        'no_posts' => '이 기간에 게시된 게시물이 없습니다.',
+        'metrics' => [
+            'followers' => [
+                'label' => '전체 팔로워',
+                'about' => '기간 종료 시점의 팔로워 수.',
+            ],
+            'posts' => [
+                'label' => '게시물',
+                'about' => '기간 중 게시된 게시물.',
+            ],
+            'reactions' => [
+                'label' => '반응',
+                'about' => '기간 중 게시된 게시물의 좋아요와 반응.',
+            ],
+            'comments' => [
+                'label' => '댓글',
+                'about' => '기간 중 게시된 게시물의 댓글.',
+            ],
+            'engagement_rate' => [
+                'label' => '참여율',
+                'about' => '참여 수를 도달 또는 노출 수로 나눈 값.',
+            ],
+            'views' => [
+                'label' => '조회수',
+                'about' => '기간 중 게시된 게시물의 조회수. 네트워크가 조회수를 제공하는 게시물만 집계됩니다.',
+            ],
+            'shares' => [
+                'label' => '공유',
+                'about' => '기간 중 게시된 게시물의 공유 수.',
+            ],
+            'saves' => [
+                'label' => '저장',
+                'about' => '기간 중 게시된 게시물의 저장 수.',
+            ],
+            'follows_gained' => [
+                'label' => '게시물로 늘어난 팔로워',
+                'about' => '기간 중 게시된 게시물로 인해 늘어난 신규 팔로워.',
+            ],
+            'reach' => [
+                'label' => '도달',
+                'about' => '기간 중 게시된 게시물이 도달한 고유 계정 수.',
+            ],
+            'watch_time_minutes' => [
+                'label' => '시청 시간(분)',
+                'about' => '기간 중 게시된 동영상의 총 시청 분.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => '평균 시청 시간(초)',
+                'about' => '조회당 평균 시청 초.',
+            ],
+        ],
     ],
 
     'metrics' => [

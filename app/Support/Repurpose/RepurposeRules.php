@@ -33,7 +33,6 @@ class RepurposeRules
                 'uuid',
                 Rule::exists('social_accounts', 'id')
                     ->where('workspace_id', $workspaceId)
-                    ->where('is_active', true)
                     ->whereIn('platform', array_map(
                         fn (Platform $platform): string => $platform->value,
                         SourceFetcherFactory::supportedPlatforms(),

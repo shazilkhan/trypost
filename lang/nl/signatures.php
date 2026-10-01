@@ -51,10 +51,4 @@ return [
         'confirm' => 'Verwijderen',
         'cancel' => 'Annuleren',
     ],
-
-    'flash' => [
-        'created' => 'Handtekening aangemaakt.',
-        'updated' => 'Handtekening bijgewerkt.',
-        'deleted' => 'Handtekening verwijderd.',
-    ],
 ];

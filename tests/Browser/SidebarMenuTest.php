@@ -188,3 +188,30 @@ test('workspace viewers do not see account or workspace settings in the sidebar 
         ->assertMissing('@sidebar-menu-workspace-settings')
         ->assertVisible('@logout-button');
 });
+
+test('the sidebar has no media library item', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    subscribeAccount($user->account);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar'));
+
+    waitForSidebarTestId($page, 'sidebar-workspace-menu');
+
+    $ideasPath = route('app.create.ideas.index', absolute: false);
+    $createItem = "nav-{$ideasPath}";
+    $navItems = $page->script('Array.from(document.querySelectorAll("[data-testid^=\'nav-\']")).map((el) => el.dataset.testid)');
+
+    expect($navItems)->toContain($createItem)
+        ->and($navItems)->not->toContain('nav-/assets');
+
+    $page->assertNoJavaScriptErrors();
+});

@@ -90,6 +90,13 @@ return [
         'no_post_data' => '此时间段没有已发布的帖子。',
         'no_ranked_posts' => '此时间段没有测得回应或评论的帖子。',
         'no_performance' => '此时间段没有渠道表现数据。',
+        'filtered_no_posts' => '此期间所选频道或标签没有帖子。请尝试其他日期范围或清除筛选条件。',
+        'filtered_no_followers' => '此期间所选频道没有粉丝数据。请尝试其他日期范围或清除频道筛选。',
+        'filtered_no_data_title' => '没有符合这些筛选条件的内容',
+        'filtered_no_data_body' => '所选频道还没有分析数据。请选择其他频道或清除筛选条件。',
+        'posts_sent_axis' => '已发送帖子',
+        'followers_gained_detail' => '起始 :start · 增加 :change（:percent）',
+        'followers_lost_detail' => '起始 :start · 减少 :change（:percent）',
         'no_excerpt' => '没有可用的文字预览。',
         'published_via_trypost' => '通过TryPost发布',
         'published_on_network' => '在社交平台发布',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => '搜索词',
         'estimated' => 'Google 不公开该搜索词的精确次数',
+    ],
+
+    'ranges' => [
+        '7d' => '7 天',
+        '30d' => '30 天',
+        'mtd' => '本月至今',
+        'last_month' => '上个月',
+        'custom' => '自定义',
+        'compared_to' => ':current · 对比 :previous',
+        'label' => '日期范围',
+    ],
+
+    'channel' => [
+        'title' => '数据洞察',
+        'page_title' => '数据洞察 · :channel',
+        'unsupported_title' => '此平台暂无分析数据',
+        'unsupported_body' => ':network 不向第三方应用提供分析数据，因此这里暂时没有可显示的内容。',
+        'performance' => '单篇帖子表现',
+        'this_period' => '本期',
+        'previous_period' => '上期',
+        'post' => '帖子',
+        'posts_count' => '帖子 · :count',
+        'no_posts' => '此期间没有已发布的帖子。',
+        'metrics' => [
+            'followers' => [
+                'label' => '粉丝总数',
+                'about' => '期末的粉丝数。',
+            ],
+            'posts' => [
+                'label' => '帖子',
+                'about' => '期间内发布的帖子。',
+            ],
+            'reactions' => [
+                'label' => '互动反应',
+                'about' => '期间内发布的帖子获得的点赞和反应。',
+            ],
+            'comments' => [
+                'label' => '评论',
+                'about' => '期间内发布的帖子获得的评论。',
+            ],
+            'engagement_rate' => [
+                'label' => '互动率',
+                'about' => '互动数除以触达人数或曝光量。',
+            ],
+            'views' => [
+                'label' => '观看次数',
+                'about' => '期间内发布的帖子的观看次数。仅统计平台提供观看数据的帖子。',
+            ],
+            'shares' => [
+                'label' => '分享',
+                'about' => '期间内发布的帖子的分享次数。',
+            ],
+            'saves' => [
+                'label' => '收藏',
+                'about' => '期间内发布的帖子的收藏次数。',
+            ],
+            'follows_gained' => [
+                'label' => '帖子带来的新增粉丝',
+                'about' => '归因于期间内发布的帖子的新增粉丝。',
+            ],
+            'reach' => [
+                'label' => '触达',
+                'about' => '期间内发布的帖子触达的独立账号数。',
+            ],
+            'watch_time_minutes' => [
+                'label' => '观看时长（分钟）',
+                'about' => '期间内发布的视频的总观看分钟数。',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => '平均观看时长（秒）',
+                'about' => '每次观看的平均观看秒数。',
+            ],
+        ],
     ],
 
     'metrics' => [

@@ -1,31 +1,36 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import { IconCalendar, IconList } from '@tabler/icons-vue';
+import { computed } from 'vue';
 
 import { calendar } from '@/routes/app';
 import { index as postsIndex } from '@/routes/app/posts';
 
-defineProps<{ activeView: 'list' | 'calendar' }>();
+const props = defineProps<{
+    activeView: 'list' | 'calendar';
+    listHref?: string;
+    calendarHref?: string;
+}>();
 
-const views = [
+const views = computed(() => [
     {
         key: 'list',
         label: 'posts.list_view',
         icon: IconList,
-        href: postsIndex.url(),
+        href: props.listHref ?? postsIndex.url(),
     },
     {
         key: 'calendar',
         label: 'calendar.title',
         icon: IconCalendar,
-        href: calendar.url({ view: 'month' }),
+        href: props.calendarHref ?? calendar.url({ view: 'month' }),
     },
-] as const;
+]);
 </script>
 
 <template>
     <nav
-        class="inline-flex items-center rounded-md border border-border bg-card p-1"
+        class="inline-flex h-8 items-center gap-1 rounded-lg border border-border-strong bg-card p-[3px]"
         :aria-label="$t('posts.view_switcher')"
     >
         <Link
@@ -34,11 +39,11 @@ const views = [
             :href="view.href"
             :aria-current="activeView === view.key ? 'page' : undefined"
             :data-testid="`schedule-view-${view.key}`"
-            class="inline-flex h-8 items-center justify-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-colors"
+            class="inline-flex h-6 items-center justify-center gap-1 rounded-md border border-transparent px-2 text-sm font-medium transition-control"
             :class="
                 activeView === view.key
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+                    ? 'bg-primary-selected text-primary-text'
+                    : 'text-foreground hover:bg-accent'
             "
         >
             <component :is="view.icon" class="size-4" />

@@ -9,8 +9,6 @@ return [
     'empty_title' => 'Nog geen webhooks',
     'empty_description' => 'Maak een webhook om realtime gebeurtenismeldingen te ontvangen.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => 'Luistert naar',
         'status' => 'Status',
         'last_sent' => 'Laatst verzonden',
     ],

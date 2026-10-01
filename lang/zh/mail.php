@@ -34,13 +34,6 @@ return [
         'ignore' => '如果你没有创建账号，可以忽略这封邮件。',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name 在 TryPost 上提到了你',
-        'title' => ':name 提到了你',
-        'intro' => ':name 在一条帖子备注中提到了你。',
-        'button' => '查看备注',
-    ],
-
     'password_reset' => [
         'subject' => '重置你的密码',
         'preview' => '重置你的密码。',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} 已排期 :count 条：:times UTC|[0,*] 已排期 :count 条：:times UTC',
         'reconnect_cta' => '请立即重新连接这些账号，以免错过已排期的发布。',
         'button' => '重新连接账号',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author 为一篇帖子添加了备注',
+        'title' => '来自 :author 的新备注',
+        'heading' => '帖子有新备注',
+        'body' => ':author 在工作区 :workspace 中为一篇帖子添加了备注。',
+        'post_title' => '帖子',
+        'post_without_text' => '这篇帖子还没有文字。',
+        'button' => '查看备注',
     ],
 
     'post_publish_failed' => [

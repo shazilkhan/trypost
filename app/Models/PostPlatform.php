@@ -118,7 +118,7 @@ class PostPlatform extends Model
     }
 
     /**
-     * "Facebook Page (@handle)" for emails and in-app notifications.
+     * "Facebook Page (@handle)" for emails.
      * Username first, then display name (live account or the snapshot
      * kept on this row). When neither is set — or the account is gone
      * and there is no snapshot — just the platform name, never "(@)".

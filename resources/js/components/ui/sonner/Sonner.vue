@@ -30,6 +30,30 @@ const props = defineProps<ToasterProps>()
 </template>
 
 <style>
+[data-sonner-toaster] [data-sonner-toast] {
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-sonner-toaster] [data-sonner-toast] {
+    transition:
+      transform var(--motion-duration-toast-enter) var(--motion-easing-overlay-enter),
+      opacity var(--motion-duration-toast-enter) var(--motion-easing-overlay-enter),
+      height var(--motion-duration-toast-enter) var(--motion-easing-overlay-enter),
+      box-shadow 200ms;
+  }
+
+  [data-sonner-toaster] [data-sonner-toast][data-removed="true"],
+  [data-sonner-toaster] [data-sonner-toast][data-removed="true"][data-front="false"][data-swipe-out="false"][data-expanded="false"] {
+    transition:
+      transform var(--motion-duration-toast-exit) var(--motion-easing-overlay-exit),
+      opacity var(--motion-duration-toast-exit) var(--motion-easing-overlay-exit),
+      height var(--motion-duration-toast-exit) var(--motion-easing-overlay-exit);
+  }
+}
+
 [data-sonner-toast][data-type="success"] [data-icon] {
   color: var(--success) !important;
 }

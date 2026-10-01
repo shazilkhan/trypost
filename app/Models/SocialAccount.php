@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\Analytics\DispatchAccountAnalytics;
-use App\Enums\Notification\Channel;
+use App\Actions\SocialAccount\GeneratePostingSchedule;
+use App\Casts\PostingScheduleCast;
 use App\Enums\Notification\Type;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\PostPlatform\Status as PostPlatformStatus;
@@ -14,11 +15,14 @@ use App\Enums\SocialAccount\Status;
 use App\Exceptions\SocialAccount\NetworkAlreadyConnectedException;
 use App\Jobs\SendNotification;
 use App\Mail\AccountDisconnected;
+use App\Models\Scopes\SocialAccountOrderScope;
 use App\Observers\SocialAccountObserver;
 use App\Support\GoogleBusinessResourceName;
+use App\Support\Timezone;
 use Database\Factories\SocialAccountFactory;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Attributes\ScopedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -32,6 +36,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 #[ObservedBy(SocialAccountObserver::class)]
+#[ScopedBy(SocialAccountOrderScope::class)]
 class SocialAccount extends Model
 {
     /** @use HasFactory<SocialAccountFactory> */
@@ -50,11 +55,13 @@ class SocialAccount extends Model
         'scopes',
         'meta',
         'status',
-        'is_active',
         'error_message',
         'disconnected_at',
         'last_used_at',
         'last_verified_at',
+        'timezone',
+        'posting_goal',
+        'posting_schedule',
     ];
 
     protected $hidden = [
@@ -73,7 +80,6 @@ class SocialAccount extends Model
         return [
             'platform' => SocialPlatform::class,
             'status' => Status::class,
-            'is_active' => 'boolean',
             'access_token' => 'encrypted',
             'refresh_token' => 'encrypted',
             'token_expires_at' => 'datetime',
@@ -82,6 +88,9 @@ class SocialAccount extends Model
             'last_verified_at' => 'datetime',
             'scopes' => 'array',
             'meta' => 'array',
+            'position' => 'integer',
+            'posting_goal' => 'integer',
+            'posting_schedule' => PostingScheduleCast::class,
         ];
     }
 
@@ -119,8 +128,7 @@ class SocialAccount extends Model
                 ));
 
             if ((! $account->wasRecentlyCreated || $reconnect?->id === $account->id)
-                && ! $account->wasChanged('status')
-                && ! $account->wasChanged('is_active')) {
+                && ! $account->wasChanged('status')) {
                 app(DispatchAccountAnalytics::class)->handle($account);
             }
 
@@ -174,13 +182,36 @@ class SocialAccount extends Model
         }
 
         try {
-            return $workspace->socialAccounts()->updateOrCreate($identity, $values);
+            $account = $workspace->socialAccounts()->updateOrCreate($identity, $values);
         } catch (UniqueConstraintViolationException) {
             $account = $workspace->socialAccounts()->where($identity)->firstOrFail();
             $account->update($values);
 
             return $account;
         }
+
+        if ($account->wasRecentlyCreated) {
+            static::applyChannelDefaults($account, $workspace);
+        }
+
+        return $account;
+    }
+
+    /**
+     * A new channel starts in its connector's time zone (the workspace owner's
+     * when connected by webhook, UTC as a last resort) with a three-a-week goal
+     * and the network's recommended slots, so it has a usable schedule even if
+     * the post-connect goal dialog is dismissed.
+     */
+    private static function applyChannelDefaults(self $account, Workspace $workspace): void
+    {
+        $goal = 3;
+
+        $account->forceFill([
+            'timezone' => Timezone::normalize(auth()->user()?->timezone ?? $workspace->owner?->timezone),
+            'posting_goal' => $goal,
+            'posting_schedule' => app(GeneratePostingSchedule::class)->handle($account->platform, $goal),
+        ])->saveQuietly();
     }
 
     /**
@@ -301,19 +332,6 @@ class SocialAccount extends Model
     }
 
     /**
-     * "@handle" for notification bodies — the more specific identifier
-     * (username) wins over the friendlier display name when both are set.
-     * Connectors normally populate at least one of username/display_name
-     * (TikTok Login Kit still returns display_name via user.info.basic;
-     * username needs user.info.profile, which self-hosters may trim).
-     * The platform label is a last-resort fallback, not an expected path.
-     */
-    public function handle(): string
-    {
-        return '@'.($this->username ?: $this->display_name ?: $this->platform->label());
-    }
-
-    /**
      * Friendly label for email templates — the display name wins over the
      * username when both are set.
      */
@@ -334,8 +352,13 @@ class SocialAccount extends Model
     }
 
     /**
-     * Frontend-facing mirror of handle() without the "@" prefix — templates
-     * that render their own "@" (e.g. platform previews) use this instead.
+     * Account handle without the "@" prefix — the more specific identifier
+     * (username) wins over the friendlier display name when both are set.
+     * Templates that render their own "@" (e.g. platform previews) use this.
+     * Connectors normally populate at least one of username/display_name
+     * (TikTok Login Kit still returns display_name via user.info.basic;
+     * username needs user.info.profile, which self-hosters may trim).
+     * The platform label is a last-resort fallback, not an expected path.
      */
     protected function handleLabel(): Attribute
     {
@@ -360,19 +383,9 @@ class SocialAccount extends Model
                 ]);
 
                 if ($wasConnected && $this->workspace->owner) {
-                    $placeholders = [
-                        'platform' => $this->platform->label(),
-                        'account' => $this->handle(),
-                    ];
-
                     SendNotification::dispatch(
                         user: $this->workspace->owner,
-                        workspaceId: $this->workspace_id,
                         type: Type::AccountDisconnected,
-                        channel: Channel::Both,
-                        title: __('notifications.account_disconnected.title', $placeholders),
-                        body: __('notifications.account_disconnected.body', $placeholders),
-                        data: ['social_account_id' => $this->id],
                         mailable: new AccountDisconnected($this),
                     );
                 }
@@ -401,19 +414,9 @@ class SocialAccount extends Model
             ]);
 
             if ($notify && $wasUsable && $this->workspace->owner) {
-                $placeholders = [
-                    'platform' => $this->platform->label(),
-                    'account' => $this->handle(),
-                ];
-
                 SendNotification::dispatch(
                     user: $this->workspace->owner,
-                    workspaceId: $this->workspace_id,
                     type: Type::AccountDisconnected,
-                    channel: Channel::Both,
-                    title: __('notifications.account_token_expired.title', $placeholders),
-                    body: __('notifications.account_token_expired.body', $placeholders),
-                    data: ['social_account_id' => $this->id],
                     mailable: new AccountDisconnected($this),
                 );
             }
@@ -431,14 +434,14 @@ class SocialAccount extends Model
         ]);
     }
 
+    public function hasPostingSchedule(): bool
+    {
+        return ($this->posting_schedule?->nextSlots(now(), $this->timezone, 1) ?? []) !== [];
+    }
+
     public function isDisconnected(): bool
     {
         return $this->status === Status::Disconnected || $this->status === Status::TokenExpired;
-    }
-
-    public function scopeActive(Builder $query): Builder
-    {
-        return $query->where('is_active', true)->orderBy('platform');
     }
 
     public function scopeConnected(Builder $query): Builder

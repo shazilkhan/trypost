@@ -2,6 +2,13 @@ import { InertiaLinkProps } from '@inertiajs/vue3';
 import type { Component } from 'vue';
 
 import type { ContentTypeMediaRule } from '@/lib/contentTypeMediaRules';
+import type { CropPresetValue } from '@/lib/mediaEditor';
+import type {
+    DefaultPostAction,
+    Theme,
+    TimeFormat,
+    WeekStart,
+} from '@/preferences';
 import type { AuthPlan, Features, PlanOption } from '@/types/plan';
 import type { WelcomeSummary } from '@/types/welcome';
 
@@ -45,7 +52,6 @@ export interface Usage {
     memberCount: number;
     pendingInviteCount: number;
     postCount: number;
-    creditsUsed: number;
 }
 
 export interface FlashData {
@@ -68,11 +74,34 @@ export interface NavItem {
     exact?: boolean;
     excludeActive?: string[];
     badge?: string;
+    count?: number;
+    countTestId?: string;
 }
 
 export interface LegalLinks {
     terms: string;
     privacy: string;
+}
+
+export interface CanvaPresetOption {
+    value: string;
+    width: number;
+    height: number;
+    is_default: boolean;
+}
+
+export interface MediaSourceOption {
+    source: 'google_drive' | 'google_photos' | 'canva' | 'unsplash';
+    label: string;
+    config: Record<string, string>;
+    presets?: CanvaPresetOption[];
+}
+
+export interface MediaUploadLimits {
+    max_bytes: { image: number; video: number; document: number };
+    extensions: { image: string[]; video: string[]; document: string[] };
+    upload_retention_hours: number;
+    heic: boolean;
 }
 
 export interface SharedData {
@@ -83,9 +112,12 @@ export interface SharedData {
     selfHosted: boolean;
     legal: LegalLinks;
     contentTypeMediaRules?: Record<string, ContentTypeMediaRule>;
+    defaultCropPresets?: CropPresetValue[];
     features?: Features | null;
     usage?: Usage | null;
     plans?: PlanOption[];
+    mediaSources?: { menu: MediaSourceOption[] } | null;
+    mediaUploadLimits?: MediaUploadLimits | null;
     welcome?: WelcomeSummary;
     [key: string]: unknown;
 }
@@ -101,6 +133,11 @@ export interface User {
     email: string;
     has_photo: boolean;
     photo_url: string | null;
+    timezone: string;
+    theme: Theme;
+    time_format: TimeFormat;
+    week_starts_on: WeekStart;
+    default_post_action: DefaultPostAction;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
@@ -115,6 +152,7 @@ export type BreadcrumbItem = {
 export interface PinterestBoard {
     id: string;
     name: string;
+    cover_url?: string | null;
 }
 
 /** Per-account payload from ListPinterestBoards (Inertia + API/MCP). */
@@ -128,25 +166,4 @@ export interface Language {
     name: string;
     dir: string;
     flag: string;
-}
-
-export interface ContentLanguageOption {
-    value: string;
-    label: string;
-    englishName?: string;
-}
-
-/**
- * An AI content template, as serialized by PostController::create from an
- * AiContentTemplate. Shared by the post-creation screen and the AI wizard —
- * declaring it in both places is what let them drift apart before.
- */
-export interface AiTemplate {
-    key: string;
-    name: string;
-    description: string;
-    preview: string;
-    needs_account: boolean;
-    supported_formats: string[];
-    applies_brand_visuals: boolean;
 }

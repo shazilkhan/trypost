@@ -12,7 +12,7 @@ return [
         'type' => 'Gib',
         'to_confirm' => 'zur Bestätigung ein.',
         'copy_to_clipboard' => 'In die Zwischenablage kopieren',
-        'delete_keyword' => 'löschen',
+        'delete_keyword' => 'LÖSCHEN',
     ],
 
     'photo_upload' => [

@@ -111,7 +111,10 @@ test('workspace report keeps accounts separate and aggregates only latest normal
         new DateRange(CarbonImmutable::parse('2026-09-01', 'UTC'), CarbonImmutable::parse('2026-09-10', 'UTC')),
     );
 
-    expect(array_keys($report['summary']))->toBe(['posts', 'followers', 'reactions', 'comments', 'engagement_rate'])
+    expect(array_keys($report['summary']))->toBe([
+        'posts', 'followers', 'reactions', 'comments', 'engagement_rate',
+        'views', 'reach', 'shares', 'saves', 'watch_time_minutes', 'average_watch_time_seconds', 'follows_gained',
+    ])
         ->and($report['summary']['posts']['value'])->toBe(3)
         ->and($report['summary']['posts']['previous'])->toBe(1)
         ->and($report['summary']['posts']['change'])->toBe(200.0)
@@ -178,22 +181,20 @@ test('workspace follower total stays unavailable until every connected account h
         ->and($complete['followers']['total'])->toBe(150);
 });
 
-test('workspace import coverage excludes inactive and disconnected accounts', function () {
+test('workspace import coverage includes every connected account and excludes disconnected ones', function () {
     $workspace = Workspace::factory()->create();
     $active = analyticsReportAccount($workspace, Platform::Instagram);
-    $inactive = analyticsReportAccount($workspace, Platform::Instagram);
+    $second = analyticsReportAccount($workspace, Platform::Instagram);
     $disconnected = analyticsReportAccount($workspace, Platform::Instagram);
     $foreign = analyticsReportAccount(Workspace::factory()->create(), Platform::Instagram);
 
-    foreach ([$active, $inactive, $disconnected, $foreign] as $account) {
+    foreach ([$active, $second, $disconnected, $foreign] as $account) {
         AnalyticsSyncState::factory()->create([
             ...AnalyticsSyncState::identityFor($account),
             'social_account_id' => $account->id,
             'status' => SyncStatus::Pending,
         ]);
     }
-
-    $inactive->update(['is_active' => false]);
     $disconnected->update(['status' => Status::Disconnected]);
 
     $report = app(BuildWorkspaceAnalyticsReport::class)->execute(
@@ -201,7 +202,7 @@ test('workspace import coverage excludes inactive and disconnected accounts', fu
         new DateRange(CarbonImmutable::parse('2026-09-01', 'UTC'), CarbonImmutable::parse('2026-09-10', 'UTC')),
     );
 
-    expect(array_column($report['coverage'], 'social_account_id'))->toBe([$active->id]);
+    expect(array_column($report['coverage'], 'social_account_id'))->toEqualCanonicalizing([$active->id, $second->id]);
 });
 
 test('reauthorizing an already connected account resumes analytics without treating a token refresh as a reconnect', function () {

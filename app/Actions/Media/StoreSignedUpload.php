@@ -47,7 +47,7 @@ class StoreSignedUpload
                 $media = $workspace->addMediaFromPath(
                     $path,
                     $file->getClientOriginalName(),
-                    'assets',
+                    Media::COLLECTION_UPLOADS,
                     mimeType: (string) $file->getMimeType(),
                 );
                 $media->upload_token = $token;

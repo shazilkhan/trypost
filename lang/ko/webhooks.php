@@ -9,8 +9,6 @@ return [
     'empty_title' => '아직 웹훅이 없습니다',
     'empty_description' => '웹훅을 만들어 이벤트 알림을 실시간으로 받으세요.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => '수신 중',
         'status' => '상태',
         'last_sent' => '마지막 전송',
     ],

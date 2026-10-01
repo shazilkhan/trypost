@@ -34,13 +34,6 @@ return [
         'ignore' => 'Si vous n’avez pas créé de compte, vous pouvez ignorer cet e-mail.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name vous a mentionné sur TryPost',
-        'title' => ':name vous a mentionné',
-        'intro' => ':name vous a mentionné dans une note de publication.',
-        'button' => 'Voir la note',
-    ],
-
     'password_reset' => [
         'subject' => 'Réinitialisez votre mot de passe',
         'preview' => 'Réinitialisez votre mot de passe.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count publication planifiée : :times UTC|[0,*] :count publications planifiées : :times UTC',
         'reconnect_cta' => 'Reconnectez ces comptes dès maintenant pour ne pas manquer vos publications planifiées.',
         'button' => 'Reconnecter les comptes',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author a ajouté une note à une publication',
+        'title' => 'Nouvelle note de :author',
+        'heading' => 'Nouvelle note sur une publication',
+        'body' => ':author a ajouté une note à une publication dans l\'espace de travail :workspace.',
+        'post_title' => 'Publication',
+        'post_without_text' => 'Cette publication n\'a pas encore de texte.',
+        'button' => 'Voir la note',
     ],
 
     'post_publish_failed' => [

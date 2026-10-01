@@ -218,18 +218,30 @@ Vue components must have a single root element.
 
 In dialogs and slide-overs with Cancel and a primary action, render **Cancel first, primary action last** in the DOM and visually. On desktop, Cancel belongs to the left of the primary action; on mobile, the primary action remains last. Apply this to destructive confirmations as well. Do not reverse the order only with CSS, because keyboard and screen-reader order must match what users see. If there are other secondary actions, place them between Cancel and the primary action.
 
+## Delete confirmations (type-to-confirm)
+
+When a delete confirmation for an everyday resource (label, signature, API key, webhook, repurpose, asset, …) asks the user to type something, it asks for the fixed delete keyword — never the resource's name.
+
+**Posts are the exception the other way:** deleting a post uses a plain confirmation dialog (title, description, Cancel, destructive "Delete post") with no typing — a user decision, since a post is not critical enough to warrant it.
+
+**Exception — high-impact or identity-bound deletions keep type-the-name:** deleting a workspace (its name), removing a member or invitation (their email), disconnecting a channel (its handle) and removing an MCP client (its name). Typing the exact name is the stronger guard there, on purpose; do not switch those to the keyword.
+
+- The keyword is translated and **always fully uppercase** in every locale (`DELETE`, `EXCLUIR`, `ELIMINAR`, …), shown uppercase in the helper text, and compared **case-sensitively** after trimming: `delete` or `excluir` must not confirm.
+- It comes from one shared lang key in all 16 locales — never a literal, and never a per-feature copy of the word.
+- Resolve it with `$t` in the template, not `trans()` in script (see `.ai/rules/js.md`).
+- The same rules apply to other irreversible, non-delete actions that get a keyword of their own: regenerating an API key asks for `settings.api_keys.regenerate_modal.keyword` (`REGENERATE`, `REGENERAR`, …), because the old key stops working at once.
+
 ## AI agents (`app/Ai/Agents`)
 
 - **Never** embed prompts in PHP (`<<<PROMPT`, heredocs, or long string literals in `instructions()`).
-- Put system/instruction text in Blade under `resources/views/prompts/` (e.g. `prompts.post_content.generator`, `prompts.post_image.regenerator`).
-- In `instructions()`, return `view('prompts....', [...])->render()` and pass only the variables the Blade file needs — same pattern as `PostContentStreamer`, `PostContentReviewer`, and `BrandAnalyzer`.
+- Put system/instruction text in Blade under `resources/views/prompts/` (e.g. `prompts.post_content.assistant`, `prompts.post_image.alt_text`).
+- In `instructions()`, return `view('prompts....', [...])->render()` and pass only the variables the Blade file needs — same pattern as `PostWritingAssistant` and `MediaAltTextGenerator`.
 
-## System AI (always allowed, never metered)
+## AI language
 
-- The brand analyzer / workspace autofill (`App\Services\Brand\BrandAnalyzerRunner`, `App\Actions\Ai\AutofillBrand`, `WorkspaceController::autofillBrand`) is a **system** feature, not the user's AI usage. It runs during workspace creation, before the user has AI access.
-- It MUST always be allowed: NEVER gate it behind the `useAi` policy, an active subscription, or a credit check.
-- It MUST NOT deduct anything: NEVER call `RecordAiUsage` (or otherwise consume the account's credits) for brand analysis. Cost is the platform's, not the user's.
-- Any future "system" AI helper (runs as part of the platform, not on behalf of a workspace's metered quota) follows the same rule: ungated and unmetered.
+- There is no workspace language. Every AI prompt receives `{{ $language }}` from `Locale::promptLanguage()` of the user the call runs for: the requesting user on the web, the post author for Google Business `languageCode` (`bcp47()`), the repurpose creator for Repurpose. Fall back to `Locale::DEFAULT` when that user is gone.
+- A rewrite of existing text (shorten, rephrase, tone) keeps the text's own language; only new text is written in `{{ $language }}`.
+- AI is web only: no REST API endpoint and no MCP tool calls an AI agent.
 
 ## Stripe Checkout (env knobs)
 
@@ -290,9 +302,10 @@ used** — `syncWorkspaceQuantity()` was removed with the per-workspace model.
   `customer.subscription.created` / `updated` webhook writes on `active` /
   `trialing`, **clears** on `unpaid` / `canceled` / `incomplete_expired`, and
   leaves `past_due` / `incomplete` alone. `deleted` always clears.
-- **There is no AI credit ceiling.** `AiUsageLog` / `RecordAiUsage` still record
-  every AI call for cost visibility, but nothing meters or blocks a user.
-  `AccountPolicy::useAi` checks app access and nothing else.
+- **AI usage is not recorded or metered.** There are no credits, no usage log
+  (`workspace_ai_usages` was dropped in September 2026) and no ceiling.
+  `AccountPolicy::useAi` checks app access and nothing else. Do not
+  reintroduce per-call usage recording.
 
 ## Multiple social accounts per network
 
@@ -317,8 +330,8 @@ not reintroduce either. What still holds:
 The user's UI language lives in the database, on `users.locale`, cast to
 `App\Enums\User\Locale`. That enum is the single source of truth for the
 supported locales — there is no `config/languages.php` any more, and a case is
-only valid if `lang/<value>` exists (`LocalizationParityTest` enforces both that
-and parity with `ContentLanguage`).
+only valid if `lang/<value>` exists (`tests/Unit/Enums/User/LocaleTest.php`
+enforces that).
 
 - **There is no `locale` cookie.** The app stored the locale in the database
   until March 2026, moved it to a forever cookie, and moved it back here. Do not
@@ -342,6 +355,34 @@ and parity with `ContentLanguage`).
   to English on each login. Forgot and reset password do not send it at all.
 - Google and GitHub signups store `Locale::DEFAULT`: they have no picker, and the
   OAuth callback tells you nothing reliable about the person.
+
+## User preferences (`/settings/preferences`)
+
+Theme, time format, start of week and the composer's default posting action
+live on `users` (`theme`, `time_format`, `week_starts_on`, `default_post_action`,
+cast to the enums in `App\Enums\User`). Time zone and language are edited on the
+same page; language still goes through `ProfileController@updateLanguage` so
+`SyncUser` keeps firing. Each control saves on its own (`PATCH`
+`app.settings.preferences.update`, every rule `sometimes`).
+
+- **Time format:** `users.time_format` is nullable. Null means "follow the
+  language" — `User::resolvedTimeFormat()` gives English a 12-hour clock and
+  every other locale a 24-hour one, and that resolved value is what the shared
+  `auth.user.time_format` carries. Every displayed time goes through `@/date`
+  (`timeToken()`, `formatHourOption()`, …), which reads it from
+  `resources/js/preferences.ts`; never format a clock time with `LT`, `LLL` or
+  a literal `HH:mm` in a component. Hour selects keep `00`–`23` as values and
+  only change the labels.
+- **Start of week:** `preferences.ts` applies it to every loaded dayjs locale,
+  so `startOf('week')` follows it; the Reka calendars default to it; the
+  posting-schedule grid orders its columns with `orderedWeekdays()`; and
+  `BuildCalendarPageProps` passes `WeekStart::firstDay()/lastDay()` to Carbon.
+- **Theme:** the root Blade renders `data-theme` and the `dark` class, and an
+  inline script resolves `system` before first paint and follows OS changes.
+  Guests always get light.
+- **Default posting action:** a queue default (`next`/`top`) only applies when
+  every selected channel has posting times; otherwise the composer falls back
+  as before. `custom` pre-fills the next full hour.
 
 ## PostHog person properties
 
@@ -492,7 +533,7 @@ TryPost runs on **both PostgreSQL and MySQL**. Cloud runs PostgreSQL; a self-hos
     - Backend: `App\Enums\Media\Type` — `classify()`, `fromMime()`, `fromExtension()`, `isGif()`, plus the `allowedMimeTypes()` / `extensions()` allow-lists. Use these, never a raw MIME/extension comparison.
     - Frontend: `resources/js/lib/mediaType.ts` — the mirror of the backend enum: the `MediaType` union, `classify()`, `fromMimeType()` (for a browser `File.type`), `fromExtension()`, `isImage()`/`isVideo()`/`isDocument()`/`isGif()`. `@/composables/useMedia` re-exports `isImageMedia`/`isVideoMedia`/`isDocumentMedia` aliases for legacy call sites.
     - Detection trusts the explicit `type` first, then the MIME, then the filename extension — so an item with only a MIME (e.g. AI/Unsplash/Giphy media without a `type`) still classifies correctly. A bare `item.type === 'image'` (with a `v-else` video) silently mis-renders those.
-- The `type` field on every media-ish interface is the `MediaType` union, never `string` — `MediaItem`, and any sibling picked/asset/saved shape (`PickedMedia`, `AssetMedia`, `SavedMedia`, etc.).
+- The `type` field on every media-ish interface is the `MediaType` union, never `string` — `MediaItem`, and any sibling shape (an upload result, an autosaved item, etc.).
 - The upload `accept` attribute for "everything we allow" comes from `acceptAttribute()` (frontend) / `Media\Type::allowedMimeTypes()` (backend) — never a hardcoded MIME list. Per-capability `accept` builders driven by content-type rules (e.g. `image/*,video/*`) are fine; those aren't detection.
 
 ## Pest / Feature Tests
@@ -610,14 +651,14 @@ A repurpose depends on social accounts it does not own the lifecycle of. Three
 decisions govern how it reacts, and each exists because the obvious alternative
 was tried and was wrong.
 
-- **A switched-off destination is skipped, never an error.** Deactivating an
-  account means "don't post here", which `ProcessRepurposeItem` already honours.
-  So `ActivateRepurpose::assertDestinationsPublishable()` requires **one** usable
+- **A destination is only checked for tenancy.** There is no switched-off
+  state: an account is either in the workspace or it is not.
+  `ActivateRepurpose::assertDestinationsPublishable()` requires **one** usable
   destination, not all of them, and the destination rule in the repurpose
-  FormRequests carries **no** `is_active` clause. Requiring either is what used
-  to block editing *and* resuming any repurpose that listed a paused account.
-  Keep the `workspace_id` clause — that is tenancy, not health. The
-  `source_social_account_id` rules stay strict: a source genuinely must work.
+  FormRequests carries only the `workspace_id` clause — that is tenancy, not
+  health. `ProcessRepurposeItem` skips a destination that no longer resolves in
+  the workspace. The `source_social_account_id` rules stay strict: a source
+  genuinely must work.
 - **`repurposes.paused_reason` is not UI copy.** NULL means the user paused it.
   Its only two jobs are deciding the watermark on resume (a system pause starts
   from `now()`, a user pause keeps its place) and deciding whether the system may
@@ -635,14 +676,13 @@ was tried and was wrong.
 `deleting` runs inside `$account->delete()`, and `persistIdentity()` wraps a
 reconnect in a transaction, so an exception there would 500 a disconnect or roll
 back a reconnect. It reads account health **from the database**, not from the
-model it was handed — `is_active` is absent from `SocialAccountFactory`, and
-strict mode exempts recently-created models from the missing-attribute
-exception, so a healthy account read back as `null` and silently skipped
-auto-resume.
+model it was handed — strict mode exempts recently-created models from the
+missing-attribute exception, so an attribute absent from the factory read back
+as `null` and silently skipped auto-resume.
 
 No email is sent when a repurpose stops. `markAsTokenExpired()` and
 `VerifyWorkspaceConnections` already email about the account, and reconnecting is
-what auto-resumes the repurpose; deleting or switching an account off is
+what auto-resumes the repurpose; deleting an account is
 something the user just did, so the flash on the accounts page reports the count
 instead.
 

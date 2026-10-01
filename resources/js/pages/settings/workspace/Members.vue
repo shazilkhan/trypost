@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
+import { IconPlus } from '@tabler/icons-vue';
+import { ref } from 'vue';
 
-import SettingsTabsNav from '@/components/settings/SettingsTabsNav.vue';
 import UsersTab from '@/components/settings/UsersTab.vue';
-import { useWorkspaceSettingsTabs } from '@/composables/useWorkspaceSettingsTabs';
-import AppLayout from '@/layouts/AppLayout.vue';
+import { Button } from '@/components/ui/button';
+import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import SettingsLayout from '@/layouts/SettingsLayout.vue';
 
 interface Workspace {
     id: string;
@@ -15,6 +17,7 @@ interface Member {
     id: string;
     name: string;
     email: string;
+    photo_url: string | null;
     role: string;
 }
 
@@ -37,25 +40,29 @@ defineProps<{
     roles: Role[];
 }>();
 
-const tabs = useWorkspaceSettingsTabs();
+const { canManageTeam } = useWorkspaceRole();
+const inviteOpen = ref(false);
 </script>
 
 <template>
     <Head :title="$t('settings.members.title')" />
 
-    <AppLayout :title="$t('settings.hub.title')">
-        <div class="mx-auto max-w-4xl space-y-8 px-6 py-8">
-            <p class="text-sm text-muted-foreground">
-                {{ $t('settings.hub.description') }}
-            </p>
+    <SettingsLayout
+        :title="$t('settings.members.title')"
+        :description="$t('settings.workspace.members_description')"
+    >
+        <template v-if="canManageTeam" #actions>
+            <Button data-testid="invite-member-button" @click="inviteOpen = true">
+                <IconPlus class="size-4" />
+                {{ $t('settings.members.invite.submit') }}
+            </Button>
+        </template>
 
-            <SettingsTabsNav :tabs="tabs" active="members" />
-
-            <UsersTab
-                :members="members"
-                :invitations="invites"
-                :roles="roles"
-            />
-        </div>
-    </AppLayout>
+        <UsersTab
+            v-model:invite-open="inviteOpen"
+            :members="members"
+            :invitations="invites"
+            :roles="roles"
+        />
+    </SettingsLayout>
 </template>

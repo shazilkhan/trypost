@@ -63,7 +63,6 @@ class BackfillExistingAnalytics extends Command
 
                 SocialAccount::query()
                     ->connected()
-                    ->active()
                     ->includedInAnalytics()
                     ->whereIn('workspace_id', $workspaceIds)
                     ->where(function (Builder $query) use ($staleBefore): void {
@@ -79,7 +78,6 @@ class BackfillExistingAnalytics extends Command
                                 ->where('updated_at', '<', $staleBefore));
                     })
                     ->with(['analyticsSyncStates' => fn ($query) => $query->forCollector(SyncCollector::PublicationBackfill)])
-                    ->reorder()
                     ->lazyById(100)
                     ->each(function (SocialAccount $account) use ($date): void {
                         if ($account->analyticsSyncStates->isEmpty()) {

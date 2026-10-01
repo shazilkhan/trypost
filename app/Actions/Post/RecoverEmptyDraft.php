@@ -8,31 +8,44 @@ use App\Enums\Post\Status;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\Media\MediaCopyBatch;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class RecoverEmptyDraft
 {
     /**
+     * Replaces an empty legacy draft with independent posts. The legacy draft
+     * is deleted only after the new posts exist, in the same transaction: the
+     * first post that uses one of its rows takes the row over (no file copy),
+     * later posts copy it, and whatever is left is released with the draft.
+     *
      * @param  array<string, mixed>  $composition
      * @return Collection<int, Post>
      */
     public static function execute(Workspace $workspace, User $user, Post $legacy, array $composition): Collection
     {
-        return DB::transaction(function () use ($workspace, $user, $legacy, $composition): Collection {
-            $locked = $workspace->posts()->lockForUpdate()->findOrFail($legacy->id);
+        $locked = null;
 
-            if ($locked->status !== Status::Draft || $locked->postPlatforms()->enabled()->exists()) {
-                throw ValidationException::withMessages([
-                    'recover_post_id' => __('validation.in', ['attribute' => 'recovery post']),
-                ]);
-            }
+        return CreatePosts::execute(
+            $workspace,
+            $user,
+            $composition,
+            beforeCreate: function (MediaCopyBatch $batch) use ($workspace, $legacy, &$locked): void {
+                $locked = $workspace->posts()->lockForUpdate()->findOrFail($legacy->id);
 
-            $posts = CreatePosts::execute($workspace, $user, $composition);
-            DeletePost::execute($locked);
+                if ($locked->status !== Status::Draft || $locked->postPlatforms()->enabled()->exists()) {
+                    throw ValidationException::withMessages([
+                        'recover_post_id' => __('validation.in', ['attribute' => 'recovery post']),
+                    ]);
+                }
 
-            return $posts;
-        });
+                $batch->releaseOwner('post_id', $locked->id);
+            },
+            afterCreate: function () use (&$locked): void {
+                DeletePost::execute($locked);
+            },
+            legacyMedia: $legacy->media ?? [],
+        );
     }
 }

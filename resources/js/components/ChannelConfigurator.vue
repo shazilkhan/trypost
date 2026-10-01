@@ -8,10 +8,12 @@ import {
 } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import PlatformLogo from '@/components/PlatformLogo.vue';
+import ChannelMediaWarnings from '@/components/posts/editor/ChannelMediaWarnings.vue';
+import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
 import FacebookSettings from '@/components/posts/editor/FacebookSettings.vue';
 import GoogleBusinessSettings from '@/components/posts/editor/GoogleBusinessSettings.vue';
-import InstagramSettings from '@/components/posts/editor/InstagramSettings.vue';
 import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
@@ -24,7 +26,9 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { isDocumentMedia } from '@/composables/useMedia';
 import {
+    getContentTypeOptions,
     getPlatformLabel,
     getPlatformLogo,
 } from '@/composables/usePlatformLogo';
@@ -65,14 +69,30 @@ const selectedChannels = computed(() =>
     props.channels.filter((channel) => isSelected(channel.id)),
 );
 
-/** Props and listeners every per-platform settings panel takes. */
-const settingsProps = (channel: Channel) => ({
-    socialAccount: channel.socialAccount,
-    meta: channel.meta,
-    disabled: props.disabled,
-    'onUpdate:meta': (value: Record<string, any>) =>
-        emit('update:meta', channel.id, value),
-});
+const SETTINGS_PLATFORMS: string[] = [
+    Platform.Facebook,
+    Platform.TikTok,
+    Platform.Pinterest,
+    Platform.YouTube,
+    Platform.GoogleBusiness,
+    Platform.Discord,
+];
+
+const hasDocument = computed(() =>
+    props.media.some((item) => isDocumentMedia(item)),
+);
+
+const hasSettingsCard = (channel: Channel): boolean =>
+    getContentTypeOptions(channel.platform).length > 1 ||
+    channel.platform === Platform.Instagram ||
+    channel.platform === Platform.InstagramFacebook ||
+    SETTINGS_PLATFORMS.includes(channel.platform) ||
+    ((channel.platform === Platform.LinkedIn ||
+        channel.platform === Platform.LinkedInPage) &&
+        hasDocument.value);
+
+const updateMeta = (channel: Channel, value: Record<string, any>) =>
+    emit('update:meta', channel.id, value);
 </script>
 
 <template>
@@ -103,7 +123,7 @@ const settingsProps = (channel: Channel) => ({
                                                   'shadow-xs ring-2',
                                                   channel.issue
                                                       ? 'border-rose-500 ring-rose-200'
-                                                      : 'border-amber-400 ring-amber-200',
+                                                      : 'border-primary-strong ring-primary-subtle',
                                               ]
                                             : 'border-border'
                                     "
@@ -223,77 +243,97 @@ const settingsProps = (channel: Channel) => ({
             v-for="(channel, index) in selectedChannels"
             :key="channel.id"
         >
-            <InstagramSettings
-                v-if="
-                    channel.platform === Platform.Instagram ||
-                    channel.platform === Platform.InstagramFacebook
-                "
-                :social-account="channel.socialAccount"
-                :disabled="disabled"
-                :content-type="channel.contentType"
-                :media="media"
-                @update:content-type="
-                    emit('update:contentType', channel.id, $event)
-                "
-            />
-            <FacebookSettings
-                v-else-if="channel.platform === Platform.Facebook"
-                v-bind="settingsProps(channel)"
-                :content-type="channel.contentType"
-                :media="media"
-                @update:content-type="
-                    emit('update:contentType', channel.id, $event)
-                "
-            />
-            <TikTokSettings
-                v-else-if="channel.platform === Platform.TikTok"
-                v-bind="settingsProps(channel)"
-                :publish-config="channel.publishConfig ?? null"
-                :creator-info="channel.creatorInfo ?? null"
-                :video-duration-sec="videoDurationSec"
-                :content-type="channel.contentType"
-                :content-type-error="channel.contentTypeError"
-                @update:content-type="
-                    emit('update:contentType', channel.id, $event)
-                "
-            />
-            <PinterestSettings
-                v-else-if="channel.platform === Platform.Pinterest"
-                v-bind="settingsProps(channel)"
-                :content-type="channel.contentType"
-                :media="media"
-                :boards="channel.boards ?? []"
-                :boards-truncated="channel.boardsTruncated ?? false"
-                @update:content-type="
-                    emit('update:contentType', channel.id, $event)
-                "
-            />
-            <LinkedInSettings
-                v-else-if="
-                    channel.platform === Platform.LinkedIn ||
-                    channel.platform === Platform.LinkedInPage
-                "
-                v-bind="settingsProps(channel)"
-                :platform="channel.platform"
-                :media="media"
-            />
-            <YouTubeSettings
-                v-else-if="channel.platform === Platform.YouTube"
-                v-bind="settingsProps(channel)"
-                :platform-index="index"
-            />
-            <GoogleBusinessSettings
-                v-else-if="channel.platform === Platform.GoogleBusiness"
-                :social-account="channel.socialAccount"
-                :platform-index="index"
-                :meta="channel.meta"
-                :disabled="disabled"
-                @update:meta="emit('update:meta', channel.id, $event)"
-            />
-            <DiscordSettings
-                v-else-if="channel.platform === Platform.Discord"
-                v-bind="settingsProps(channel)"
-            />
+            <div
+                v-if="hasSettingsCard(channel)"
+                class="flex gap-3 rounded-xl border border-border bg-card p-3"
+                :data-testid="`channel-settings-${channel.id}`"
+            >
+                <PlatformLogo :platform="channel.platform" :size="24" />
+                <div class="flex min-w-0 flex-1 flex-col gap-3">
+                    <p class="truncate text-sm font-medium text-foreground">
+                        {{ channel.displayName }}
+                    </p>
+                    <ContentTypeRadioGroup
+                        v-if="getContentTypeOptions(channel.platform).length > 1"
+                        :options="getContentTypeOptions(channel.platform)"
+                        :model-value="channel.contentType"
+                        :test-id-prefix="`channel-type-${channel.id}`"
+                        :disabled="disabled"
+                        :error="channel.contentTypeError"
+                        @update:model-value="
+                            emit('update:contentType', channel.id, $event)
+                        "
+                    />
+                    <ChannelMediaWarnings
+                        :platform="channel.platform"
+                        :content-type="channel.contentType"
+                        :media="media"
+                        :disabled="disabled"
+                    />
+                    <FacebookSettings
+                        v-if="channel.platform === Platform.Facebook"
+                        :content-type="channel.contentType"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                    <TikTokSettings
+                        v-else-if="channel.platform === Platform.TikTok"
+                        :social-account="channel.socialAccount"
+                        :publish-config="channel.publishConfig ?? null"
+                        :creator-info="channel.creatorInfo ?? null"
+                        :video-duration-sec="videoDurationSec"
+                        :content-type="channel.contentType"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                    <PinterestSettings
+                        v-else-if="
+                            channel.platform === Platform.Pinterest &&
+                            channel.socialAccount
+                        "
+                        :social-account="channel.socialAccount"
+                        :boards="channel.boards ?? []"
+                        :boards-truncated="channel.boardsTruncated ?? false"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                    <LinkedInSettings
+                        v-else-if="
+                            channel.platform === Platform.LinkedIn ||
+                            channel.platform === Platform.LinkedInPage
+                        "
+                        :account-id="channel.id"
+                        :media="media"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                    <YouTubeSettings
+                        v-else-if="channel.platform === Platform.YouTube"
+                        :platform-index="index"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                    <GoogleBusinessSettings
+                        v-else-if="channel.platform === Platform.GoogleBusiness"
+                        :platform-index="index"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                    <DiscordSettings
+                        v-else-if="channel.platform === Platform.Discord"
+                        :social-account="channel.socialAccount"
+                        :meta="channel.meta"
+                        :disabled="disabled"
+                        @update:meta="updateMeta(channel, $event)"
+                    />
+                </div>
+            </div>
         </template>
     </div>
 </template>

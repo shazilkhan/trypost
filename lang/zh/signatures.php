@@ -51,10 +51,4 @@ return [
         'confirm' => '删除',
         'cancel' => '取消',
     ],
-
-    'flash' => [
-        'created' => '签名已创建。',
-        'updated' => '签名已更新。',
-        'deleted' => '签名已删除。',
-    ],
 ];

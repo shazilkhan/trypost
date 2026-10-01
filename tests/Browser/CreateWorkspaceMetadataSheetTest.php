@@ -6,7 +6,7 @@ use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 
-test('workspace metadata creation uses a right-side sheet and still saves', function (string $resource, string $routeName, string $table) {
+test('workspace metadata creation uses a centered dialog and still saves', function (string $resource, string $routeName, string $table) {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $user->account_id,
@@ -23,37 +23,35 @@ test('workspace metadata creation uses a right-side sheet and still saves', func
     $layout = $page->script(<<<JS
         (async () => {
             let sheet;
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 100 && ! sheet; attempt++) {
                 sheet = document.querySelector('[data-testid="create-{$resource}-sheet"]');
-                const rect = sheet?.getBoundingClientRect();
-                if (rect && Math.abs(rect.right - window.innerWidth) < 2) break;
-                await new Promise((resolve) => setTimeout(resolve, 50));
+                if (! sheet) await new Promise((resolve) => setTimeout(resolve, 50));
             }
+            await Promise.all(sheet.getAnimations().map((animation) => animation.finished));
 
             const rect = sheet.getBoundingClientRect();
             const cancel = sheet.querySelector('[data-testid="cancel-create-{$resource}"]');
             const action = sheet.querySelector('[data-testid="submit-create-{$resource}"]');
 
             return {
-                leftOfCenter: rect.left > window.innerWidth / 2,
-                rightAligned: Math.abs(rect.right - window.innerWidth) < 2,
-                fullHeight: Math.abs(rect.height - window.innerHeight) < 2,
+                centered: Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2) < 2
+                    && Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2) < 2,
+                shorterThanViewport: rect.height < window.innerHeight,
                 cancelBeforeAction: cancel.getBoundingClientRect().right <= action.getBoundingClientRect().left,
             };
         })();
     JS);
 
     expect($layout)
-        ->leftOfCenter->toBeTrue()
-        ->rightAligned->toBeTrue()
-        ->fullHeight->toBeTrue()
+        ->centered->toBeTrue()
+        ->shorterThanViewport->toBeTrue()
         ->cancelBeforeAction->toBeTrue();
 
     $name = "New {$resource}";
     $page->fill("@create-{$resource}-name", $name);
 
     if ($resource === 'signature') {
-        $page->fill('@create-signature-content', 'Saved from the slide-over');
+        $page->fill('@create-signature-content', 'Saved from the dialog');
     }
 
     $page->click("@submit-create-{$resource}");

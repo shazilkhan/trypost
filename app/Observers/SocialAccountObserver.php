@@ -14,6 +14,19 @@ use App\Services\Repurpose\RepurposeAccountSync;
 
 class SocialAccountObserver
 {
+    public function creating(SocialAccount $socialAccount): void
+    {
+        if ($socialAccount->position !== null) {
+            return;
+        }
+
+        $last = SocialAccount::withoutGlobalScopes()
+            ->where('workspace_id', $socialAccount->workspace_id)
+            ->max('position');
+
+        $socialAccount->position = $last === null ? 0 : ((int) $last) + 1;
+    }
+
     public function created(SocialAccount $socialAccount): void
     {
         $this->syncUsageAndIdentify($socialAccount);
@@ -37,13 +50,12 @@ class SocialAccountObserver
         $wasConnected = $socialAccount->getRawOriginal('status') === Status::Connected->value;
         $isConnected = $socialAccount->status === Status::Connected;
         $connectionChanged = $socialAccount->wasChanged('status') && $wasConnected !== $isConnected;
-        $becameActive = $socialAccount->wasChanged('is_active') && $socialAccount->is_active;
 
         if ($connectionChanged) {
             $this->identifyConnectedPlatforms($socialAccount);
         }
 
-        if (($connectionChanged && $isConnected) || $becameActive) {
+        if ($connectionChanged && $isConnected) {
             app(DispatchAccountAnalytics::class)->handle($socialAccount);
         }
     }

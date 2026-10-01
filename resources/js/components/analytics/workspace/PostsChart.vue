@@ -14,6 +14,7 @@ defineProps<{
     posts: WorkspaceAnalyticsReport['posts'];
     range: WorkspaceAnalyticsReport['range'];
     colors: Record<string, string>;
+    filtered?: boolean;
 }>();
 const mode = ref<'bar' | 'stacked'>('bar');
 const buttons = [
@@ -38,13 +39,20 @@ const buttons = [
 
         <div
             v-if="posts.accounts.length === 0"
-            class="rounded-lg border-2 border-dashed border-foreground/30 px-5 py-12 text-center text-sm text-muted-foreground"
+            data-testid="analytics-posts-empty"
+            class="rounded-lg border border-dashed border-border-strong bg-card px-5 py-12 text-center text-sm text-muted-foreground"
         >
-            {{ $t('analytics.dashboard.no_post_data') }}
+            {{
+                $t(
+                    filtered
+                        ? 'analytics.dashboard.filtered_no_posts'
+                        : 'analytics.dashboard.no_post_data',
+                )
+            }}
         </div>
         <div
             v-else
-            class="min-w-0 rounded-xl border-2 border-foreground bg-card p-4 shadow-sm sm:p-5"
+            class="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-5"
         >
             <div class="min-w-0">
                 <SocialAccountMetricBarChart
@@ -56,6 +64,7 @@ const buttons = [
                         }))
                     "
                     :colors="colors"
+                    :value-label="$t('analytics.dashboard.posts_sent_axis')"
                 />
                 <PostsOverTimeStackedBarChart
                     v-else
@@ -63,17 +72,21 @@ const buttons = [
                     :buckets="posts.buckets"
                     :resolution="posts.resolution"
                     :colors="colors"
+                    :value-label="$t('analytics.dashboard.posts')"
                 />
             </div>
             <div
-                class="mt-5 grid gap-x-5 gap-y-2.5 border-t border-foreground/15 pt-4 sm:grid-cols-2 xl:grid-cols-3"
+                class="mt-5 grid gap-x-5 gap-y-2.5 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-3"
             >
                 <div
                     v-for="account in posts.accounts"
                     :key="account.social_account_key"
                     class="flex min-w-0 items-center justify-between gap-2"
                 >
-                    <AccountIdentity :account="account" />
+                    <AccountIdentity
+                        :account="account"
+                        :color="colors[account.social_account_key]"
+                    />
                     <span class="shrink-0 text-sm font-semibold tabular-nums">
                         {{ formatNumberCompact(account.count) }}
                     </span>

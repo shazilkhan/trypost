@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { useHttp } from '@inertiajs/vue3';
-import {
-    IconChevronDown,
-    IconChevronUp,
-    IconPlus,
-    IconX,
-} from '@tabler/icons-vue';
+import { IconPlus, IconX } from '@tabler/icons-vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import {
@@ -14,11 +9,12 @@ import {
 } from '@/actions/App/Http/Controllers/App/DiscordController';
 import HexColorInput from '@/components/HexColorInput.vue';
 import InputError from '@/components/InputError.vue';
+import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
+import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
-import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePageErrors } from '@/composables/usePageErrors';
-import { getPlatformLogo } from '@/composables/usePlatformLogo';
 
 interface SocialAccount {
     id: string;
@@ -65,8 +61,6 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ 'update:meta': [value: Record<string, any>] }>();
-
-const open = ref(false);
 
 const updateMeta = (patch: Record<string, any>) =>
     emit('update:meta', { ...props.meta, ...patch });
@@ -227,234 +221,153 @@ const updateEmbed = (index: number, patch: Partial<EmbedDraft>) =>
 </script>
 
 <template>
-    <div class="rounded-xl border border-border bg-card shadow-2xs">
-        <button
-            type="button"
-            class="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-sm"
-            @click="open = !open"
-        >
-            <span class="flex min-w-0 items-center gap-2">
-                <span
-                    class="inline-flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
-                >
-                    <img
-                        :src="getPlatformLogo('discord')"
-                        alt="Discord"
-                        class="size-full object-cover"
-                    />
-                </span>
-                <span class="truncate font-bold text-foreground">{{
-                    $t('posts.form.discord.settings')
-                }}</span>
-                <span
-                    v-if="socialAccount?.display_label"
-                    class="truncate font-medium text-foreground/60"
-                    >·&nbsp;{{ socialAccount.display_label }}</span
-                >
-            </span>
-            <IconChevronUp
-                v-if="open"
-                class="size-4 shrink-0 text-foreground/60"
+    <SettingsSection>
+        <SettingsRow :label="$t('posts.form.discord.channel')" align-top>
+            <SearchableSelect
+                v-model="channelId"
+                :options="channelSelectOptions"
+                :placeholder="
+                    channelsLoading
+                        ? $t('posts.form.discord.loading_channels')
+                        : $t('posts.form.discord.select_channel')
+                "
+                :search-placeholder="$t('posts.form.discord.search_channel')"
+                :empty-text="$t('posts.form.discord.no_channels')"
+                :disabled="disabled || channelsLoading"
+                :invalid="!!channelError"
             />
-            <IconChevronDown
-                v-else
-                class="size-4 shrink-0 text-foreground/60"
-            />
-        </button>
+            <InputError :message="channelError" />
+        </SettingsRow>
 
-        <div
-            v-if="open"
-            class="space-y-5 border-t border-border px-4 pt-4 pb-4"
-        >
-            <div
-                v-if="socialAccount"
-                class="flex items-center gap-3 rounded-lg bg-foreground/5 p-3"
-            >
-                <Avatar
-                    :src="socialAccount.avatar_url"
-                    :name="socialAccount.display_label"
-                    class="size-9 shrink-0 rounded-full border border-border shadow-2xs"
-                />
-                <div class="min-w-0 flex-1">
-                    <p
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                    >
-                        {{ $t('posts.form.discord.posting_to') }}
-                    </p>
-                    <p class="truncate text-sm font-bold text-foreground">
-                        {{ socialAccount.display_label }}
-                    </p>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <p
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
+        <SettingsRow :label="$t('posts.form.discord.mentions')" align-top>
+            <div v-if="mentions.length" class="flex flex-wrap gap-1.5">
+                <span
+                    v-for="mention in mentions"
+                    :key="mention.token"
+                    class="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground"
                 >
-                    {{ $t('posts.form.discord.channel') }}
-                </p>
-                <SearchableSelect
-                    v-model="channelId"
-                    :options="channelSelectOptions"
-                    :placeholder="
-                        channelsLoading
-                            ? $t('posts.form.discord.loading_channels')
-                            : $t('posts.form.discord.select_channel')
-                    "
-                    :search-placeholder="
-                        $t('posts.form.discord.search_channel')
-                    "
-                    :empty-text="$t('posts.form.discord.no_channels')"
-                    :disabled="disabled || channelsLoading"
-                    :invalid="!!channelError"
-                />
-                <InputError :message="channelError" />
-            </div>
-
-            <div class="space-y-2">
-                <p
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                >
-                    {{ $t('posts.form.discord.mentions') }}
-                </p>
-                <div v-if="mentions.length" class="flex flex-wrap gap-1.5">
-                    <span
-                        v-for="mention in mentions"
-                        :key="mention.token"
-                        class="inline-flex items-center gap-1 rounded-full border border-border bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-foreground"
-                    >
-                        {{ mention.label }}
-                        <button
-                            type="button"
-                            :disabled="disabled"
-                            class="text-foreground/50 hover:text-foreground"
-                            @click="removeMention(mention.token)"
-                        >
-                            <IconX class="size-3" />
-                        </button>
-                    </span>
-                </div>
-                <div class="relative">
-                    <Input
-                        v-model="mentionQuery"
-                        :disabled="disabled"
-                        :placeholder="$t('posts.form.discord.search_mention')"
-                    />
-                    <ul
-                        v-if="mentionResults.length"
-                        class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-card shadow-2xs"
-                    >
-                        <li
-                            v-for="target in mentionResults"
-                            :key="target.type + target.id"
-                        >
-                            <button
-                                type="button"
-                                class="flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-sm hover:bg-foreground/5"
-                                @click="addMention(target)"
-                            >
-                                {{ target.label }}
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <div class="flex items-center justify-between">
-                    <p
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                    >
-                        {{ $t('posts.form.discord.embeds') }}
-                    </p>
+                    {{ mention.label }}
                     <button
                         type="button"
                         :disabled="disabled"
-                        class="inline-flex cursor-pointer items-center gap-1 text-xs font-bold text-foreground/70 hover:text-foreground disabled:opacity-50"
-                        @click="addEmbed"
+                        class="text-muted-foreground hover:text-foreground"
+                        @click="removeMention(mention.token)"
                     >
-                        <IconPlus class="size-3.5" />
-                        {{ $t('posts.form.discord.add_embed') }}
+                        <IconX class="size-3" />
                     </button>
-                </div>
-                <div
-                    v-for="(embed, index) in embeds"
-                    :key="index"
-                    class="space-y-2 rounded-lg border border-border p-3"
+                </span>
+            </div>
+            <div class="relative">
+                <Input
+                    v-model="mentionQuery"
+                    :disabled="disabled"
+                    :placeholder="$t('posts.form.discord.search_mention')"
+                />
+                <ul
+                    v-if="mentionResults.length"
+                    class="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-border bg-popover shadow-md"
                 >
-                    <div class="flex items-center justify-between">
-                        <span
-                            class="text-[11px] font-black tracking-widest text-foreground/50 uppercase"
-                            >{{ $t('posts.form.discord.embed') }}
-                            {{ index + 1 }}</span
-                        >
+                    <li
+                        v-for="target in mentionResults"
+                        :key="target.type + target.id"
+                    >
                         <button
                             type="button"
-                            :disabled="disabled"
-                            class="text-foreground/50 hover:text-rose-600"
-                            @click="removeEmbed(index)"
+                            class="flex w-full cursor-pointer items-center px-3 py-1.5 text-left text-sm hover:bg-accent"
+                            @click="addMention(target)"
                         >
-                            <IconX class="size-3.5" />
+                            {{ target.label }}
                         </button>
-                    </div>
-                    <Input
-                        :model-value="embed.title"
+                    </li>
+                </ul>
+            </div>
+        </SettingsRow>
+
+        <SettingsRow :label="$t('posts.form.discord.embeds')" align-top>
+            <div
+                v-for="(embed, index) in embeds"
+                :key="index"
+                class="space-y-2 rounded-md border border-border p-3"
+            >
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >{{ $t('posts.form.discord.embed') }}
+                        {{ index + 1 }}</span
+                    >
+                    <button
+                        type="button"
                         :disabled="disabled"
-                        :placeholder="$t('posts.form.discord.embed_title')"
+                        class="text-muted-foreground hover:text-destructive-text"
+                        @click="removeEmbed(index)"
+                    >
+                        <IconX class="size-3.5" />
+                    </button>
+                </div>
+                <Input
+                    :model-value="embed.title"
+                    :disabled="disabled"
+                    :placeholder="$t('posts.form.discord.embed_title')"
+                    @update:model-value="
+                        updateEmbed(index, { title: String($event) })
+                    "
+                />
+                <textarea
+                    :value="embed.description"
+                    :disabled="disabled"
+                    :placeholder="$t('posts.form.discord.embed_description')"
+                    rows="2"
+                    class="w-full rounded-md border border-input bg-card px-2 py-1 text-sm transition-[color,box-shadow] outline-none placeholder:text-subtle-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    @input="
+                        updateEmbed(index, {
+                            description: ($event.target as HTMLTextAreaElement)
+                                .value,
+                        })
+                    "
+                />
+                <Input
+                    :model-value="embed.url"
+                    :disabled="disabled"
+                    :placeholder="$t('posts.form.discord.embed_url')"
+                    @update:model-value="
+                        updateEmbed(index, { url: String($event) })
+                    "
+                />
+                <Input
+                    :model-value="embed.image"
+                    :disabled="disabled"
+                    :placeholder="$t('posts.form.discord.embed_image')"
+                    @update:model-value="
+                        updateEmbed(index, { image: String($event) })
+                    "
+                />
+                <div class="space-y-1">
+                    <p class="text-xs text-muted-foreground">
+                        {{ $t('posts.form.discord.embed_color') }}
+                    </p>
+                    <HexColorInput
+                        :model-value="embed.color || DISCORD_BLURPLE"
+                        :disabled="disabled"
+                        :placeholder="DISCORD_BLURPLE"
                         @update:model-value="
-                            updateEmbed(index, { title: String($event) })
+                            (value) =>
+                                updateEmbed(index, {
+                                    color: value ?? undefined,
+                                })
                         "
                     />
-                    <textarea
-                        :value="embed.description"
-                        :disabled="disabled"
-                        :placeholder="
-                            $t('posts.form.discord.embed_description')
-                        "
-                        rows="2"
-                        class="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-3 focus:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-                        @input="
-                            updateEmbed(index, {
-                                description: (
-                                    $event.target as HTMLTextAreaElement
-                                ).value,
-                            })
-                        "
-                    />
-                    <Input
-                        :model-value="embed.url"
-                        :disabled="disabled"
-                        :placeholder="$t('posts.form.discord.embed_url')"
-                        @update:model-value="
-                            updateEmbed(index, { url: String($event) })
-                        "
-                    />
-                    <Input
-                        :model-value="embed.image"
-                        :disabled="disabled"
-                        :placeholder="$t('posts.form.discord.embed_image')"
-                        @update:model-value="
-                            updateEmbed(index, { image: String($event) })
-                        "
-                    />
-                    <div class="space-y-1">
-                        <p class="text-xs font-medium text-foreground/60">
-                            {{ $t('posts.form.discord.embed_color') }}
-                        </p>
-                        <HexColorInput
-                            :model-value="embed.color || DISCORD_BLURPLE"
-                            :disabled="disabled"
-                            :placeholder="DISCORD_BLURPLE"
-                            @update:model-value="
-                                (value) =>
-                                    updateEmbed(index, {
-                                        color: value ?? undefined,
-                                    })
-                            "
-                        />
-                    </div>
                 </div>
             </div>
-        </div>
-    </div>
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                :disabled="disabled"
+                data-testid="discord-add-embed"
+                @click="addEmbed"
+            >
+                <IconPlus class="size-3.5" />
+                {{ $t('posts.form.discord.add_embed') }}
+            </Button>
+        </SettingsRow>
+    </SettingsSection>
 </template>

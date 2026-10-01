@@ -14,7 +14,6 @@ import {
     componentToString,
 } from '@/components/ui/chart';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
-
 import { accountColor } from '@/lib/analyticsColors';
 import type { AccountIdentityData } from '@/types/analytics';
 
@@ -26,6 +25,8 @@ import {
 const props = defineProps<{
     rows: { account: AccountIdentityData; value: number | null }[];
     colors: Record<string, string>;
+    valueLabel?: string;
+    detail?: (index: number) => string | null;
 }>();
 
 type BarPoint = { index: number; value: number };
@@ -42,7 +43,7 @@ const chartConfig = computed(() =>
     ),
 );
 const chartHeight = computed(
-    () => `${Math.max(240, props.rows.length * 38 + 55)}px`,
+    () => `${Math.max(160, props.rows.length * 37 + 60)}px`,
 );
 const indexAccessor = (point: BarPoint): number => point.index;
 const valueAccessor = (point: BarPoint): number => point.value;
@@ -61,8 +62,12 @@ const formatAccount = (tick: number | Date): string => {
     return label.length > 12 ? `${label.slice(0, 11)}…` : label;
 };
 const categoryTicks = computed(() => props.rows.map((_, index) => index));
+const detailFormatter = (key: string): string | null =>
+    props.detail?.(Number(key.replace('account_', ''))) ?? null;
 const tooltipTemplate = computed(() =>
-    componentToString(chartConfig.value, ChartTooltipContent),
+    componentToString(chartConfig.value, ChartTooltipContent, {
+        detailFormatter,
+    }),
 );
 const tooltipTriggers = computed(() => ({
     [VisStackedBarSelectors.bar]: (bar: {
@@ -96,14 +101,18 @@ const barAttributes = {
                 :y="valueAccessor"
                 :color="colorAccessor"
                 orientation="horizontal"
-                :rounded-corners="4"
-                :bar-padding="0.32"
+                :rounded-corners="2"
+                :bar-padding="0.27"
+                :bar-max-width="27"
                 :attributes="barAttributes"
             />
             <VisAxis
                 type="x"
                 :tick-format="formatCountTick"
                 :num-ticks="5"
+                :label="valueLabel"
+                label-font-size="12px"
+                label-color="var(--muted-foreground)"
                 :grid-line="true"
                 :domain-line="false"
                 :tick-line="false"

@@ -72,8 +72,13 @@ test('x oauth callback creates account', function () {
     $response = $this->actingAs($this->user)->get(route('app.social.x.callback'));
 
     $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->component('accounts/PopupCallback'));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->component('accounts/PopupCallback')
+        ->where('success', true)
+        ->where('message', null)
+        ->where('accountId', $this->workspace->socialAccounts()->sole()->id)
+        ->where('created', true)
+    );
 
     $this->assertDatabaseHas('social_accounts', [
         'workspace_id' => $this->workspace->id,
@@ -161,7 +166,9 @@ test('x callback reconnects the original card', function () {
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
+            ->where('accountId', $account->id)
+            ->where('created', false)
         );
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::X)->count())->toBe(1)

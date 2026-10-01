@@ -19,8 +19,8 @@ import {
     getPlatformLabel,
     getPlatformLogo,
 } from '@/composables/usePlatformLogo';
-import { accounts } from '@/routes/app';
 import { store } from '@/routes/app/repurposes';
+import { channels as channelsSettings } from '@/routes/app/workspace';
 import type { ChannelAccount } from '@/types/channel';
 
 const props = defineProps<{
@@ -88,7 +88,7 @@ const submit = () => {
                         {{ $t('common.cancel') }}
                     </Button>
                     <Button as-child data-testid="connect-account-cta">
-                        <Link :href="accounts.url()">{{
+                        <Link :href="channelsSettings.url()">{{
                             $t('repurposes.create.connect')
                         }}</Link>
                     </Button>
@@ -98,7 +98,7 @@ const submit = () => {
             <form v-else class="space-y-4" @submit.prevent="submit">
                 <div class="space-y-2">
                     <p
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
+                        class="text-sm font-medium text-foreground"
                     >
                         {{ $t('repurposes.create.source_label') }}
                     </p>
@@ -137,7 +137,7 @@ const submit = () => {
                                 }}</span>
                                 <span v-else class="min-w-0 text-left">
                                     <span
-                                        class="block truncate text-sm font-bold"
+                                        class="block truncate text-sm leading-tight font-emphasis"
                                         >{{ option.label }}</span
                                     >
                                     <span

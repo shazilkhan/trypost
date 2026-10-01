@@ -5,9 +5,10 @@ declare(strict_types=1);
 use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceLabel;
 use App\Models\WorkspaceSignature;
 
-test('signature and label searches and create actions live in the page header', function (
+test('signature and label pages keep the title and create action in the settings column header', function (
     string $routeName,
     string $title,
     string $searchPlaceholder,
@@ -29,25 +30,23 @@ test('signature and label searches and create actions live in the page header', 
 
     $page
         ->assertSee($title)
-        ->assertVisible('header [data-testid="header-title"]')
-        ->assertVisible('header [data-testid="header-icon"]')
-        ->assertVisible('header [data-testid="header-search-input"]')
-        ->assertVisible(sprintf('header input[placeholder="%s"]', $searchPlaceholder))
-        ->assertVisible(sprintf('header [data-testid="%s"]', $createButtonTestId))
+        ->assertVisible('[data-testid="settings-page"] header [data-testid="header-title"]')
+        ->assertVisible(sprintf('[data-testid="settings-page"] header [data-testid="%s"]', $createButtonTestId))
+        ->assertVisible('@header-search-input')
+        ->assertVisible(sprintf('input[placeholder="%s"]', $searchPlaceholder))
         ->click('@'.$createButtonTestId)
         ->assertVisible('@'.$createSheetTestId)
         ->click('@'.$cancelCreateTestId)
         ->resize(375, 812)
-        ->assertVisible('header [data-testid="header-search-trigger"]')
-        ->click('@header-search-trigger')
-        ->assertVisible('@header-search-mobile-input')
+        ->assertVisible('@header-search-input')
+        ->assertVisible('@'.$createButtonTestId)
         ->assertNoJavaScriptErrors();
 })->with([
     'signatures' => ['app.signatures.index', 'Signatures', 'Search signatures...', 'create-signature-button', 'create-signature-sheet', 'cancel-create-signature'],
     'labels' => ['app.labels.index', 'Labels', 'Search labels...', 'create-label-button', 'create-label-sheet', 'cancel-create-label'],
 ]);
 
-test('signature edit uses the right-side sheet and resets canceled changes', function () {
+test('signature edit uses a centered dialog and resets canceled changes', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $user->account_id,
@@ -81,16 +80,16 @@ test('signature edit uses the right-side sheet and resets canceled changes', fun
             const save = sheet.querySelector('[data-testid="submit-edit-signature"]');
 
             return {
-                rightAligned: Math.abs(rect.right - window.innerWidth) < 2,
-                fullHeight: Math.abs(rect.height - window.innerHeight) < 2,
+                centered: Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2) < 2,
+                shorterThanViewport: rect.height < window.innerHeight,
                 cancelBeforeSave: cancel.getBoundingClientRect().right <= save.getBoundingClientRect().left,
             };
         })();
     JS);
 
     expect($layout)
-        ->rightAligned->toBeTrue()
-        ->fullHeight->toBeTrue()
+        ->centered->toBeTrue()
+        ->shorterThanViewport->toBeTrue()
         ->cancelBeforeSave->toBeTrue();
 
     $page
@@ -101,4 +100,179 @@ test('signature edit uses the right-side sheet and resets canceled changes', fun
 
     expect($signature->fresh()->name)->toBe('Updated signature')
         ->and($signature->fresh()->content)->toBe('#updated');
+});
+
+test('label edit uses a centered dialog and resets canceled changes', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    $label = WorkspaceLabel::factory()->create([
+        'workspace_id' => $workspace->id,
+        'name' => 'Original label',
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.labels.index'));
+    $page
+        ->click("@label-row-{$label->id}")
+        ->assertVisible('@edit-label-dialog')
+        ->fill('@edit-label-name', 'Unsaved name')
+        ->click('@cancel-edit-label')
+        ->assertMissing('@edit-label-dialog')
+        ->click("@label-row-{$label->id}")
+        ->assertValue('@edit-label-name', 'Original label');
+
+    $layout = $page->script(<<<'JS'
+        (async () => {
+            const dialog = document.querySelector('[data-testid="edit-label-dialog"]');
+            await Promise.all(dialog.getAnimations().map((animation) => animation.finished));
+            const rect = dialog.getBoundingClientRect();
+            const cancel = dialog.querySelector('[data-testid="cancel-edit-label"]');
+            const save = dialog.querySelector('[data-testid="submit-edit-label"]');
+
+            return {
+                centered: Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2) < 2,
+                cancelBeforeSave: cancel.getBoundingClientRect().right <= save.getBoundingClientRect().left,
+            };
+        })();
+    JS);
+
+    expect($layout)
+        ->centered->toBeTrue()
+        ->cancelBeforeSave->toBeTrue();
+
+    $page
+        ->fill('@edit-label-name', 'Updated label')
+        ->click('@submit-edit-label')
+        ->assertMissing('@edit-label-dialog')
+        ->assertNoJavaScriptErrors();
+
+    expect($label->fresh()->name)->toBe('Updated label');
+});
+
+test('label and signature deletion require the translated delete keyword, not the name', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    $label = WorkspaceLabel::factory()->create([
+        'workspace_id' => $workspace->id,
+        'name' => 'Keyword label',
+    ]);
+    $signature = WorkspaceSignature::factory()->create([
+        'workspace_id' => $workspace->id,
+        'name' => 'Keyword signature',
+    ]);
+    $this->actingAs($user);
+
+    $keyword = __('common.confirm_modal.delete_keyword');
+
+    visit(route('app.labels.index'))
+        ->click("@delete-label-{$label->id}")
+        ->assertVisible('@confirm-delete-modal')
+        ->fill('@confirm-delete-input', 'Keyword label')
+        ->assertAttribute('@confirm-delete-action', 'disabled', '')
+        ->fill('@confirm-delete-input', mb_strtolower($keyword))
+        ->assertAttribute('@confirm-delete-action', 'disabled', '')
+        ->fill('@confirm-delete-input', $keyword)
+        ->click('@confirm-delete-action')
+        ->assertMissing('@confirm-delete-modal')
+        ->assertNoJavaScriptErrors();
+
+    visit(route('app.signatures.index'))
+        ->click("@delete-signature-{$signature->id}")
+        ->assertVisible('@confirm-delete-modal')
+        ->fill('@confirm-delete-input', 'Keyword signature')
+        ->assertAttribute('@confirm-delete-action', 'disabled', '')
+        ->fill('@confirm-delete-input', mb_strtolower($keyword))
+        ->assertAttribute('@confirm-delete-action', 'disabled', '')
+        ->fill('@confirm-delete-input', $keyword)
+        ->click('@confirm-delete-action')
+        ->assertMissing('@confirm-delete-modal')
+        ->assertNoJavaScriptErrors();
+
+    expect($label->fresh()->trashed())->toBeTrue()
+        ->and($signature->fresh()->trashed())->toBeTrue();
+});
+
+test('signature and label rows do not show the creation date', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    $signature = WorkspaceSignature::factory()->create([
+        'workspace_id' => $workspace->id,
+        'created_at' => '2025-01-15 10:00:00',
+    ]);
+    $label = WorkspaceLabel::factory()->create([
+        'workspace_id' => $workspace->id,
+        'created_at' => '2025-01-15 10:00:00',
+    ]);
+
+    $this->actingAs($user);
+
+    visit(route('app.signatures.index'))
+        ->assertVisible("@signature-row-{$signature->id}")
+        ->assertScript("document.querySelector('[data-testid=\"signature-row-{$signature->id}\"]').innerText.includes('2025')", false)
+        ->assertNoJavaScriptErrors();
+
+    visit(route('app.labels.index'))
+        ->assertVisible("@label-row-{$label->id}")
+        ->assertScript("document.querySelector('[data-testid=\"label-row-{$label->id}\"]').innerText.includes('2025')", false)
+        ->assertNoJavaScriptErrors();
+});
+
+test('hovering a label row keeps the card background', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.labels.index'))->assertVisible("@label-row-{$label->id}");
+
+    $background = $page->script("getComputedStyle(document.querySelector('[data-testid=\"label-row-{$label->id}\"]')).backgroundColor");
+
+    $page->hover("@label-row-{$label->id}")
+        ->assertScript("getComputedStyle(document.querySelector('[data-testid=\"label-row-{$label->id}\"]')).backgroundColor", $background)
+        ->assertNoJavaScriptErrors();
+});
+
+test('hovering a signature row keeps the card background', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    $signature = WorkspaceSignature::factory()->create(['workspace_id' => $workspace->id]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.signatures.index'))->assertVisible("@signature-row-{$signature->id}");
+
+    $background = $page->script("getComputedStyle(document.querySelector('[data-testid=\"signature-row-{$signature->id}\"]')).backgroundColor");
+
+    $page->hover("@signature-row-{$signature->id}")
+        ->assertScript("getComputedStyle(document.querySelector('[data-testid=\"signature-row-{$signature->id}\"]')).backgroundColor", $background)
+        ->assertNoJavaScriptErrors();
 });

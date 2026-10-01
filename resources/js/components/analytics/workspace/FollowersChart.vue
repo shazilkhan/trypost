@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { trans } from 'laravel-vue-i18n';
 import { ref } from 'vue';
 
-import { formatNumberCompact } from '@/lib/utils';
+import { activeLocale } from '@/language';
+import { formatNumberCompact, formatPercentChange } from '@/lib/utils';
 import type { WorkspaceAnalyticsReport } from '@/types/analytics';
 
 import AccountIdentity from './AccountIdentity.vue';
@@ -14,21 +16,19 @@ const props = defineProps<{
     followers: WorkspaceAnalyticsReport['followers'];
     range: WorkspaceAnalyticsReport['range'];
     colors: Record<string, string>;
+    filtered?: boolean;
 }>();
-const observedDays = props.followers.series.filter((point) =>
-    Object.values(point.accounts).some((value) => value !== null),
-).length;
-const mode = ref<'line' | 'bar' | 'growth'>(observedDays > 1 ? 'line' : 'bar');
+const mode = ref<'bar' | 'line' | 'growth'>('bar');
 const buttons = [
-    {
-        mode: 'line',
-        label: 'analytics.dashboard.chart_line',
-        test: 'followers-line',
-    },
     {
         mode: 'bar',
         label: 'analytics.dashboard.chart_bar',
         test: 'followers-bar',
+    },
+    {
+        mode: 'line',
+        label: 'analytics.dashboard.chart_line',
+        test: 'followers-line',
     },
     {
         mode: 'growth',
@@ -36,6 +36,37 @@ const buttons = [
         test: 'followers-growth',
     },
 ] as const;
+
+const barDetail = (index: number): string | null => {
+    const account = props.followers.accounts[index];
+
+    if (
+        mode.value !== 'bar' ||
+        !account ||
+        account.value === null ||
+        account.growth === null
+    ) {
+        return null;
+    }
+
+    const start = account.value - account.growth;
+    const count = (value: number): string =>
+        value.toLocaleString(activeLocale.value);
+
+    return trans(
+        account.growth < 0
+            ? 'analytics.dashboard.followers_lost_detail'
+            : 'analytics.dashboard.followers_gained_detail',
+        {
+            start: count(start),
+            change: count(Math.abs(account.growth)),
+            percent:
+                start > 0
+                    ? formatPercentChange((account.growth / start) * 100)
+                    : '—',
+        },
+    );
+};
 </script>
 
 <template>
@@ -53,17 +84,24 @@ const buttons = [
 
         <div
             v-if="followers.accounts.length === 0"
-            class="rounded-lg border-2 border-dashed border-foreground/30 px-5 py-12 text-center text-sm text-muted-foreground"
+            data-testid="analytics-followers-empty"
+            class="rounded-lg border border-dashed border-border-strong bg-card px-5 py-12 text-center text-sm text-muted-foreground"
         >
-            {{ $t('analytics.dashboard.no_follower_data') }}
+            {{
+                $t(
+                    filtered
+                        ? 'analytics.dashboard.filtered_no_followers'
+                        : 'analytics.dashboard.no_follower_data',
+                )
+            }}
         </div>
         <div
             v-else
-            class="min-w-0 rounded-xl border-2 border-foreground bg-card p-4 shadow-sm sm:p-5"
+            class="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-5"
         >
             <div class="mb-4 flex flex-wrap items-baseline gap-2">
                 <span
-                    class="text-4xl font-semibold tracking-tight tabular-nums"
+                    class="font-heading text-[28px] leading-[35px] font-medium tabular-nums"
                     >{{
                         followers.total === null
                             ? '—'
@@ -74,7 +112,7 @@ const buttons = [
                     $t('analytics.dashboard.total_followers')
                 }}</span>
             </div>
-            <div class="min-w-0 border-t border-foreground/15 pt-5">
+            <div class="min-w-0 border-t border-border pt-5">
                 <FollowerHistoryLineChart
                     v-if="mode === 'line'"
                     :accounts="followers.accounts"
@@ -93,17 +131,21 @@ const buttons = [
                         }))
                     "
                     :colors="colors"
+                    :detail="barDetail"
                 />
             </div>
             <div
-                class="mt-5 grid gap-x-5 gap-y-2.5 border-t border-foreground/15 pt-4 sm:grid-cols-2 xl:grid-cols-3"
+                class="mt-5 grid gap-x-5 gap-y-2.5 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-3"
             >
                 <div
                     v-for="account in followers.accounts"
                     :key="account.social_account_key"
                     class="flex min-w-0 items-center justify-between gap-2"
                 >
-                    <AccountIdentity :account="account" />
+                    <AccountIdentity
+                        :account="account"
+                        :color="colors[account.social_account_key]"
+                    />
                     <span class="flex shrink-0 items-center gap-2">
                         <span class="text-sm font-semibold tabular-nums">
                             {{

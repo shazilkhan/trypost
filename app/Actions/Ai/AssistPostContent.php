@@ -6,8 +6,11 @@ namespace App\Actions\Ai;
 
 use App\Ai\Agents\PostWritingAssistant;
 use App\Enums\Ai\PostAssistantMode;
+use App\Enums\SocialAccount\Platform;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\Repurpose\CaptionAdapter;
+use Illuminate\Validation\ValidationException;
 
 final class AssistPostContent
 {
@@ -17,20 +20,22 @@ final class AssistPostContent
         PostAssistantMode $mode,
         string $currentContent,
         ?string $prompt,
+        ?string $previousContent,
+        ?Platform $platform,
     ): string {
-        $agent = new PostWritingAssistant($workspace, $mode, $currentContent);
-        $response = $agent->prompt(trim($prompt ?? '') ?: 'Revise the existing caption as instructed.');
+        $response = (new PostWritingAssistant($mode, $currentContent, $user->locale, $platform, $previousContent))
+            ->prompt($mode->requiresPrompt() ? trim((string) $prompt) : 'Revise the existing caption as instructed.');
 
-        RecordAiUsage::recordText(
-            workspace: $workspace,
-            promptTokens: $response->usage->promptTokens,
-            completionTokens: $response->usage->completionTokens,
-            provider: (string) $response->meta->provider,
-            model: (string) $response->meta->model,
-            userId: $user->id,
-            metadata: ['agent' => 'post_writing_assistant', 'mode' => $mode->value],
-        );
+        $text = trim((string) $response);
 
-        return trim((string) $response);
+        if ($text === '') {
+            throw ValidationException::withMessages([
+                $mode->requiresPrompt() ? 'prompt' : 'current_content' => __('posts.composer.assistant_error'),
+            ]);
+        }
+
+        return $platform instanceof Platform
+            ? app(CaptionAdapter::class)->adapt($workspace, $user, $text, $platform)
+            : $text;
     }
 }

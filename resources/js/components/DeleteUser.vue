@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Form, usePage } from '@inertiajs/vue3';
+import { IconAlertTriangle } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, useTemplateRef } from 'vue';
 
 import ProfileController from '@/actions/App/Http/Controllers/App/Settings/ProfileController';
-import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
+import SettingsSection from '@/components/settings/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -40,22 +41,11 @@ const focusFirstInput = () => {
 </script>
 
 <template>
-    <div class="space-y-6">
-        <HeadingSmall
-            :title="$t('settings.delete_account.heading')"
-            :description="$t('settings.delete_account.description')"
-        />
-        <div
-            class="space-y-4 rounded-md border border-destructive/30 bg-destructive/5 p-4"
-        >
-            <div class="space-y-0.5">
-                <p class="text-sm font-medium text-destructive">
-                    {{ $t('settings.delete_account.warning') }}
-                </p>
-                <p class="text-sm text-muted-foreground">
-                    {{ $t('settings.delete_account.warning_message') }}
-                </p>
-            </div>
+    <SettingsSection
+        :title="$t('settings.delete_account.heading')"
+        :description="$t('settings.delete_account.description')"
+    >
+        <template #actions>
             <Dialog>
                 <DialogTrigger as-child>
                     <Button
@@ -113,9 +103,9 @@ const focusFirstInput = () => {
                         </div>
 
                         <div v-else class="grid gap-2">
-                            <Label for="email_confirmation" class="sr-only"
-                                >Email</Label
-                            >
+                            <Label for="email_confirmation" class="sr-only">{{
+                                $t('settings.profile.email')
+                            }}</Label>
                             <Input
                                 id="email_confirmation"
                                 type="email"
@@ -134,7 +124,7 @@ const focusFirstInput = () => {
                         <DialogFooter>
                             <DialogClose as-child>
                                 <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     @click="
                                         () => {
                                             clearErrors();
@@ -158,6 +148,20 @@ const focusFirstInput = () => {
                     </Form>
                 </DialogContent>
             </Dialog>
+        </template>
+
+        <div
+            class="flex items-start gap-2 rounded-xl bg-critical-subtle p-4 text-sm text-foreground"
+        >
+            <IconAlertTriangle
+                class="mt-0.5 size-4 shrink-0 text-destructive-text"
+            />
+            <p>
+                <span class="font-emphasis">{{
+                    $t('settings.delete_account.warning')
+                }}</span>
+                {{ $t('settings.delete_account.warning_message') }}
+            </p>
         </div>
-    </div>
+    </SettingsSection>
 </template>

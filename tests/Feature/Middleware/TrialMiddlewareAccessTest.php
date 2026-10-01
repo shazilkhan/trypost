@@ -30,7 +30,7 @@ test('user without subscription is redirected to subscribe', function () {
     $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
     $user->update(['current_workspace_id' => $workspace->id]);
 
-    $response = $this->actingAs($user->fresh())->get(route('app.accounts'));
+    $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
 
     $response->assertRedirect(route('app.welcome.persona'));
 });
@@ -57,7 +57,7 @@ test('user with active subscription can access the app', function () {
         'stripe_price' => 'price_123',
     ]);
 
-    $response = $this->actingAs($user->fresh())->get(route('app.accounts'));
+    $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
 
     $response->assertOk();
 });
@@ -85,7 +85,7 @@ test('user on trialing subscription (legacy trial-with-card) can access the app'
     $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
     $user->update(['current_workspace_id' => $workspace->id]);
 
-    $response = $this->actingAs($user->fresh())->get(route('app.accounts'));
+    $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
 
     $response->assertOk();
 });
@@ -112,7 +112,7 @@ test('user with past_due subscription can access the app instead of being forced
     $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
     $user->update(['current_workspace_id' => $workspace->id]);
 
-    $response = $this->actingAs($user->fresh())->get(route('app.accounts'));
+    $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
 
     $response->assertOk();
     $response->assertSessionMissing('errors');
@@ -135,7 +135,7 @@ test('user on generic trial can access the app when card is not required', funct
     $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
     $user->update(['current_workspace_id' => $workspace->id]);
 
-    $response = $this->actingAs($user->fresh())->get(route('app.accounts'));
+    $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
 
     $response->assertOk();
 });

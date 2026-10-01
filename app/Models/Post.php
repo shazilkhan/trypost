@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Media\SyncOwnedMedia;
 use App\Dto\MediaItem;
 use App\Enums\Media\Type;
 use App\Enums\Post\CreatedVia;
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\SocialAccount\Platform;
 use App\Observers\PostObserver;
+use App\Support\Media\MediaCopyBatch;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,6 +38,7 @@ class Post extends Model
         'content',
         'media',
         'status',
+        'schedule_mode',
         'created_via',
         'repurpose_item_id',
         'scheduled_at',
@@ -45,6 +49,7 @@ class Post extends Model
     {
         return [
             'status' => PostStatus::class,
+            'schedule_mode' => ScheduleMode::class,
             'created_via' => CreatedVia::class,
             'media' => 'array',
             'scheduled_at' => 'datetime',
@@ -72,6 +77,11 @@ class Post extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function ownedMedia(): HasMany
+    {
+        return $this->hasMany(Media::class, 'post_id')->orderBy('order');
     }
 
     public function postPlatforms(): HasMany
@@ -112,6 +122,18 @@ class Post extends Model
     public function scopeFailed(Builder $query): Builder
     {
         return $query->where('status', PostStatus::Failed);
+    }
+
+    /**
+     * Posts carrying any of the labels, plus posts without labels when $untagged is set; no filter when both are empty.
+     *
+     * @param  list<string>  $labelIds
+     */
+    public function scopeMatchingLabelFilter(Builder $query, array $labelIds, bool $untagged = false): Builder
+    {
+        return $query->when($labelIds !== [] || $untagged, fn (Builder $filtered): Builder => $filtered->where(fn (Builder $inner): Builder => $inner
+            ->when($labelIds !== [], fn (Builder $any): Builder => $any->whereHas('labels', fn (Builder $labels): Builder => $labels->whereIn('workspace_labels.id', $labelIds)))
+            ->when($untagged, fn (Builder $none): Builder => $none->orWhereDoesntHave('labels'))));
     }
 
     public function markAsPublishing(): void
@@ -181,19 +203,28 @@ class Post extends Model
     }
 
     /**
-     * Append items to the JSON `media` column under a row lock so
-     * concurrent writers don't overwrite each other's appends.
+     * Append items (by `id` or `upload_token`) after the post's current media,
+     * under a row lock so concurrent writers don't overwrite each other's
+     * appends. Every item ends as a row this post owns.
      *
      * @param  array<int, array<string, mixed>>  $items
      */
-    public function appendMedia(array $items): void
+    public function appendMedia(array $items, ?MediaCopyBatch $batch = null): void
     {
-        DB::transaction(function () use ($items): void {
-            $fresh = static::whereKey($this->id)->lockForUpdate()->first();
-            $fresh->update([
-                'media' => collect($fresh->media ?? [])->concat($items)->all(),
-            ]);
+        $append = function (MediaCopyBatch $batch) use ($items): void {
+            $fresh = static::query()->whereKey($this->id)->lockForUpdate()->firstOrFail();
+
+            SyncOwnedMedia::execute($fresh, [...($fresh->media ?? []), ...array_values($items)], $batch);
+
             $this->setRawAttributes($fresh->getAttributes(), true);
-        });
+        };
+
+        if ($batch !== null) {
+            DB::transaction(fn () => $append($batch));
+
+            return;
+        }
+
+        MediaCopyBatch::run($append);
     }
 }

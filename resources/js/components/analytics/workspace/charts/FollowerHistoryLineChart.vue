@@ -10,7 +10,6 @@ import {
     componentToString,
 } from '@/components/ui/chart';
 import date from '@/date';
-
 import { accountColor } from '@/lib/analyticsColors';
 import type {
     FollowerAccount,
@@ -34,18 +33,22 @@ const props = defineProps<{
     colors: Record<string, string>;
 }>();
 
-const chartData = computed<ChartPoint[]>(() =>
-    props.series.map((point, index) => {
+const chartData = computed<ChartPoint[]>(() => {
+    const lastKnown: (number | undefined)[] = [];
+
+    return props.series.map((point, index) => {
         const values: ChartPoint = { date: point.date, index };
 
         props.accounts.forEach((account, accountIndex) => {
-            values[`account_${accountIndex}`] =
-                point.accounts[account.social_account_key] ?? undefined;
+            lastKnown[accountIndex] =
+                point.accounts[account.social_account_key] ??
+                lastKnown[accountIndex];
+            values[`account_${accountIndex}`] = lastKnown[accountIndex];
         });
 
         return values;
-    }),
-);
+    });
+});
 
 const chartConfig = computed(() =>
     socialAccountChartConfig(props.accounts, props.colors),

@@ -56,7 +56,7 @@ test('publication jobs are provider limited and account overlap protected', func
 });
 
 test('discovery dispatcher loads sync states once for all accounts in a page', function () {
-    $accounts = SocialAccount::factory()->instagram()->count(3)->create(['is_active' => true]);
+    $accounts = SocialAccount::factory()->instagram()->count(3)->create();
 
     foreach ($accounts as $account) {
         AnalyticsSyncState::factory()->create([
@@ -88,7 +88,7 @@ test('discovery dispatcher loads sync states once for all accounts in a page', f
 });
 
 test('discovery dispatcher resumes failed backfill before incremental discovery', function () {
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -111,7 +111,7 @@ test('discovery dispatcher resumes failed backfill before incremental discovery'
 });
 
 test('daily discovery does not retry a backfill rejected for missing permission', function () {
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -133,12 +133,12 @@ test('daily discovery does not retry a backfill rejected for missing permission'
 });
 
 test('daily discovery recovers stale bootstraps without starting the manual rollout or interrupting delayed retries', function () {
-    $stalePending = SocialAccount::factory()->instagram()->create(['is_active' => true]);
-    $staleRunning = SocialAccount::factory()->instagram()->create(['is_active' => true]);
-    $recentPending = SocialAccount::factory()->instagram()->create(['is_active' => true]);
-    $rateLimited = SocialAccount::factory()->instagram()->create(['is_active' => true]);
-    $awaitingRollout = SocialAccount::factory()->instagram()->create(['is_active' => true]);
-    $readyForDiscovery = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $stalePending = SocialAccount::factory()->instagram()->create();
+    $staleRunning = SocialAccount::factory()->instagram()->create();
+    $recentPending = SocialAccount::factory()->instagram()->create();
+    $rateLimited = SocialAccount::factory()->instagram()->create();
+    $awaitingRollout = SocialAccount::factory()->instagram()->create();
+    $readyForDiscovery = SocialAccount::factory()->instagram()->create();
 
     foreach ([
         [$stalePending, SyncStatus::Pending, null, 3],
@@ -178,7 +178,7 @@ test('daily discovery recovers stale bootstraps without starting the manual roll
 test('bootstrap creates separate backfill and discovery states and dispatches the first page', function () {
     Bus::fake();
     CarbonImmutable::setTestNow('2026-09-23 10:00:00 UTC');
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
 
     (new BootstrapAccountAnalytics($account->id))->handleFor($account->id);
 
@@ -195,7 +195,7 @@ test('bootstrap creates separate backfill and discovery states and dispatches th
 
 test('bootstrap resumes a failed backfill from its last committed cursor', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X]);
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'collector' => SyncCollector::PublicationBackfill,
@@ -216,7 +216,7 @@ test('bootstrap resumes a failed backfill from its last committed cursor', funct
 
 test('re-authorizing the same account starts incremental discovery without restarting complete backfill', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->x()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->x()->create();
     $backfill = AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -239,7 +239,7 @@ test('re-authorizing the same account starts incremental discovery without resta
 
 test('x backfill reports provider limited when the 3200 post timeline ends before the target', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X]);
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => 'last-page', 'revision' => 4, 'seen_count' => 3199],
@@ -259,7 +259,7 @@ test('x backfill reports provider limited when the 3200 post timeline ends befor
 
 test('x backfill below the timeline cap completes when the provider exhausts its history', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X]);
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => 'last-page', 'revision' => 4, 'seen_count' => 25],
@@ -277,7 +277,7 @@ test('x backfill below the timeline cap completes when the provider exhausts its
 });
 
 test('restarting a terminal x backfill resets its timeline count', function () {
-    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X]);
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'status' => SyncStatus::ProviderLimited,
@@ -293,7 +293,7 @@ test('restarting a terminal x backfill resets its timeline count', function () {
 
 test('a backfill job persists one page then advances its cursor and dispatches continuation', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => null, 'revision' => 0],
@@ -316,7 +316,7 @@ test('a backfill job persists one page then advances its cursor and dispatches c
 });
 
 test('a publication page resolves the account identity once for every post', function () {
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'target_since' => CarbonImmutable::parse('2025-09-23', 'UTC'),
@@ -340,7 +340,7 @@ test('a publication page resolves the account identity once for every post', fun
 
 test('backfill records truthful terminal coverage and initializes discovery high water', function (PublicationPage $page, SyncStatus $expectedStatus, ?string $reason) {
     Bus::fake();
-    $account = SocialAccount::factory()->mastodon()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->mastodon()->create();
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => null, 'revision' => 0],
@@ -364,7 +364,7 @@ test('backfill records truthful terminal coverage and initializes discovery high
 
 test('reaching the 365 day target stops pagination even when the provider has another cursor', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     $target = CarbonImmutable::parse('2025-09-23', 'UTC');
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
@@ -383,7 +383,7 @@ test('reaching the 365 day target stops pagination even when the provider has an
 });
 
 test('a limited page still advances to older pages and preserves its coverage warning', function () {
-    $account = SocialAccount::factory()->mastodon()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->mastodon()->create();
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'target_since' => CarbonImmutable::parse('2025-09-23', 'UTC'),
@@ -409,7 +409,7 @@ test('a limited page still advances to older pages and preserves its coverage wa
 
 test('an unordered provider keeps paging even when a publication lands on the cutoff', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->create(['platform' => Platform::Pinterest, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::Pinterest]);
     $target = CarbonImmutable::parse('2025-09-23', 'UTC');
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
@@ -431,7 +431,7 @@ test('an unordered provider keeps paging even when a publication lands on the cu
 });
 
 test('a stale page can reconcile facts but cannot move the current cursor backwards', function () {
-    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X]);
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => 'page-a', 'revision' => 0, 'seen_count' => 100],
@@ -459,7 +459,7 @@ test('a stale page can reconcile facts but cannot move the current cursor backwa
 
 test('a transient failure preserves the cursor for a later queue attempt', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => 'resume-here', 'revision' => 0],
@@ -472,7 +472,7 @@ test('a transient failure preserves the cursor for a later queue attempt', funct
     $factory->shouldReceive('for')->once()->andReturn($collector);
     app()->instance(PublicationHistoryCollectorFactory::class, $factory);
 
-    expect(SocialAccount::query()->connected()->active()->includedInAnalytics()->find($account->id))
+    expect(SocialAccount::query()->connected()->includedInAnalytics()->find($account->id))
         ->not->toBeNull()
         ->and($state->fresh()->status)->toBe(SyncStatus::Pending);
 
@@ -486,7 +486,7 @@ test('a transient failure preserves the cursor for a later queue attempt', funct
 
 test('an invalid provider cursor clears only the cursor and restarts the bounded backfill', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X]);
     $target = CarbonImmutable::parse('2025-09-23', 'UTC');
     $oldest = CarbonImmutable::parse('2026-01-10', 'UTC');
     $state = AnalyticsSyncState::factory()->create([
@@ -513,7 +513,7 @@ test('an invalid provider cursor clears only the cursor and restarts the bounded
 });
 
 test('a second invalid cursor stops the same backfill instead of looping forever', function () {
-    $account = SocialAccount::factory()->x()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->x()->create();
     $state = AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'checkpoint' => ['cursor' => 'bad-page', 'revision' => 0, 'invalid_cursor_resets' => 1],
@@ -528,7 +528,7 @@ test('a second invalid cursor stops the same backfill instead of looping forever
 
 test('an expired cursor after reconnect preserves imported history instead of rereading it', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->x()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->x()->create();
     $state = AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -541,7 +541,6 @@ test('an expired cursor after reconnect preserves imported history instead of re
     $replacement = SocialAccount::factory()->x()->create([
         'workspace_id' => $account->workspace_id,
         'platform_user_id' => $account->platform_user_id,
-        'is_active' => true,
     ]);
     (new BootstrapAccountAnalytics($replacement->id))->handleFor($replacement->id);
     Bus::fake();
@@ -568,7 +567,7 @@ test('an expired cursor after reconnect preserves imported history instead of re
 
 test('daily discovery is suppressed during backfill and resumes after terminal state', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     AnalyticsSyncState::factory()->create([
         'social_account_id' => $account->id,
         'collector' => SyncCollector::PublicationBackfill,
@@ -622,7 +621,7 @@ test('deleting an account detaches its sync state and retains publication histor
 
 test('reconnecting the same identity reuses completed history and discovers only newer posts', function (Platform $platform, Platform $reconnectedPlatform) {
     Bus::fake();
-    $account = SocialAccount::factory()->create(['platform' => $platform, 'is_active' => true]);
+    $account = SocialAccount::factory()->create(['platform' => $platform]);
     $backfill = AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -651,7 +650,6 @@ test('reconnecting the same identity reuses completed history and discovers only
         'workspace_id' => $account->workspace_id,
         'platform' => $reconnectedPlatform,
         'platform_user_id' => $account->platform_user_id,
-        'is_active' => true,
     ]);
 
     (new BootstrapAccountAnalytics($replacement->id))->handleFor($replacement->id);
@@ -688,7 +686,7 @@ test('reconnecting the same identity reuses completed history and discovers only
 
 test('reconnecting during backfill resumes its cursor instead of starting from the first page', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->x()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->x()->create();
     $state = AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -700,7 +698,6 @@ test('reconnecting during backfill resumes its cursor instead of starting from t
     $replacement = SocialAccount::factory()->x()->create([
         'workspace_id' => $account->workspace_id,
         'platform_user_id' => $account->platform_user_id,
-        'is_active' => true,
     ]);
 
     (new BootstrapAccountAnalytics($replacement->id))->handleFor($replacement->id);
@@ -714,7 +711,7 @@ test('reconnecting during backfill resumes its cursor instead of starting from t
 
 test('a page fetched by the disconnected account cannot advance the rebound checkpoint', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->x()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->x()->create();
     $state = AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -725,7 +722,6 @@ test('a page fetched by the disconnected account cannot advance the rebound chec
     $replacement = SocialAccount::factory()->x()->create([
         'workspace_id' => $account->workspace_id,
         'platform_user_id' => $account->platform_user_id,
-        'is_active' => true,
     ]);
     (new BootstrapAccountAnalytics($replacement->id))->handleFor($replacement->id);
 
@@ -745,7 +741,7 @@ test('a page fetched by the disconnected account cannot advance the rebound chec
 
 test('a different account identity cannot inherit another accounts checkpoint', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->x()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->x()->create();
     $state = AnalyticsSyncState::factory()->create([
         ...AnalyticsSyncState::identityFor($account),
         'social_account_id' => $account->id,
@@ -755,7 +751,6 @@ test('a different account identity cannot inherit another accounts checkpoint', 
     $other = SocialAccount::factory()->x()->create([
         'workspace_id' => $account->workspace_id,
         'platform_user_id' => 'different-x-user',
-        'is_active' => true,
     ]);
 
     (new BootstrapAccountAnalytics($other->id))->handleFor($other->id);
@@ -773,7 +768,7 @@ test('a different account identity cannot inherit another accounts checkpoint', 
 
 test('history without a surviving checkpoint is marked partial and only new posts are discovered', function () {
     Bus::fake();
-    $account = SocialAccount::factory()->instagram()->create(['is_active' => true]);
+    $account = SocialAccount::factory()->instagram()->create();
     AnalyticsPublication::factory()->create([
         'workspace_id' => $account->workspace_id,
         'social_account_id' => null,

@@ -3,19 +3,23 @@ import { Link } from '@inertiajs/vue3';
 import { IconArrowUpRight } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
+import {
+    getPlatformLabel,
+    getPlatformLogo,
+} from '@/composables/usePlatformLogo';
 import date from '@/date';
 import { formatNumberCompact } from '@/lib/utils';
 import { show as analyticsShow } from '@/routes/app/analytics';
 import { show as publicationShow } from '@/routes/app/analytics/publications';
-
 import type { TopPost, WorkspaceAnalyticsReport } from '@/types/analytics';
-import AccountIdentity from './AccountIdentity.vue';
+
 import AnalyticsModeToggle from './AnalyticsModeToggle.vue';
 import AnalyticsSection from './AnalyticsSection.vue';
 
 const props = defineProps<{
     topPosts: WorkspaceAnalyticsReport['top_posts'];
     range: WorkspaceAnalyticsReport['range'];
+    filtered?: boolean;
 }>();
 const metric = ref<'reactions' | 'comments'>('reactions');
 const buttons = [
@@ -54,53 +58,74 @@ const thumbnailFor = (post: TopPost): string | null => {
 
         <div
             v-if="posts.length === 0"
-            class="rounded-lg border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground"
+            data-testid="analytics-top-posts-empty"
+            class="rounded-lg border border-dashed border-border-strong bg-card px-5 py-10 text-center text-sm text-muted-foreground"
         >
-            {{ $t('analytics.dashboard.no_ranked_posts') }}
+            {{
+                $t(
+                    filtered
+                        ? 'analytics.dashboard.filtered_no_posts'
+                        : 'analytics.dashboard.no_ranked_posts',
+                )
+            }}
         </div>
         <div
             v-else
-            class="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"
+            class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"
         >
             <article
                 v-for="(post, index) in posts"
                 :key="post.id"
-                class="flex min-h-56 min-w-0 flex-col rounded-xl border-2 border-foreground bg-background p-4 shadow-xs"
+                class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-secondary"
+                data-testid="analytics-top-post"
             >
-                <div
-                    class="flex items-center justify-between gap-2 border-b border-foreground/15 pb-3 text-xs font-medium text-muted-foreground"
-                >
-                    <span
-                        class="flex size-7 items-center justify-center rounded-full border border-foreground bg-violet-100 font-semibold text-foreground"
-                        >{{ index + 1 }}</span
-                    >
-                    <span class="tabular-nums">
-                        <strong class="text-sm text-foreground">{{
+                <div class="flex h-8 items-center justify-between gap-2 px-3">
+                    <span class="text-xs text-foreground">#{{ index + 1 }}</span>
+                    <span class="text-xs tabular-nums">
+                        <strong class="font-emphasis text-foreground">{{
                             formatNumberCompact(post[metric] ?? 0)
                         }}</strong>
-                        {{ $t(`analytics.dashboard.${metric}`) }}
+                        {{ ' ' }}
+                        <span class="font-medium text-muted-foreground">{{
+                            $t(`analytics.dashboard.${metric}`)
+                        }}</span>
                     </span>
                 </div>
-                <div class="flex flex-1 flex-col gap-3 pt-3">
+                <div
+                    class="flex flex-1 flex-col gap-2 rounded-t-lg border-t border-border bg-card p-3"
+                >
                     <div
-                        class="flex min-w-0 items-center justify-between gap-2"
+                        class="flex min-h-4.5 min-w-0 items-center justify-between gap-2"
                     >
-                        <AccountIdentity
-                            :account="{
-                                social_account_key: post.social_account_key,
-                                platform: post.platform,
-                                name: post.name,
-                                username: post.username,
-                                avatar_url: null,
-                            }"
-                        />
-                        <span class="shrink-0 text-xs text-muted-foreground">{{
-                            date.formatDateShort(post.published_at)
-                        }}</span>
+                        <span
+                            class="inline-flex min-w-0 items-center gap-1 text-xs text-foreground"
+                            :title="
+                                post.username
+                                    ? `@${post.username}`
+                                    : (post.name ?? undefined)
+                            "
+                        >
+                            <img
+                                :src="getPlatformLogo(post.platform)"
+                                :alt="getPlatformLabel(post.platform)"
+                                class="size-3.5 shrink-0 rounded-sm object-contain"
+                            />
+                            <span class="truncate">{{
+                                date.formatDateShort(post.published_at)
+                            }}</span>
+                        </span>
+                        <span
+                            class="inline-flex h-4.5 shrink-0 items-center rounded-full bg-secondary px-1 text-xs font-medium text-foreground"
+                            >{{
+                                $t(
+                                    `analytics.detail.content_types.${post.content_type}`,
+                                )
+                            }}</span
+                        >
                     </div>
-                    <div class="flex min-h-16 gap-3">
+                    <div class="flex min-h-[54px] gap-3">
                         <p
-                            class="line-clamp-3 min-w-0 flex-1 text-sm leading-5 text-foreground"
+                            class="line-clamp-3 min-w-0 flex-1 text-xs text-foreground"
                         >
                             {{
                                 post.excerpt ||
@@ -112,11 +137,11 @@ const thumbnailFor = (post: TopPost): string | null => {
                             :src="thumbnailFor(post)!"
                             alt=""
                             loading="lazy"
-                            class="size-14 shrink-0 rounded-lg object-cover"
+                            class="size-11 shrink-0 rounded-md object-cover"
                         />
                     </div>
                     <div
-                        class="mt-auto flex items-center justify-between gap-2 border-t border-foreground/10 pt-3 text-xs text-muted-foreground"
+                        class="mt-auto flex min-h-8 items-center justify-between gap-2 pt-2 text-xs text-muted-foreground"
                     >
                         <span class="line-clamp-1">{{
                             post.origin === 'trypost'
@@ -134,10 +159,13 @@ const thumbnailFor = (post: TopPost): string | null => {
                                       })
                                     : publicationShow.url(post.id)
                             "
-                            class="inline-flex shrink-0 items-center gap-0.5 font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                            class="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 font-medium text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
                         >
                             {{ $t('analytics.detail.details') }}
-                            <IconArrowUpRight class="size-3.5" />
+                            <IconArrowUpRight
+                                class="size-3.5"
+                                aria-hidden="true"
+                            />
                         </Link>
                     </div>
                 </div>

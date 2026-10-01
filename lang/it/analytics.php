@@ -90,6 +90,13 @@ return [
         'no_post_data' => 'Nessun post pubblicato in questo periodo.',
         'no_ranked_posts' => 'Nessun post con reazioni o commenti misurati in questo periodo.',
         'no_performance' => 'Nessuna prestazione per canale in questo periodo.',
+        'filtered_no_posts' => 'Nessun post per i canali o le etichette selezionati in questo periodo. Prova un altro intervallo di date o cancella i filtri.',
+        'filtered_no_followers' => 'Nessun dato sui follower per i canali selezionati in questo periodo. Prova un altro intervallo di date o cancella il filtro dei canali.',
+        'filtered_no_data_title' => 'Nessun risultato per questi filtri',
+        'filtered_no_data_body' => 'I canali selezionati non hanno ancora dati di analisi. Scegli altri canali o cancella i filtri.',
+        'posts_sent_axis' => 'Post inviati',
+        'followers_gained_detail' => 'Partito da :start · guadagnati :change (:percent)',
+        'followers_lost_detail' => 'Partito da :start · persi :change (:percent)',
         'no_excerpt' => 'Anteprima del testo non disponibile.',
         'published_via_trypost' => 'Pubblicato tramite TryPost',
         'published_on_network' => 'Pubblicato sul social network',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => 'Termini di ricerca',
         'estimated' => 'Google non fornisce il numero esatto per questo termine',
+    ],
+
+    'ranges' => [
+        '7d' => '7 giorni',
+        '30d' => '30 giorni',
+        'mtd' => 'Mese corrente',
+        'last_month' => 'Mese scorso',
+        'custom' => 'Personalizzato',
+        'compared_to' => ':current · confrontato con :previous',
+        'label' => 'Intervallo di date',
+    ],
+
+    'channel' => [
+        'title' => 'Insights',
+        'page_title' => 'Insights · :channel',
+        'unsupported_title' => 'Nessuna analisi per questa rete',
+        'unsupported_body' => ':network non condivide le analisi con app di terze parti, quindi per ora non c\'è nulla da mostrare qui.',
+        'performance' => 'Rendimento per post',
+        'this_period' => 'Questo periodo',
+        'previous_period' => 'Periodo precedente',
+        'post' => 'Post',
+        'posts_count' => 'Post · :count',
+        'no_posts' => 'Nessun post pubblicato in questo periodo.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Follower totali',
+                'about' => 'Follower alla fine del periodo.',
+            ],
+            'posts' => [
+                'label' => 'Post',
+                'about' => 'Post pubblicati nel periodo.',
+            ],
+            'reactions' => [
+                'label' => 'Reazioni',
+                'about' => 'Mi piace e reazioni ai post pubblicati nel periodo.',
+            ],
+            'comments' => [
+                'label' => 'Commenti',
+                'about' => 'Commenti ai post pubblicati nel periodo.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Tasso di engagement',
+                'about' => 'Interazioni divise per copertura o impressioni.',
+            ],
+            'views' => [
+                'label' => 'Visualizzazioni',
+                'about' => 'Visualizzazioni dei post pubblicati nel periodo. Sono conteggiati solo i post per cui la rete riporta le visualizzazioni.',
+            ],
+            'shares' => [
+                'label' => 'Condivisioni',
+                'about' => 'Condivisioni dei post pubblicati nel periodo.',
+            ],
+            'saves' => [
+                'label' => 'Salvataggi',
+                'about' => 'Salvataggi dei post pubblicati nel periodo.',
+            ],
+            'follows_gained' => [
+                'label' => 'Follower ottenuti dai post',
+                'about' => 'Nuovi follower attribuiti ai post pubblicati nel periodo.',
+            ],
+            'reach' => [
+                'label' => 'Copertura',
+                'about' => 'Account unici raggiunti dai post pubblicati nel periodo.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'Tempo di visualizzazione (min)',
+                'about' => 'Minuti totali guardati nei video pubblicati nel periodo.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Tempo medio di visualizzazione (s)',
+                'about' => 'Secondi medi guardati per visualizzazione.',
+            ],
+        ],
     ],
 
     'metrics' => [

@@ -11,14 +11,13 @@ return [
     'no_search_results' => 'Keine Labels passen zu deiner Suche',
     'try_different_search' => 'Versuche ein anderes Stichwort oder setze die Suche zurück.',
     'create_first_label' => 'Erstelle dein erstes Label',
-    'table' => [
-        'name' => 'Name',
-        'created_at' => 'Erstellt',
-    ],
 
     'actions' => [
         'edit' => 'Label bearbeiten',
         'delete' => 'Label löschen',
+        'more' => 'Weitere Aktionen',
+        'view_posts' => 'Beiträge ansehen',
+        'open_reporting' => 'Berichte öffnen',
     ],
 
     'create' => [
@@ -46,11 +45,5 @@ return [
         'description' => 'Möchtest du dieses Label wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
         'confirm' => 'Löschen',
         'cancel' => 'Abbrechen',
-    ],
-
-    'flash' => [
-        'created' => 'Label erfolgreich erstellt!',
-        'updated' => 'Label erfolgreich aktualisiert!',
-        'deleted' => 'Label erfolgreich gelöscht!',
     ],
 ];

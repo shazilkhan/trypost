@@ -154,7 +154,8 @@ onBeforeUnmount(() => {
 
         <div
             ref="scrollEl"
-            class="relative h-72 overflow-y-auto px-2 py-1"
+            data-testid="emoji-picker-scroll"
+            class="relative h-72 overflow-y-auto px-2 pb-1"
             @scroll.passive="onScroll"
         >
             <template v-if="isSearching">
@@ -205,6 +206,7 @@ onBeforeUnmount(() => {
                 <section v-for="category in EMOJI_CATEGORIES" :key="category">
                     <h3
                         :ref="setHeaderRef(category)"
+                        data-testid="emoji-picker-category-header"
                         class="sticky top-0 z-10 bg-card/95 px-1 py-1.5 text-[11px] font-black tracking-widest text-foreground/60 uppercase backdrop-blur"
                     >
                         {{ categoryLabel(category) }}
@@ -214,6 +216,7 @@ onBeforeUnmount(() => {
                             v-for="emoji in grouped[category]"
                             :key="emoji.c"
                             type="button"
+                            data-testid="emoji-picker-option"
                             class="flex size-9 cursor-pointer items-center justify-center rounded-md text-xl transition-colors hover:bg-foreground/5 focus:bg-foreground/5 focus:outline-none"
                             :title="emoji.n"
                             :aria-label="emoji.n"
@@ -235,7 +238,7 @@ onBeforeUnmount(() => {
                 class="flex size-8 cursor-pointer items-center justify-center rounded-md text-base transition-colors hover:bg-foreground/5 focus:bg-foreground/5 focus:outline-none"
                 :class="
                     activeCategory === 'recent' && !isSearching
-                        ? 'bg-amber-100 ring-2 ring-amber-300'
+                        ? 'bg-primary-subtle ring-2 ring-primary-strong'
                         : ''
                 "
                 :title="categoryLabel('recent')"
@@ -251,7 +254,7 @@ onBeforeUnmount(() => {
                 class="flex size-8 cursor-pointer items-center justify-center rounded-md text-base transition-colors hover:bg-foreground/5 focus:bg-foreground/5 focus:outline-none"
                 :class="
                     activeCategory === category && !isSearching
-                        ? 'bg-amber-100 ring-2 ring-amber-300'
+                        ? 'bg-primary-subtle ring-2 ring-primary-strong'
                         : ''
                 "
                 :title="categoryLabel(category)"

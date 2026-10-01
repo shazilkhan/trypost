@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Models\Post;
 use App\Models\User;
@@ -42,6 +43,7 @@ class PostFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => PostStatus::Scheduled,
+            'schedule_mode' => ScheduleMode::Custom,
             'scheduled_at' => now()->addDay(),
         ]);
     }

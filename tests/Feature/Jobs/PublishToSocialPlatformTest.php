@@ -20,6 +20,9 @@ use App\Exceptions\Social\LinkedInPublishException;
 use App\Exceptions\TokenExpiredException;
 use App\Jobs\PublishToSocialPlatform;
 use App\Jobs\SendNotification;
+use App\Mail\AccountDisconnected;
+use App\Mail\PostPublished;
+use App\Mail\PostPublishFailed;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -478,6 +481,14 @@ test('publish reschedules when pinterest video processing times out', function (
     Bus::fake([PublishToSocialPlatform::class]);
     Event::fake();
     Mail::fake();
+    $this->post->update(['media' => [[
+        'id' => 'video-1',
+        'path' => 'media/2026-01/pin.mp4',
+        'url' => 'https://example.com/media/2026-01/pin.mp4',
+        'type' => 'video',
+        'mime_type' => 'video/mp4',
+        'original_filename' => 'pin.mp4',
+    ]]]);
 
     $pinterestAccount = SocialAccount::factory()->pinterest()->create([
         'workspace_id' => $this->workspace->id,
@@ -1058,7 +1069,6 @@ test('terminal TikTok account guards keep derivatives while a publish_id can be 
     Storage::put($path, 'image');
 
     $accountAttributes = match ($guard) {
-        'inactive' => ['is_active' => false],
         'disconnected' => ['status' => AccountStatus::Disconnected],
         'token_expired' => ['status' => AccountStatus::TokenExpired],
         'missing_scopes' => ['scopes' => []],
@@ -1094,14 +1104,12 @@ test('terminal TikTok account guards keep derivatives while a publish_id can be 
     }
 
     $translationKey = match ($guard) {
-        'inactive' => 'posts.errors.account_inactive',
         'disconnected' => 'posts.errors.account_disconnected',
         'token_expired' => 'posts.errors.account_token_expired',
     };
 
     expect($platform->error_message)->toBe(__($translationKey));
 })->with([
-    'inactive account' => 'inactive',
     'disconnected account' => 'disconnected',
     'expired token' => 'token_expired',
     'missing publish scopes' => 'missing_scopes',
@@ -1116,7 +1124,6 @@ test('terminal TikTok account guards prune derivatives when there is no publish_
     Storage::put($path, 'image');
 
     $accountAttributes = match ($guard) {
-        'inactive' => ['is_active' => false],
         'disconnected' => ['status' => AccountStatus::Disconnected],
         'token_expired' => ['status' => AccountStatus::TokenExpired],
         'missing_scopes' => ['scopes' => []],
@@ -1140,7 +1147,6 @@ test('terminal TikTok account guards prune derivatives when there is no publish_
     expect($platform->fresh()->status)->toBe(PlatformStatus::Failed)
         ->and($platform->fresh()->error_context['tiktok_publish_id'] ?? null)->toBeNull();
 })->with([
-    'inactive account' => 'inactive',
     'disconnected account' => 'disconnected',
     'expired token' => 'token_expired',
     'missing publish scopes' => 'missing_scopes',
@@ -1169,6 +1175,7 @@ test('tiktok photo publish resumes after a status-fetch token expiry without a s
     $platform = PostPlatform::factory()->tiktok()->create([
         'post_id' => $this->post->id,
         'social_account_id' => $account->id,
+        'content_type' => ContentType::TikTokPhoto,
         'status' => PlatformStatus::Pending,
         'enabled' => true,
         'meta' => ['privacy_level' => PrivacyLevel::SelfOnly->value],
@@ -1292,8 +1299,8 @@ test('pinterest media status 401 marks the account token expired and notifies to
 
     Queue::assertPushed(SendNotification::class, function ($job) use ($pinterestAccount) {
         return $job->type === Type::AccountDisconnected
-            && data_get($job->data, 'social_account_id') === $pinterestAccount->id
-            && str_contains($job->title, 'needs to be reconnected');
+            && $job->mailable instanceof AccountDisconnected
+            && $job->mailable->account->is($pinterestAccount);
     });
 });
 
@@ -1396,23 +1403,6 @@ test('publish to social platform skips publishing when account token is expired'
     expect($this->postPlatform->error_context['category'])->toBe('token_expired');
 });
 
-test('publish to social platform skips publishing when account is inactive', function () {
-    Event::fake();
-
-    $this->socialAccount->update(['is_active' => false]);
-
-    $publisher = Mockery::mock(LinkedInPublisher::class);
-    $publisher->shouldNotReceive('publish');
-
-    $this->app->instance(LinkedInPublisher::class, $publisher);
-
-    (new PublishToSocialPlatform($this->postPlatform))->handle();
-
-    $this->postPlatform->refresh();
-    expect($this->postPlatform->status)->toBe(PlatformStatus::Failed);
-    expect($this->postPlatform->error_message)->toBe(__('posts.errors.account_inactive'));
-});
-
 test('publish to social platform dispatches success notification when all platforms published', function () {
     Event::fake();
     Queue::fake();
@@ -1452,7 +1442,7 @@ test('publish to social platform dispatches failure notification when platform f
     Queue::assertPushed(SendNotification::class);
 });
 
-test('in-app published notification falls back to the facebook page display name', function () {
+test('a published post queues the published email for the owner', function () {
     Event::fake();
     Queue::fake();
 
@@ -1482,16 +1472,14 @@ test('in-app published notification falls back to the facebook page display name
     (new PublishToSocialPlatform($postPlatform))->handle();
 
     Queue::assertPushed(SendNotification::class, function (SendNotification $job) use ($post) {
-        $platforms = 'Facebook Page (@InboxPlacement.io)';
-
         return $job->type === Type::PostPublished
-            && $job->title === __('notifications.post_published.title')
-            && $job->body === __('notifications.post_published.body', ['platforms' => $platforms])
-            && data_get($job->data, 'post_id') === $post->id;
+            && $job->user->is($this->user)
+            && $job->mailable instanceof PostPublished
+            && $job->mailable->post->is($post);
     });
 });
 
-test('in-app failed notification falls back to the facebook page display name', function () {
+test('a failed post queues the failed email for the owner', function () {
     Event::fake();
     Queue::fake();
 
@@ -1518,12 +1506,10 @@ test('in-app failed notification falls back to the facebook page display name', 
     (new PublishToSocialPlatform($postPlatform))->handle();
 
     Queue::assertPushed(SendNotification::class, function (SendNotification $job) use ($post) {
-        $platforms = 'Facebook Page (@InboxPlacement.io)';
-
         return $job->type === Type::PostFailed
-            && $job->title === __('notifications.post_failed.title')
-            && $job->body === __('notifications.post_failed.body', ['platforms' => $platforms])
-            && data_get($job->data, 'post_id') === $post->id;
+            && $job->user->is($this->user)
+            && $job->mailable instanceof PostPublishFailed
+            && $job->mailable->post->is($post);
     });
 });
 

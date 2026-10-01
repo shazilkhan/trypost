@@ -42,6 +42,7 @@ class WorkspaceInviteController extends Controller
                     'id' => $member->id,
                     'name' => $member->name,
                     'email' => $member->email,
+                    'photo_url' => $member->photo_url,
                     'role' => $member->pivot->role,
                 ]),
             'owner' => [

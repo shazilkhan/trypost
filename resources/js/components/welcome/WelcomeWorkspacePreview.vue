@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { IconCheck } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -26,7 +25,7 @@ const persona = computed(() =>
     props.summary.persona
         ? {
               meta: welcomeOptionMeta(personaMeta, props.summary.persona),
-              label: trans(`welcome.personas.${props.summary.persona}`),
+              labelKey: `welcome.personas.${props.summary.persona}`,
           }
         : null,
 );
@@ -35,7 +34,7 @@ const goals = computed(() =>
     props.summary.goals.map((goal) => ({
         value: goal,
         meta: welcomeOptionMeta(goalMeta, goal),
-        label: trans(`welcome.goals.${goal}`),
+        labelKey: `welcome.goals.${goal}`,
     })),
 );
 
@@ -50,40 +49,39 @@ const isCurrent = (key: WelcomeStep): boolean => props.step === key;
 const EMPTY_NETWORK_SLOTS = 3;
 
 const PENDING_CLASS =
-    'inline-flex items-center rounded-full border border-dashed border-border px-3 py-1 text-xs font-semibold text-muted-foreground';
+    'inline-flex items-center rounded-lg border border-dashed border-border-strong px-3 py-1 text-xs font-medium text-muted-foreground';
 </script>
 
 <template>
     <div class="flex flex-col gap-6" data-testid="welcome-preview">
         <h2
-            class="text-3xl leading-[1.1] tracking-tight text-balance text-foreground"
-            style="font-family: var(--font-display)"
+            class="motion-auth-reveal font-heading text-[32px] leading-[1.12] font-normal tracking-[-0.03em] text-balance text-foreground"
         >
             {{ $t('welcome.preview.heading') }}
         </h2>
 
         <div
-            class="overflow-hidden rounded-2xl border border-border bg-card shadow-md"
+            class="motion-auth-fade overflow-hidden rounded-xl border border-border bg-card"
         >
-            <ul class="divide-y divide-foreground/10">
+            <ul class="divide-y divide-border">
                 <li
                     v-for="row in rows"
                     :key="row.key"
                     :class="[
-                        'px-5 py-4 transition-colors duration-300 motion-reduce:transition-none',
-                        isCurrent(row.key) ? 'bg-amber-50/70' : '',
+                        'p-4 transition-control',
+                        isCurrent(row.key) ? 'bg-muted' : '',
                     ]"
                     :data-testid="`welcome-preview-${row.key}`"
                 >
                     <div class="flex items-center justify-between gap-3">
                         <span
-                            class="text-xs font-semibold text-muted-foreground"
+                            class="text-xs font-medium text-muted-foreground"
                         >
                             {{ $t(`welcome.steps.${row.key}`) }}
                         </span>
                         <span
                             v-if="row.done"
-                            class="inline-flex size-5 items-center justify-center rounded-full border border-border bg-emerald-200 text-emerald-800"
+                            class="inline-flex size-5 items-center justify-center rounded-full bg-success-subtle text-success-text"
                             aria-hidden="true"
                         >
                             <IconCheck class="size-3" stroke-width="3" />
@@ -94,11 +92,11 @@ const PENDING_CLASS =
                         <template v-if="row.key === 'persona'">
                             <span
                                 v-if="persona"
-                                class="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-card py-1 ps-1 pe-3 shadow-2xs"
+                                class="inline-flex max-w-full items-center gap-2 rounded-lg border border-border-strong bg-card py-1 ps-1 pe-3"
                             >
                                 <span
                                     :class="[
-                                        'inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border',
+                                        'inline-flex size-6 shrink-0 items-center justify-center rounded-md',
                                         persona.meta.badge,
                                     ]"
                                 >
@@ -111,8 +109,8 @@ const PENDING_CLASS =
                                         stroke-width="2.25"
                                     />
                                 </span>
-                                <span class="truncate text-sm font-bold">{{
-                                    persona.label
+                                <span class="truncate text-sm font-medium">{{
+                                    $t(persona.labelKey)
                                 }}</span>
                             </span>
                             <span v-else :class="PENDING_CLASS">
@@ -128,11 +126,11 @@ const PENDING_CLASS =
                                 <span
                                     v-for="goal in goals"
                                     :key="goal.value"
-                                    class="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-card py-1 ps-1 pe-3 shadow-2xs"
+                                    class="inline-flex max-w-full items-center gap-2 rounded-lg border border-border-strong bg-card py-1 ps-1 pe-3"
                                 >
                                     <span
                                         :class="[
-                                            'inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border',
+                                            'inline-flex size-6 shrink-0 items-center justify-center rounded-md',
                                             goal.meta.badge,
                                         ]"
                                     >
@@ -145,8 +143,8 @@ const PENDING_CLASS =
                                             stroke-width="2.25"
                                         />
                                     </span>
-                                    <span class="truncate text-sm font-bold">{{
-                                        goal.label
+                                    <span class="truncate text-sm font-medium">{{
+                                        $t(goal.labelKey)
                                     }}</span>
                                 </span>
                             </div>
@@ -160,7 +158,7 @@ const PENDING_CLASS =
                                 v-if="summary.networks.length > 0"
                                 tag="div"
                                 class="flex flex-wrap gap-2.5"
-                                enter-active-class="animate-in zoom-in-50 fade-in duration-300 motion-reduce:animate-none"
+                                enter-active-class="animate-in zoom-in-95 fade-in duration-200 motion-reduce:animate-none"
                             >
                                 <span
                                     v-for="network in summary.networks"
@@ -185,11 +183,11 @@ const PENDING_CLASS =
                                                         :name="
                                                             network.display_label
                                                         "
-                                                        class="size-10 shrink-0 rounded-full border border-border shadow-2xs"
-                                                        fallback-class="bg-secondary text-xs font-black"
+                                                        class="size-10 shrink-0 rounded-lg"
+                                                        fallback-class="rounded-lg bg-secondary text-xs font-medium"
                                                     />
                                                     <span
-                                                        class="absolute -right-1 -bottom-1 inline-flex size-5 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
+                                                        class="absolute -end-1 -bottom-1 inline-flex size-5 items-center justify-center overflow-hidden rounded-md bg-card ring-2 ring-card"
                                                     >
                                                         <img
                                                             :src="
@@ -239,7 +237,7 @@ const PENDING_CLASS =
                                 <span
                                     v-for="slot in EMPTY_NETWORK_SLOTS"
                                     :key="slot"
-                                    class="size-10 shrink-0 rounded-xl border border-dashed border-border"
+                                    class="size-10 shrink-0 rounded-lg border border-dashed border-border-strong"
                                     aria-hidden="true"
                                 />
                                 <span

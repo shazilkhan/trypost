@@ -34,13 +34,6 @@ return [
         'ignore' => '계정을 만든 적이 없다면 이 메일을 무시하셔도 됩니다.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name님이 TryPost에서 회원님을 멘션했습니다',
-        'title' => ':name님이 회원님을 멘션했습니다',
-        'intro' => ':name님이 게시물 메모에서 회원님을 멘션했습니다.',
-        'button' => '메모 보기',
-    ],
-
     'password_reset' => [
         'subject' => '비밀번호를 재설정하세요',
         'preview' => '비밀번호를 재설정하세요.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} 예약 게시물 :count건: :times UTC|[0,*] 예약 게시물 :count건: :times UTC',
         'reconnect_cta' => '예약한 게시물을 놓치지 않도록 지금 계정을 다시 연결하세요.',
         'button' => '계정 다시 연결',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author님이 게시물에 메모를 추가했습니다',
+        'title' => ':author님의 새 메모',
+        'heading' => '게시물의 새 메모',
+        'body' => ':author님이 :workspace 워크스페이스의 게시물에 메모를 추가했습니다.',
+        'post_title' => '게시물',
+        'post_without_text' => '이 게시물에는 아직 텍스트가 없습니다.',
+        'button' => '메모 보기',
     ],
 
     'post_publish_failed' => [

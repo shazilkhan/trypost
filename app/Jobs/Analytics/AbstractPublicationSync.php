@@ -70,7 +70,6 @@ abstract class AbstractPublicationSync implements ShouldQueue
     ): void {
         $account = SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
             ->find($this->socialAccountId);
 

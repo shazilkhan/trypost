@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Enums\UserWorkspace\Role;
 use App\Events\PostNoteChanged;
 use App\Jobs\SendNotification;
+use App\Mail\PostNoteAdded;
 use App\Models\Post;
 use App\Models\PostNote;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
@@ -104,80 +106,112 @@ test('store creates a reply', function () {
     ]);
 });
 
-test('index returns mentioned_users map for chip rendering', function () {
-    $other = User::factory()->create(['name' => 'Other Member']);
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+test('store emails every workspace member except the author', function () {
+    Mail::fake();
 
-    PostNote::factory()->create([
-        'post_id' => $this->post->id,
-        'user_id' => $this->user->id,
-        'body' => "Ping @[{$other->id}] please",
-    ]);
+    $admin = User::factory()->create();
+    $member = User::factory()->create();
+    $this->workspace->members()->attach($admin->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
 
-    $response = $this->actingAs($this->user)
-        ->getJson(route('app.posts.notes.index', $this->post));
+    $outsider = User::factory()->create();
+    Workspace::factory()->create(['user_id' => $outsider->id])->members()->attach($outsider->id, ['role' => Role::Admin->value]);
 
-    $response->assertOk();
-    $response->assertJsonPath("mentioned_users.{$other->id}", 'Other Member');
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => "Can someone review?\nThanks"])
+        ->assertCreated();
+
+    $note = PostNote::query()->sole();
+
+    Mail::assertQueuedCount(2);
+    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($admin->email)
+        && $mail->note->is($note)
+        && $mail->author->is($this->user));
+    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($member->email));
+    Mail::assertNotQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($this->user->email));
+    Mail::assertNotQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($outsider->email));
 });
 
-test('index does not disclose names of users outside the workspace', function () {
-    $outsider = User::factory()->create(['name' => 'Private Name']);
+test('store emails the workspace owner when a member adds a note', function () {
+    Mail::fake();
 
-    PostNote::factory()->create([
+    $member = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+
+    $this->actingAs($member)
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Looks good'])
+        ->assertCreated();
+
+    Mail::assertQueuedCount(1);
+    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($this->user->email));
+});
+
+test('store emails members about a reply too', function () {
+    Mail::fake();
+
+    $member = User::factory()->create();
+    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+
+    $parent = PostNote::factory()->create([
         'post_id' => $this->post->id,
-        'user_id' => $this->user->id,
-        'body' => "Ping @[{$outsider->id}]",
+        'user_id' => $member->id,
     ]);
 
     $this->actingAs($this->user)
-        ->getJson(route('app.posts.notes.index', $this->post))
-        ->assertOk()
-        ->assertJsonPath('mentioned_users', []);
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Done', 'parent_id' => $parent->id])
+        ->assertCreated();
+
+    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($member->email));
 });
 
-test('store dispatches a mention notification to a workspace member', function () {
-    Queue::fake();
+test('store respects a member who turned note emails off', function () {
+    Mail::fake();
 
-    $other = User::factory()->create();
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+    $member = User::factory()->create();
+    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $member->notificationPreference()->create(['post_note_added' => false]);
 
-    $response = $this->actingAs($this->user)
-        ->postJson(route('app.posts.notes.store', $this->post), [
-            'body' => "Hey @[{$other->id}] please review",
-        ]);
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Hello'])
+        ->assertCreated();
 
-    $response->assertCreated();
-
-    Queue::assertPushed(
-        SendNotification::class,
-        fn ($job) => $job->user->id === $other->id
-    );
+    Mail::assertNothingQueued();
 });
 
-test('update with newly added mention dispatches a notification', function () {
+test('store sends nothing when the author is the only member', function () {
     Queue::fake();
 
-    $other = User::factory()->create();
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Just me'])
+        ->assertCreated();
 
-    $comment = PostNote::factory()->create([
+    Queue::assertNotPushed(SendNotification::class);
+});
+
+test('update, delete and react send no email', function () {
+    Queue::fake();
+
+    $member = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+
+    $note = PostNote::factory()->create([
         'post_id' => $this->post->id,
         'user_id' => $this->user->id,
-        'body' => 'Plain body, no mention.',
     ]);
 
-    $response = $this->actingAs($this->user)
-        ->putJson(route('app.posts.notes.update', [$this->post, $comment]), [
-            'body' => "Updated to mention @[{$other->id}]",
-        ]);
+    $this->actingAs($this->user)
+        ->putJson(route('app.posts.notes.update', [$this->post, $note]), ['body' => 'Edited'])
+        ->assertOk();
 
-    $response->assertOk();
+    $this->actingAs($member)
+        ->postJson(route('app.posts.notes.react', [$this->post, $note]), ['emoji' => '👍'])
+        ->assertOk();
 
-    Queue::assertPushed(
-        SendNotification::class,
-        fn ($job) => $job->user->id === $other->id
-    );
+    $this->actingAs($this->user)
+        ->deleteJson(route('app.posts.notes.destroy', [$this->post, $note]))
+        ->assertNoContent();
+
+    Queue::assertNotPushed(SendNotification::class);
 });
 
 test('store rejects reply to a reply', function () {

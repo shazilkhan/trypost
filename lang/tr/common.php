@@ -12,7 +12,7 @@ return [
         'type' => 'Yazın:',
         'to_confirm' => 'onaylamak için.',
         'copy_to_clipboard' => 'Panoya kopyala',
-        'delete_keyword' => 'sil',
+        'delete_keyword' => 'SİL',
     ],
 
     'photo_upload' => [

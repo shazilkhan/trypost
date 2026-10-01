@@ -9,14 +9,13 @@ return [
     'no_search_results' => 'Geen labels komen overeen met je zoekopdracht',
     'try_different_search' => 'Probeer een ander zoekwoord of wis de zoekopdracht.',
     'create_first_label' => 'Maak je eerste label aan',
-    'table' => [
-        'name' => 'Naam',
-        'created_at' => 'Aangemaakt',
-    ],
 
     'actions' => [
         'edit' => 'Label bewerken',
         'delete' => 'Label verwijderen',
+        'more' => 'Meer acties',
+        'view_posts' => 'Berichten bekijken',
+        'open_reporting' => 'Rapportage openen',
     ],
 
     'create' => [
@@ -44,11 +43,5 @@ return [
         'description' => 'Weet je zeker dat je dit label wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
         'confirm' => 'Verwijderen',
         'cancel' => 'Annuleren',
-    ],
-
-    'flash' => [
-        'created' => 'Label succesvol aangemaakt!',
-        'updated' => 'Label succesvol bijgewerkt!',
-        'deleted' => 'Label succesvol verwijderd!',
     ],
 ];

@@ -24,10 +24,8 @@ class DispatchPublicationDiscovery extends Command
 
         SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
             ->with('analyticsSyncStates')
-            ->reorder()
             ->lazyById(100)
             ->each(function (SocialAccount $account) use ($staleBefore): void {
                 $backfill = $account->analyticsSyncStates

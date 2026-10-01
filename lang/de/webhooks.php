@@ -9,8 +9,6 @@ return [
     'empty_title' => 'Noch keine Webhooks',
     'empty_description' => 'Erstelle einen Webhook, um Ereignisbenachrichtigungen in Echtzeit zu empfangen.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => 'Hört auf',
         'status' => 'Status',
         'last_sent' => 'Zuletzt gesendet',
     ],

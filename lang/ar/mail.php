@@ -34,13 +34,6 @@ return [
         'ignore' => 'إذا لم تنشئ حسابًا، يمكنك تجاهل هذه الرسالة.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => 'أشار إليك :name على TryPost',
-        'title' => 'أشار إليك :name',
-        'intro' => 'أشار إليك :name في ملاحظة على منشور.',
-        'button' => 'عرض الملاحظة',
-    ],
-
     'password_reset' => [
         'subject' => 'أعد تعيين كلمة المرور',
         'preview' => 'أعد تعيين كلمة المرور.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} منشور واحد مجدول: :times UTC|[0,*] :count منشورات مجدولة: :times UTC',
         'reconnect_cta' => 'أعد ربط هذه الحسابات الآن حتى لا تفوتك منشوراتك المجدولة.',
         'button' => 'إعادة ربط الحسابات',
+    ],
+
+    'post_note_added' => [
+        'subject' => 'أضاف :author ملاحظة إلى منشور',
+        'title' => 'ملاحظة جديدة من :author',
+        'heading' => 'ملاحظة جديدة على منشور',
+        'body' => 'أضاف :author ملاحظة إلى منشور في مساحة العمل :workspace.',
+        'post_title' => 'المنشور',
+        'post_without_text' => 'لا يحتوي هذا المنشور على نص بعد.',
+        'button' => 'عرض الملاحظة',
     ],
 
     'post_publish_failed' => [

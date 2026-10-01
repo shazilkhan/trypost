@@ -6,16 +6,7 @@ use App\Enums\Analytics\MetricKey;
 use App\Enums\Analytics\MetricTimeBasis;
 use App\Enums\Analytics\PublicationContentType;
 use App\Enums\User\Locale;
-use App\Enums\Workspace\ContentLanguage;
 use Illuminate\Support\Arr;
-
-test('every UI locale is a supported content language', function () {
-    expect(Locale::values())->toEqualCanonicalizing(ContentLanguage::values());
-});
-
-test('the default UI locale is a supported content language', function () {
-    expect(Locale::DEFAULT->value)->toBeIn(ContentLanguage::values());
-});
 
 test('locale ships every base translation file with identical keys', function (string $locale) {
     $missingFiles = [];

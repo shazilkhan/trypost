@@ -323,7 +323,7 @@ likes, favorites, and reactions. Comments include native comments and replies
 when the platform exposes replies as its comment-equivalent metric. The
 underlying native name remains available in the post detail and tooltip.
 
-Engagement follows the Buffer-style model approved for this design. Each
+Engagement follows the industry-standard model approved for this design. Each
 platform collector normalizes the interactions that its API treats as
 engagement, such as reactions, comments, reposts/shares, saves, and clicks when
 available. Exposure uses the platform-appropriate impressions, reach, or views
@@ -442,44 +442,44 @@ labels are presentation only and are never stored as metric identity. An
 unsupported metric is omitted or marked unavailable; an API error must not
 replace the most recent successful value with zero.
 
-### Buffer per-post reference audit
+### Industry per-post reference audit
 
-Buffer's Sent-post and Insights documentation provides the following UX and
+Industry reference documentation for sent posts and insights provides the following UX and
 normalization reference for individual posts. It is a discovery catalog, not
 proof that TryPost's credentials, scopes, account type, or current API version
 can retrieve every value. Each collector still requires verification against
 the network's official API documentation before implementation.
 
-| Channel | Per-post metrics exposed or named by Buffer |
+| Channel | Per-post metrics exposed or named by the industry reference |
 | --- | --- |
 | Instagram Professional | Reactions/likes, comments, reposts/shares, views or impressions, reach, saves, follows, and engagement rate; availability varies between Feed, Reel, and Story |
 | Facebook Page | Reactions, comments, shares/reposts, clicks, reach, views, impressions where still returned, and engagement rate; Group analytics are excluded |
-| X/Twitter | Reactions/likes, replies/comments, reposts, quotes, clicks, impressions on the Sent surface, and a Buffer-derived engagement rate |
+| X/Twitter | Reactions/likes, replies/comments, reposts, quotes, clicks, impressions on the Sent surface, and a derived engagement rate |
 | LinkedIn Page | Reactions, comments, reposts/shares, impressions, engagement rate, and for video: views, total watch time in minutes, and unique viewers |
 | LinkedIn personal profile | Reactions, comments, reach, impressions, video views, and engagement rate; reliable repost counts are not available |
-| Pinterest business | Reactions, comments, saves, clicks, impressions, views, and engagement rate where Buffer has a valid exposure value |
+| Pinterest business | Reactions, comments, saves, clicks, impressions, views, and engagement rate where a valid exposure value exists |
 | Mastodon | Favorites/reactions, replies/comments, and reblogs/reposts |
 | TikTok | Reactions/likes, comments, shares/reposts, views, reach, and engagement rate |
-| YouTube | Reactions/likes, comments, video views, shares in aggregate reporting, and a derived engagement rate where Buffer can calculate one |
+| YouTube | Reactions/likes, comments, video views, shares in aggregate reporting, and a derived engagement rate where one can be calculated |
 | Threads | Reactions/likes, comments/replies, reposts, quotes, views, and engagement rate |
 | Bluesky | Reactions/likes, replies/comments, reposts, quotes, and a derived engagement rate |
 
-Buffer does not provide this per-post reference for Telegram, Discord, or
+The industry reference does not provide this per-post reference for Telegram, Discord, or
 Google Business Profile, and it does not expose post analytics for Instagram
 Personal accounts or Facebook Groups. Together with the product decision for
 this release, that absence keeps Telegram, Discord, and Google Business Profile
 outside analytics v1. Existing locally available reactions, replies, or account
 counts for those networks are not promoted into the new analytics surfaces.
 
-The Buffer product surfaces are not internally identical. Sent posts, the new
+Reference product surfaces are not internally identical. Sent posts, the new
 Insights product, and the retiring Analyze product can expose different metrics
-and historical windows. For example, Buffer documents X impressions in Sent
+and historical windows. For example, reference tools document X impressions in Sent
 posts while also saying its Insights visibility view has no X impressions or
 views. TryPost records the provider metric identity, source, time basis, and
-formula so a value is never promoted merely because another Buffer surface
+formula so a value is never promoted merely because another reference surface
 lists it.
 
-Buffer's normalization vocabulary is useful and is adopted for cross-network
+The industry normalization vocabulary is useful and is adopted for cross-network
 presentation only:
 
 - `Reactions` covers native likes, favorites, and reactions;
@@ -490,7 +490,7 @@ presentation only:
   plus its interaction numerator and exposure denominator.
 
 Compared with the existing request-time TryPost collectors, the audit produces
-the following implementation inventory. A Buffer-only metric is a candidate to
+the following implementation inventory. A reference-only metric is a candidate to
 verify, not permission to invent or request an undocumented field.
 
 | Channel | Existing TryPost per-post collector | Candidate gap to verify |
@@ -501,11 +501,11 @@ verify, not permission to invent or request an undocumented field.
 | LinkedIn Page | Impressions, clicks, likes, comments, and shares | Deferred to v2: provider engagement rate plus video views, watch time, and unique viewers |
 | LinkedIn personal profile | Likes and comments | Deferred to v2: impressions, reach, reliable video views, and derived engagement inputs under newly approved scopes |
 | Pinterest | Impressions, saves, Pin clicks, outbound clicks, and video views | Lifetime reactions/comments, rates, audience values, and video-retention metrics described below |
-| Mastodon | Favorites, replies, and reblogs | No Buffer-identified basic metric gap |
-| TikTok | Views, likes, comments, and shares | Reach is a Buffer candidate but is unavailable in TryPost's currently approved Display API fields |
+| Mastodon | Favorites, replies, and reblogs | No reference-identified basic metric gap |
+| TikTok | Views, likes, comments, and shares | Reach is a reference candidate but is unavailable in TryPost's currently approved Display API fields |
 | YouTube | Views, total watch time, average view duration, likes, comments, and shares | Engaged views, average percentage viewed, and subscriber change described below |
-| Threads | Views, likes, replies, reposts, and quotes | No Buffer-identified basic metric gap |
-| Bluesky | Likes, replies, reposts, and quotes | No Buffer-identified basic metric gap |
+| Threads | Views, likes, replies, reposts, and quotes | No reference-identified basic metric gap |
+| Bluesky | Likes, replies, reposts, and quotes | No reference-identified basic metric gap |
 
 LinkedIn rows above are v2 research only. They are not part of the v1 collector
 or persistence scope. Telegram, Discord, and Google Business Profile are omitted
@@ -875,7 +875,7 @@ social-account key, platform, and provider post id. It contains:
 
 `external` means only that TryPost did not publish the record. Provider APIs do
 not reliably distinguish a manual native-app post from a post created by
-Buffer or another client, so the UI says `Published on <Platform>` rather than
+a third-party client, so the UI says `Published on <Platform>` rather than
 claiming it was posted manually. A matching `post_platform_id` proves TryPost
 origin and produces `Published via TryPost`.
 
@@ -1340,7 +1340,7 @@ design is approved and implemented.
   every post card. One daily publication snapshot keeps the metric set atomic.
 - **Including LinkedIn, Telegram, Discord, or Google Business Profile in v1.**
   LinkedIn requires the separately vetted product for a coherent implementation;
-  the other three are outside the chosen product scope and lack a Buffer
+  the other three are outside the chosen product scope and lack an industry
   per-post analytics reference. LinkedIn is deferred as a whole to v2; the
   others require a new future product decision.
 - **Keeping Posts limited to TryPost deliveries.** It would make a newly
@@ -1416,12 +1416,6 @@ design is approved and implemented.
 - Pinterest's official generated API client, including `pin_metrics` lifetime
   comments/reactions and Pin Analytics parameters:
   <https://github.com/pinterest/pinterest-python-generated-api-client/blob/main/docs/PinsApi.md>
-- Buffer sent-post metric matrix, Insights behavior, and documented
-  cross-surface/provider differences:
-  <https://support.buffer.com/en-us/articles/understanding-sent-post-metrics-within-buffers-publish-dashboard-kppgBDLK6y>,
-  <https://support.buffer.com/en-us/articles/using-insights-in-buffer-x4gLauQU5a>,
-  and
-  <https://support.buffer.com/en-us/articles/why-your-data-in-buffer-insights-might-look-different-from-native-analytics-CryTKTdV0u>
 
 ## Delivery gates
 

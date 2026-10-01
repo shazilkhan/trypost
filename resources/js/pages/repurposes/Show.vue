@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     IconAlertTriangle,
+    IconArrowLeft,
     IconCircleCheck,
     IconHistory,
     IconLoader2,
@@ -21,6 +22,7 @@ import RepurposeLifecycle from '@/components/repurpose/RepurposeLifecycle.vue';
 import RepurposeSummary from '@/components/repurpose/RepurposeSummary.vue';
 import SourceFormatCard from '@/components/repurpose/SourceFormatCard.vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
@@ -34,7 +36,11 @@ import { getPlatformMetaIssue } from '@/composables/usePostCompliance';
 import debounce from '@/debounce';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { MediaType } from '@/lib/mediaType';
-import { destroy, update } from '@/routes/app/repurposes';
+import {
+    destroy,
+    index as repurposesIndex,
+    update,
+} from '@/routes/app/repurposes';
 import type { PinterestBoard } from '@/types';
 import type {
     Channel,
@@ -149,16 +155,6 @@ const channels = computed<Channel[]>(() =>
 
 const selectedAccountIds = computed(() =>
     form.destinations.map((destination) => destination.social_account_id),
-);
-
-const pausedDestinations = computed(() =>
-    props.destinationAccounts
-        .filter(
-            (account) =>
-                account.is_active === false &&
-                selectedAccountIds.value.includes(account.id),
-        )
-        .map((account) => account.display_label ?? account.display_name),
 );
 
 const toggleDestination = (accountId: string) => {
@@ -310,15 +306,32 @@ const handleDelete = () => {
 <template>
     <Head :title="$t('repurposes.show.title')" />
 
-    <AppLayout>
-        <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">
+    <AppLayout full-width>
+        <div
+            class="flex h-full min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-10 md:px-8"
+        >
             <header class="space-y-4">
                 <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div class="space-y-2">
-                        <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex min-w-0 items-start gap-2">
+                        <Button
+                            as-child
+                            variant="ghost"
+                            size="icon"
+                            class="shrink-0 text-muted-foreground"
+                        >
+                            <Link
+                                :href="repurposesIndex.url()"
+                                :aria-label="$t('repurposes.title')"
+                                :title="$t('repurposes.title')"
+                                data-testid="repurpose-back"
+                            >
+                                <IconArrowLeft class="size-4" />
+                            </Link>
+                        </Button>
+                    <div class="min-w-0 space-y-1">
+                        <div class="flex flex-wrap items-center gap-2">
                             <h1
-                                class="text-2xl leading-tight font-semibold text-foreground sm:text-4xl"
-                                style="font-family: var(--font-display)"
+                                class="font-heading text-xl leading-tight font-medium text-foreground"
                             >
                                 {{ $t('repurposes.show.title') }}
                             </h1>
@@ -327,6 +340,7 @@ const handleDelete = () => {
                                 :variant="
                                     repurposeStatusVariant(repurpose.status)
                                 "
+                                class="h-6 px-2"
                             >
                                 {{
                                     $t(`repurposes.status.${repurpose.status}`)
@@ -341,11 +355,12 @@ const handleDelete = () => {
                             :destination-accounts="destinationAccounts"
                         />
                     </div>
+                    </div>
 
                     <div class="flex items-center gap-3">
                         <span
                             v-if="isSaving"
-                            class="flex items-center gap-1.5 text-xs font-semibold text-foreground/70"
+                            class="flex items-center gap-1.5 text-xs text-muted-foreground"
                             data-testid="repurpose-saving"
                         >
                             <IconLoader2 class="size-3.5 animate-spin" />
@@ -353,13 +368,10 @@ const handleDelete = () => {
                         </span>
                         <span
                             v-else-if="showSaved"
-                            class="flex items-center gap-1.5 text-xs font-semibold text-emerald-700"
+                            class="flex items-center gap-1.5 text-xs text-success-text"
                             data-testid="repurpose-saved"
                         >
-                            <IconCircleCheck
-                                class="size-3.5"
-                                stroke-width="2.5"
-                            />
+                            <IconCircleCheck class="size-3.5" />
                             {{ $t('repurposes.show.saved') }}
                         </span>
 
@@ -378,25 +390,25 @@ const handleDelete = () => {
 
                 <p
                     v-if="repurpose.last_error"
-                    class="flex items-start gap-2 rounded-lg border border-border bg-rose-50 p-2 text-xs font-semibold text-rose-700"
+                    class="flex items-start gap-2 rounded-lg bg-critical-subtle px-4 py-3 text-sm text-destructive-text"
                 >
-                    <IconAlertTriangle class="mt-0.5 size-3.5 shrink-0" />
+                    <IconAlertTriangle class="mt-0.5 size-4 shrink-0" />
                     {{ repurpose.last_error }}
                 </p>
 
-                <Card>
-                    <CardContent class="py-6">
-                        <RepurposeFlow
-                            :source="flowSource"
-                            :destinations="flowDestinations"
-                            size="lg"
-                        />
-                    </CardContent>
-                </Card>
+                <div
+                    class="rounded-xl border border-border bg-muted px-4 py-6"
+                >
+                    <RepurposeFlow
+                        :source="flowSource"
+                        :destinations="flowDestinations"
+                        size="lg"
+                    />
+                </div>
             </header>
 
-            <Tabs default-value="configuration">
-                <TabsList>
+            <Tabs default-value="configuration" class="gap-6">
+                <TabsList variant="line">
                     <TabsTrigger
                         value="configuration"
                         data-testid="tab-configuration"
@@ -441,24 +453,6 @@ const handleDelete = () => {
                                 </CardHeader>
 
                                 <CardContent>
-                                    <p
-                                        v-if="pausedDestinations.length > 0"
-                                        class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:text-amber-400"
-                                        data-testid="paused-destinations-note"
-                                    >
-                                        {{
-                                            $t(
-                                                'repurposes.destinations.paused_note',
-                                                {
-                                                    accounts:
-                                                        pausedDestinations.join(
-                                                            ', ',
-                                                        ),
-                                                },
-                                            )
-                                        }}
-                                    </p>
-
                                     <ChannelConfigurator
                                         :channels="channels"
                                         :media="plannedMedia"

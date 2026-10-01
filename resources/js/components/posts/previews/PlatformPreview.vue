@@ -16,22 +16,13 @@ import PinterestPreview from './PinterestPreview.vue';
 import TelegramPreview from './TelegramPreview.vue';
 import ThreadsPreview from './ThreadsPreview.vue';
 import TikTokPreview from './TikTokPreview.vue';
+import type { PreviewAccount } from './types';
 import XPreview from './XPreview.vue';
 import YouTubePreview from './YouTubePreview.vue';
 
-interface SocialAccount {
-    id: string;
-    platform: string;
-    display_name: string;
-    username: string;
-    display_label: string;
-    handle_label: string;
-    avatar_url: string | null;
-}
-
 interface Props {
     platform: string;
-    socialAccount: SocialAccount | null | undefined;
+    socialAccount: PreviewAccount | null | undefined;
     content: string;
     media: MediaItem[];
     contentType?: string;
@@ -51,7 +42,7 @@ const { contentFor } = useXLinkDefuser();
  */
 const previewContent = computed((): string => contentFor(props.content, props.platform));
 
-const resolvedSocialAccount = computed((): SocialAccount => props.socialAccount ?? {
+const resolvedSocialAccount = computed((): PreviewAccount => props.socialAccount ?? {
     id: '',
     platform: props.platform,
     display_name: '',
@@ -98,13 +89,17 @@ const previewComponent = computed(() => {
 </script>
 
 <template>
-    <component
-        :is="previewComponent"
-        :social-account="resolvedSocialAccount"
-        :content="previewContent"
-        :media="media"
-        :content-type="contentType"
-        :meta="meta"
-        :posted-at="postedAt"
-    />
+    <div
+        class="overflow-hidden rounded-lg border bg-card text-card-foreground"
+    >
+        <component
+            :is="previewComponent"
+            :social-account="resolvedSocialAccount"
+            :content="previewContent"
+            :media="media"
+            :content-type="contentType"
+            :meta="meta"
+            :posted-at="postedAt"
+        />
+    </div>
 </template>

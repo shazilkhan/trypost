@@ -70,7 +70,7 @@ const submit = () => {
 
                 <DialogFooter>
                     <Button
-                        variant="secondary"
+                        variant="ghost"
                         type="button"
                         data-testid="cancel-edit-webhook"
                         @click="open = false"

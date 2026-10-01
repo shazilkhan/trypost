@@ -58,7 +58,8 @@ test('store signature creates signature', function () {
         'content' => '#marketing #digital #growth',
     ]);
 
-    $response->assertRedirect(route('app.signatures.index'));
+    $response->assertRedirect(route('app.signatures.index'))
+        ->assertSessionMissing('flash.banner');
 
     $this->assertDatabaseHas('workspace_signatures', [
         'workspace_id' => $this->workspace->id,
@@ -120,7 +121,8 @@ test('update signature updates the signature', function () {
         'content' => '#updated #content',
     ]);
 
-    $response->assertRedirect(route('app.signatures.index'));
+    $response->assertRedirect(route('app.signatures.index'))
+        ->assertSessionMissing('flash.banner');
 
     $signature->refresh();
     expect($signature->name)->toBe('Updated Name');
@@ -178,7 +180,8 @@ test('destroy signature deletes the signature', function () {
 
     $response = $this->actingAs($this->user)->delete(route('app.signatures.destroy', $signature));
 
-    $response->assertRedirect(route('app.signatures.index'));
+    $response->assertRedirect(route('app.signatures.index'))
+        ->assertSessionMissing('flash.banner');
     expect(WorkspaceSignature::find($signature->id))->toBeNull();
 });
 

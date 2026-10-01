@@ -68,7 +68,7 @@ export interface CoverageRow {
     last_error_category: string | null;
 }
 
-export interface WorkspaceAnalyticsReport {
+export interface AnalyticsReport {
     bounds: { min: string | null; max: string | null };
     range: { start: string; end: string };
     previous_range: { start: string; end: string };
@@ -78,6 +78,13 @@ export interface WorkspaceAnalyticsReport {
         reactions: Comparison;
         comments: Comparison;
         engagement_rate: Comparison;
+        views: Comparison;
+        reach: Comparison;
+        shares: Comparison;
+        saves: Comparison;
+        watch_time_minutes: Comparison;
+        average_watch_time_seconds: Comparison;
+        follows_gained: Comparison;
     };
     followers: {
         total: number | null;
@@ -92,6 +99,59 @@ export interface WorkspaceAnalyticsReport {
     top_posts: { reactions: TopPost[]; comments: TopPost[] };
     performance: PerformanceRow[];
     coverage: CoverageRow[];
+}
+
+export interface WorkspaceAnalyticsReport extends AnalyticsReport {
+    filters: WorkspaceAnalyticsFilters;
+}
+
+export type AnalyticsRangePreset =
+    | '7d'
+    | '30d'
+    | 'mtd'
+    | 'last_month'
+    | 'custom';
+
+export interface AnalyticsFilters {
+    range: AnalyticsRangePreset;
+    start: string;
+    end: string;
+}
+
+export interface WorkspaceAnalyticsFilters extends AnalyticsFilters {
+    labels: string[];
+    untagged: boolean;
+    channels: string[];
+}
+
+export interface AnalyticsChannelOption {
+    id: string;
+    platform: string;
+    display_label: string;
+    username: string | null;
+    avatar_url: string | null;
+    analytics_key: string;
+}
+
+export type SummaryMetric = keyof AnalyticsReport['summary'];
+
+export type PublicationPeriod = 'current' | 'previous';
+
+export interface ChannelInsightsFilters extends AnalyticsFilters {
+    period: PublicationPeriod;
+    sort: SummaryMetric;
+}
+
+export interface ChannelPublicationRow {
+    id: string;
+    rank: number;
+    excerpt: string | null;
+    thumbnail_url: string | null;
+    permalink: string | null;
+    published_at: string;
+    content_type: string | null;
+    metrics: Partial<Record<SummaryMetric, number | null>>;
+    url: string;
 }
 
 export interface PublicationMetricFact {

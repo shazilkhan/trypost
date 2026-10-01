@@ -9,15 +9,11 @@ use App\Mcp\Tools\Analytics\GetAnalyticsReportTool;
 use App\Mcp\Tools\ApiKey\CreateApiKeyTool;
 use App\Mcp\Tools\ApiKey\DeleteApiKeyTool;
 use App\Mcp\Tools\ApiKey\ListApiKeysTool;
-use App\Mcp\Tools\Asset\AttachExistingAssetTool;
-use App\Mcp\Tools\Asset\GetAssetTool;
-use App\Mcp\Tools\Asset\ListAssetsTool;
 use App\Mcp\Tools\Label\CreateLabelTool;
 use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
 use App\Mcp\Tools\Label\UpdateLabelTool;
 use App\Mcp\Tools\Platform\ListContentTypesTool;
-use App\Mcp\Tools\Post\AssistPostContentTool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
@@ -48,7 +44,6 @@ use App\Mcp\Tools\Signature\UpdateSignatureTool;
 use App\Mcp\Tools\SocialAccount\ListDiscordChannelsTool;
 use App\Mcp\Tools\SocialAccount\ListPinterestBoardsTool;
 use App\Mcp\Tools\SocialAccount\ListSocialAccountsTool;
-use App\Mcp\Tools\SocialAccount\ToggleSocialAccountTool;
 use App\Mcp\Tools\Webhook\CreateWebhookTool;
 use App\Mcp\Tools\Webhook\DeleteWebhookTool;
 use App\Mcp\Tools\Webhook\GetWebhookTool;
@@ -68,7 +63,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 #[Name('TryPost')]
 #[Version('1.0.0')]
 #[Icon('images/trypost/icon.png', mimeType: 'image/png')]
-#[Instructions('TryPost is a social media scheduling platform. Use this server to manage posts, analytics, the Asset Library, signatures, labels, social accounts, workspaces, outgoing webhooks, repurposes (auto-replicating videos posted outside TryPost), and API keys.')]
+#[Instructions('TryPost is a social media scheduling platform. Use this server to manage posts, analytics, signatures, labels, social accounts, workspaces, outgoing webhooks, repurposes (auto-replicating videos posted outside TryPost), and API keys. Media is attached to a post by upload or URL; an upload is temporary, kept for 24 hours and single-use, and every post keeps its own copy of its files.')]
 class TryPostServer extends Server
 {
     public int $defaultPaginationLength = 100;
@@ -76,7 +71,6 @@ class TryPostServer extends Server
     protected array $tools = [
         // Posts
         ListPostsTool::class,
-        AssistPostContentTool::class,
         GetPostTool::class,
         CreatePostTool::class,
         CreatePostsTool::class,
@@ -92,11 +86,6 @@ class TryPostServer extends Server
         // Analytics
         GetAnalyticsReportTool::class,
         GetAnalyticsPublicationTool::class,
-
-        // Assets
-        ListAssetsTool::class,
-        GetAssetTool::class,
-        AttachExistingAssetTool::class,
 
         // Platforms (read-only metadata)
         ListContentTypesTool::class,
@@ -117,7 +106,6 @@ class TryPostServer extends Server
         ListSocialAccountsTool::class,
         ListPinterestBoardsTool::class,
         ListDiscordChannelsTool::class,
-        ToggleSocialAccountTool::class,
         ListRepurposesTool::class,
         CreateRepurposeTool::class,
         GetRepurposeTool::class,

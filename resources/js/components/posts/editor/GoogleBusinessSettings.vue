@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-vue';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
 import DatePicker from '@/components/DatePicker.vue';
 import InputError from '@/components/InputError.vue';
-import { Avatar } from '@/components/ui/avatar';
+import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
+import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Select,
     SelectContent,
@@ -15,7 +15,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { usePageErrors } from '@/composables/usePageErrors';
-import { getPlatformLogo } from '@/composables/usePlatformLogo';
 import {
     GOOGLE_BUSINESS_CTA_OPTIONS,
     GOOGLE_BUSINESS_EVENT_TOPIC_TYPES,
@@ -30,19 +29,8 @@ import {
     type GoogleBusinessCtaActionValue,
     type GoogleBusinessTopicTypeValue,
 } from '@/lib/googleBusiness';
-import { toNullableText } from '@/lib/utils';
-
-interface SocialAccount {
-    id: string;
-    platform: string;
-    display_name: string;
-    username: string;
-    display_label: string;
-    avatar_url: string | null;
-}
 
 interface Props {
-    socialAccount: SocialAccount | null;
     /** This panel's position in the submitted `platforms` array — see findError. */
     platformIndex: number;
     meta: Record<string, any>;
@@ -56,8 +44,6 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
     'update:meta': [value: Record<string, any>];
 }>();
-
-const open = ref(false);
 
 const updateMeta = (patch: Record<string, any>) => {
     emit('update:meta', { ...props.meta, ...patch });
@@ -95,6 +81,13 @@ const ctaActionType = computed<GoogleBusinessCtaActionValue>({
             },
         }),
 });
+
+const ctaLabelKey = computed(
+    () =>
+        GOOGLE_BUSINESS_CTA_OPTIONS.find(
+            (option) => option.value === ctaActionType.value,
+        )?.labelKey ?? GOOGLE_BUSINESS_CTA_OPTIONS[0].labelKey,
+);
 
 const showCallToAction = computed(() =>
     googleBusinessAllowsCallToAction(topicType.value),
@@ -198,160 +191,88 @@ const ctaUrlError = findError('call_to_action.url');
 </script>
 
 <template>
-    <div class="rounded-xl border border-border bg-card shadow-2xs">
-        <button
-            type="button"
-            class="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-sm"
-            data-testid="google-business-settings-toggle"
-            @click="open = !open"
-        >
-            <span class="flex min-w-0 items-center gap-2">
-                <span
-                    class="inline-flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
-                >
-                    <img
-                        :src="getPlatformLogo('google_business')"
-                        :alt="$t('accounts.google_business.title')"
-                        class="size-full object-cover"
-                    />
-                </span>
-                <span class="truncate font-bold text-foreground">{{
-                    $t('posts.form.google_business.settings')
-                }}</span>
-                <span
-                    v-if="socialAccount?.display_label"
-                    class="truncate font-medium text-foreground/60"
-                    >·&nbsp;{{ socialAccount.display_label }}</span
-                >
-            </span>
-            <IconChevronUp
-                v-if="open"
-                class="size-4 shrink-0 text-foreground/60"
-            />
-            <IconChevronDown
-                v-else
-                class="size-4 shrink-0 text-foreground/60"
-            />
-        </button>
-
-        <div
-            v-if="open"
-            class="space-y-5 border-t border-border px-4 pt-4 pb-4"
-        >
-            <div
-                v-if="socialAccount"
-                class="flex items-center gap-3 rounded-lg bg-foreground/5 p-3"
+    <SettingsSection>
+        <SettingsRow :label="$t('posts.form.google_business.topic_type_label')">
+            <RadioGroup
+                v-model="topicType"
+                :disabled="disabled"
+                orientation="horizontal"
+                :aria-label="$t('posts.form.google_business.topic_type_label')"
+                class="flex min-h-8 flex-wrap items-center gap-x-5 gap-y-2"
             >
-                <Avatar
-                    :src="socialAccount.avatar_url"
-                    :name="socialAccount.display_label"
-                    class="size-9 shrink-0 rounded-full border border-border shadow-2xs"
-                />
-                <div class="min-w-0 flex-1">
-                    <p
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                    >
-                        {{ $t('posts.form.google_business.posting_to') }}
-                    </p>
-                    <p class="truncate text-sm font-bold text-foreground">
-                        {{ socialAccount.display_label }}
-                    </p>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <p
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
+                <label
+                    v-for="type in GOOGLE_BUSINESS_TOPIC_TYPES"
+                    :key="type.value"
+                    class="flex cursor-pointer items-center gap-2 text-sm"
                 >
-                    {{ $t('posts.form.google_business.topic_type_label') }}
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    <button
-                        v-for="type in GOOGLE_BUSINESS_TOPIC_TYPES"
-                        :key="type.value"
-                        type="button"
-                        class="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="
-                            topicType === type.value
-                                ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-xs'
-                                : 'border-border bg-card text-muted-foreground hover:border-amber-200 hover:bg-amber-50 hover:text-foreground'
-                        "
-                        :disabled="disabled"
+                    <RadioGroupItem
+                        :value="type.value"
                         :data-testid="`google-business-topic-${type.value}`"
-                        @click="topicType = type.value"
-                    >
-                        {{ $t(type.labelKey) }}
-                    </button>
-                </div>
-            </div>
+                    />
+                    {{ $t(type.labelKey) }}
+                </label>
+            </RadioGroup>
+        </SettingsRow>
 
-            <div v-if="showEventFields" class="grid grid-cols-2 gap-3">
-                <div class="col-span-2 space-y-2">
-                    <Label
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                        >{{ $t(eventTitleLabelKey) }}</Label
-                    >
-                    <Input
-                        v-model="eventTitle"
-                        type="text"
-                        :placeholder="$t(eventTitlePlaceholderKey)"
-                        :disabled="disabled"
-                        :class="eventTitleError ? 'border-rose-500' : undefined"
-                    />
-                    <InputError :message="eventTitleError" />
-                </div>
-                <div class="space-y-2">
-                    <Label
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                        >{{
-                            $t('posts.form.google_business.event_start_date')
-                        }}</Label
-                    >
-                    <DatePicker
-                        v-model="eventStart"
-                        align="start"
-                        :show-time="true"
-                        :disabled="disabled"
-                        :placeholder="
-                            $t('posts.form.google_business.event_start_date')
-                        "
-                        :class="
-                            eventStartDateError || eventStartTimeError
-                                ? 'border-rose-500'
-                                : undefined
-                        "
-                    />
-                    <InputError
-                        :message="eventStartDateError || eventStartTimeError"
-                    />
-                </div>
-                <div class="space-y-2">
-                    <Label
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                        >{{
-                            $t('posts.form.google_business.event_end_date')
-                        }}</Label
-                    >
-                    <DatePicker
-                        v-model="eventEnd"
-                        align="start"
-                        :show-time="true"
-                        :disabled="disabled"
-                        :placeholder="
-                            $t('posts.form.google_business.event_end_date')
-                        "
-                        :class="
-                            eventEndDateError || eventEndTimeError
-                                ? 'border-rose-500'
-                                : undefined
-                        "
-                    />
-                    <InputError
-                        :message="eventEndDateError || eventEndTimeError"
-                    />
-                </div>
+        <template v-if="showEventFields">
+            <SettingsRow
+                :label="$t(eventTitleLabelKey)"
+                :label-for="`google-business-event-title-${platformIndex}`"
+                align-top
+            >
+                <Input
+                    :id="`google-business-event-title-${platformIndex}`"
+                    v-model="eventTitle"
+                    type="text"
+                    :placeholder="$t(eventTitlePlaceholderKey)"
+                    :disabled="disabled"
+                    :aria-invalid="eventTitleError ? true : undefined"
+                />
+                <InputError :message="eventTitleError" />
+            </SettingsRow>
+            <SettingsRow
+                :label="$t('posts.form.google_business.event_start_date')"
+                align-top
+            >
+                <DatePicker
+                    v-model="eventStart"
+                    align="start"
+                    :show-time="true"
+                    :disabled="disabled"
+                    :placeholder="
+                        $t('posts.form.google_business.event_start_date')
+                    "
+                    :class="
+                        eventStartDateError || eventStartTimeError
+                            ? 'border-destructive'
+                            : undefined
+                    "
+                />
+                <InputError
+                    :message="eventStartDateError || eventStartTimeError"
+                />
+            </SettingsRow>
+            <SettingsRow
+                :label="$t('posts.form.google_business.event_end_date')"
+                align-top
+            >
+                <DatePicker
+                    v-model="eventEnd"
+                    align="start"
+                    :show-time="true"
+                    :disabled="disabled"
+                    :placeholder="
+                        $t('posts.form.google_business.event_end_date')
+                    "
+                    :class="
+                        eventEndDateError || eventEndTimeError
+                            ? 'border-destructive'
+                            : undefined
+                    "
+                />
+                <InputError :message="eventEndDateError || eventEndTimeError" />
                 <p
-                    class="col-span-2 text-xs font-medium text-foreground/60"
+                    class="text-xs text-muted-foreground"
                     data-testid="google-business-event-timezone-hint"
                 >
                     {{
@@ -360,104 +281,98 @@ const ctaUrlError = findError('call_to_action.url');
                         )
                     }}
                 </p>
-            </div>
+            </SettingsRow>
+        </template>
 
-            <div
-                v-if="topicType === GoogleBusinessTopicType.Offer"
-                class="space-y-3"
+        <template v-if="topicType === GoogleBusinessTopicType.Offer">
+            <SettingsRow
+                :label="$t('posts.form.google_business.offer_coupon_code')"
+                :label-for="`google-business-coupon-${platformIndex}`"
+                align-top
             >
-                <div class="space-y-2">
-                    <Label
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                        >{{
-                            $t('posts.form.google_business.offer_coupon_code')
-                        }}</Label
-                    >
-                    <Input
-                        v-model="offerCouponCode"
-                        type="text"
-                        :disabled="disabled"
-                        :class="
-                            offerCouponCodeError ? 'border-rose-500' : undefined
-                        "
-                    />
-                    <InputError :message="offerCouponCodeError" />
-                </div>
-                <div class="space-y-2">
-                    <Label
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                        >{{
-                            $t('posts.form.google_business.offer_redeem_url')
-                        }}</Label
-                    >
-                    <Input
-                        v-model="offerRedeemUrl"
-                        type="text"
-                        :disabled="disabled"
-                        :class="
-                            offerRedeemUrlError ? 'border-rose-500' : undefined
-                        "
-                    />
-                    <InputError :message="offerRedeemUrlError" />
-                </div>
-                <div class="space-y-2">
-                    <Label
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                        >{{
-                            $t('posts.form.google_business.offer_terms')
-                        }}</Label
-                    >
-                    <Input
-                        v-model="offerTerms"
-                        type="text"
-                        :disabled="disabled"
-                        :class="offerTermsError ? 'border-rose-500' : undefined"
-                    />
-                    <InputError :message="offerTermsError" />
-                </div>
-            </div>
-
-            <div v-if="showCallToAction" class="space-y-2">
-                <Label
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                    >{{ $t('posts.form.google_business.cta_label') }}</Label
-                >
-                <Select v-model="ctaActionType" :disabled="disabled">
-                    <SelectTrigger
-                        class="w-full"
-                        :aria-invalid="ctaActionTypeError ? true : undefined"
-                    >
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem
-                            v-for="option in GOOGLE_BUSINESS_CTA_OPTIONS"
-                            :key="option.value"
-                            :value="option.value"
-                        >
-                            {{ $t(option.labelKey) }}
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
-                <InputError :message="ctaActionTypeError" />
-            </div>
-
-            <div v-if="showCtaUrl" class="space-y-2">
-                <Label
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                    >{{ $t('posts.form.google_business.cta_url') }}</Label
-                >
                 <Input
-                    v-model="ctaUrl"
+                    :id="`google-business-coupon-${platformIndex}`"
+                    v-model="offerCouponCode"
                     type="text"
-                    :placeholder="
-                        $t('posts.form.google_business.cta_url_placeholder')
-                    "
                     :disabled="disabled"
-                    :class="ctaUrlError ? 'border-rose-500' : undefined"
+                    :aria-invalid="offerCouponCodeError ? true : undefined"
                 />
-                <InputError :message="ctaUrlError" />
-            </div>
-        </div>
-    </div>
+                <InputError :message="offerCouponCodeError" />
+            </SettingsRow>
+            <SettingsRow
+                :label="$t('posts.form.google_business.offer_redeem_url')"
+                :label-for="`google-business-redeem-${platformIndex}`"
+                align-top
+            >
+                <Input
+                    :id="`google-business-redeem-${platformIndex}`"
+                    v-model="offerRedeemUrl"
+                    type="text"
+                    :disabled="disabled"
+                    :aria-invalid="offerRedeemUrlError ? true : undefined"
+                />
+                <InputError :message="offerRedeemUrlError" />
+            </SettingsRow>
+            <SettingsRow
+                :label="$t('posts.form.google_business.offer_terms')"
+                :label-for="`google-business-terms-${platformIndex}`"
+                align-top
+            >
+                <Input
+                    :id="`google-business-terms-${platformIndex}`"
+                    v-model="offerTerms"
+                    type="text"
+                    :disabled="disabled"
+                    :aria-invalid="offerTermsError ? true : undefined"
+                />
+                <InputError :message="offerTermsError" />
+            </SettingsRow>
+        </template>
+
+        <SettingsRow
+            v-if="showCallToAction"
+            :label="$t('posts.form.google_business.cta_label')"
+            :label-for="`google-business-cta-${platformIndex}`"
+            align-top
+        >
+            <Select v-model="ctaActionType" :disabled="disabled">
+                <SelectTrigger
+                    :id="`google-business-cta-${platformIndex}`"
+                    class="w-full"
+                    :aria-invalid="ctaActionTypeError ? true : undefined"
+                >
+                    <SelectValue>{{ $t(ctaLabelKey) }}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem
+                        v-for="option in GOOGLE_BUSINESS_CTA_OPTIONS"
+                        :key="option.value"
+                        :value="option.value"
+                    >
+                        {{ $t(option.labelKey) }}
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+            <InputError :message="ctaActionTypeError" />
+        </SettingsRow>
+
+        <SettingsRow
+            v-if="showCtaUrl"
+            :label="$t('posts.form.google_business.cta_url')"
+            :label-for="`google-business-cta-url-${platformIndex}`"
+            align-top
+        >
+            <Input
+                :id="`google-business-cta-url-${platformIndex}`"
+                v-model="ctaUrl"
+                type="text"
+                :placeholder="
+                    $t('posts.form.google_business.cta_url_placeholder')
+                "
+                :disabled="disabled"
+                :aria-invalid="ctaUrlError ? true : undefined"
+            />
+            <InputError :message="ctaUrlError" />
+        </SettingsRow>
+    </SettingsSection>
 </template>

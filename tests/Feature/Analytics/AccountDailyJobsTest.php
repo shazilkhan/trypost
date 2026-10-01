@@ -36,18 +36,18 @@ test('dispatcher queues every eligible account independently', function () {
     $first = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
     $second = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
     $linkedin = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
-    $inactive = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => false]);
+    $third = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
     $disconnected = SocialAccount::factory()->x()->disconnected()->create(['workspace_id' => $workspace->id]);
 
     Artisan::call('analytics:dispatch-account-daily');
 
-    foreach ([$first, $second] as $account) {
+    foreach ([$first, $second, $third] as $account) {
         Bus::assertDispatched(CollectAccountDailySnapshot::class, fn ($job): bool => $job->socialAccountId === $account->id
             && $job->observationDate === '2026-09-23'
             && $job->queue === 'analytics');
     }
 
-    foreach ([$linkedin, $inactive, $disconnected] as $account) {
+    foreach ([$linkedin, $disconnected] as $account) {
         Bus::assertNotDispatched(CollectAccountDailySnapshot::class, fn ($job): bool => $job->socialAccountId === $account->id);
     }
 });
@@ -56,12 +56,12 @@ test('finalizer dispatches one job per eligible account for both scheduled dates
     $first = SocialAccount::factory()->instagram()->create();
     $second = SocialAccount::factory()->x()->create();
     SocialAccount::factory()->linkedin()->create();
-    SocialAccount::factory()->x()->create(['is_active' => false]);
+    SocialAccount::factory()->x()->create();
     SocialAccount::factory()->x()->disconnected()->create();
 
     app()->call([new FinalizeAccountDailySnapshots, 'handle']);
 
-    Bus::assertDispatched(FinalizeAccountDailySnapshot::class, 2);
+    Bus::assertDispatched(FinalizeAccountDailySnapshot::class, 3);
     Bus::assertDispatched(FinalizeAccountDailySnapshot::class, fn ($job): bool => $job->socialAccountId === $first->id
         && $job->observationDate === '2026-09-23'
         && $job->queue === 'analytics');
@@ -70,7 +70,7 @@ test('finalizer dispatches one job per eligible account for both scheduled dates
 
     app()->call([new FinalizeAccountDailySnapshots(daysAgo: 1), 'handle']);
 
-    Bus::assertDispatched(FinalizeAccountDailySnapshot::class, 4);
+    Bus::assertDispatched(FinalizeAccountDailySnapshot::class, 6);
     Bus::assertDispatched(FinalizeAccountDailySnapshot::class, fn ($job): bool => $job->socialAccountId === $first->id
         && $job->observationDate === '2026-09-22');
 });

@@ -65,7 +65,7 @@ const submit = () => {
 
                 <SheetFooter class="flex-row justify-end border-t px-6 py-4">
                     <Button
-                        variant="secondary"
+                        variant="ghost"
                         type="button"
                         data-testid="cancel-create-webhook"
                         @click="open = false"

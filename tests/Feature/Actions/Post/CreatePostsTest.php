@@ -19,10 +19,10 @@ test('a batch creates one independent post and target per selected account in in
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
     $accounts = collect([
-        SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]),
-        SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]),
-        SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]),
-        SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id, 'is_active' => true]),
+        SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]),
+        SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]),
+        SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]),
+        SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]),
     ]);
     $types = [ContentType::InstagramFeed, ContentType::InstagramFeed, ContentType::XPost, ContentType::LinkedInPost];
 
@@ -54,8 +54,8 @@ test('a batch creates one independent post and target per selected account in in
 test('scheduled posts copy the shared schedule and labels to each independent row', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $firstAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $secondAccount = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $firstAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $secondAccount = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
     $scheduledAt = now()->addDays(2)->startOfMinute();
 
@@ -83,8 +83,8 @@ test('an invalid destination leaves no posts or publication jobs', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
     $foreignWorkspace = Workspace::factory()->create();
-    $ownAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $foreignAccount = SocialAccount::factory()->x()->create(['workspace_id' => $foreignWorkspace->id, 'is_active' => true]);
+    $ownAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $foreignAccount = SocialAccount::factory()->x()->create(['workspace_id' => $foreignWorkspace->id]);
     Queue::fake();
 
     expect(fn () => CreatePosts::execute($workspace, $user, [
@@ -103,8 +103,8 @@ test('an invalid destination leaves no posts or publication jobs', function () {
 test('publishing immediately queues each independent post', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $firstAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $secondAccount = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $firstAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $secondAccount = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
     Queue::fake();
 
     $posts = CreatePosts::execute($workspace, $user, [

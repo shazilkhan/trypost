@@ -22,17 +22,17 @@ defineProps<{
 
         <div
             v-if="status === 'verification-link-sent'"
-            class="mb-4 text-center text-sm font-medium text-green-600"
+            class="rounded-lg bg-success-subtle px-3 py-2 text-center text-sm font-medium text-success-text"
         >
             {{ $t('auth.verify_email.link_sent') }}
         </div>
 
         <Form
             v-bind="send.form()"
-            class="space-y-6 text-center"
+            class="flex flex-col items-center gap-4 text-center"
             v-slot="{ processing }"
         >
-            <Button :disabled="processing" variant="secondary">
+            <Button :disabled="processing" size="lg" class="w-full text-base">
                 <Spinner v-if="processing" />
                 {{ $t('auth.verify_email.resend') }}
             </Button>
@@ -40,7 +40,7 @@ defineProps<{
             <TextLink
                 :href="logout()"
                 as="button"
-                class="mx-auto block text-sm"
+                class="text-base"
             >
                 {{ $t('auth.verify_email.log_out') }}
             </TextLink>

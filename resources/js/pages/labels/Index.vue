@@ -1,38 +1,43 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router } from '@inertiajs/vue3';
-import { IconPencil, IconPlus, IconTag, IconTrash } from '@tabler/icons-vue';
+import {
+    IconChartBar,
+    IconDotsVertical,
+    IconLayoutGrid,
+    IconPencil,
+    IconPlus,
+    IconTag,
+    IconTrash,
+} from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import HeaderSearch from '@/components/HeaderSearch.vue';
-import HeaderTitle from '@/components/HeaderTitle.vue';
-import CreateSheet from '@/components/labels/CreateSheet.vue';
+import CreateDialog from '@/components/labels/CreateDialog.vue';
 import EditDialog from '@/components/labels/EditDialog.vue';
+import SettingsSearch from '@/components/settings/SettingsSearch.vue';
 import { Button } from '@/components/ui/button';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableLoadMore,
-    TableRow,
-} from '@/components/ui/table';
-import date from '@/date';
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { TableLoadMore } from '@/components/ui/table';
 import debounce from '@/debounce';
-import AppLayout from '@/layouts/AppLayout.vue';
+import SettingsLayout from '@/layouts/SettingsLayout.vue';
+import { analytics } from '@/routes/app';
 import {
     destroy as labelsDestroy,
     index as labelsIndex,
 } from '@/routes/app/labels';
+import { index as postsIndex } from '@/routes/app/posts';
 
 interface Label {
     id: string;
     name: string;
     color: string;
-    created_at: string;
 }
 
 interface ScrollLabels {
@@ -60,7 +65,7 @@ const search = debounce(() => {
 watch(searchQuery, () => search());
 
 const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
-const isCreateSheetOpen = ref(false);
+const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const editingLabel = ref<Label | null>(null);
 
@@ -72,11 +77,11 @@ const openEditDialog = (label: Label) => {
 const handleDelete = (label: Label) => {
     deleteModal.value?.open({
         url: labelsDestroy.url(label.id),
-        confirmText: label.name,
+        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 
-const formatDate = (value: string): string => date.formatDate(value);
+const labelQuery = (label: Label) => ({ query: { labels: [label.id] } });
 
 const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 </script>
@@ -84,46 +89,45 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 <template>
     <Head :title="$t('labels.title')" />
 
-    <AppLayout>
-        <template #header>
-            <HeaderTitle :title="$t('labels.title')" :icon="IconTag" />
-        </template>
-
-        <template #header-actions>
-            <HeaderSearch
-                v-model="searchQuery"
-                :placeholder="trans('labels.search')"
-            />
+    <SettingsLayout
+        :title="$t('labels.title')"
+        :description="$t('labels.description')"
+    >
+        <template #actions>
             <Button
                 data-testid="create-label-button"
                 :aria-label="$t('labels.new_label')"
-                @click="isCreateSheetOpen = true"
+                @click="isCreateDialogOpen = true"
             >
-                <IconPlus class="size-4 sm:hidden" />
-                <span class="hidden sm:inline">{{
-                    $t('labels.new_label')
-                }}</span>
+                <IconPlus class="size-4" />
+                <span class="hidden sm:inline">{{ $t('labels.new_label') }}</span>
             </Button>
         </template>
 
-        <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">
-            <p class="text-sm text-muted-foreground">
-                {{ $t('labels.description') }}
-            </p>
-            <EmptyState
-                v-if="labels.data.length === 0"
-                :icon="IconTag"
-                :title="
-                    hasActiveSearch
-                        ? $t('labels.no_search_results')
-                        : $t('labels.no_labels_yet')
-                "
-                :description="
-                    hasActiveSearch
-                        ? $t('labels.try_different_search')
-                        : $t('labels.description')
-                "
+        <div class="flex flex-col gap-3">
+            <SettingsSearch
+                v-model="searchQuery"
+                :placeholder="$t('labels.search')"
             />
+
+            <div
+                v-if="labels.data.length === 0"
+                class="rounded-xl border border-dashed border-border-strong"
+            >
+                <EmptyState
+                    :icon="IconTag"
+                    :title="
+                        hasActiveSearch
+                            ? $t('labels.no_search_results')
+                            : $t('labels.no_labels_yet')
+                    "
+                    :description="
+                        hasActiveSearch
+                            ? $t('labels.try_different_search')
+                            : $t('labels.description')
+                    "
+                />
+            </div>
 
             <div v-else>
                 <InfiniteScroll
@@ -131,69 +135,103 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                     items-element="#labels-body"
                     preserve-url
                 >
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead class="w-12" />
-                                <TableHead>{{
-                                    $t('labels.table.name')
-                                }}</TableHead>
-                                <TableHead>{{
-                                    $t('labels.table.created_at')
-                                }}</TableHead>
-                                <TableHead class="text-right" />
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody id="labels-body">
-                            <TableRow
-                                v-for="label in labels.data"
-                                :key="label.id"
-                                class="cursor-pointer"
-                                @click="openEditDialog(label)"
+                    <ul id="labels-body" class="flex flex-col gap-2">
+                        <li
+                            v-for="label in labels.data"
+                            :key="label.id"
+                            class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-4"
+                            :data-testid="`label-row-${label.id}`"
+                            @click="openEditDialog(label)"
+                        >
+                            <span
+                                class="flex size-5 shrink-0 items-center justify-center"
                             >
-                                <TableCell>
-                                    <div
-                                        class="size-6 rounded-md border border-border shadow-2xs"
-                                        :style="{
-                                            backgroundColor: label.color,
-                                        }"
-                                    />
-                                </TableCell>
-                                <TableCell>{{ label.name }}</TableCell>
-                                <TableCell>{{
-                                    formatDate(label.created_at)
-                                }}</TableCell>
-                                <TableCell class="text-right" @click.stop>
-                                    <div class="flex justify-end gap-2">
+                                <span
+                                    class="size-4 rounded-full"
+                                    :style="{ backgroundColor: label.color }"
+                                />
+                            </span>
+                            <p
+                                class="min-w-0 flex-1 truncate text-sm font-strong text-foreground"
+                            >
+                                {{ label.name }}
+                            </p>
+                            <div class="flex shrink-0 gap-1" @click.stop>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="text-muted-foreground"
+                                    :aria-label="$t('labels.actions.edit')"
+                                    @click="openEditDialog(label)"
+                                >
+                                    <IconPencil class="size-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    class="text-destructive-text"
+                                    :aria-label="$t('labels.actions.delete')"
+                                    :data-testid="`delete-label-${label.id}`"
+                                    @click="handleDelete(label)"
+                                >
+                                    <IconTrash class="size-4" />
+                                </Button>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger as-child>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="icon"
-                                            class="size-8"
-                                            :aria-label="
-                                                $t('labels.actions.edit')
-                                            "
-                                            @click="openEditDialog(label)"
+                                            class="text-muted-foreground data-[state=open]:bg-accent"
+                                            :aria-label="$t('labels.actions.more')"
+                                            :data-testid="`label-menu-${label.id}`"
                                         >
-                                            <IconPencil class="size-4" />
+                                            <IconDotsVertical class="size-4" />
                                         </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            class="size-8 bg-rose-100 hover:bg-rose-200"
-                                            :aria-label="
-                                                $t('labels.actions.delete')
-                                            "
-                                            @click="handleDelete(label)"
-                                        >
-                                            <IconTrash
-                                                class="size-4 text-rose-700"
-                                            />
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        </TableBody>
-                    </Table>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuItem as-child>
+                                            <a
+                                                :href="
+                                                    postsIndex.url(
+                                                        labelQuery(label),
+                                                    )
+                                                "
+                                                target="_blank"
+                                                rel="noopener"
+                                                :data-testid="`label-view-posts-${label.id}`"
+                                            >
+                                                <IconLayoutGrid class="size-4" />
+                                                {{
+                                                    $t(
+                                                        'labels.actions.view_posts',
+                                                    )
+                                                }}
+                                            </a>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem as-child>
+                                            <a
+                                                :href="
+                                                    analytics.url(
+                                                        labelQuery(label),
+                                                    )
+                                                "
+                                                target="_blank"
+                                                rel="noopener"
+                                                :data-testid="`label-open-reporting-${label.id}`"
+                                            >
+                                                <IconChartBar class="size-4" />
+                                                {{
+                                                    $t(
+                                                        'labels.actions.open_reporting',
+                                                    )
+                                                }}
+                                            </a>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </li>
+                    </ul>
 
                     <template #next="{ loading }">
                         <TableLoadMore v-if="loading" />
@@ -201,9 +239,9 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                 </InfiniteScroll>
             </div>
         </div>
-    </AppLayout>
+    </SettingsLayout>
 
-    <CreateSheet v-model:open="isCreateSheetOpen" />
+    <CreateDialog v-model:open="isCreateDialogOpen" />
     <EditDialog v-model:open="isEditDialogOpen" :label="editingLabel" />
 
     <ConfirmDeleteModal

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
-import { IconArrowLeft, IconArrowUpRight } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
+import { IconExternalLink, IconX } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import PublicationMetrics from '@/components/analytics/workspace/PublicationMetrics.vue';
-import PageHeader from '@/components/PageHeader.vue';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
     getPlatformLabel,
     getPlatformLogo,
@@ -20,12 +20,10 @@ const publication = computed(() => props.detail.publication);
 const platformName = computed(() =>
     getPlatformLabel(publication.value.platform),
 );
-const origin = computed(() =>
-    publication.value.origin === 'trypost'
-        ? trans('analytics.detail.published_via_trypost')
-        : trans('analytics.detail.published_on', {
-              platform: platformName.value,
-          }),
+const accountName = computed(() =>
+    publication.value.account_username
+        ? `@${publication.value.account_username}`
+        : publication.value.account_display_name || platformName.value,
 );
 const thumbnail = computed(() => {
     const candidate = publication.value.preview_metadata?.thumbnail_url;
@@ -42,85 +40,89 @@ const providerUrl = computed(() =>
 </script>
 
 <template>
-    <AppLayout>
+    <AppLayout full-width>
         <Head
             :title="
                 $t('analytics.detail.page_title', { platform: platformName })
             "
         />
-        <div class="flex h-full flex-1 flex-col gap-6 px-6 py-8">
-            <Link
-                :href="analyticsRoute.url()"
-                class="inline-flex w-fit items-center gap-2 text-sm font-semibold text-foreground/70 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        <div class="min-h-0 flex-1 overflow-y-auto">
+            <div
+                class="mx-auto flex w-full max-w-[680px] flex-col gap-6 px-4 py-6 md:py-10"
             >
-                <IconArrowLeft class="size-4" aria-hidden="true" />
-                {{ $t('analytics.detail.back_to_analytics') }}
-            </Link>
-
-            <header
-                class="flex flex-wrap items-center justify-between gap-4"
-                data-testid="analytics-publication-header"
-            >
-                <div class="flex min-w-0 items-center gap-4">
-                    <img
-                        :src="getPlatformLogo(publication.platform)"
-                        :alt="platformName"
-                        class="size-12 shrink-0 rounded-xl border-2 border-foreground bg-card p-2 shadow-xs"
-                    />
-                    <PageHeader
-                        :title="origin"
-                        :description="
-                            publication.account_username
-                                ? `@${publication.account_username}`
-                                : publication.account_display_name ||
-                                  platformName
-                        "
-                    />
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <span
-                        class="rounded-full border-2 border-foreground bg-violet-100 px-3 py-1 text-xs font-semibold text-foreground"
-                        >{{
-                            $t(
-                                `analytics.detail.content_types.${publication.content_type}`,
-                            )
-                        }}</span
-                    >
-                    <a
-                        v-if="providerUrl"
-                        :href="providerUrl"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex h-9 items-center gap-1.5 rounded-lg border-2 border-foreground bg-card px-3 text-sm font-semibold text-foreground shadow-xs hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                        {{ $t('analytics.dashboard.view_post') }}
-                        <IconArrowUpRight class="size-4" aria-hidden="true" />
-                    </a>
-                </div>
-            </header>
-
-            <article
-                class="rounded-xl border-2 border-foreground bg-card p-5 shadow-sm sm:p-6"
-            >
-                <div
-                    class="grid gap-6"
-                    :class="
-                        thumbnail ? 'md:grid-cols-[14rem_minmax(0,1fr)]' : ''
-                    "
+                <article
+                    class="overflow-hidden rounded-2xl border border-border bg-card"
+                    data-testid="analytics-publication"
                 >
-                    <div
-                        v-if="thumbnail"
-                        class="w-full max-w-56 overflow-hidden rounded-xl border-2 border-foreground bg-muted shadow-xs"
+                    <header
+                        class="flex min-h-12 items-center justify-between gap-2 border-b border-border-strong py-1 ps-6 pe-4"
+                        data-testid="analytics-publication-header"
                     >
-                        <img
-                            :src="thumbnail"
-                            alt=""
-                            class="aspect-[4/5] h-full w-full object-cover"
-                        />
-                    </div>
-                    <div class="flex min-w-0 flex-col justify-between gap-6">
                         <p
-                            class="max-w-3xl text-base leading-7 break-words whitespace-pre-wrap text-foreground"
+                            class="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground"
+                        >
+                            <span>{{
+                                publication.origin === 'trypost'
+                                    ? $t(
+                                          'analytics.detail.published_via_trypost',
+                                      )
+                                    : $t('analytics.detail.published_on', {
+                                          platform: platformName,
+                                      })
+                            }}</span>
+                            <Badge variant="secondary" class="h-6 px-2">
+                                {{
+                                    $t(
+                                        `analytics.detail.content_types.${publication.content_type}`,
+                                    )
+                                }}
+                            </Badge>
+                        </p>
+                        <Button
+                            as-child
+                            variant="ghost"
+                            size="icon"
+                            class="shrink-0"
+                        >
+                            <Link
+                                :href="analyticsRoute.url()"
+                                :aria-label="
+                                    $t('analytics.detail.back_to_analytics')
+                                "
+                                :title="$t('analytics.detail.back_to_analytics')"
+                                data-testid="analytics-publication-close"
+                            >
+                                <IconX class="size-4" />
+                            </Link>
+                        </Button>
+                    </header>
+
+                    <section class="flex flex-col gap-3 px-6 py-4">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <span class="relative inline-flex size-8 shrink-0">
+                                <img
+                                    :src="
+                                        publication.account_avatar_url ??
+                                        getPlatformLogo(publication.platform)
+                                    "
+                                    :alt="accountName"
+                                    class="size-full rounded-lg object-cover"
+                                />
+                                <img
+                                    v-if="publication.account_avatar_url"
+                                    :src="getPlatformLogo(publication.platform)"
+                                    :alt="platformName"
+                                    class="absolute -right-1.5 -bottom-1 size-4.5 rounded-md border border-card bg-card"
+                                />
+                            </span>
+                            <p
+                                class="min-w-0 truncate text-sm leading-tight font-emphasis text-foreground"
+                            >
+                                {{ accountName }}
+                            </p>
+                        </div>
+                        <p
+                            class="text-sm break-words whitespace-pre-wrap text-foreground"
                             data-testid="analytics-publication-excerpt"
                         >
                             {{
@@ -128,20 +130,48 @@ const providerUrl = computed(() =>
                                 $t('analytics.dashboard.no_excerpt')
                             }}
                         </p>
-                        <p
-                            v-if="publication.provider_published_at"
-                            class="border-t border-foreground/15 pt-4 text-sm text-muted-foreground"
-                        >
-                            {{
-                                date.formatDateTime(
-                                    publication.provider_published_at,
-                                )
-                            }}
+                        <img
+                            v-if="thumbnail"
+                            :src="thumbnail"
+                            alt=""
+                            class="aspect-[4/5] w-[180px] rounded-md object-cover"
+                        />
+                    </section>
+
+                    <footer
+                        v-if="publication.provider_published_at || providerUrl"
+                        class="flex min-h-14 flex-wrap items-center justify-between gap-2 border-t border-border-strong px-6 py-3"
+                    >
+                        <p class="text-sm text-foreground">
+                            <time
+                                v-if="publication.provider_published_at"
+                                :datetime="publication.provider_published_at"
+                                >{{
+                                    date.formatDateTime(
+                                        publication.provider_published_at,
+                                    )
+                                }}</time
+                            >
                         </p>
-                    </div>
-                </div>
-            </article>
-            <PublicationMetrics :detail="detail" />
+                        <Button
+                            v-if="providerUrl"
+                            as-child
+                            variant="outline"
+                        >
+                            <a
+                                :href="providerUrl"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <IconExternalLink aria-hidden="true" />
+                                {{ $t('analytics.dashboard.view_post') }}
+                            </a>
+                        </Button>
+                    </footer>
+                </article>
+
+                <PublicationMetrics :detail="detail" />
+            </div>
         </div>
     </AppLayout>
 </template>

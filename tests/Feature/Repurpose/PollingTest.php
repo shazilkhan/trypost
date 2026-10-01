@@ -318,7 +318,7 @@ test('a skipped poll reschedules without erasing the recorded error', function (
     $workspace = Workspace::factory()->create();
     $source = SocialAccount::factory()->for($workspace)->create([
         'platform' => Platform::Instagram,
-        'is_active' => false,
+        'disconnected_at' => now(),
     ]);
 
     $repurpose = Repurpose::factory()->active()->create([

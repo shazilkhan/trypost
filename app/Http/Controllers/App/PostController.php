@@ -5,28 +5,23 @@ declare(strict_types=1);
 namespace App\Http\Controllers\App;
 
 use App\Actions\Analytics\ReadPublicationAnalytics;
+use App\Actions\Post\BuildCalendarPageProps;
+use App\Actions\Post\BuildComposerProps;
 use App\Actions\Post\CreatePosts;
 use App\Actions\Post\DeletePost;
 use App\Actions\Post\DuplicatePost;
 use App\Actions\Post\RecoverEmptyDraft;
 use App\Actions\Post\UpdatePost;
-use App\Actions\SocialAccount\ListPinterestBoards;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\CreatedVia;
 use App\Enums\Post\Status as PostStatus;
-use App\Enums\SocialAccount\Platform;
+use App\Http\Controllers\App\Concerns\RendersPublishPage;
 use App\Http\Requests\App\Post\StorePostRequest;
 use App\Http\Requests\App\Post\UpdatePostRequest;
 use App\Http\Resources\Api\PostResource;
-use App\Http\Resources\App\PlatformConfigResource;
-use App\Http\Resources\App\SocialAccountResource;
 use App\Models\Post;
 use App\Models\PostPlatform;
-use App\Models\Workspace;
-use App\Services\Social\TikTokCreatorInfo;
-use App\Support\LinkTlds;
 use App\Support\PostStatusRules;
-use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,7 +30,9 @@ use Inertia\Response;
 
 class PostController extends Controller
 {
-    public function index(Request $request, ?string $status = null): Response|RedirectResponse
+    use RendersPublishPage;
+
+    public function index(Request $request): Response|RedirectResponse
     {
         $workspace = $request->user()->currentWorkspace;
 
@@ -49,108 +46,16 @@ class PostController extends Controller
             $this->authorize('createPost', $workspace);
 
             return $this->redirectToComposer($request, 'app.posts.index', [
-                'tab' => $status ?? $request->query('tab'),
-                'search' => $request->query('search'),
+                'tab' => $request->query('tab'),
                 'labels' => $request->query('labels'),
+                'untagged' => $request->query('untagged'),
                 'channels' => $request->query('channels'),
+                'tz' => $request->query('tz'),
+                'status' => $request->query('status'),
             ]);
         }
 
-        $status = $status ?? $request->query('tab');
-        if (! in_array($status, [PostStatus::Draft->value, PostStatus::Scheduled->value, PostStatus::Published->value], true)) {
-            $status = null;
-        }
-
-        $channelIds = $request->collect('channels')
-            ->filter(fn ($id) => is_string($id) && $id !== '')
-            ->unique()
-            ->values()
-            ->all();
-
-        $channelPosts = $workspace->posts()->when($channelIds, fn ($query) => $query->whereHas(
-            'postPlatforms',
-            fn ($platforms) => $platforms->enabled()->whereIn('social_account_id', $channelIds),
-        ));
-
-        $query = (clone $channelPosts)
-            ->with([
-                'postPlatforms' => fn ($platforms) => $platforms->enabled()
-                    ->when($channelIds, fn ($platforms) => $platforms->whereIn('social_account_id', $channelIds))
-                    ->with('socialAccount'),
-                'user',
-                'labels',
-            ])
-            ->withCount('notes');
-
-        $openPostNotesId = $request->query('notes');
-        $openPostNotesId = is_string($openPostNotesId) && $openPostNotesId !== '' ? $openPostNotesId : null;
-
-        if ($openPostNotesId) {
-            $query->whereKey($openPostNotesId);
-        }
-
-        if ($status) {
-            $query = match ($status) {
-                PostStatus::Draft->value => $query->draft(),
-                PostStatus::Scheduled->value => $query->scheduled(),
-                PostStatus::Published->value => $query->published(),
-                default => $query,
-            };
-        }
-
-        if ($search = $request->input('search')) {
-            $query->whereLike('content', "%{$search}%");
-        }
-
-        $labelIds = $request->collect('labels')
-            ->filter(fn ($id) => is_string($id) && $id !== '')
-            ->values()
-            ->all();
-
-        $query->when($labelIds, fn ($q) => $q->whereHas(
-            'labels',
-            fn ($q) => $q->whereIn('workspace_labels.id', $labelIds),
-        ));
-
-        $composerPost = null;
-        if ($request->filled('edit')) {
-            $composerPost = $workspace->posts()
-                ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount'), 'labels'])
-                ->findOrFail($request->query('edit'));
-            $this->authorize('update', $composerPost);
-            if (PostStatusRules::blocksEditing($composerPost) || ! $this->canOpenComposer($composerPost)) {
-                return redirect()->route('app.posts.show', $composerPost);
-            }
-        }
-
-        $composerRequested = $composerPost !== null;
-
-        return Inertia::render('posts/Index', [
-            'workspace' => $workspace,
-            'posts' => Inertia::scroll(fn () => $query->latest('scheduled_at')->paginate(config('app.pagination.default'))),
-            'currentStatus' => $status,
-            'tabCounts' => [
-                'all' => (clone $channelPosts)->count(),
-                'scheduled' => (clone $channelPosts)->scheduled()->count(),
-                'published' => (clone $channelPosts)->published()->count(),
-                'draft' => (clone $channelPosts)->draft()->count(),
-            ],
-            'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
-            'filterAccounts' => SocialAccountResource::collection($workspace->socialAccounts()->orderBy('platform')->orderBy('username')->get()),
-            'filters' => [
-                'search' => $request->input('search', ''),
-                'labels' => $labelIds,
-                'channels' => $channelIds,
-            ],
-            'openComposer' => $composerRequested,
-            'openComposerAssistant' => $request->boolean('assistant'),
-            'initialComposerDate' => $request->query('date'),
-            'openPostNotesId' => $openPostNotesId,
-            'highlightNoteId' => is_string($request->query('note')) ? $request->query('note') : null,
-            'authUserId' => $request->user()->id,
-            'editPost' => $composerPost,
-            ...$this->composerProps($workspace, $composerRequested),
-        ]);
+        return $this->renderPublishPage($request, $workspace);
     }
 
     public function calendar(Request $request, ?string $view = null): Response|RedirectResponse
@@ -168,56 +73,17 @@ class PostController extends Controller
 
             return $this->redirectToComposer($request, 'app.calendar', [
                 'view' => $view ?? $request->query('view'),
-                'day' => $request->query('day'),
                 'week' => $request->query('week'),
                 'month' => $request->query('month'),
+                'labels' => $request->query('labels'),
+                'untagged' => $request->query('untagged'),
+                'channels' => $request->query('channels'),
+                'tz' => $request->query('tz'),
+                'status' => $request->query('status'),
             ]);
         }
 
-        $tz = 'UTC';
-        $view ??= $request->input('view', 'week');
-
-        $currentDay = $request->input('day')
-            ? Carbon::parse($request->input('day'), $tz)->startOfDay()
-            : Carbon::now($tz)->startOfDay();
-
-        $weekStart = $request->input('week')
-            ? Carbon::parse($request->input('week'), $tz)->startOfWeek()
-            : Carbon::now($tz)->startOfWeek();
-        $weekEnd = $weekStart->copy()->endOfWeek();
-
-        $monthDate = $request->input('month')
-            ? Carbon::parse($request->input('month'), $tz)->startOfMonth()
-            : Carbon::now($tz)->startOfMonth();
-        $monthStart = $monthDate->copy()->startOfMonth()->startOfWeek();
-        $monthEnd = $monthDate->copy()->endOfMonth()->endOfWeek();
-
-        $rangeStart = match ($view) {
-            'day' => $currentDay,
-            'month' => $monthStart,
-            default => $weekStart,
-        };
-        $rangeEnd = match ($view) {
-            'day' => $currentDay->copy()->endOfDay(),
-            'month' => $monthEnd,
-            default => $weekEnd,
-        };
-
-        $posts = $workspace->posts()
-            ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount')])
-            ->whereBetween('scheduled_at', [$rangeStart->copy()->utc(), $rangeEnd->copy()->utc()])
-            ->orderBy('scheduled_at')
-            ->get()
-            ->groupBy(fn ($post) => $post->scheduled_at?->setTimezone($tz)->format('Y-m-d'));
-
-        return Inertia::render('posts/Calendar', [
-            'workspace' => $workspace,
-            'posts' => $posts,
-            'currentDay' => $currentDay->format('Y-m-d'),
-            'currentWeekStart' => $weekStart->format('Y-m-d'),
-            'currentMonth' => $monthDate->format('Y-m-d'),
-            'view' => $view,
-        ]);
+        return Inertia::render('posts/Calendar', BuildCalendarPageProps::handle($request, $workspace, null, $view ?? $request->query('view')));
     }
 
     public function composerData(Request $request): JsonResponse
@@ -228,29 +94,8 @@ class PostController extends Controller
 
         return response()->json([
             'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
-            ...$this->composerProps($workspace, true),
+            ...BuildComposerProps::handle($workspace, true),
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function composerProps(Workspace $workspace, bool $requested): array
-    {
-        $socialAccounts = $requested ? $workspace->socialAccounts()->active()->get() : collect();
-
-        return [
-            'socialAccounts' => $requested ? SocialAccountResource::collection($socialAccounts) : [],
-            'platformConfigs' => $socialAccounts->mapWithKeys(fn ($account) => [$account->id => new PlatformConfigResource($account)]),
-            'pinterestBoards' => $socialAccounts->where('platform', Platform::Pinterest)->mapWithKeys(fn ($account) => [
-                $account->id => rescue(fn () => ListPinterestBoards::execute($account), ['boards' => [], 'truncated' => false], report: false),
-            ]),
-            'tiktokCreatorInfos' => $socialAccounts->where('platform', Platform::TikTok)->mapWithKeys(fn ($account) => [
-                $account->id => rescue(fn () => app(TikTokCreatorInfo::class)->fetch($account), null, report: false),
-            ])->filter(),
-            'xLinkTlds' => $requested && config('trypost.platforms.x.defuse_links') ? LinkTlds::all() : [],
-            'signatures' => $requested ? $workspace->signatures()->get(['id', 'name', 'content']) : [],
-        ];
     }
 
     public function create(Request $request): RedirectResponse
@@ -260,21 +105,6 @@ class PostController extends Controller
         $this->authorize('createPost', $workspace);
 
         return $this->redirectToComposer($request, 'app.posts.index');
-    }
-
-    /**
-     * @param  array<string, mixed>  $query
-     */
-    private function redirectToComposer(Request $request, string $route, array $query = []): RedirectResponse
-    {
-        return redirect()->route($route, array_filter($query, fn (mixed $value): bool => $value !== null && $value !== ''))
-            ->with('flash', [
-                ...$request->session()->get('flash', []),
-                'openPostComposer' => [
-                    'date' => $request->query('date'),
-                    'assistant' => $request->boolean('ai') || $request->boolean('assistant'),
-                ],
-            ]);
     }
 
     public function store(StorePostRequest $request): RedirectResponse|\Symfony\Component\HttpFoundation\Response
@@ -287,19 +117,17 @@ class PostController extends Controller
 
         $this->authorize('createPost', $workspace);
 
-        $socialAccounts = $workspace->socialAccounts()->active()->get();
-
-        if ($socialAccounts->isEmpty()) {
+        if (! $workspace->socialAccounts()->exists()) {
             session()->flash('flash.banner', __('posts.flash.connect_first'));
             session()->flash('flash.bannerStyle', 'danger');
 
             return $request->user()->can('manageAccounts', $workspace)
-                ? redirect()->route('app.accounts')
+                ? redirect()->route('app.workspace.channels')
                 : redirect()->route('app.calendar');
         }
 
         $composition = [
-            ...$request->only(['status', 'content', 'media', 'scheduled_at', 'label_ids', 'destinations']),
+            ...$request->only(['status', 'content', 'media', 'scheduled_at', 'queue', 'label_ids', 'destinations']),
             'created_via' => CreatedVia::Web,
         ];
         if ($request->filled('recover_post_id')) {
@@ -310,7 +138,8 @@ class PostController extends Controller
             $posts = CreatePosts::execute($workspace, $request->user(), $composition);
         }
 
-        return redirect()->route('app.posts.index')->with('created_post_ids', $posts->pluck('id')->all());
+        return redirect($this->publishPageReturnUrl() ?? route('app.posts.index'))
+            ->with('created_post_ids', $posts->pluck('id')->all());
     }
 
     public function platformMetrics(Request $request, Post $post, PostPlatform $postPlatform): JsonResponse
@@ -405,10 +234,12 @@ class PostController extends Controller
             session()->flash('flash.banner', __('posts.flash.scheduled'));
             session()->flash('flash.bannerStyle', 'success');
 
-            return redirect()->route('app.posts.show', $post);
+            return redirect($this->publishPageReturnUrl() ?? route('app.posts.show', $post));
         }
 
-        return back();
+        $publishPage = $this->publishPageReturnUrl();
+
+        return $publishPage ? redirect($publishPage) : back();
     }
 
     public function destroy(Request $request, Post $post): RedirectResponse
@@ -441,7 +272,7 @@ class PostController extends Controller
             }
         }
 
-        return redirect()->route('app.posts.index');
+        return redirect($this->publishPageReturnUrl() ?? route('app.posts.index'));
     }
 
     public function duplicate(Request $request, Post $post): RedirectResponse
@@ -455,17 +286,6 @@ class PostController extends Controller
         session()->flash('flash.banner', __('posts.flash.duplicated'));
         session()->flash('flash.bannerStyle', 'success');
 
-        return redirect()->route('app.posts.edit', $copy);
-    }
-
-    private function canOpenComposer(Post $post): bool
-    {
-        $targets = $post->postPlatforms()->enabled()->with('socialAccount')->get();
-
-        if ($targets->isEmpty()) {
-            return $post->status === PostStatus::Draft;
-        }
-
-        return $targets->count() === 1 && $targets->first()->socialAccount?->is_active === true;
+        return redirect($this->publishPageReturnUrl(['edit' => $copy->id]) ?? route('app.posts.edit', $copy));
     }
 }

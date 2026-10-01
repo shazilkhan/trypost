@@ -7,12 +7,27 @@ namespace App\Http\Controllers\Api;
 use App\Actions\Media\StoreSignedUpload;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreUploadRequest;
+use App\Http\Requests\Api\Upload\CreateUploadRequest;
 use App\Http\Resources\Api\MediaUploadResource;
+use App\Http\Resources\Api\UploadResource;
+use App\Models\Media;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 class UploadController extends Controller
 {
+    public function create(CreateUploadRequest $request): JsonResponse
+    {
+        $workspace = $request->user()->currentWorkspace;
+
+        $media = $workspace->addMedia($request->file('media'), Media::COLLECTION_UPLOADS);
+        $media->issueUploadToken();
+
+        return UploadResource::make($media)
+            ->response()
+            ->setStatusCode(Response::HTTP_CREATED);
+    }
+
     public function store(StoreUploadRequest $request, string $token, StoreSignedUpload $upload): JsonResponse
     {
         $media = $upload->handle(

@@ -90,6 +90,13 @@ return [
         'no_post_data' => 'Er zijn geen berichten gepubliceerd in deze periode.',
         'no_ranked_posts' => 'Geen berichten met gemeten reacties of opmerkingen in deze periode.',
         'no_performance' => 'Geen kanaalprestaties beschikbaar voor deze periode.',
+        'filtered_no_posts' => 'Geen berichten voor de geselecteerde kanalen of labels in deze periode. Probeer een ander datumbereik of wis de filters.',
+        'filtered_no_followers' => 'Geen volgersgegevens voor de geselecteerde kanalen in deze periode. Probeer een ander datumbereik of wis het kanaalfilter.',
+        'filtered_no_data_title' => 'Niets komt overeen met deze filters',
+        'filtered_no_data_body' => 'De geselecteerde kanalen hebben nog geen analysegegevens. Kies andere kanalen of wis de filters.',
+        'posts_sent_axis' => 'Verzonden berichten',
+        'followers_gained_detail' => 'Begonnen met :start · :change gewonnen (:percent)',
+        'followers_lost_detail' => 'Begonnen met :start · :change verloren (:percent)',
         'no_excerpt' => 'Geen tekstvoorbeeld beschikbaar.',
         'published_via_trypost' => 'Gepubliceerd via TryPost',
         'published_on_network' => 'Gepubliceerd op het sociale netwerk',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => 'Zoektermen',
         'estimated' => 'Google geeft het exacte aantal voor deze term niet vrij',
+    ],
+
+    'ranges' => [
+        '7d' => '7 dagen',
+        '30d' => '30 dagen',
+        'mtd' => 'Huidige maand',
+        'last_month' => 'Vorige maand',
+        'custom' => 'Aangepast',
+        'compared_to' => ':current · vergeleken met :previous',
+        'label' => 'Datumbereik',
+    ],
+
+    'channel' => [
+        'title' => 'Insights',
+        'page_title' => 'Insights · :channel',
+        'unsupported_title' => 'Geen analyses voor dit netwerk',
+        'unsupported_body' => ':network deelt geen analyses met apps van derden, dus er is hier nog niets om te tonen.',
+        'performance' => 'Prestaties per bericht',
+        'this_period' => 'Deze periode',
+        'previous_period' => 'Vorige periode',
+        'post' => 'Bericht',
+        'posts_count' => 'Berichten · :count',
+        'no_posts' => 'Geen berichten gepubliceerd in deze periode.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Totaal aantal volgers',
+                'about' => 'Volgers aan het einde van de periode.',
+            ],
+            'posts' => [
+                'label' => 'Berichten',
+                'about' => 'In de periode gepubliceerde berichten.',
+            ],
+            'reactions' => [
+                'label' => 'Reacties',
+                'about' => 'Likes en reacties op berichten die in de periode zijn gepubliceerd.',
+            ],
+            'comments' => [
+                'label' => 'Opmerkingen',
+                'about' => 'Opmerkingen bij berichten die in de periode zijn gepubliceerd.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Betrokkenheid',
+                'about' => 'Interacties gedeeld door bereik of vertoningen.',
+            ],
+            'views' => [
+                'label' => 'Weergaven',
+                'about' => 'Weergaven van berichten die in de periode zijn gepubliceerd. Alleen berichten waarvoor het netwerk weergaven meldt, tellen mee.',
+            ],
+            'shares' => [
+                'label' => 'Gedeeld',
+                'about' => 'Keren dat berichten uit de periode zijn gedeeld.',
+            ],
+            'saves' => [
+                'label' => 'Opgeslagen',
+                'about' => 'Keren dat berichten uit de periode zijn opgeslagen.',
+            ],
+            'follows_gained' => [
+                'label' => 'Volgers gewonnen via berichten',
+                'about' => 'Nieuwe volgers toegeschreven aan berichten die in de periode zijn gepubliceerd.',
+            ],
+            'reach' => [
+                'label' => 'Bereik',
+                'about' => 'Unieke accounts die zijn bereikt door berichten uit de periode.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'Kijktijd (min)',
+                'about' => 'Totaal aantal bekeken minuten van video’s die in de periode zijn gepubliceerd.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Gem. kijktijd (sec)',
+                'about' => 'Gemiddeld aantal bekeken seconden per weergave.',
+            ],
+        ],
     ],
 
     'metrics' => [

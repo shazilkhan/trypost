@@ -12,7 +12,7 @@ return [
         'type' => 'Wpisz',
         'to_confirm' => 'aby potwierdzić.',
         'copy_to_clipboard' => 'Kopiuj do schowka',
-        'delete_keyword' => 'usuń',
+        'delete_keyword' => 'USUŃ',
     ],
 
     'photo_upload' => [

@@ -52,7 +52,6 @@ class BootstrapAccountAnalytics implements ShouldQueue
     {
         $account = SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
             ->find($socialAccountId);
 

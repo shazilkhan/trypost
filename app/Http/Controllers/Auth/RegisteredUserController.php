@@ -41,6 +41,7 @@ class RegisteredUserController extends Controller
             'is_invite' => $invite !== null,
             'registration_ip' => $request->ip(),
             'locale' => $request->validated('locale'),
+            'timezone' => $request->validated('timezone'),
         ], $attributionParameters);
 
         event(new Registered($user));

@@ -221,23 +221,6 @@ test('an account from another workspace cannot become a destination', function (
     expect($repurpose->fresh()->destinations)->toBe([]);
 });
 
-test('a switched-off account is accepted as a destination and skipped at publish time', function () {
-    $repurpose = Repurpose::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'source_social_account_id' => $this->source->id,
-    ]);
-
-    $this->tiktok->update(['is_active' => false]);
-
-    $this->actingAs($this->user)
-        ->put(route('app.repurposes.update', $repurpose), [
-            'destinations' => [destinationPayload($this->tiktok)],
-        ])
-        ->assertSessionHasNoErrors();
-
-    expect($repurpose->fresh()->destinations)->toHaveCount(1);
-});
-
 test('the source account token never reaches the page', function () {
     $this->source->update(['meta' => ['user_token' => 'EAAG-secret-token', 'page_id' => '1']]);
 
@@ -319,36 +302,6 @@ test('the destination settings props load once and stay out of scroll pages', fu
         ->not->toHaveKey('platformConfigs')
         ->not->toHaveKey('pinterestBoards')
         ->not->toHaveKey('tiktokCreatorInfos');
-});
-
-test('a destination whose account was switched off is kept, not rejected', function () {
-    $destination = destinationPayload($this->tiktok);
-
-    $repurpose = Repurpose::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'source_social_account_id' => $this->source->id,
-        'destinations' => [$destination],
-    ]);
-
-    $this->tiktok->update(['is_active' => false]);
-
-    $this->actingAs($this->user)
-        ->put(route('app.repurposes.update', $repurpose), [
-            'source_social_account_id' => $this->source->id,
-            'destinations' => [$destination],
-        ])
-        ->assertSessionHasNoErrors();
-
-    expect($repurpose->fresh()->destinations)->toHaveCount(1);
-
-    $this->actingAs($this->user)
-        ->put(route('app.repurposes.update', $repurpose), [
-            'source_social_account_id' => $this->source->id,
-            'destinations' => [],
-        ])
-        ->assertSessionHasNoErrors();
-
-    expect($repurpose->fresh()->destinations)->toBe([]);
 });
 
 test('the index scrolls instead of loading every repurpose at once', function () {
@@ -581,21 +534,4 @@ test('the activity list exposes each replicated post status', function () {
                 ->sort()
                 ->values()
                 ->all() === [PostPlatformStatus::Failed->value, PostPlatformStatus::Published->value]));
-});
-
-test('a switched-off destination is still sent to the page so editing cannot drop it', function () {
-    $repurpose = Repurpose::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'source_social_account_id' => $this->source->id,
-        'destinations' => [destinationPayload($this->tiktok)],
-    ]);
-
-    $this->tiktok->update(['is_active' => false]);
-
-    $this->actingAs($this->user)
-        ->get(route('app.repurposes.show', $repurpose))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('destinationAccounts', 2)
-            ->where('repurpose.destinations.0.social_account_id', $this->tiktok->id));
 });

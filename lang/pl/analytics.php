@@ -90,6 +90,13 @@ return [
         'no_post_data' => 'Brak opublikowanych postów w tym okresie.',
         'no_ranked_posts' => 'Brak postów z mierzonymi reakcjami lub komentarzami w tym okresie.',
         'no_performance' => 'Brak wyników kanałów w tym okresie.',
+        'filtered_no_posts' => 'Brak postów z wybranych kanałów lub etykiet w tym okresie. Wybierz inny zakres dat lub wyczyść filtry.',
+        'filtered_no_followers' => 'Brak danych o obserwujących dla wybranych kanałów w tym okresie. Wybierz inny zakres dat lub wyczyść filtr kanałów.',
+        'filtered_no_data_title' => 'Nic nie pasuje do tych filtrów',
+        'filtered_no_data_body' => 'Wybrane kanały nie mają jeszcze danych analitycznych. Wybierz inne kanały lub wyczyść filtry.',
+        'posts_sent_axis' => 'Wysłane posty',
+        'followers_gained_detail' => 'Początkowo :start · zyskano :change (:percent)',
+        'followers_lost_detail' => 'Początkowo :start · stracono :change (:percent)',
         'no_excerpt' => 'Podgląd tekstu jest niedostępny.',
         'published_via_trypost' => 'Opublikowano przez TryPost',
         'published_on_network' => 'Opublikowano w sieci społecznościowej',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => 'Wyszukiwane hasła',
         'estimated' => 'Google nie podaje dokładnej liczby dla tego hasła',
+    ],
+
+    'ranges' => [
+        '7d' => '7 dni',
+        '30d' => '30 dni',
+        'mtd' => 'Bieżący miesiąc',
+        'last_month' => 'Ostatni miesiąc',
+        'custom' => 'Niestandardowy',
+        'compared_to' => ':current · w porównaniu z :previous',
+        'label' => 'Zakres dat',
+    ],
+
+    'channel' => [
+        'title' => 'Insights',
+        'page_title' => 'Insights · :channel',
+        'unsupported_title' => 'Brak statystyk dla tej sieci',
+        'unsupported_body' => ':network nie udostępnia statystyk aplikacjom zewnętrznym, więc na razie nie ma tu nic do pokazania.',
+        'performance' => 'Wyniki według postów',
+        'this_period' => 'Ten okres',
+        'previous_period' => 'Poprzedni okres',
+        'post' => 'Post',
+        'posts_count' => 'Posty · :count',
+        'no_posts' => 'Brak postów opublikowanych w tym okresie.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Wszyscy obserwujący',
+                'about' => 'Obserwujący na koniec okresu.',
+            ],
+            'posts' => [
+                'label' => 'Posty',
+                'about' => 'Posty opublikowane w okresie.',
+            ],
+            'reactions' => [
+                'label' => 'Reakcje',
+                'about' => 'Polubienia i reakcje na posty opublikowane w okresie.',
+            ],
+            'comments' => [
+                'label' => 'Komentarze',
+                'about' => 'Komentarze do postów opublikowanych w okresie.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Wskaźnik zaangażowania',
+                'about' => 'Interakcje podzielone przez zasięg lub wyświetlenia.',
+            ],
+            'views' => [
+                'label' => 'Wyświetlenia',
+                'about' => 'Wyświetlenia postów opublikowanych w okresie. Liczone są tylko posty, dla których sieć podaje wyświetlenia.',
+            ],
+            'shares' => [
+                'label' => 'Udostępnienia',
+                'about' => 'Udostępnienia postów opublikowanych w okresie.',
+            ],
+            'saves' => [
+                'label' => 'Zapisy',
+                'about' => 'Zapisy postów opublikowanych w okresie.',
+            ],
+            'follows_gained' => [
+                'label' => 'Obserwujący zyskani dzięki postom',
+                'about' => 'Nowi obserwujący przypisani do postów opublikowanych w okresie.',
+            ],
+            'reach' => [
+                'label' => 'Zasięg',
+                'about' => 'Unikalne konta, do których dotarły posty opublikowane w okresie.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'Czas oglądania (min)',
+                'about' => 'Łączna liczba minut obejrzanych w filmach opublikowanych w okresie.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Śr. czas oglądania (s)',
+                'about' => 'Średnia liczba sekund obejrzanych na wyświetlenie.',
+            ],
+        ],
     ],
 
     'metrics' => [

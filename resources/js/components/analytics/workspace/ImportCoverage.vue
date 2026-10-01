@@ -18,11 +18,11 @@ const pending = computed(() =>
     <div
         v-if="pending.length"
         data-testid="analytics-import-coverage"
-        class="flex items-center gap-2.5 rounded-xl border-2 border-foreground bg-violet-50 px-4 py-3 text-sm text-foreground"
+        class="flex items-center gap-2 rounded-lg bg-info-subtle px-4 py-3 text-sm text-foreground"
         role="status"
     >
         <IconClockHour4
-            class="size-4 shrink-0 text-primary"
+            class="size-4 shrink-0 text-info-text"
             aria-hidden="true"
         />
         {{ $t('analytics.dashboard.import_in_progress') }}

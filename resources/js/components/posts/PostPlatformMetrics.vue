@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import PublicationMetrics from '@/components/analytics/workspace/PublicationMetrics.vue';
+import PostMetricsBand from '@/components/publish/PostMetricsBand.vue';
 import type {
     PublicationAnalyticsDetail,
     UnsupportedPublicationAnalytics,
@@ -18,10 +18,7 @@ const savedDetail = computed((): PublicationAnalyticsDetail | null =>
 </script>
 
 <template>
-    <div v-if="savedDetail" class="border-t border-border px-4 py-4">
-        <h3 class="mb-3 text-sm font-semibold">
-            {{ $t('posts.show.metrics') }}
-        </h3>
-        <PublicationMetrics :detail="savedDetail" />
-    </div>
+    <section v-if="savedDetail" :aria-label="$t('posts.show.metrics')">
+        <PostMetricsBand :detail="savedDetail" class="px-6" />
+    </section>
 </template>

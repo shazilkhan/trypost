@@ -34,13 +34,6 @@ return [
         'ignore' => 'Jeśli nie zakładałeś konta, możesz zignorować tę wiadomość.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name wspomniał o Tobie w TryPost',
-        'title' => ':name wspomniał o Tobie',
-        'intro' => ':name wspomniał o Tobie w notatce do posta.',
-        'button' => 'Zobacz notatkę',
-    ],
-
     'password_reset' => [
         'subject' => 'Zresetuj hasło',
         'preview' => 'Zresetuj hasło.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => ':count zaplanowany post: :times UTC|:count zaplanowane posty: :times UTC|:count zaplanowanych postów: :times UTC',
         'reconnect_cta' => 'Połącz te konta ponownie już teraz, aby nie przegapić zaplanowanych postów.',
         'button' => 'Połącz konta ponownie',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author dodał(a) notatkę do posta',
+        'title' => 'Nowa notatka od :author',
+        'heading' => 'Nowa notatka do posta',
+        'body' => ':author dodał(a) notatkę do posta w obszarze roboczym :workspace.',
+        'post_title' => 'Post',
+        'post_without_text' => 'Ten post nie ma jeszcze tekstu.',
+        'button' => 'Zobacz notatkę',
     ],
 
     'post_publish_failed' => [

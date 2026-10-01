@@ -4,7 +4,7 @@ import type { Component } from 'vue';
 defineProps<{
     icon: Component;
     title: string;
-    description: string;
+    description?: string;
 }>();
 </script>
 
@@ -18,10 +18,12 @@ defineProps<{
         >
             <component :is="icon" class="size-6" stroke-width="1.75" />
         </div>
-        <h3 class="mb-1 text-base font-semibold text-foreground">
+        <h3 class="mb-1 font-heading text-base font-medium text-foreground">
             {{ title }}
         </h3>
-        <p class="max-w-xs text-sm text-muted-foreground">{{ description }}</p>
+        <p v-if="description" class="max-w-xs text-sm text-muted-foreground">
+            {{ description }}
+        </p>
         <div v-if="$slots.action" class="mt-6 flex gap-2">
             <slot name="action" />
         </div>

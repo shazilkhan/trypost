@@ -13,15 +13,12 @@ return [
     ],
 
     'publish_mode' => [
-
         'title' => 'Veröffentlichung',
 
         'description' => 'Was passiert, wenn ein neuer Beitrag auftaucht.',
-
     ],
 
     'publish_modes' => [
-
         'publish' => 'Automatisch veröffentlichen',
 
         'publish_hint' => 'Jeder neue Beitrag wird eingeplant, sobald er gefunden wird.',
@@ -29,7 +26,6 @@ return [
         'draft' => 'Als Entwurf anlegen',
 
         'draft_hint' => 'Jeder neue Beitrag wird hier zum Entwurf, den du prüfen und veröffentlichen kannst.',
-
     ],
 
     'formats' => [
@@ -58,8 +54,6 @@ return [
     ],
 
     'table' => [
-        'flow' => 'Ablauf',
-        'status' => 'Status',
         'published' => 'Repliziert',
         'last_polled' => 'Zuletzt geprüft',
     ],
@@ -97,7 +91,6 @@ return [
     ],
 
     'destinations' => [
-        'paused_note' => 'Deaktiviert und übersprungen, bis du sie wieder einschaltest: :accounts',
         'title' => 'Ziele',
         'description' => 'Wähle die Konten, die es erhalten. Jedes veröffentlicht im Format deiner Wahl.',
         'hint' => 'Der Text wird nur dann pro Netzwerk angepasst, wenn er dessen Limit überschreitet.',
@@ -150,9 +143,7 @@ return [
     ],
 
     'menu' => [
-
         'label' => 'Weitere Aktionen',
-
     ],
 
     'danger' => [

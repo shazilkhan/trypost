@@ -9,21 +9,21 @@ defineProps<{
 </script>
 
 <template>
-    <div class="flex min-w-0 items-center gap-3">
+    <div class="flex min-w-0 items-center gap-2">
         <span
             v-if="icon"
-            class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-foreground shadow-xs"
+            class="flex size-[42px] shrink-0 items-center justify-center rounded-xl border border-border-strong bg-card text-foreground"
             data-testid="header-icon"
             aria-hidden="true"
         >
-            <component :is="icon" class="size-5" stroke-width="1.8" />
+            <component :is="icon" class="size-6" stroke-width="1.5" />
         </span>
 
         <div class="min-w-0">
             <slot>
                 <h1
                     v-if="title"
-                    class="truncate text-base font-semibold text-foreground"
+                    class="truncate font-heading text-xl leading-tight font-medium text-foreground"
                     data-testid="header-title"
                 >
                     {{ title }}

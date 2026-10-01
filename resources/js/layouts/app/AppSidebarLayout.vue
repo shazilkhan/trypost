@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { useHttp, usePage } from '@inertiajs/vue3';
-import { onBeforeUnmount, onMounted } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 import AppHeader from '@/components/AppHeader.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
+import ConnectChannelDialog from '@/components/channels/ConnectChannelDialog.vue';
+import CommandPalette from '@/components/command-palette/CommandPalette.vue';
 import HelpMenu from '@/components/HelpMenu.vue';
 import GlobalPostComposer from '@/components/posts/composer/GlobalPostComposer.vue';
 import Toast from '@/components/Toast.vue';
@@ -12,43 +13,29 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { heartbeat as heartbeatRoute } from '@/routes/app/presence';
 
 const page = usePage();
-const isOpen = page.props.sidebarOpen;
 
 type Props = {
     fullWidth?: boolean;
+    alwaysExpanded?: boolean;
 };
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
     fullWidth: false,
+    alwaysExpanded: false,
 });
 
-const heartbeatHttp = useHttp<Record<string, never>, { ok: boolean }>({});
-
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-const sendHeartbeat = () => {
-    if (typeof document === 'undefined' || document.hidden) return;
-    void heartbeatHttp.post(heartbeatRoute.url()).catch(() => undefined);
-};
-
-onMounted(() => {
-    sendHeartbeat();
-    heartbeatTimer = setInterval(sendHeartbeat, 30_000);
-});
-
-onBeforeUnmount(() => {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-});
+const isOpen = props.alwaysExpanded || Boolean(page.props.sidebarOpen);
 </script>
 
 <template>
     <SidebarProvider :default-open="isOpen" class="bg-sidebar">
-        <AppSidebar />
+        <slot name="sidebar">
+            <AppSidebar />
+        </slot>
         <SidebarInset
-            class="overflow-hidden bg-card md:m-2 md:ml-0 md:rounded-xl md:border md:border-border md:shadow-xs"
+            class="overflow-hidden bg-card md:my-2 md:me-2 md:rounded-xl md:border md:border-border"
             data-testid="app-content-shell"
         >
             <AppHeader v-if="$slots['header'] || $slots['header-actions']">
@@ -62,7 +49,7 @@ onBeforeUnmount(() => {
             <SidebarTrigger
                 v-else
                 data-testid="app-sidebar-trigger"
-                class="absolute top-3 left-4 z-30 size-10 rounded-md border border-border bg-card text-foreground shadow-xs md:hidden"
+                class="absolute top-3 left-4 z-30 size-8 rounded-lg border border-border-strong bg-card text-foreground md:hidden md:group-has-data-[collapsible=offcanvas]/sidebar-wrapper:inline-flex"
             />
             <div
                 data-testid="app-layout-scroller"
@@ -90,5 +77,7 @@ onBeforeUnmount(() => {
     </SidebarProvider>
     <HelpMenu />
     <GlobalPostComposer />
+    <ConnectChannelDialog />
+    <CommandPalette />
     <Toast />
 </template>

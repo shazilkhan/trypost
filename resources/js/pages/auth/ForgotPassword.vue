@@ -25,15 +25,19 @@ defineProps<{
 
         <div
             v-if="status"
-            class="mb-4 text-center text-sm font-medium text-green-600"
+            class="rounded-lg bg-success-subtle px-3 py-2 text-center text-sm font-medium text-success-text"
         >
             {{ status }}
         </div>
 
-        <div class="space-y-6">
-            <Form v-bind="email.form()" v-slot="{ errors, processing }">
+        <div class="flex flex-col gap-6">
+            <Form
+                v-bind="email.form()"
+                v-slot="{ errors, processing }"
+                class="flex flex-col gap-4"
+            >
                 <div class="grid gap-2">
-                    <Label for="email">{{ $t('auth.forgot_password.email') }}</Label>
+                    <Label for="email" class="text-base leading-6">{{ $t('auth.forgot_password.email') }}</Label>
                     <Input
                         id="email"
                         type="email"
@@ -41,23 +45,23 @@ defineProps<{
                         autocomplete="off"
                         autofocus
                         placeholder="email@example.com"
+                        class="h-10 rounded-lg px-3 text-base"
                     />
                     <InputError :message="errors.email" />
                 </div>
 
-                <div class="my-6 flex items-center justify-start">
-                    <Button
-                        class="w-full"
-                        :disabled="processing"
-                        data-test="email-password-reset-link-button"
-                    >
-                        <Spinner v-if="processing" />
-                        {{ $t('auth.forgot_password.submit') }}
-                    </Button>
-                </div>
+                <Button
+                    size="lg"
+                    class="w-full text-base"
+                    :disabled="processing"
+                    data-test="email-password-reset-link-button"
+                >
+                    <Spinner v-if="processing" />
+                    {{ $t('auth.forgot_password.submit') }}
+                </Button>
             </Form>
 
-            <div class="space-x-1 text-center text-sm text-muted-foreground">
+            <div class="space-x-1 text-center text-base text-foreground">
                 <span>{{ $t('auth.forgot_password.return_to') }}</span>
                 <TextLink :href="login()">{{ $t('auth.forgot_password.log_in') }}</TextLink>
             </div>

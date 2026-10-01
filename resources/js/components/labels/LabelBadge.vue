@@ -30,7 +30,7 @@ defineEmits<{ click: [] }>();
         class="inline-flex items-center gap-1.5 rounded-full border border-border px-2 py-0.5 text-[10px] font-bold tracking-widest text-foreground uppercase shadow-2xs"
         :class="[
             selected
-                ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-sm'
+                ? 'border-primary-strong bg-primary-subtle text-foreground shadow-sm'
                 : 'bg-card',
             interactive
                 ? 'cursor-pointer transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed'

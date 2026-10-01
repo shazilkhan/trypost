@@ -9,6 +9,7 @@ import { createYear, createYearRange, toDate } from "reka-ui/date"
 import { computed, toRaw } from "vue"
 import { cn } from "@/lib/utils"
 import dayjs from "@/dayjs"
+import { weekStartIndex } from "@/preferences"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CalendarCell, CalendarCellTrigger, CalendarGrid, CalendarGridBody, CalendarGridHead, CalendarGridRow, CalendarHeadCell, CalendarHeader, CalendarHeading, CalendarNextButton, CalendarPrevButton } from "."
 
@@ -81,6 +82,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     v-slot="{ grid, weekDays, date }"
     v-bind="forwarded"
     v-model:placeholder="placeholder"
+    :week-starts-on="props.weekStartsOn ?? weekStartIndex()"
     data-slot="calendar"
     :class="cn('p-3', props.class)"
   >

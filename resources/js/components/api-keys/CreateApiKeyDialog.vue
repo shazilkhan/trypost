@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Form } from '@inertiajs/vue3';
-import { trans } from 'laravel-vue-i18n';
 import { ref } from 'vue';
 
 import ApiKeyController from '@/actions/App/Http/Controllers/App/ApiKeyController';
@@ -52,8 +51,9 @@ const onSuccess = () => {
                     <Input
                         id="token-name"
                         name="name"
+                        data-testid="token-name"
                         :placeholder="
-                            trans(
+                            $t(
                                 'settings.api_keys.create_dialog.name_placeholder',
                             )
                         "
@@ -61,7 +61,7 @@ const onSuccess = () => {
                     <InputError :message="errors.name" />
                 </div>
                 <div class="grid gap-2">
-                    <Label>{{
+                    <Label for="token-expires">{{
                         $t('settings.api_keys.create_dialog.expires')
                     }}</Label>
                     <DatePicker
@@ -69,7 +69,7 @@ const onSuccess = () => {
                         v-model="expiresAt"
                         :show-time="false"
                         :placeholder="
-                            trans(
+                            $t(
                                 'settings.api_keys.create_dialog.expires_placeholder',
                             )
                         "
@@ -80,12 +80,16 @@ const onSuccess = () => {
                 <DialogFooter>
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="ghost"
                         @click="open = false"
                     >
                         {{ $t('settings.api_keys.create_dialog.cancel') }}
                     </Button>
-                    <Button type="submit" :disabled="processing">
+                    <Button
+                        type="submit"
+                        :disabled="processing"
+                        data-testid="create-api-key-submit"
+                    >
                         {{ $t('settings.api_keys.create_dialog.submit') }}
                     </Button>
                 </DialogFooter>

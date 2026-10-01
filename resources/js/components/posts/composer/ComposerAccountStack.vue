@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PlatformLogo from '@/components/PlatformLogo.vue';
 import { getPlatformLogo } from '@/composables/usePlatformLogo';
 import type { ComposerAccount } from '@/composables/usePostComposition';
 
@@ -19,10 +20,12 @@ defineProps<{
                 alt=""
                 class="size-full rounded-full object-cover"
             />
-            <img
-                :src="getPlatformLogo(account.platform)"
-                alt=""
-                class="absolute -right-1 -bottom-1 size-3 rounded-full border border-background bg-background"
+            <PlatformLogo
+                :platform="account.platform"
+                :size="12"
+                ring="background"
+                :title="null"
+                class="absolute -right-1 -bottom-1"
             />
         </span>
         <span

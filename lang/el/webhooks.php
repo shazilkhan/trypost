@@ -9,8 +9,6 @@ return [
     'empty_title' => 'Δεν υπάρχουν ακόμα webhooks',
     'empty_description' => 'Δημιουργήστε ένα webhook για να λαμβάνετε ειδοποιήσεις συμβάντων σε πραγματικό χρόνο.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => 'Ακούει',
         'status' => 'Κατάσταση',
         'last_sent' => 'Τελευταία αποστολή',
     ],

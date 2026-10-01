@@ -9,8 +9,6 @@ return [
     'empty_title' => 'No webhooks yet',
     'empty_description' => 'Create a webhook to receive real-time event notifications.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => 'Listening for',
         'status' => 'Status',
         'last_sent' => 'Last sent',
     ],

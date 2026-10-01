@@ -9,14 +9,13 @@ return [
     'no_search_results' => '没有与搜索匹配的标签',
     'try_different_search' => '换一个关键词，或清除搜索。',
     'create_first_label' => '创建你的第一个标签',
-    'table' => [
-        'name' => '名称',
-        'created_at' => '创建时间',
-    ],
 
     'actions' => [
         'edit' => '编辑标签',
         'delete' => '删除标签',
+        'more' => '更多操作',
+        'view_posts' => '查看帖子',
+        'open_reporting' => '打开报告',
     ],
 
     'create' => [
@@ -44,11 +43,5 @@ return [
         'description' => '确定要删除此标签吗？此操作无法撤销。',
         'confirm' => '删除',
         'cancel' => '取消',
-    ],
-
-    'flash' => [
-        'created' => '标签创建成功！',
-        'updated' => '标签更新成功！',
-        'deleted' => '标签删除成功！',
     ],
 ];

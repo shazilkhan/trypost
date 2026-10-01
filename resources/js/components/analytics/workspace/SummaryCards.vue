@@ -1,28 +1,44 @@
 <script setup lang="ts">
+import {
+    IconInfoCircle,
+    IconTrendingDown,
+    IconTrendingUp,
+} from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
     formatNumberCompact,
     formatPercent,
     formatPercentChange,
 } from '@/lib/utils';
+import type { AnalyticsReport, SummaryMetric } from '@/types/analytics';
 
-import type { WorkspaceAnalyticsReport } from '@/types/analytics';
 import AnalyticsSection from './AnalyticsSection.vue';
 
-const props = defineProps<{ report: WorkspaceAnalyticsReport }>();
+const props = defineProps<{
+    report: AnalyticsReport;
+    availableMetrics?: SummaryMetric[];
+    subtitle?: string;
+    subtitleTestid?: string;
+}>();
 
-const cards = computed(() => [
-    {
-        key: 'followers',
-        label: 'analytics.dashboard.total_followers',
-        metric: props.report.summary.followers,
-        percent: false,
-    },
+const defaultCards = computed(() => [
     {
         key: 'posts',
         label: 'analytics.dashboard.posts',
         metric: props.report.summary.posts,
+        percent: false,
+    },
+    {
+        key: 'followers',
+        label: 'analytics.dashboard.total_followers',
+        metric: props.report.summary.followers,
         percent: false,
     },
     {
@@ -45,6 +61,20 @@ const cards = computed(() => [
     },
 ]);
 
+const cards = computed(() =>
+    props.availableMetrics
+        ? props.availableMetrics.map((key) => ({
+              key,
+              label: `analytics.channel.metrics.${key}.label`,
+              metric: props.report.summary[key],
+              percent: key === 'engagement_rate',
+          }))
+        : defaultCards.value,
+);
+
+const testId = (key: string): string =>
+    props.availableMetrics ? `insights-card-${key}` : `analytics-summary-${key}`;
+
 const display = (value: number | null, percent: boolean): string =>
     value === null
         ? '—'
@@ -61,47 +91,80 @@ const changeLabel = (key: string, change: number | null): string | null => {
 </script>
 
 <template>
-    <AnalyticsSection :title="$t('analytics.dashboard.summary')">
-        <div
-            class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
-            data-testid="analytics-summary"
-        >
+    <AnalyticsSection
+        :title="$t('analytics.dashboard.summary')"
+        :subtitle="subtitle"
+        :subtitle-testid="subtitleTestid"
+    >
+        <TooltipProvider :delay-duration="200">
             <div
-                v-for="card in cards"
-                :key="card.key"
-                :data-testid="`analytics-summary-${card.key}`"
-                class="flex min-h-28 min-w-0 flex-col justify-between rounded-xl border-2 border-foreground px-4 py-4 shadow-xs"
-                :class="
-                    card.key === 'followers'
-                        ? 'bg-violet-100 text-foreground sm:col-span-2 lg:col-span-1'
-                        : 'bg-background text-foreground'
-                "
+                class="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))]"
+                data-testid="analytics-summary"
             >
-                <p class="text-sm font-medium text-foreground/70">
-                    {{ $t(card.label) }}
-                </p>
-                <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <span
-                        class="text-3xl font-semibold tracking-tight text-foreground tabular-nums"
-                        >{{ display(card.metric.value, card.percent) }}</span
-                    >
-                    <span
-                        v-if="changeLabel(card.key, card.metric.change)"
-                        :data-testid="`analytics-summary-${card.key}-change`"
-                        class="rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums"
-                        :class="
-                            card.metric.change! >= 0
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-rose-50 text-rose-700'
-                        "
-                    >
-                        {{ card.metric.change! >= 0 ? '↗' : '↘' }}
-                        {{ changeLabel(card.key, card.metric.change) }}
-                    </span>
+                <div
+                    v-for="card in cards"
+                    :key="card.key"
+                    :data-testid="testId(card.key)"
+                    class="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-card px-4 py-3"
+                >
+                    <div class="flex min-h-6 items-center justify-between gap-1">
+                        <p class="truncate text-xs text-muted-foreground">
+                            {{ $t(card.label) }}
+                        </p>
+                        <Tooltip v-if="availableMetrics">
+                            <TooltipTrigger as-child>
+                                <button
+                                    type="button"
+                                    class="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground transition-control hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                                    :aria-label="
+                                        $t(
+                                            `analytics.channel.metrics.${card.key}.about`,
+                                        )
+                                    "
+                                    :data-testid="`insights-card-${card.key}-about`"
+                                >
+                                    <IconInfoCircle
+                                        class="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {{
+                                    $t(
+                                        `analytics.channel.metrics.${card.key}.about`,
+                                    )
+                                }}
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span
+                            class="font-heading text-xl leading-tight font-medium text-foreground tabular-nums"
+                            >{{ display(card.metric.value, card.percent) }}</span
+                        >
+                        <span
+                            v-if="changeLabel(card.key, card.metric.change)"
+                            :data-testid="`${testId(card.key)}-change`"
+                            class="inline-flex items-center gap-1 text-xs text-foreground tabular-nums"
+                        >
+                            <IconTrendingUp
+                                v-if="card.metric.change! >= 0"
+                                class="size-4 shrink-0 text-success-text"
+                                aria-hidden="true"
+                            />
+                            <IconTrendingDown
+                                v-else
+                                class="size-4 shrink-0 text-destructive-text"
+                                aria-hidden="true"
+                            />
+                            {{ changeLabel(card.key, card.metric.change) }}
+                        </span>
+                    </div>
                 </div>
             </div>
-        </div>
-        <p class="mt-3 text-xs text-muted-foreground">
+        </TooltipProvider>
+        <p class="px-2 pt-3 pb-1 text-xs text-muted-foreground">
             {{ $t('analytics.dashboard.latest_snapshot_hint') }}
         </p>
     </AnalyticsSection>

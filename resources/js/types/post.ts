@@ -20,3 +20,12 @@ export const PostPlatformStatus = {
 } as const;
 
 export type PostPlatformStatusValue = (typeof PostPlatformStatus)[keyof typeof PostPlatformStatus];
+
+export const ScheduleMode = {
+    Queue: 'queue',
+    Custom: 'custom',
+} as const;
+
+export type ScheduleModeValue = (typeof ScheduleMode)[keyof typeof ScheduleMode];
+
+export type QueuePositionValue = 'next' | 'top';

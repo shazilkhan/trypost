@@ -241,21 +241,6 @@ return [
             'nice' => 0,
         ],
 
-        'ai-assistant' => [
-            'connection' => 'redis',
-            'queue' => ['ai'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'minProcesses' => 1,
-            'maxProcesses' => 2,
-            'timeout' => 930,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 512,
-            'tries' => 1,
-            'nice' => 0,
-        ],
-
         'webhooks' => [
             'connection' => 'redis',
             'queue' => ['webhooks'],
@@ -285,6 +270,36 @@ return [
             'tries' => 1,
             'nice' => 0,
         ],
+
+        'media-imports' => [
+            'connection' => 'redis',
+            'queue' => ['media-imports'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'timeout' => 630,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'nice' => 0,
+        ],
+
+        'rss-feeds' => [
+            'connection' => 'redis',
+            'queue' => ['rss-feeds'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'timeout' => 60,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 1,
+            'nice' => 0,
+        ],
     ],
 
     'environments' => [
@@ -301,12 +316,6 @@ return [
                 'balanceCooldown' => 3,
             ],
 
-            'ai-assistant' => [
-                'maxProcesses' => 5,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-
             'webhooks' => [
                 'maxProcesses' => 3,
                 'balanceMaxShift' => 1,
@@ -315,6 +324,18 @@ return [
 
             'analytics' => [
                 'maxProcesses' => 4,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+
+            'media-imports' => [
+                'maxProcesses' => 4,
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+
+            'rss-feeds' => [
+                'maxProcesses' => 3,
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
@@ -329,15 +350,19 @@ return [
                 'maxProcesses' => 3,
             ],
 
-            'ai-assistant' => [
-                'maxProcesses' => 2,
-            ],
-
             'webhooks' => [
                 'maxProcesses' => 1,
             ],
 
             'analytics' => [
+                'maxProcesses' => 1,
+            ],
+
+            'media-imports' => [
+                'maxProcesses' => 1,
+            ],
+
+            'rss-feeds' => [
                 'maxProcesses' => 1,
             ],
         ],

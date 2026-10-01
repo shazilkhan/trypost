@@ -43,6 +43,14 @@ enum Platform: string
         };
     }
 
+    public function reportsPublicationFollows(): bool
+    {
+        return match ($this) {
+            self::Instagram, self::InstagramFacebook => true,
+            default => false,
+        };
+    }
+
     /** @return list<string> */
     public static function analyticsValues(): array
     {
@@ -480,7 +488,7 @@ enum Platform: string
     }
 
     /**
-     * @return list<array{value: string, label: string, network: string, connect_methods?: list<string>}>
+     * @return list<array{value: string, label: string, network: string, analytics: bool, text_only: bool, media_types: list<string>, connect_methods?: list<string>}>
      */
     public static function connectableOptions(): array
     {
@@ -492,6 +500,9 @@ enum Platform: string
                     'value' => $platform->value,
                     'label' => $platform->label(),
                     'network' => $platform->network(),
+                    'analytics' => $platform->isIncludedInAnalytics(),
+                    'text_only' => $platform->supportsTextOnly(),
+                    'media_types' => array_map(fn (MediaType $type): string => $type->value, $platform->allowedMediaTypes()),
                 ];
 
                 if ($platform === self::Instagram) {
@@ -520,5 +531,46 @@ enum Platform: string
             ],
             default => [],
         };
+    }
+
+    /**
+     * Recommended posting windows for this network, best first, as [day, hour]
+     * pairs (day 0 = Sunday, local to the channel time zone). Built from a
+     * ranked day order and four ranked hours, rotated so the first week does not
+     * repeat one hour: block r (0..3) gives every day one window at
+     * hours[(r + dayRank) % 4]. Day and hour rankings follow the published
+     * "best time to post" industry studies
+     * (2024-2025 editions) for each network.
+     *
+     * @return list<array{0: int, 1: int}>
+     */
+    public function recommendedPostingWindows(): array
+    {
+        [$days, $hours] = match ($this->network()) {
+            'linkedin' => [[2, 3, 4, 1, 5, 6, 0], [8, 12, 10, 17]],
+            'x' => [[2, 3, 4, 1, 5, 6, 0], [9, 12, 15, 18]],
+            'instagram' => [[2, 3, 4, 1, 5, 6, 0], [11, 19, 13, 9]],
+            'facebook' => [[2, 3, 4, 1, 5, 6, 0], [9, 13, 11, 15]],
+            'threads' => [[2, 3, 4, 1, 5, 6, 0], [9, 12, 18, 20]],
+            'tiktok' => [[2, 4, 5, 3, 1, 6, 0], [19, 12, 16, 21]],
+            'youtube' => [[5, 6, 0, 4, 3, 2, 1], [15, 17, 12, 19]],
+            'pinterest' => [[5, 6, 0, 4, 3, 2, 1], [20, 14, 21, 15]],
+            'bluesky' => [[2, 3, 4, 1, 5, 6, 0], [9, 12, 17, 20]],
+            'mastodon' => [[2, 3, 4, 1, 5, 6, 0], [10, 13, 16, 19]],
+            'telegram' => [[1, 2, 3, 4, 5, 6, 0], [9, 12, 18, 20]],
+            'discord' => [[5, 6, 0, 4, 3, 2, 1], [18, 20, 15, 21]],
+            'google_business' => [[1, 2, 3, 4, 5, 6, 0], [9, 11, 14, 16]],
+            default => [[2, 3, 4, 1, 5, 6, 0], [9, 12, 15, 18]],
+        };
+
+        $windows = [];
+
+        foreach (range(0, 3) as $block) {
+            foreach ($days as $rank => $day) {
+                $windows[] = [$day, $hours[($block + $rank) % 4]];
+            }
+        }
+
+        return $windows;
     }
 }

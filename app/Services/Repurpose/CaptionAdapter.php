@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Repurpose;
 
-use App\Actions\Ai\RecordAiUsage;
 use App\Ai\Agents\PostContentShortener;
 use App\Enums\SocialAccount\Platform;
 use App\Models\User;
@@ -49,29 +48,18 @@ class CaptionAdapter
         $key = $platform->maxContentLength().':'.md5($caption);
 
         $shortened = $this->shortened[$key] ??= rescue(
-            fn (): string => $this->ask($workspace, $user, $caption, $platform),
+            fn (): string => $this->ask($caption, $platform),
         );
 
         return filled($shortened) && $this->fits($shortened, $platform) ? $shortened : null;
     }
 
-    private function ask(Workspace $workspace, User $user, string $caption, Platform $platform): string
+    private function ask(string $caption, Platform $platform): string
     {
         $result = (new PostContentShortener(
-            workspace: $workspace,
             platformLabel: $platform->label(),
             limit: $platform->maxContentLength(),
         ))->prompt($caption);
-
-        RecordAiUsage::recordText(
-            workspace: $workspace,
-            promptTokens: $result->usage->promptTokens,
-            completionTokens: $result->usage->completionTokens,
-            provider: (string) $result->meta->provider,
-            model: (string) $result->meta->model,
-            userId: $user->id,
-            metadata: ['agent' => 'post_shortener'],
-        );
 
         return trim((string) $result->text);
     }

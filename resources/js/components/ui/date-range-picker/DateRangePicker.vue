@@ -27,6 +27,7 @@ const props = defineProps<{
   minDate?: Date
   maxDate?: Date
   disabled?: boolean
+  withoutPresets?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -54,7 +55,7 @@ const value = ref({
 }) as Ref<DateRange>
 
 const isUpdating = ref(false)
-const isOpen = ref(false)
+const isOpen = defineModel<boolean>("open", { default: false })
 const { width } = useWindowSize()
 const numberOfMonths = computed(() => width.value < 640 ? 1 : 2)
 const minimum = computed(() => props.minDate ? toCalendarDate(props.minDate) : undefined)
@@ -141,34 +142,36 @@ watch(
 <template>
   <Popover v-model:open="isOpen">
     <PopoverTrigger as-child>
-      <Button
-        variant="outline"
-        data-testid="date-range-picker-trigger"
-        :disabled="disabled"
-        :class="cn(
-          'w-full justify-start text-left font-medium sm:w-auto',
-          !value && 'text-foreground/60',
-          props.triggerClass,
-        )"
-      >
-        <template v-if="value.start">
-          <template v-if="value.end">
-            {{ date.formatLocalDate(toDate(value.start)) }} -
-            {{ date.formatLocalDate(toDate(value.end)) }}
+      <slot name="trigger">
+        <Button
+          variant="outline"
+          data-testid="date-range-picker-trigger"
+          :disabled="disabled"
+          :class="cn(
+            'w-full justify-start text-left font-medium sm:w-auto',
+            !value && 'text-foreground/60',
+            props.triggerClass,
+          )"
+        >
+          <template v-if="value.start">
+            <template v-if="value.end">
+              {{ date.formatLocalDate(toDate(value.start)) }} -
+              {{ date.formatLocalDate(toDate(value.end)) }}
+            </template>
+            <template v-else>
+              {{ date.formatLocalDate(toDate(value.start)) }}
+            </template>
           </template>
           <template v-else>
-            {{ date.formatLocalDate(toDate(value.start)) }}
+            {{ $t('common.date_range_picker.placeholder') }}
           </template>
-        </template>
-        <template v-else>
-          {{ $t('common.date_range_picker.placeholder') }}
-        </template>
-        <IconCalendar class="ml-auto size-4 text-foreground/60" />
-      </Button>
+          <IconCalendar class="ml-auto size-4 text-foreground/60" />
+        </Button>
+      </slot>
     </PopoverTrigger>
     <PopoverContent class="w-auto p-0" align="end">
       <div class="flex flex-col sm:flex-row">
-        <div class="hidden flex-col border-b border-border py-2 sm:flex sm:w-[170px] sm:shrink-0 sm:border-r sm:border-b-0">
+        <div v-if="!withoutPresets" class="hidden flex-col border-b border-border py-2 sm:flex sm:w-[170px] sm:shrink-0 sm:border-r sm:border-b-0">
           <template v-for="(group, groupIndex) in presetGroups" :key="groupIndex">
             <div v-if="groupIndex > 0" class="my-1 border-t border-border" />
             <div class="space-y-0.5 px-2">
@@ -178,7 +181,7 @@ watch(
                 :data-testid="`date-range-preset-${preset.key}`"
                 variant="ghost"
                 size="sm"
-                class="h-7 w-full justify-start text-xs font-medium text-muted-foreground hover:bg-amber-100 hover:text-amber-950"
+                class="h-7 w-full justify-start text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 @click="applyPreset(preset)"
               >
                 {{ preset.label }}

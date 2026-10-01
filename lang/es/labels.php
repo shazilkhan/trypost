@@ -9,14 +9,13 @@ return [
     'no_search_results' => 'Ninguna etiqueta coincide con tu búsqueda',
     'try_different_search' => 'Prueba otra palabra clave o limpia la búsqueda.',
     'create_first_label' => 'Crea tu primera etiqueta',
-    'table' => [
-        'name' => 'Nombre',
-        'created_at' => 'Creado',
-    ],
 
     'actions' => [
         'edit' => 'Editar etiqueta',
         'delete' => 'Eliminar etiqueta',
+        'more' => 'Más acciones',
+        'view_posts' => 'Ver publicaciones',
+        'open_reporting' => 'Abrir informes',
     ],
 
     'create' => [
@@ -44,11 +43,5 @@ return [
         'description' => '¿Estás seguro de que deseas eliminar esta etiqueta? Esta acción no se puede deshacer.',
         'confirm' => 'Eliminar',
         'cancel' => 'Cancelar',
-    ],
-
-    'flash' => [
-        'created' => '¡Etiqueta creada correctamente!',
-        'updated' => '¡Etiqueta actualizada correctamente!',
-        'deleted' => '¡Etiqueta eliminada correctamente!',
     ],
 ];

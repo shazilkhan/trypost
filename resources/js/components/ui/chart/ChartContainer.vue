@@ -48,7 +48,7 @@ provideChartContext({ id, config });
             '--vis-font-family': 'var(--font-sans)',
             '--vis-axis-tick-label-color': 'var(--muted-foreground)',
             '--vis-axis-tick-label-font-size': '11px',
-            '--vis-axis-grid-line-color':
+            '--vis-axis-grid-color':
                 'color-mix(in srgb, var(--foreground) 12%, transparent)',
             ...colorStyles,
         }"

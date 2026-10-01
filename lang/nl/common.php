@@ -12,7 +12,7 @@ return [
         'type' => 'Typ',
         'to_confirm' => 'om te bevestigen.',
         'copy_to_clipboard' => 'Kopiëren naar klembord',
-        'delete_keyword' => 'verwijderen',
+        'delete_keyword' => 'VERWIJDEREN',
     ],
 
     'photo_upload' => [

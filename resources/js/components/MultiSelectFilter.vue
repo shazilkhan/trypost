@@ -29,10 +29,16 @@ const props = withDefaults(
         testId: string;
         contentClass?: string;
         checkboxPosition?: 'start' | 'end';
+        showHeader?: boolean;
+        extraCount?: number;
+        align?: 'start' | 'center' | 'end';
     }>(),
     {
         contentClass: 'w-72',
         checkboxPosition: 'end',
+        showHeader: true,
+        extraCount: 0,
+        align: 'end',
     },
 );
 
@@ -58,6 +64,10 @@ const toggle = (id: string): void => {
         : [...selectedIds.value, id];
 };
 
+const selectedCount = computed(
+    () => selectedIds.value.length + props.extraCount,
+);
+
 const toggleAll = (): void => {
     selectedIds.value = selectedIds.value.length
         ? []
@@ -68,32 +78,37 @@ const toggleAll = (): void => {
 <template>
     <Popover v-model:open="open">
         <PopoverTrigger as-child>
-            <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                :aria-expanded="open"
-                class="w-full justify-between gap-2 font-normal sm:w-auto"
-                :data-testid="`${testId}-filter`"
-            >
-                <span
-                    class="inline-flex size-4 shrink-0 items-center opacity-60"
+            <slot name="trigger" :open="open">
+                <Button
+                    type="button"
+                    variant="ghost"
+                    role="combobox"
+                    :aria-expanded="open"
+                    class="shrink-0 data-[state=open]:bg-accent"
+                    :data-testid="`${testId}-filter`"
                 >
-                    <slot name="icon" />
-                </span>
-                <span>{{ label }}</span>
-                <span
-                    v-if="selectedIds.length"
-                    class="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium"
-                    >{{ selectedIds.length }}</span
-                >
-                <IconChevronDown class="size-4 shrink-0 opacity-50" />
-            </Button>
+                    <span
+                        class="inline-flex size-4 shrink-0 items-center text-muted-foreground"
+                    >
+                        <slot name="icon" />
+                    </span>
+                    <span>{{ label }}</span>
+                    <span
+                        v-if="selectedCount"
+                        class="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-secondary px-1 text-xs font-medium"
+                        :data-testid="`${testId}-count`"
+                        >{{ selectedCount }}</span
+                    >
+                    <IconChevronDown
+                        class="size-4 shrink-0 text-muted-foreground"
+                    />
+                </Button>
+            </slot>
         </PopoverTrigger>
 
         <PopoverContent
             :class="['max-w-[calc(100vw-2rem)] p-3', contentClass]"
-            align="start"
+            :align="align"
         >
             <div class="relative">
                 <IconSearch
@@ -110,18 +125,21 @@ const toggleAll = (): void => {
             </div>
 
             <div
-                class="flex items-center justify-between px-1 pt-4 pb-2 text-sm"
+                v-if="showHeader"
+                class="mt-2 flex items-center justify-between p-2 text-sm text-foreground"
             >
-                <span class="text-muted-foreground">{{ label }}</span>
+                <span>{{ label }}</span>
                 <button
                     type="button"
-                    class="text-muted-foreground hover:text-foreground"
+                    class="rounded-sm transition-control hover:text-primary-text"
                     :data-testid="`${testId}-toggle-all`"
                     @click="toggleAll"
                 >
                     {{ selectedIds.length ? deselectAllLabel : selectAllLabel }}
                 </button>
             </div>
+
+            <slot name="before-options" :search="search" />
 
             <div
                 class="max-h-72 overflow-y-auto"
@@ -137,10 +155,7 @@ const toggleAll = (): void => {
                 <div
                     v-for="option in visibleOptions"
                     :key="option.id"
-                    class="flex min-h-12 cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
-                    :class="
-                        selectedIds.includes(option.id) ? 'bg-muted/60' : ''
-                    "
+                    class="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg p-2 text-sm transition-control hover:bg-accent"
                     :data-testid="`${testId}-option-${option.id}`"
                     @click="toggle(option.id)"
                 >
@@ -167,6 +182,8 @@ const toggleAll = (): void => {
                     />
                 </div>
             </div>
+
+            <slot name="footer" />
         </PopoverContent>
     </Popover>
 </template>

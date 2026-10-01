@@ -90,6 +90,13 @@ return [
         'no_post_data' => 'Aucune publication pendant cette période.',
         'no_ranked_posts' => 'Aucune publication avec des réactions ou commentaires mesurés pendant cette période.',
         'no_performance' => 'Aucune performance par canal pour cette période.',
+        'filtered_no_posts' => 'Aucune publication pour les canaux ou étiquettes sélectionnés sur cette période. Essayez une autre plage de dates ou effacez les filtres.',
+        'filtered_no_followers' => 'Aucune donnée d’abonnés pour les canaux sélectionnés sur cette période. Essayez une autre plage de dates ou effacez le filtre de canaux.',
+        'filtered_no_data_title' => 'Rien ne correspond à ces filtres',
+        'filtered_no_data_body' => 'Les canaux sélectionnés n’ont pas encore de données d’analyse. Choisissez d’autres canaux ou effacez les filtres.',
+        'posts_sent_axis' => 'Publications envoyées',
+        'followers_gained_detail' => 'Départ à :start · :change gagnés (:percent)',
+        'followers_lost_detail' => 'Départ à :start · :change perdus (:percent)',
         'no_excerpt' => 'Aucun aperçu textuel disponible.',
         'published_via_trypost' => 'Publié via TryPost',
         'published_on_network' => 'Publié sur le réseau social',
@@ -110,6 +117,79 @@ return [
     'search_keywords' => [
         'title' => 'Termes de recherche',
         'estimated' => 'Google ne communique pas le nombre exact pour ce terme',
+    ],
+
+    'ranges' => [
+        '7d' => '7 jours',
+        '30d' => '30 jours',
+        'mtd' => 'Mois en cours',
+        'last_month' => 'Mois dernier',
+        'custom' => 'Personnalisé',
+        'compared_to' => ':current · comparé à :previous',
+        'label' => 'Période',
+    ],
+
+    'channel' => [
+        'title' => 'Insights',
+        'page_title' => 'Insights · :channel',
+        'unsupported_title' => 'Aucune statistique pour ce réseau',
+        'unsupported_body' => ':network ne partage pas ses statistiques avec les applications tierces, il n\'y a donc rien à afficher pour l\'instant.',
+        'performance' => 'Performance par publication',
+        'this_period' => 'Cette période',
+        'previous_period' => 'Période précédente',
+        'post' => 'Publication',
+        'posts_count' => 'Publications · :count',
+        'no_posts' => 'Aucune publication sur cette période.',
+        'metrics' => [
+            'followers' => [
+                'label' => 'Total des abonnés',
+                'about' => 'Abonnés à la fin de la période.',
+            ],
+            'posts' => [
+                'label' => 'Publications',
+                'about' => 'Publications publiées sur la période.',
+            ],
+            'reactions' => [
+                'label' => 'Réactions',
+                'about' => 'J\'aime et réactions sur les publications de la période.',
+            ],
+            'comments' => [
+                'label' => 'Commentaires',
+                'about' => 'Commentaires sur les publications de la période.',
+            ],
+            'engagement_rate' => [
+                'label' => 'Taux d\'engagement',
+                'about' => 'Interactions divisées par la portée ou les impressions.',
+            ],
+            'views' => [
+                'label' => 'Vues',
+                'about' => 'Vues des publications de la période. Seules les publications pour lesquelles le réseau fournit les vues sont comptées.',
+            ],
+            'shares' => [
+                'label' => 'Partages',
+                'about' => 'Partages des publications de la période.',
+            ],
+            'saves' => [
+                'label' => 'Enregistrements',
+                'about' => 'Enregistrements des publications de la période.',
+            ],
+            'follows_gained' => [
+                'label' => 'Abonnés gagnés via les publications',
+                'about' => 'Nouveaux abonnés attribués aux publications de la période.',
+            ],
+            'reach' => [
+                'label' => 'Portée',
+                'about' => 'Comptes uniques touchés par les publications de la période.',
+            ],
+            'watch_time_minutes' => [
+                'label' => 'Temps de visionnage (min)',
+                'about' => 'Total de minutes visionnées sur les vidéos publiées sur la période.',
+            ],
+            'average_watch_time_seconds' => [
+                'label' => 'Temps de visionnage moyen (s)',
+                'about' => 'Nombre moyen de secondes visionnées par vue.',
+            ],
+        ],
     ],
 
     'metrics' => [

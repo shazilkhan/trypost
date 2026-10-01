@@ -2051,3 +2051,202 @@ test('instagram publisher keeps links intact', function () {
         && ! str_contains($request->url(), 'media_publish')
         && data_get($request->data(), 'caption') === 'New post: https://acme.com/blog');
 });
+
+test('instagram publisher sends user tags on a single image container', function () {
+    $this->post->update([
+        'media' => [[
+            'id' => 'test-media-id',
+            'path' => 'media/2026-01/test-image.jpg',
+            'url' => 'https://example.com/media/2026-01/test-image.jpg',
+            'mime_type' => 'image/jpeg',
+            'original_filename' => 'test.jpg',
+            'meta' => ['user_tags' => [['username' => '@paulocastellano', 'x' => 0.25, 'y' => 0.75]]],
+        ]],
+    ]);
+
+    Http::fake([
+        '*/ig_123456789/media' => Http::response(['id' => 'container-123'], 200),
+        '*/container-123*' => Http::response(['status_code' => 'FINISHED'], 200),
+        '*/ig_123456789/media_publish' => Http::response(['id' => 'media-tags-123'], 200),
+        '*/media-tags-123*' => Http::response(['permalink' => 'https://www.instagram.com/p/TAGS123/'], 200),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/ig_123456789/media')
+        && json_decode((string) data_get($request->data(), 'user_tags'), true) === [
+            ['username' => 'paulocastellano', 'x' => 0.25, 'y' => 0.75],
+        ]);
+});
+
+test('instagram publisher omits user tags when an image has none', function () {
+    $this->post->update([
+        'media' => [[
+            'id' => 'test-media-id',
+            'path' => 'media/2026-01/test-image.jpg',
+            'url' => 'https://example.com/media/2026-01/test-image.jpg',
+            'mime_type' => 'image/jpeg',
+            'original_filename' => 'test.jpg',
+        ]],
+    ]);
+
+    Http::fake([
+        '*/ig_123456789/media' => Http::response(['id' => 'container-123'], 200),
+        '*/container-123*' => Http::response(['status_code' => 'FINISHED'], 200),
+        '*/ig_123456789/media_publish' => Http::response(['id' => 'media-no-tags'], 200),
+        '*/media-no-tags*' => Http::response(['permalink' => 'https://www.instagram.com/p/NOTAGS/'], 200),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/ig_123456789/media')
+        && ! array_key_exists('user_tags', $request->data()));
+});
+
+test('instagram publisher sends user tags on each tagged carousel image', function () {
+    $this->post->update([
+        'media' => [
+            [
+                'id' => 'tagged-image',
+                'path' => 'media/2026-01/tagged.jpg',
+                'url' => 'https://example.com/media/2026-01/tagged.jpg',
+                'mime_type' => 'image/jpeg',
+                'meta' => ['user_tags' => [['username' => 'trypost.it', 'x' => 0.5, 'y' => 0.5]]],
+            ],
+            [
+                'id' => 'untagged-image',
+                'path' => 'media/2026-01/untagged.jpg',
+                'url' => 'https://example.com/media/2026-01/untagged.jpg',
+                'mime_type' => 'image/jpeg',
+            ],
+        ],
+    ]);
+
+    Http::fake([
+        '*/ig_123456789/media' => Http::sequence()
+            ->push(['id' => 'child-1'], 200)
+            ->push(['id' => 'child-2'], 200)
+            ->push(['id' => 'carousel-container-123'], 200),
+        '*/carousel-container-123*' => Http::response(['status_code' => 'FINISHED'], 200),
+        '*/ig_123456789/media_publish' => Http::response(['id' => 'carousel-tags-123'], 200),
+        '*/carousel-tags-123*' => Http::response(['permalink' => 'https://www.instagram.com/p/CAROUSELTAGS/'], 200),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn ($request) => str_contains((string) data_get($request->data(), 'image_url'), 'tagged.jpg')
+        && ! str_contains((string) data_get($request->data(), 'image_url'), 'untagged.jpg')
+        && json_decode((string) data_get($request->data(), 'user_tags'), true) === [
+            ['username' => 'trypost.it', 'x' => 0.5, 'y' => 0.5],
+        ]);
+    Http::assertSent(fn ($request) => str_contains((string) data_get($request->data(), 'image_url'), 'untagged.jpg')
+        && ! array_key_exists('user_tags', $request->data()));
+});
+
+test('instagram publisher mentions story tags by username only', function () {
+    Storage::fake();
+    $this->postPlatform->update(['content_type' => ContentType::InstagramStory]);
+    $this->post->update([
+        'media' => [[
+            'id' => 'test-media-story',
+            'path' => 'media/2026-01/story.jpg',
+            'url' => 'https://example.com/media/2026-01/story.jpg',
+            'mime_type' => 'image/jpeg',
+            'meta' => ['user_tags' => [['username' => 'paulocastellano', 'x' => 0.1, 'y' => 0.9]]],
+        ]],
+    ]);
+
+    $mockOptimizer = Mockery::mock(MediaOptimizer::class);
+    $mockOptimizer->shouldReceive('fitToCanvas')->once()->andReturnUsing(function (string $tempFile) {
+        $out = tempnam(sys_get_temp_dir(), 'ig_fit_');
+        copy($tempFile, $out);
+
+        return $out;
+    });
+    app()->instance(MediaOptimizer::class, $mockOptimizer);
+
+    Http::fake([
+        '*/ig_123456789/media' => Http::response(['id' => 'story-container-123'], 200),
+        '*/story-container-123*' => Http::response(['status_code' => 'FINISHED'], 200),
+        '*/ig_123456789/media_publish' => Http::response(['id' => 'story-tags-123'], 200),
+        '*/story-tags-123*' => Http::response(['permalink' => 'https://www.instagram.com/stories/testuser/123/'], 200),
+        '*' => Http::response(file_get_contents(__DIR__.'/../../../fixtures/1x1.png'), 200, ['Content-Type' => 'image/png']),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn ($request) => str_ends_with($request->url(), '/ig_123456789/media')
+        && json_decode((string) data_get($request->data(), 'user_tags'), true) === [['username' => 'paulocastellano']]);
+});
+
+test('instagram reel sends the chosen cover frame as thumb_offset in milliseconds', function (?int $coverOffsetMs) {
+    $this->postPlatform->update(['content_type' => ContentType::InstagramReel]);
+    $this->post->update([
+        'media' => [[
+            'id' => 'test-media-video',
+            'path' => 'media/2026-01/test-video.mp4',
+            'url' => 'https://example.com/media/2026-01/test-video.mp4',
+            'mime_type' => 'video/mp4',
+            'original_filename' => 'test.mp4',
+            'meta' => array_filter(['duration' => 10, 'cover_offset_ms' => $coverOffsetMs], fn (mixed $value): bool => $value !== null),
+        ]],
+    ]);
+    $graph = Platform::Instagram->instagramGraphBaseUrl();
+
+    Http::fake([
+        "{$graph}/ig_123456789/media" => Http::response(['id' => 'container-123']),
+        "{$graph}/container-123*" => Http::response(['status_code' => 'FINISHED']),
+        "{$graph}/ig_123456789/media_publish" => Http::response(['id' => 'reel-123']),
+        "{$graph}/reel-123*" => Http::response(['permalink' => 'https://www.instagram.com/reel/ABC/']),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === "{$graph}/ig_123456789/media"
+        && data_get($request->data(), 'media_type') === 'REELS'
+        && data_get($request->data(), 'thumb_offset') === $coverOffsetMs);
+})->with([
+    'offset of 1.5 s' => [1500],
+    'no offset' => [null],
+]);
+
+test('instagram carousel video child sends its cover frame as thumb_offset', function () {
+    $this->post->update([
+        'media' => [
+            [
+                'id' => 'test-media-image',
+                'path' => 'media/2026-01/test-image.jpg',
+                'url' => 'https://example.com/media/2026-01/test-image.jpg',
+                'mime_type' => 'image/jpeg',
+                'original_filename' => 'test.jpg',
+            ],
+            [
+                'id' => 'test-media-video',
+                'path' => 'media/2026-01/test-video.mp4',
+                'url' => 'https://example.com/media/2026-01/test-video.mp4',
+                'mime_type' => 'video/mp4',
+                'original_filename' => 'test.mp4',
+                'meta' => ['duration' => 10, 'cover_offset_ms' => 2500],
+            ],
+        ],
+    ]);
+    $graph = Platform::Instagram->instagramGraphBaseUrl();
+
+    Http::fake([
+        "{$graph}/ig_123456789/media" => Http::sequence()
+            ->push(['id' => 'child-1'])
+            ->push(['id' => 'child-2'])
+            ->push(['id' => 'carousel-123']),
+        "{$graph}/child-2*" => Http::response(['status_code' => 'FINISHED']),
+        "{$graph}/carousel-123*" => Http::response(['status_code' => 'FINISHED']),
+        "{$graph}/ig_123456789/media_publish" => Http::response(['id' => 'carousel-published']),
+        "{$graph}/carousel-published*" => Http::response(['permalink' => 'https://www.instagram.com/p/CAR/']),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'media_type') === 'VIDEO'
+        && data_get($request->data(), 'thumb_offset') === 2500);
+    Http::assertNotSent(fn (Request $request): bool => data_get($request->data(), 'image_url') !== null
+        && data_get($request->data(), 'thumb_offset') !== null);
+});

@@ -34,13 +34,6 @@ return [
         'ignore' => 'Se non hai creato un account, puoi ignorare questa email.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name ti ha menzionato su TryPost',
-        'title' => ':name ti ha menzionato',
-        'intro' => ':name ti ha menzionato in una nota del post.',
-        'button' => 'Visualizza nota',
-    ],
-
     'password_reset' => [
         'subject' => 'Reimposta la tua password',
         'preview' => 'Reimposta la tua password.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count post pianificato: :times UTC|[0,*] :count post pianificati: :times UTC',
         'reconnect_cta' => 'Ricollega subito questi account per non perdere i post pianificati.',
         'button' => 'Ricollega account',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author ha aggiunto una nota a un post',
+        'title' => 'Nuova nota da :author',
+        'heading' => 'Nuova nota su un post',
+        'body' => ':author ha aggiunto una nota a un post nello spazio di lavoro :workspace.',
+        'post_title' => 'Post',
+        'post_without_text' => 'Questo post non ha ancora testo.',
+        'button' => 'Vedi nota',
     ],
 
     'post_publish_failed' => [

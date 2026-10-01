@@ -34,13 +34,6 @@ return [
         'ignore' => 'Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name hat dich auf TryPost erwähnt',
-        'title' => ':name hat dich erwähnt',
-        'intro' => ':name hat dich in einer Beitragsnotiz erwähnt.',
-        'button' => 'Notiz ansehen',
-    ],
-
     'password_reset' => [
         'subject' => 'Setze dein Passwort zurück',
         'preview' => 'Setze dein Passwort zurück.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count Beitrag geplant: :times UTC|[0,*] :count Beiträge geplant: :times UTC',
         'reconnect_cta' => 'Verbinde diese Konten jetzt neu, damit deine geplanten Beiträge nicht ausfallen.',
         'button' => 'Konten neu verbinden',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author hat eine Notiz zu einem Beitrag hinzugefügt',
+        'title' => 'Neue Notiz von :author',
+        'heading' => 'Neue Notiz zu einem Beitrag',
+        'body' => ':author hat im Workspace :workspace eine Notiz zu einem Beitrag hinzugefügt.',
+        'post_title' => 'Beitrag',
+        'post_without_text' => 'Dieser Beitrag hat noch keinen Text.',
+        'button' => 'Notiz ansehen',
     ],
 
     'post_publish_failed' => [

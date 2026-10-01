@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/chart';
 import date from '@/date';
 import dayjs from '@/dayjs';
-
 import { accountColor } from '@/lib/analyticsColors';
 import type { PostAccount, PostBucket } from '@/types/analytics';
 
@@ -35,6 +34,7 @@ const props = defineProps<{
     buckets: PostBucket[];
     resolution: string;
     colors: Record<string, string>;
+    valueLabel?: string;
 }>();
 
 const bucketLabel = (bucket: PostBucket): string => {
@@ -114,7 +114,7 @@ const barAttributes = {
                 :x="xAccessor"
                 :y="yAccessors"
                 :color="barColors"
-                :rounded-corners="4"
+                :rounded-corners="2"
                 :bar-padding="0.35"
                 :attributes="barAttributes"
             />
@@ -130,6 +130,9 @@ const barAttributes = {
                 type="y"
                 :tick-format="formatCountTick"
                 :num-ticks="5"
+                :label="valueLabel"
+                label-font-size="12px"
+                label-color="var(--muted-foreground)"
                 :grid-line="true"
                 :domain-line="false"
                 :tick-line="false"

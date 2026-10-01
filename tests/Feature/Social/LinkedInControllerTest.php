@@ -542,7 +542,7 @@ test('linkedin reconnect keeps the original profile card', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($this->workspace->socialAccounts()->count())->toBe(1)
@@ -581,7 +581,7 @@ test('linkedin reconnect keeps the original page card', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('success', true)
-            ->where('message', __('accounts.popup_callback.reconnected'))
+            ->where('message', null)
         );
 
     expect($this->workspace->socialAccounts()->count())->toBe(1)

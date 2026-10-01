@@ -9,8 +9,6 @@ return [
     'empty_title' => 'Webhookはまだありません',
     'empty_description' => 'Webhookを作成すると、イベント通知をリアルタイムで受け取れます。',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => '購読中',
         'status' => 'ステータス',
         'last_sent' => '最終送信',
     ],

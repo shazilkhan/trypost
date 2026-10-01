@@ -68,11 +68,22 @@ export const formatMoneyCompact = (cents: number): string => {
     }).format(dollars);
 };
 
-export const copyToClipboard = async (text: string, message?: string) => {
+export const copyToClipboard = async (
+    text: string,
+    message?: string,
+    { showSuccessToast = true }: { showSuccessToast?: boolean } = {},
+): Promise<boolean> => {
     try {
         await navigator.clipboard.writeText(text);
-        toast.success(message ?? trans('common.actions.copied'));
     } catch {
         toast.error(trans('common.actions.copy_failed'));
+
+        return false;
     }
+
+    if (showSuccessToast) {
+        toast.success(message ?? trans('common.actions.copied'));
+    }
+
+    return true;
 };

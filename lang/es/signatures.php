@@ -51,10 +51,4 @@ return [
         'confirm' => 'Eliminar',
         'cancel' => 'Cancelar',
     ],
-
-    'flash' => [
-        'created' => 'Firma creada.',
-        'updated' => 'Firma actualizada.',
-        'deleted' => 'Firma eliminada.',
-    ],
 ];

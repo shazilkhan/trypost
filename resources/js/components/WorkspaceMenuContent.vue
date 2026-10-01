@@ -23,6 +23,7 @@ import {
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
+import { clearAllComposerAutosaves } from '@/composables/useComposerAutosave';
 import { useWorkspaceLimit } from '@/composables/useWorkspaceLimit';
 import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import posthog from '@/posthog';
@@ -89,6 +90,7 @@ const handleCreateWorkspace = (): void => {
 
 const handleLogout = (): void => {
     posthog.reset();
+    clearAllComposerAutosaves();
     router.flushAll();
 };
 </script>

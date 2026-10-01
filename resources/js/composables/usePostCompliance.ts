@@ -177,6 +177,8 @@ const COMPLIANCE_KEY_BY_WARNING: Record<string, string> = {
     video_too_long: 'video_too_long',
     aspect_ratio_too_narrow: 'aspect_ratio_invalid',
     aspect_ratio_too_wide: 'aspect_ratio_invalid',
+    image_too_small_dimensions: 'image_too_small_dimensions',
+    image_too_large_dimensions: 'image_too_large_dimensions',
 };
 
 export const getMediaIncompatibilityReason = (

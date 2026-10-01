@@ -61,9 +61,6 @@ class WorkspaceSignatureController extends Controller
             return response()->json($signature->only(['id', 'name', 'content']), 201);
         }
 
-        session()->flash('flash.banner', __('signatures.flash.created'));
-        session()->flash('flash.bannerStyle', 'success');
-
         return redirect()->route('app.signatures.index');
     }
 
@@ -92,9 +89,6 @@ class WorkspaceSignatureController extends Controller
             return response()->json($signature->only(['id', 'name', 'content']));
         }
 
-        session()->flash('flash.banner', __('signatures.flash.updated'));
-        session()->flash('flash.bannerStyle', 'success');
-
         return redirect()->route('app.signatures.index');
     }
 
@@ -113,9 +107,6 @@ class WorkspaceSignatureController extends Controller
         }
 
         DeleteSignature::execute($signature);
-
-        session()->flash('flash.banner', __('signatures.flash.deleted'));
-        session()->flash('flash.bannerStyle', 'success');
 
         return redirect()->route('app.signatures.index');
     }

@@ -5,21 +5,30 @@ declare(strict_types=1);
 namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
-use App\Enums\SocialAccount\Platform;
+use App\Enums\Analytics\MetricAvailability;
+use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
 use App\Support\Analytics\MetricComparison;
 use App\Support\Analytics\PeriodBuckets;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\LazyCollection;
 
 class BuildPublicationAnalyticsReport
 {
-    public function __construct(private readonly PeriodBuckets $buckets) {}
+    public function __construct(
+        private readonly PeriodBuckets $buckets,
+        private readonly QueryLatestPublicationSnapshots $latestSnapshots,
+    ) {}
 
-    /** @return array<string, mixed> */
-    public function execute(Workspace $workspace, DateRange $previous, DateRange $current): array
+    /**
+     * @param  list<string>|null  $accountKeys  Analytics account keys to scope to; null means every account.
+     * @param  list<string>  $labelIds  Only count publications of TryPost posts carrying any of these labels.
+     * @param  bool  $untagged  Also count publications without labels, including posts published outside TryPost.
+     * @return array<string, mixed>
+     */
+    public function execute(Workspace $workspace, DateRange $previous, DateRange $current, ?array $accountKeys = null, array $labelIds = [], bool $untagged = false): array
     {
         $currentTotals = $this->emptyTotals();
         $previousTotals = $this->emptyTotals();
@@ -37,7 +46,7 @@ class BuildPublicationAnalyticsReport
             }
         }
 
-        foreach ($this->publications($workspace, $previous->start, $current->end) as $row) {
+        foreach ($this->publications($workspace, $previous->start, $current->end, $accountKeys, $labelIds, $untagged) as $row) {
             $key = $row->social_account_key;
 
             if (! $this->inRange($row->provider_published_at, $current)) {
@@ -106,27 +115,24 @@ class BuildPublicationAnalyticsReport
         ];
     }
 
-    private function publications(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end): LazyCollection
+    /**
+     * @param  list<string>|null  $accountKeys
+     * @param  list<string>  $labelIds
+     */
+    private function publications(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys, array $labelIds, bool $untagged): LazyCollection
     {
-        $latest = DB::table('analytics_publication_daily_snapshots as daily')
-            ->join('analytics_publications as parent', 'parent.id', '=', 'daily.publication_id')
-            ->where('parent.workspace_id', $workspace->id)
-            ->whereIn('parent.platform', Platform::analyticsValues())
-            ->whereBetween('parent.provider_published_at', [$start->startOfDay(), $end->endOfDay()])
-            ->select('daily.publication_id')
-            ->selectRaw('MAX(daily.date) as latest_date')
-            ->groupBy('daily.publication_id');
+        $labelPivot = (new Post)->labels()->getTable();
+        $labels = fn (Builder $labelled): Builder => $labelled
+            ->selectRaw('1')
+            ->from($labelPivot)
+            ->whereColumn("{$labelPivot}.post_id", 'destination.post_id');
 
-        return DB::table('analytics_publications as publication')
+        return $this->latestSnapshots->execute($workspace->id, $accountKeys, $start, $end)
             ->leftJoin((new PostPlatform)->getTable().' as destination', 'destination.id', '=', 'publication.post_platform_id')
-            ->leftJoinSub($latest, 'latest', 'latest.publication_id', '=', 'publication.id')
-            ->leftJoin('analytics_publication_daily_snapshots as metric', function ($join): void {
-                $join->on('metric.publication_id', '=', 'publication.id')
-                    ->on('metric.date', '=', 'latest.latest_date');
-            })
-            ->where('publication.workspace_id', $workspace->id)
-            ->whereIn('publication.platform', Platform::analyticsValues())
-            ->whereBetween('publication.provider_published_at', [$start->startOfDay(), $end->endOfDay()])
+            ->when($labelIds !== [] || $untagged, fn (Builder $query): Builder => $query->where(fn (Builder $filtered): Builder => $filtered
+                ->when($labelIds !== [], fn (Builder $any): Builder => $any->whereExists(fn (Builder $labelled): Builder => $labels($labelled)
+                    ->whereIn("{$labelPivot}.workspace_label_id", $labelIds)))
+                ->when($untagged, fn (Builder $none): Builder => $none->orWhereNotExists($labels))))
             ->select([
                 'publication.id', 'publication.social_account_key', 'publication.social_account_id',
                 'publication.post_platform_id', 'destination.post_id', 'publication.platform', 'publication.network',
@@ -139,11 +145,12 @@ class BuildPublicationAnalyticsReport
                 'metric.saves_count', 'metric.views_count', 'metric.impressions_count',
                 'metric.reach_count', 'metric.engagement_count', 'metric.exposure_count',
                 'metric.exposure_kind', 'metric.collected_at',
+                'metric.watch_time_milliseconds', 'metric.average_watch_time_milliseconds', 'metric.metrics',
             ])
             ->cursor();
     }
 
-    /** @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, has_reactions: bool, has_comments: bool} */
+    /** @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool} */
     private function emptyTotals(): array
     {
         return [
@@ -152,27 +159,52 @@ class BuildPublicationAnalyticsReport
             'comments' => 0,
             'engagement' => 0,
             'exposure' => 0,
+            'views' => 0,
+            'reach' => 0,
+            'shares' => 0,
+            'saves' => 0,
+            'watch_time' => 0,
+            'average_watch_time' => 0,
+            'average_watch_time_posts' => 0,
+            'follows' => 0,
             'has_reactions' => false,
             'has_comments' => false,
+            'has_views' => false,
+            'has_reach' => false,
+            'has_shares' => false,
+            'has_saves' => false,
+            'has_watch_time' => false,
+            'has_follows' => false,
         ];
     }
 
     /**
-     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, has_reactions: bool, has_comments: bool}  $totals
-     * @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, has_reactions: bool, has_comments: bool}
+     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool}  $totals
+     * @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool}
      */
     private function addTotals(array $totals, object $row): array
     {
         $totals['posts'] = data_get($totals, 'posts') + 1;
 
-        if ($row->reactions_count !== null) {
-            $totals['has_reactions'] = true;
-            $totals['reactions'] = data_get($totals, 'reactions') + (int) $row->reactions_count;
+        foreach ([
+            'reactions' => $row->reactions_count,
+            'comments' => $row->comments_count,
+            'views' => $row->views_count,
+            'reach' => $row->reach_count,
+            'shares' => $row->shares_count,
+            'saves' => $row->saves_count,
+            'watch_time' => $row->watch_time_milliseconds,
+            'follows' => $this->follows($row),
+        ] as $metric => $value) {
+            if ($value !== null) {
+                $totals["has_{$metric}"] = true;
+                $totals[$metric] = data_get($totals, $metric) + (int) $value;
+            }
         }
 
-        if ($row->comments_count !== null) {
-            $totals['has_comments'] = true;
-            $totals['comments'] = data_get($totals, 'comments') + (int) $row->comments_count;
+        if ($row->average_watch_time_milliseconds !== null) {
+            $totals['average_watch_time'] = data_get($totals, 'average_watch_time') + (int) $row->average_watch_time_milliseconds;
+            $totals['average_watch_time_posts'] = data_get($totals, 'average_watch_time_posts') + 1;
         }
 
         if ($row->engagement_count !== null && $row->exposure_count !== null && (int) $row->exposure_count > 0) {
@@ -183,17 +215,39 @@ class BuildPublicationAnalyticsReport
         return $totals;
     }
 
+    private function follows(object $row): ?int
+    {
+        if ($row->metrics === null) {
+            return null;
+        }
+
+        $follows = data_get(json_decode((string) $row->metrics, true), 'follows');
+        $value = data_get($follows, 'value');
+
+        return data_get($follows, 'availability') === MetricAvailability::Available->value && is_numeric($value)
+            ? (int) $value : null;
+    }
+
     /**
-     * @param  array<string, int|bool>  $totals
-     * @return array{posts: int, reactions: ?int, comments: ?int, engagement_rate: ?float}
+     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool}  $totals
+     * @return array{posts: int, reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, reach: ?int, shares: ?int, saves: ?int, watch_time_minutes: ?float, average_watch_time_seconds: ?float, follows_gained: ?int}
      */
     private function finalizeTotals(array $totals): array
     {
+        $averagePosts = data_get($totals, 'average_watch_time_posts');
+
         return [
             'posts' => data_get($totals, 'posts'),
             'reactions' => data_get($totals, 'has_reactions') ? data_get($totals, 'reactions') : null,
             'comments' => data_get($totals, 'has_comments') ? data_get($totals, 'comments') : null,
             'engagement_rate' => data_get($totals, 'exposure') === 0 ? null : round(data_get($totals, 'engagement') / data_get($totals, 'exposure') * 100, 2),
+            'views' => data_get($totals, 'has_views') ? data_get($totals, 'views') : null,
+            'reach' => data_get($totals, 'has_reach') ? data_get($totals, 'reach') : null,
+            'shares' => data_get($totals, 'has_shares') ? data_get($totals, 'shares') : null,
+            'saves' => data_get($totals, 'has_saves') ? data_get($totals, 'saves') : null,
+            'watch_time_minutes' => data_get($totals, 'has_watch_time') ? round(data_get($totals, 'watch_time') / 60000, 2) : null,
+            'average_watch_time_seconds' => $averagePosts === 0 ? null : round(data_get($totals, 'average_watch_time') / $averagePosts / 1000, 2),
+            'follows_gained' => data_get($totals, 'has_follows') ? data_get($totals, 'follows') : null,
         ];
     }
 

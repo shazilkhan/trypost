@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Head, router, usePoll } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { IconChartBar } from '@tabler/icons-vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
+import AnalyticsRangePresets from '@/components/analytics/AnalyticsRangePresets.vue';
 import FollowersChart from '@/components/analytics/workspace/FollowersChart.vue';
 import ImportCoverage from '@/components/analytics/workspace/ImportCoverage.vue';
 import PerformanceTable from '@/components/analytics/workspace/PerformanceTable.vue';
@@ -10,126 +11,180 @@ import PostsChart from '@/components/analytics/workspace/PostsChart.vue';
 import SummaryCards from '@/components/analytics/workspace/SummaryCards.vue';
 import TopPosts from '@/components/analytics/workspace/TopPosts.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import dayjs from '@/dayjs';
+import HeaderTitle from '@/components/HeaderTitle.vue';
+import LabelFilter from '@/components/labels/LabelFilter.vue';
+import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
+import { useAnalyticsCoveragePoll } from '@/composables/useAnalyticsCoveragePoll';
+import date from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { accountColor } from '@/lib/analyticsColors';
 import { analytics as analyticsRoute } from '@/routes/app';
-import type { WorkspaceAnalyticsReport } from '@/types/analytics';
+import type {
+    AnalyticsChannelOption,
+    SummaryMetric,
+    WorkspaceAnalyticsReport,
+} from '@/types/analytics';
 
-const props = defineProps<{ report: WorkspaceAnalyticsReport }>();
-const importRunning = computed(() =>
-    props.report.coverage.some(
-        (row) =>
-            row.collector === 'publication_backfill' &&
-            (row.status === 'pending' || row.status === 'running'),
-    ),
-);
-const { start: startImportPolling, stop: stopImportPolling } = usePoll(
-    5000,
-    { only: ['report'] },
-    { autoStart: false },
-);
-const { start: startIdlePolling, stop: stopIdlePolling } = usePoll(
-    15000,
-    { only: ['report'] },
-    { autoStart: false },
+const props = defineProps<{
+    report: WorkspaceAnalyticsReport;
+    labels: { id: string; name: string; color: string }[];
+    channels: AnalyticsChannelOption[];
+    availableMetrics: SummaryMetric[] | null;
+}>();
+
+const selectedLabelIds = ref<string[]>([...props.report.filters.labels]);
+const selectedUntagged = ref<boolean>(props.report.filters.untagged);
+const selectedChannelIds = ref<string[]>([...props.report.filters.channels]);
+
+const filterQuery = computed((): Record<string, string | string[]> => ({
+    ...(selectedChannelIds.value.length
+        ? { channels: selectedChannelIds.value }
+        : {}),
+    ...(selectedLabelIds.value.length ? { labels: selectedLabelIds.value } : {}),
+    ...(selectedUntagged.value ? { untagged: '1' } : {}),
+}));
+
+const filtered = computed(
+    () =>
+        props.report.filters.channels.length > 0 ||
+        props.report.filters.labels.length > 0 ||
+        props.report.filters.untagged,
 );
 
-const syncPolling = (running: boolean): void => {
-    if (running) {
-        stopIdlePolling();
-        startImportPolling();
-    } else {
-        stopImportPolling();
-        startIdlePolling();
-    }
-};
+const sameIds = (left: string[], right: string[]): boolean =>
+    left.length === right.length && left.every((id) => right.includes(id));
 
-onMounted(() => syncPolling(importRunning.value));
-watch(importRunning, syncPolling);
+const selectionMatchesServer = (): boolean =>
+    sameIds(selectedChannelIds.value, props.report.filters.channels) &&
+    sameIds(selectedLabelIds.value, props.report.filters.labels) &&
+    selectedUntagged.value === props.report.filters.untagged;
+
+watch(
+    () => props.report.filters,
+    (filters) => {
+        if (!sameIds(selectedChannelIds.value, filters.channels)) {
+            selectedChannelIds.value = [...filters.channels];
+        }
+
+        if (!sameIds(selectedLabelIds.value, filters.labels)) {
+            selectedLabelIds.value = [...filters.labels];
+        }
+
+        selectedUntagged.value = filters.untagged;
+    },
+);
+
+const rangeQuery = (): Record<string, string> =>
+    props.report.filters.range === 'custom'
+        ? {
+              range: 'custom',
+              start: props.report.filters.start,
+              end: props.report.filters.end,
+          }
+        : { range: props.report.filters.range };
+
+watch(
+    [selectedChannelIds, selectedLabelIds, selectedUntagged],
+    () => {
+        if (selectionMatchesServer()) {
+            return;
+        }
+
+        router.get(
+            analyticsRoute.url(),
+            { ...rangeQuery(), ...filterQuery.value },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    },
+    { deep: true },
+);
+
+useAnalyticsCoveragePoll(() => props.report.coverage);
+
+const span = (range: { start: string; end: string }): string =>
+    `${date.formatDayMonthYear(range.start)} – ${date.formatDayMonthYear(range.end)}`;
 
 const accountColors = computed<Record<string, string>>(() => {
     const keys = [
-        ...new Set(
-            [
+        ...new Set([
+            ...props.channels.map((channel) => channel.analytics_key),
+            ...[
                 ...props.report.followers.accounts,
                 ...props.report.posts.accounts,
             ].map((account) => account.social_account_key),
-        ),
+        ]),
     ];
 
     return Object.fromEntries(
         keys.map((key, index) => [key, accountColor(index)]),
     );
 });
-const selectedRange = ref({
-    start: dayjs(props.report.range.start).toDate(),
-    end: dayjs(props.report.range.end).toDate(),
-});
-
-watch(
-    () => [props.report.range.start, props.report.range.end],
-    ([start, end]) => {
-        selectedRange.value = {
-            start: dayjs(start).toDate(),
-            end: dayjs(end).toDate(),
-        };
-    },
-);
-
-const changeRange = (range: { start: Date; end: Date }): void => {
-    selectedRange.value = range;
-    const start = dayjs(range.start).format('YYYY-MM-DD');
-    const end = dayjs(range.end).format('YYYY-MM-DD');
-    if (start === props.report.range.start && end === props.report.range.end)
-        return;
-
-    router.get(
-        analyticsRoute.url(),
-        { start, end },
-        { preserveState: true, preserveScroll: true, replace: true },
-    );
-};
 </script>
 
 <template>
     <AppLayout full-width>
         <Head :title="$t('analytics.title')" />
-        <div class="flex min-h-full shrink-0 flex-col gap-8 px-6 py-8">
+        <div
+            class="flex min-h-full min-w-0 shrink-0 flex-col gap-6 px-4 pt-6 pb-10 md:px-8"
+        >
             <header
-                class="flex flex-wrap items-end justify-between gap-4"
+                class="-mb-2 flex min-w-0 flex-col gap-2"
                 data-testid="analytics-page-header"
             >
-                <PageHeader
-                    :title="$t('analytics.title')"
-                    :description="
-                        $t('analytics.dashboard.workspace_description')
-                    "
-                />
-                <DateRangePicker
-                    :model-value="selectedRange"
-                    :min-date="
-                        report.bounds.min
-                            ? dayjs(report.bounds.min).toDate()
-                            : undefined
-                    "
-                    :max-date="
-                        report.bounds.max
-                            ? dayjs(report.bounds.max).toDate()
-                            : undefined
-                    "
-                    :disabled="!report.bounds.min"
-                    trigger-class="h-10 gap-3 text-sm"
-                    @update:model-value="changeRange"
-                />
+                <div class="flex min-w-0 items-center justify-between gap-4">
+                    <HeaderTitle
+                        :title="$t('analytics.title')"
+                        :icon="IconChartBar"
+                    />
+                    <p
+                        class="hidden max-w-md text-right text-sm text-muted-foreground lg:block"
+                    >
+                        {{ $t('analytics.dashboard.workspace_description') }}
+                    </p>
+                </div>
+                <div
+                    class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 pt-2 pb-4"
+                    data-testid="analytics-toolbar"
+                >
+                    <AnalyticsRangePresets
+                        :filters="report.filters"
+                        :bounds="report.bounds"
+                        :url="analyticsRoute.url()"
+                        :range="report.range"
+                        :previous-range="report.previous_range"
+                        :keep="filterQuery"
+                        hide-caption
+                    />
+                    <div
+                        class="flex min-w-0 flex-wrap items-center gap-2"
+                        data-testid="analytics-filters"
+                    >
+                        <PostChannelFilter
+                            v-model="selectedChannelIds"
+                            :channels="channels"
+                            test-id="analytics-channel"
+                        />
+                        <LabelFilter
+                            v-model="selectedLabelIds"
+                            v-model:untagged="selectedUntagged"
+                            :labels="labels"
+                            test-id="analytics-label"
+                        />
+                    </div>
+                </div>
             </header>
 
             <ImportCoverage :coverage="report.coverage" />
 
             <EmptyState
-                v-if="!report.bounds.min"
+                v-if="!report.bounds.min && report.filters.channels.length"
+                data-testid="analytics-filtered-empty-state"
+                :icon="IconChartBar"
+                :title="$t('analytics.dashboard.filtered_no_data_title')"
+                :description="$t('analytics.dashboard.filtered_no_data_body')"
+            />
+            <EmptyState
+                v-else-if="!report.bounds.min"
                 data-testid="analytics-empty-state"
                 :icon="IconChartBar"
                 :title="$t('analytics.dashboard.no_data_title')"
@@ -137,21 +192,39 @@ const changeRange = (range: { start: Date; end: Date }): void => {
             />
 
             <template v-else>
-                <SummaryCards :report="report" />
-                <TopPosts :top-posts="report.top_posts" :range="report.range" />
+                <SummaryCards
+                    :report="report"
+                    :available-metrics="availableMetrics ?? undefined"
+                    :subtitle="
+                        $t('analytics.ranges.compared_to', {
+                            current: span(report.range),
+                            previous: span(report.previous_range),
+                        })
+                    "
+                    subtitle-testid="insights-range-caption"
+                />
+                <TopPosts
+                    :top-posts="report.top_posts"
+                    :range="report.range"
+                    :filtered="filtered"
+                />
                 <PerformanceTable
                     :rows="report.performance"
                     :range="report.range"
+                    :previous-range="report.previous_range"
+                    :filtered="filtered"
                 />
                 <FollowersChart
                     :followers="report.followers"
                     :range="report.range"
                     :colors="accountColors"
+                    :filtered="report.filters.channels.length > 0"
                 />
                 <PostsChart
                     :posts="report.posts"
                     :range="report.range"
                     :colors="accountColors"
+                    :filtered="filtered"
                 />
             </template>
         </div>

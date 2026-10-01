@@ -21,7 +21,7 @@ use Throwable;
 class RepurposeAccountSync
 {
     /** @var array<int, string> */
-    private const WATCHED_ATTRIBUTES = ['status', 'is_active', 'platform'];
+    private const WATCHED_ATTRIBUTES = ['status', 'platform'];
 
     public function accountRemoved(SocialAccount $account): void
     {
@@ -62,7 +62,6 @@ class RepurposeAccountSync
         return SocialAccount::query()
             ->whereKey($account->id)
             ->connected()
-            ->active()
             ->exists();
     }
 

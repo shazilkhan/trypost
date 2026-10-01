@@ -34,13 +34,6 @@ return [
         'ignore' => 'Bir hesap oluşturmadıysan bu e-postayı yok sayabilirsin.',
     ],
 
-    'mentioned_in_comment' => [
-        'subject' => ':name sizden TryPost\'ta bahsetti',
-        'title' => ':name sizden bahsetti',
-        'intro' => ':name bir gönderi notunda sizden bahsetti.',
-        'button' => 'Notu görüntüle',
-    ],
-
     'password_reset' => [
         'subject' => 'Parolanı sıfırla',
         'preview' => 'Parolanı sıfırla.',
@@ -58,6 +51,16 @@ return [
         'posts_label' => '{1} :count gönderi planlandı: :times UTC|[0,*] :count gönderi planlandı: :times UTC',
         'reconnect_cta' => 'Planladığın gönderileri kaçırmamak için bu hesapları hemen yeniden bağla.',
         'button' => 'Hesapları yeniden bağla',
+    ],
+
+    'post_note_added' => [
+        'subject' => ':author bir gönderiye not ekledi',
+        'title' => ':author kişisinden yeni not',
+        'heading' => 'Bir gönderide yeni not',
+        'body' => ':author, :workspace çalışma alanındaki bir gönderiye not ekledi.',
+        'post_title' => 'Gönderi',
+        'post_without_text' => 'Bu gönderinin henüz metni yok.',
+        'button' => 'Notu görüntüle',
     ],
 
     'post_publish_failed' => [

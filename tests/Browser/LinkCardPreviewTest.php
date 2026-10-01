@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Amp\DeferredFuture;
+use Amp\TimeoutCancellation;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
@@ -23,16 +24,21 @@ beforeEach(function () {
 
 /**
  * @param  array<int, array<string, mixed>>  $media
+ * @return array{0: Post, 1: SocialAccount}
  */
 function seedLinkCardPreviewPost(
     Platform $platform,
     string $content = 'Draft without a link',
     array $media = [],
-): Post {
+): array {
     $user = User::factory()->create();
-    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
     $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
     $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
 
     $account = SocialAccount::factory()->create([
         'workspace_id' => $workspace->id,
@@ -51,6 +57,7 @@ function seedLinkCardPreviewPost(
         'post_id' => $post->id,
         'social_account_id' => $account->id,
         'platform' => $platform,
+        'enabled' => true,
         'content_type' => match ($platform) {
             Platform::Facebook => ContentType::FacebookPost,
             Platform::LinkedIn => ContentType::LinkedInPost,
@@ -61,18 +68,61 @@ function seedLinkCardPreviewPost(
 
     test()->actingAs($user);
 
-    return $post;
+    return [$post, $account];
+}
+
+function waitForLinkCardPreviewTestId(mixed $page, string $testId): void
+{
+    $page->script(<<<JS
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const dialog = document.querySelector('[data-testid="post-composer-dialog"]');
+                if (dialog?.getAttribute('data-state') === 'open'
+                    && dialog.getAnimations().every((animation) => animation.playState !== 'running')
+                    && document.querySelector('[data-testid="{$testId}"]')?.getBoundingClientRect().height > 0) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+}
+
+function waitForLinkCardPreviewText(mixed $page, string $text): void
+{
+    $encoded = json_encode($text);
+
+    $page->script(<<<JS
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (document.querySelector('[data-testid="link-card-title"]')?.textContent.includes({$encoded})) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+}
+
+function waitForLinkCardPreviewGone(mixed $page): void
+{
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (!document.querySelector('[data-testid="link-card"]')) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
 }
 
 test('facebook linkedin and mastodon previews render fetched link cards', function (Platform $platform) {
     $url = "https://93.184.216.34/{$platform->value}";
     Http::fake([$url => Http::response('<meta property="og:title" content="Article card">')]);
 
-    $post = seedLinkCardPreviewPost($platform, "Read {$url}");
+    [$post] = seedLinkCardPreviewPost($platform, "Read {$url}");
 
-    visit(route('app.posts.edit', $post))
-        ->click('@editor-tab-preview')
-        ->assertSee('Article card')
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, 'composer-preview-frame');
+    waitForLinkCardPreviewText($page, 'Article card');
+
+    $page->assertSeeIn('@link-card-title', 'Article card')
         ->assertPresent('@link-card')
         ->assertNoJavaScriptErrors();
 
@@ -85,13 +135,17 @@ test('facebook linkedin and mastodon previews render fetched link cards', functi
 
 test('removing a url removes its visible card', function () {
     Http::fake(['https://93.184.216.34/*' => Http::response('<meta property="og:title" content="Article card">')]);
-    $post = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/article');
+    [$post, $account] = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/article');
 
-    visit(route('app.posts.edit', $post))
-        ->click('@editor-tab-preview')
-        ->assertSee('Article card')
-        ->clear('textarea:not([readonly])')
-        ->assertMissing('@link-card')
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, "composer-caption-{$account->id}");
+    waitForLinkCardPreviewText($page, 'Article card');
+
+    $page->assertSeeIn('@link-card-title', 'Article card')
+        ->clear("@composer-caption-{$account->id}");
+    waitForLinkCardPreviewGone($page);
+
+    $page->assertMissing('@link-card')
         ->assertNoJavaScriptErrors();
 });
 
@@ -101,16 +155,23 @@ test('a failed fetch clears the previous card and a later url can recover', func
         'https://93.184.216.34/broken' => Http::response('', 500),
         'https://93.184.216.34/recovered' => Http::response('<meta property="og:title" content="Recovered card">'),
     ]);
-    $post = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/article');
-    $page = visit(route('app.posts.edit', $post))
-        ->click('@editor-tab-preview')
-        ->assertSee('Article card')
-        ->fill('textarea:not([readonly])', 'https://93.184.216.34/broken');
+    [$post, $account] = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/article');
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, "composer-caption-{$account->id}");
+    waitForLinkCardPreviewText($page, 'Article card');
+
+    $page->assertSeeIn('@link-card-title', 'Article card')
+        ->fill("@composer-caption-{$account->id}", 'https://93.184.216.34/broken');
 
     Execution::instance()->waitForExpectation(fn () => Http::assertSentCount(2));
+    waitForLinkCardPreviewGone($page);
+
     $page->assertMissing('@link-card')
-        ->fill('textarea:not([readonly])', 'https://93.184.216.34/recovered')
-        ->assertSee('Recovered card')
+        ->fill("@composer-caption-{$account->id}", 'https://93.184.216.34/recovered');
+    waitForLinkCardPreviewText($page, 'Recovered card');
+
+    $page->assertSeeIn('@link-card-title', 'Recovered card')
         ->assertNoJavaScriptErrors();
 });
 
@@ -120,7 +181,7 @@ test('a pending response cannot overwrite a newer card or revive a removed url',
     Http::fake(function ($request) use ($release, &$started) {
         if ($request->url() === 'https://93.184.216.34/slow') {
             $started = true;
-            $release->getFuture()->await();
+            $release->getFuture()->await(new TimeoutCancellation(20));
 
             return Http::response('<meta property="og:title" content="Stale card">');
         }
@@ -128,21 +189,25 @@ test('a pending response cannot overwrite a newer card or revive a removed url',
         return Http::response('<meta property="og:title" content="Current card">');
     });
 
-    $post = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/slow');
-    $page = visit(route('app.posts.edit', $post))->click('@editor-tab-preview');
-
     try {
+        [$post, $account] = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/slow');
+        $page = visit(route('app.posts.edit', $post));
+        waitForLinkCardPreviewTestId($page, "composer-caption-{$account->id}");
+
         Execution::instance()->waitForExpectation(function () use (&$started) {
             expect($started)->toBeTrue();
         });
 
-        $page->fill('textarea:not([readonly])', $removeUrl ? '' : 'https://93.184.216.34/current');
+        $page->fill("@composer-caption-{$account->id}", $removeUrl ? '' : 'https://93.184.216.34/current');
 
         if (! $removeUrl) {
-            $page->assertSee('Current card');
+            waitForLinkCardPreviewText($page, 'Current card');
+            $page->assertSeeIn('@link-card-title', 'Current card');
         }
     } finally {
-        $release->complete();
+        if (! $release->isComplete()) {
+            $release->complete();
+        }
     }
 
     $page->page()->waitForLoadState('networkidle');
@@ -151,7 +216,7 @@ test('a pending response cannot overwrite a newer card or revive a removed url',
     if ($removeUrl) {
         $page->assertMissing('@link-card');
     } else {
-        $page->assertSee('Current card');
+        $page->assertSeeIn('@link-card-title', 'Current card');
     }
 
     $page->assertNoJavaScriptErrors();
@@ -159,7 +224,7 @@ test('a pending response cannot overwrite a newer card or revive a removed url',
 
 test('attached media suppresses fetching until it is removed', function () {
     Http::fake(['https://93.184.216.34/*' => Http::response('<meta property="og:title" content="Article card">')]);
-    $post = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/article', [[
+    [$post, $account] = seedLinkCardPreviewPost(Platform::LinkedIn, 'https://93.184.216.34/article', [[
         'id' => 'image-1',
         'type' => 'image',
         'mime_type' => 'image/png',
@@ -168,15 +233,18 @@ test('attached media suppresses fetching until it is removed', function () {
         'size' => 68,
     ]]);
 
-    $page = visit(route('app.posts.edit', $post))
-        ->click('@editor-tab-preview')
-        ->assertPresent('@media-thumbnail')
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, "composer-{$account->id}-media-item");
+
+    $page->assertPresent("@composer-{$account->id}-media-item")
         ->assertMissing('@link-card');
 
     Http::assertNothingSent();
 
-    $page->click('@media-remove')
-        ->assertSee('Article card')
+    $page->click("@composer-{$account->id}-remove-0");
+    waitForLinkCardPreviewText($page, 'Article card');
+
+    $page->assertSeeIn('@link-card-title', 'Article card')
         ->assertNoJavaScriptErrors();
 
     Http::assertSentCount(1);

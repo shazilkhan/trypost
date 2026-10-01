@@ -13,15 +13,12 @@ return [
     ],
 
     'publish_mode' => [
-
         'title' => '公開',
 
         'description' => '新しい投稿が見つかったときの動作。',
-
     ],
 
     'publish_modes' => [
-
         'publish' => '自動的に公開',
 
         'publish_hint' => '新しい投稿は見つかった時点で予約されます。',
@@ -29,7 +26,6 @@ return [
         'draft' => '下書きとして作成',
 
         'draft_hint' => '新しい投稿はここで下書きになり、確認してから公開できます。',
-
     ],
 
     'formats' => [
@@ -58,8 +54,6 @@ return [
     ],
 
     'table' => [
-        'flow' => 'フロー',
-        'status' => 'ステータス',
         'published' => '再投稿済み',
         'last_polled' => '最終チェック',
     ],
@@ -97,7 +91,6 @@ return [
     ],
 
     'destinations' => [
-        'paused_note' => 'オフのためスキップされます。再度オンにするまで: :accounts',
         'title' => '配信先',
         'description' => '受け取るアカウントを選びます。それぞれ、指定した形式で投稿します。',
         'hint' => 'キャプションは、そのネットワークの上限を超えたときだけ調整されます。',
@@ -150,9 +143,7 @@ return [
     ],
 
     'menu' => [
-
         'label' => 'その他の操作',
-
     ],
 
     'danger' => [

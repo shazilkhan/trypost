@@ -45,17 +45,14 @@ test('rollout command dispatches bounded jobs only for eligible scoped accounts 
     $workspace = Workspace::factory()->create();
     $eligible = SocialAccount::factory()->instagram()->create([
         'workspace_id' => $workspace->id,
-        'is_active' => true,
         'status' => Status::Connected,
     ]);
     SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $workspace->id,
-        'is_active' => true,
         'status' => Status::Connected,
     ]);
-    SocialAccount::factory()->instagram()->create([
+    $second = SocialAccount::factory()->instagram()->create([
         'workspace_id' => $workspace->id,
-        'is_active' => false,
         'status' => Status::Connected,
     ]);
     $published = PostPlatform::factory()->instagram()->published()->create([
@@ -70,8 +67,8 @@ test('rollout command dispatches bounded jobs only for eligible scoped accounts 
     ]);
     Bus::fake();
 
-    expect(SocialAccount::query()->connected()->active()->includedInAnalytics()
-        ->where('workspace_id', $workspace->id)->pluck('id')->all())->toBe([$eligible->id]);
+    expect(SocialAccount::query()->connected()->includedInAnalytics()
+        ->where('workspace_id', $workspace->id)->pluck('id')->all())->toEqualCanonicalizing([$eligible->id, $second->id]);
 
     $this->artisan('analytics:backfill-existing', ['--workspace' => $workspace->id, '--include-unsubscribed' => true])
         ->assertSuccessful();
@@ -79,7 +76,8 @@ test('rollout command dispatches bounded jobs only for eligible scoped accounts 
     Bus::assertDispatched(BootstrapAccountAnalytics::class, fn ($job): bool => $job->socialAccountId === $eligible->id);
     Bus::assertDispatched(CollectAccountDailySnapshot::class, fn ($job): bool => $job->socialAccountId === $eligible->id && $job->observationDate === now('UTC')->toDateString());
     Bus::assertDispatched(BackfillTryPostPublications::class, fn ($job): bool => $job->postPlatformIds === [$published->id]);
-    Bus::assertDispatchedTimes(BootstrapAccountAnalytics::class, 1);
+    Bus::assertDispatched(BootstrapAccountAnalytics::class, fn ($job): bool => $job->socialAccountId === $second->id);
+    Bus::assertDispatchedTimes(BootstrapAccountAnalytics::class, 2);
     Bus::assertDispatchedTimes(BackfillTryPostPublications::class, 1);
 });
 
@@ -124,7 +122,6 @@ test('deployment rollout follows Cashier subscription eligibility', function () 
 
         $socialAccount = SocialAccount::factory()->instagram()->create([
             'workspace_id' => $workspace->id,
-            'is_active' => true,
             'status' => Status::Connected,
         ]);
         $destination = PostPlatform::factory()->instagram()->published()->create([
@@ -203,13 +200,11 @@ test('account backfill visits every identity once across ID pages despite platfo
     $workspace = Workspace::factory()->create();
     SocialAccount::factory()->instagram()->count(100)->create([
         'workspace_id' => $workspace->id,
-        'is_active' => true,
         'status' => Status::Connected,
     ]);
     SocialAccount::factory()->facebook()->create([
         'id' => 'ffffffff-ffff-4fff-8fff-ffffffffffff',
         'workspace_id' => $workspace->id,
-        'is_active' => true,
         'status' => Status::Connected,
     ]);
     Bus::fake();
@@ -226,7 +221,6 @@ test('manual rollout rerun only redispatches missing publications and unfinished
     $workspace = Workspace::factory()->create();
     $account = SocialAccount::factory()->instagram()->create([
         'workspace_id' => $workspace->id,
-        'is_active' => true,
     ]);
     $destination = PostPlatform::factory()->instagram()->published()->create([
         'post_id' => Post::factory()->create(['workspace_id' => $workspace->id])->id,
@@ -265,10 +259,10 @@ test('manual rollout rerun only redispatches missing publications and unfinished
 test('manual rollout rerun recovers a stale bootstrap without repeating a recent one', function () {
     Bus::fake();
     $workspace = Workspace::factory()->create();
-    $staleAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $recentAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $queueFailedAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $permissionFailedAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $staleAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $recentAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $queueFailedAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $permissionFailedAccount = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
 
     foreach ([$staleAccount, $recentAccount, $queueFailedAccount, $permissionFailedAccount] as $account) {
         AnalyticsSyncState::factory()->create([

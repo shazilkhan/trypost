@@ -46,7 +46,7 @@ const handleRotate = () => {
                 </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-                <Button variant="outline" @click="open = false">
+                <Button variant="ghost" @click="open = false">
                     {{ $t('webhooks.rotate.cancel') }}
                 </Button>
                 <Button

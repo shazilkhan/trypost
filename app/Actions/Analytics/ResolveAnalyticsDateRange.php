@@ -13,12 +13,17 @@ class ResolveAnalyticsDateRange
      * @param  array{min: ?string, max: ?string}  $bounds
      * @param  array{start?: string, end?: string}  $selected
      */
-    public function execute(array $bounds, array $selected): DateRange
+    public function execute(array $bounds, array $selected, bool $clampToBounds = true): DateRange
     {
-        $minimumDate = data_get($bounds, 'min');
-        $maximumDate = data_get($bounds, 'max');
         $selectedStart = data_get($selected, 'start');
         $selectedEnd = data_get($selected, 'end');
+
+        if (! $clampToBounds && $selectedStart !== null && $selectedEnd !== null) {
+            return new DateRange(CarbonImmutable::parse($selectedStart, 'UTC'), CarbonImmutable::parse($selectedEnd, 'UTC'));
+        }
+
+        $minimumDate = data_get($bounds, 'min');
+        $maximumDate = data_get($bounds, 'max');
         $end = $maximumDate ? CarbonImmutable::parse($maximumDate, 'UTC') : CarbonImmutable::today('UTC');
         $start = $end->subDays(29);
 

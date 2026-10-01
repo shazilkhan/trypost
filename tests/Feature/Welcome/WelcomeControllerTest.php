@@ -9,10 +9,10 @@ use App\Enums\PostHog\WelcomeEvent;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
 use App\Enums\SocialAccount\Status;
 use App\Enums\User\Goal;
+use App\Enums\User\Locale;
 use App\Enums\User\Persona;
 use App\Enums\User\ReferralSource;
 use App\Enums\UserWorkspace\Role;
-use App\Enums\Workspace\ContentLanguage;
 use App\Jobs\PostHog\SendEvent;
 use App\Models\Account;
 use App\Models\Plan;
@@ -449,7 +449,7 @@ test('connect copy exists in every locale', function (string $locale) {
     expect(__('welcome.connect.title', [], $locale))->not->toBe('welcome.connect.title')
         ->and(__('welcome.connect.description', [], $locale))->not->toBe('welcome.connect.description')
         ->and(__('welcome.connect.required', [], $locale))->not->toBe('welcome.connect.required');
-})->with(ContentLanguage::values());
+})->with(Locale::values());
 
 test('connect store requires a connected social account', function () {
     config(['services.posthog.enabled' => true, 'services.posthog.api_key' => 'phc_test']);

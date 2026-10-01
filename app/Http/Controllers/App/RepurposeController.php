@@ -207,7 +207,7 @@ class RepurposeController extends Controller
      */
     private function sourceAccounts(Collection $accounts): Collection
     {
-        return $this->usableSourceAccounts($accounts)
+        return $accounts
             ->whereIn('platform', SourceFetcherFactory::supportedPlatforms())
             ->values();
     }
@@ -217,15 +217,6 @@ class RepurposeController extends Controller
      */
     private function connectedAccounts(Request $request): Collection
     {
-        return $request->user()->currentWorkspace->socialAccounts()->orderBy('platform')->get();
-    }
-
-    /**
-     * @param  Collection<int, SocialAccount>  $accounts
-     * @return Collection<int, SocialAccount>
-     */
-    private function usableSourceAccounts(Collection $accounts): Collection
-    {
-        return $accounts->where('is_active', true)->values();
+        return $request->user()->currentWorkspace->socialAccounts()->get();
     }
 }

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Ai\Agents;
 
 use App\Enums\Ai\PostAssistantMode;
-use App\Models\Workspace;
+use App\Enums\SocialAccount\Platform;
+use App\Enums\User\Locale;
 use Laravel\Ai\Attributes\Temperature;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Promptable;
@@ -16,27 +17,25 @@ class PostWritingAssistant implements Agent
     use Promptable;
 
     public function __construct(
-        public Workspace $workspace,
         public PostAssistantMode $mode,
         public string $currentContent,
+        public Locale $locale,
+        public ?Platform $platform = null,
+        public ?string $previousContent = null,
     ) {}
 
     public function instructions(): string
     {
-        $task = match ($this->mode) {
-            PostAssistantMode::WriteMore => 'Write a social media caption from the request. If existing text is supplied, continue or improve it while preserving its intent.',
-            PostAssistantMode::Rephrase => 'Rephrase the existing caption while preserving its meaning and important details.',
-            PostAssistantMode::Shorten => 'Shorten the existing caption substantially while preserving its key message and call to action.',
-            PostAssistantMode::Expand => 'Expand the existing caption with useful detail while preserving its meaning and avoiding invented claims.',
-        };
-
         return view('prompts.post_content.assistant', [
-            'task' => $task,
-            'brand_name' => $this->workspace->name ?? '',
-            'brand_description' => $this->workspace->brand_description ?? '',
-            'brand_voice_traits' => $this->workspace->brand_voice_traits ?? [],
-            'content_language' => $this->workspace->content_language,
+            'mode' => $this->mode->value,
+            'writes_new_text' => $this->mode->requiresPrompt(),
+            'language' => $this->locale->promptLanguage(),
             'current_content' => $this->currentContent,
+            'previous_content' => $this->previousContent,
+            'platform' => $this->platform?->value,
+            'platform_label' => $this->platform?->label(),
+            'hard_max_chars' => $this->platform?->maxContentLength(),
+            'target_chars' => $this->platform?->recommendedAiContentLength(),
         ])->render();
     }
 }

@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\App;
 
-use App\Actions\PostNote\NotifyMentions;
+use App\Actions\PostNote\NotifyPostNoteAdded;
 use App\Events\PostNoteChanged;
 use App\Http\Requests\App\PostNote\ReactPostNoteRequest;
 use App\Http\Requests\App\PostNote\StorePostNoteRequest;
 use App\Http\Requests\App\PostNote\UpdatePostNoteRequest;
 use App\Models\Post;
 use App\Models\PostNote;
-use App\Support\MentionParser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,31 +31,7 @@ class PostNoteController extends Controller
             ->latest()
             ->paginate(config('app.pagination.default'));
 
-        $mentionedIds = $notes->getCollection()
-            ->flatMap(function ($note) {
-                $ids = MentionParser::extractUserIds($note->body ?? '');
-                foreach ($note->replies as $reply) {
-                    $ids = array_merge($ids, MentionParser::extractUserIds($reply->body ?? ''));
-                }
-
-                return $ids;
-            })
-            ->unique()
-            ->values()
-            ->all();
-
-        $mentionedUsers = empty($mentionedIds)
-            ? []
-            : $workspace->members()
-                ->whereIn('users.id', $mentionedIds)
-                ->get(['id', 'name'])
-                ->mapWithKeys(fn ($u) => [$u->id => $u->name])
-                ->all();
-
-        return response()->json([
-            ...$notes->toArray(),
-            'mentioned_users' => $mentionedUsers,
-        ]);
+        return response()->json($notes);
     }
 
     public function store(StorePostNoteRequest $request, Post $post): JsonResponse
@@ -89,7 +64,7 @@ class PostNoteController extends Controller
 
         $note->load('user');
 
-        NotifyMentions::execute($note);
+        NotifyPostNoteAdded::execute($note);
         PostNoteChanged::dispatch($post->id, $post->workspace_id, 'created');
 
         return response()->json($note, Response::HTTP_CREATED);
@@ -112,10 +87,8 @@ class PostNoteController extends Controller
 
         $validated = $request->validated();
 
-        $previousBody = $note->body;
         $note->update(['body' => data_get($validated, 'body')]);
 
-        NotifyMentions::execute($note, $previousBody);
         PostNoteChanged::dispatch($post->id, $post->workspace_id, 'updated');
 
         return response()->json($note);

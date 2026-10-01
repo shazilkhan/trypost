@@ -35,9 +35,9 @@ const form = useForm({
 });
 
 watch(
-    () => props.label,
-    (label) => {
-        if (label) {
+    [() => props.label, open],
+    ([label, isOpen]) => {
+        if (label && isOpen) {
             form.name = label.name;
             form.color = label.color;
             form.clearErrors();
@@ -58,7 +58,7 @@ const submit = () => {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="sm:max-w-lg">
+        <DialogContent data-testid="edit-label-dialog" class="sm:max-w-lg">
             <DialogHeader>
                 <DialogTitle>{{ $t('labels.edit.title') }}</DialogTitle>
                 <DialogDescription>
@@ -71,10 +71,11 @@ const submit = () => {
                     <Input
                         id="edit-name"
                         v-model="form.name"
+                        data-testid="edit-label-name"
                         :placeholder="trans('labels.edit.name_placeholder')"
                         :class="{ 'border-destructive': form.errors.name }"
                     />
-                    <p v-if="form.errors.name" class="text-sm text-destructive">
+                    <p v-if="form.errors.name" class="text-sm text-destructive-text">
                         {{ form.errors.name }}
                     </p>
                 </div>
@@ -86,7 +87,7 @@ const submit = () => {
                     <HexColorInput v-model="form.color" name="color" />
                     <p
                         v-if="form.errors.color"
-                        class="text-sm text-destructive"
+                        class="text-sm text-destructive-text"
                     >
                         {{ form.errors.color }}
                     </p>
@@ -95,12 +96,17 @@ const submit = () => {
                 <DialogFooter>
                     <Button
                         type="button"
-                        variant="secondary"
+                        variant="ghost"
+                        data-testid="cancel-edit-label"
                         @click="open = false"
                     >
                         {{ $t('common.cancel') }}
                     </Button>
-                    <Button type="submit" :disabled="form.processing">
+                    <Button
+                        type="submit"
+                        data-testid="submit-edit-label"
+                        :disabled="form.processing"
+                    >
                         {{
                             form.processing
                                 ? $t('labels.edit.submitting')

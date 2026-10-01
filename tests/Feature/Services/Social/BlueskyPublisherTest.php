@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Exceptions\TokenExpiredException;
@@ -1807,6 +1808,37 @@ test('bluesky publisher does not follow a redirect on the card thumb download', 
 
     // The redirect to the internal address must never be followed.
     Http::assertNotSent(fn ($request) => str_contains($request->url(), '127.0.0.1'));
+});
+
+test('bluesky publisher downloads the card thumb through the size-capped fetcher', function () {
+    $this->post->update(['content' => 'read this https://example.com/article']);
+
+    $this->mock(LinkCardFetcher::class)
+        ->shouldReceive('fetch')
+        ->once()
+        ->andReturn(new LinkCardMetadata(
+            uri: 'https://example.com/article',
+            title: 'The Article',
+            description: 'A great read',
+            imageUrl: 'https://93.184.216.34/card.jpg',
+        ));
+
+    $thumbOptions = null;
+    Http::fake(function ($request, array $options) use (&$thumbOptions) {
+        if (str_contains($request->url(), 'card.jpg')) {
+            $thumbOptions = $options;
+
+            return Http::response('', 500);
+        }
+
+        return Http::response(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/3abc123xyz', 'cid' => 'bafyreiabc123'], 200);
+    });
+
+    $this->publisher->publish($this->postPlatform);
+
+    expect(data_get($thumbOptions, 'allow_redirects'))->toBeFalse()
+        ->and(data_get($thumbOptions, 'decode_content'))->toBeFalse()
+        ->and(fn () => $thumbOptions['progress'](MediaType::Image->maxSizeInBytes() + 1, 0))->toThrow(RuntimeException::class);
 });
 
 test('bluesky publisher does not attach a card when a non-embeddable media item is attached', function () {

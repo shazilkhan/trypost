@@ -77,7 +77,7 @@ test('a viewer cannot save changes to a post', function () {
 });
 
 test('only admins and above can open the connections screen', function (string $actor, bool $allowed) {
-    $response = $this->actingAs($this->{$actor})->get(route('app.accounts'));
+    $response = $this->actingAs($this->{$actor})->get(route('app.workspace.channels'));
 
     $allowed ? $response->assertOk() : $response->assertForbidden();
 })->with([
@@ -89,7 +89,6 @@ test('only admins and above can open the connections screen', function (string $
 test('opening the dialog does not create platform rows for a viewer', function () {
     SocialAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     $this->actingAs($this->viewer)
@@ -102,7 +101,6 @@ test('opening the dialog does not create platform rows for a viewer', function (
 test('opening the dialog does not create platform rows for a member', function () {
     SocialAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
-        'is_active' => true,
     ]);
 
     $this->actingAs($this->member)
@@ -127,7 +125,7 @@ test('an admin without connected accounts is sent to the accounts screen when cr
             'status' => 'draft',
             'destinations' => [['social_account_id' => (string) Str::uuid(), 'content_type' => 'linkedin_post']],
         ])
-        ->assertRedirect(route('app.accounts'));
+        ->assertRedirect(route('app.workspace.channels'));
 });
 
 test('a member cannot open the create workspace form', function () {

@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\User\Goal;
+use App\Enums\User\Persona;
+use App\Enums\User\ReferralSource;
 use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostPlatform;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -72,5 +76,44 @@ test('key pages do not overflow horizontally on a phone', function () {
 
     foreach ($pages as $label => $url) {
         assertNoHorizontalOverflow(visit($url)->resize(375, 812), $label);
+    }
+});
+
+test('auth and welcome pages do not overflow horizontally on a phone', function () {
+    config(['trypost.self_hosted' => false]);
+
+    $guestPages = [
+        'login' => route('login'),
+        'register' => route('register'),
+        'forgot password' => route('password.request'),
+    ];
+
+    foreach ($guestPages as $label => $url) {
+        assertNoHorizontalOverflow(visit($url)->resize(390, 844), $label);
+    }
+
+    $user = User::factory()->create();
+    $user->update([
+        'persona' => Persona::Agency->value,
+        'goals' => [Goal::SaveTime->value],
+        'referral_source' => ReferralSource::ProductHunt->value,
+    ]);
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+
+    $this->actingAs($user->fresh());
+
+    $welcomePages = [
+        'welcome connect' => route('app.welcome.connect'),
+        'welcome plan' => route('app.welcome.plan'),
+    ];
+
+    foreach ($welcomePages as $label => $url) {
+        assertNoHorizontalOverflow(visit($url)->resize(390, 844), $label);
     }
 });

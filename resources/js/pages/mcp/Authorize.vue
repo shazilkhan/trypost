@@ -196,8 +196,8 @@ const onDenySubmit = (): void => {
                     :key="scope.id"
                     class="flex items-start gap-2"
                 >
-                    <div class="mt-0.5 rounded-full bg-primary/10 p-1">
-                        <div class="size-1.5 rounded-full bg-primary" />
+                    <div class="mt-0.5 rounded-full bg-primary-subtle p-1">
+                        <div class="size-1.5 rounded-full bg-primary-strong" />
                     </div>
                     <span class="text-sm text-muted-foreground">
                         {{ scopeLabel(scope) }}

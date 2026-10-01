@@ -17,6 +17,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 
 test('youtube description checks effective web metadata before scheduling or publishing', function (string $patch, bool $allowed, string $status) {
     $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
@@ -165,6 +166,7 @@ test('youtube description validation keeps submitted channel order and rolls bac
 });
 
 beforeEach(function () {
+    Storage::fake();
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
     $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
@@ -176,7 +178,7 @@ beforeEach(function () {
     ]);
 
     // Media payload used by tests that need to satisfy ContentTypeCompatibleWithMedia.
-    $video = Media::factory()->video()->assets()->for($this->workspace, 'mediable')->create([
+    $video = Media::factory()->stored()->video()->temporaryUpload($this->workspace)->create([
         'size' => 100_000,
         'meta' => ['duration' => 30],
     ]);
@@ -809,7 +811,7 @@ test('scheduling across multiple platforms enforces the strictest content-length
 });
 
 test('draft save accepts media source metadata for ai regeneration', function () {
-    $asset = Media::factory()->assets()->for($this->workspace, 'mediable')->create([
+    $asset = Media::factory()->stored()->temporaryUpload($this->workspace)->create([
         'path' => 'ai-images/generated.webp',
         'original_filename' => 'generated.webp',
         'mime_type' => 'image/webp',
@@ -843,12 +845,12 @@ test('draft save accepts media source metadata for ai regeneration', function ()
 });
 
 test('the web update accepts a compatible type change for the fixed account', function () {
-    $this->socialAccount->update(['platform' => Platform::Instagram, 'is_active' => true]);
+    $this->socialAccount->update(['platform' => Platform::Instagram]);
     $this->postPlatform->update([
         'platform' => Platform::Instagram,
         'content_type' => ContentType::InstagramFeed,
     ]);
-    $video = Media::factory()->assets()->video()->for($this->workspace, 'mediable')->create();
+    $video = Media::factory()->stored()->video()->temporaryUpload($this->workspace)->create();
 
     $response = $this->actingAs($this->user)
         ->put(route('app.posts.update', $this->post), [

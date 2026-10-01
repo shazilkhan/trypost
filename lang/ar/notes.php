@@ -6,7 +6,6 @@ return [
     'reply_placeholder' => 'اكتب ردًا...',
     'reply' => 'رد',
     'react' => 'تفاعل',
-    'unknown_user' => 'شخص ما',
     'edit' => 'تعديل',
     'delete' => 'حذف',
     'edited' => 'تم التعديل',

@@ -1,27 +1,13 @@
 <script setup lang="ts">
-import { IconChevronDown, IconChevronUp } from '@tabler/icons-vue';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
-import MediaRulesWarning from '@/components/posts/editor/MediaRulesWarning.vue';
-import { Avatar } from '@/components/ui/avatar';
-import { getPlatformLogo } from '@/composables/usePlatformLogo';
+import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
+import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ContentType } from '@/types/content-type';
-import type { MediaItem } from '@/types/media';
-import { Platform } from '@/types/platform';
-
-interface SocialAccount {
-    id: string;
-    platform: string;
-    display_name: string;
-    username: string;
-    display_label: string;
-    avatar_url: string | null;
-}
 
 interface Props {
-    socialAccount: SocialAccount | null;
     contentType: string;
-    media: MediaItem[];
     meta?: Record<string, any>;
     disabled?: boolean;
 }
@@ -32,26 +18,8 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
-    'update:contentType': [value: string];
     'update:meta': [meta: Record<string, any>];
 }>();
-
-const open = ref(false);
-
-const variants = [
-    {
-        value: ContentType.FacebookPost,
-        labelKey: 'posts.form.facebook.variant.post',
-    },
-    {
-        value: ContentType.FacebookReel,
-        labelKey: 'posts.form.facebook.variant.reel',
-    },
-    {
-        value: ContentType.FacebookStory,
-        labelKey: 'posts.form.facebook.variant.story',
-    },
-] as const;
 
 const aspectRatios = [
     { value: '1:1', labelKey: 'posts.form.facebook.aspect.square' },
@@ -61,145 +29,36 @@ const aspectRatios = [
 ];
 
 const isFeed = computed(() => props.contentType === ContentType.FacebookPost);
-const selectedAspectRatio = computed(
-    () => props.meta.aspect_ratio ?? 'original',
-);
 
-const pickVariant = (value: string) => {
-    if (props.disabled) return;
-    emit('update:contentType', value);
-};
-
-const pickAspectRatio = (value: string) => {
-    if (props.disabled) return;
-    emit('update:meta', { ...props.meta, aspect_ratio: value });
-};
+const selectedAspectRatio = computed({
+    get: () => props.meta.aspect_ratio ?? 'original',
+    set: (value: string) =>
+        emit('update:meta', { ...props.meta, aspect_ratio: value }),
+});
 </script>
 
 <template>
-    <div class="rounded-xl border border-border bg-card shadow-2xs">
-        <button
-            type="button"
-            class="flex w-full cursor-pointer items-center justify-between gap-3 p-4 text-sm"
-            data-testid="facebook-settings-toggle"
-            @click="open = !open"
-        >
-            <span class="flex min-w-0 items-center gap-2">
-                <span
-                    class="inline-flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
-                >
-                    <img
-                        :src="getPlatformLogo('facebook')"
-                        alt="Facebook"
-                        class="size-full object-cover"
-                    />
-                </span>
-                <span class="truncate font-bold text-foreground">{{
-                    $t('posts.form.facebook.settings')
-                }}</span>
-                <span
-                    v-if="socialAccount?.username"
-                    class="truncate font-medium text-foreground/60"
-                    >·&nbsp;@{{ socialAccount.username }}</span
-                >
-            </span>
-            <IconChevronUp
-                v-if="open"
-                class="size-4 shrink-0 text-foreground/60"
-            />
-            <IconChevronDown
-                v-else
-                class="size-4 shrink-0 text-foreground/60"
-            />
-        </button>
-
-        <div
-            v-if="open"
-            class="space-y-5 border-t border-border px-4 pt-4 pb-4"
-        >
-            <div
-                v-if="socialAccount"
-                class="flex items-center gap-3 rounded-lg bg-foreground/5 p-3"
+    <SettingsSection v-if="isFeed">
+        <SettingsRow :label="$t('posts.form.facebook.aspect_label')">
+            <RadioGroup
+                v-model="selectedAspectRatio"
+                :disabled="disabled"
+                orientation="horizontal"
+                :aria-label="$t('posts.form.facebook.aspect_label')"
+                class="flex min-h-8 flex-wrap items-center gap-x-5 gap-y-2"
             >
-                <Avatar
-                    :src="socialAccount.avatar_url"
-                    :name="socialAccount.display_label"
-                    class="size-9 shrink-0 rounded-full border border-border shadow-2xs"
-                />
-                <div class="min-w-0 flex-1">
-                    <p
-                        class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                    >
-                        {{ $t('posts.form.facebook.posting_to') }}
-                    </p>
-                    <p class="truncate text-sm">
-                        <span class="font-bold text-foreground">{{
-                            socialAccount.display_label
-                        }}</span>
-                        <span
-                            v-if="socialAccount?.username"
-                            class="font-medium text-foreground/60"
-                            >&nbsp;@{{ socialAccount.username }}</span
-                        >
-                    </p>
-                </div>
-            </div>
-
-            <div class="space-y-2">
-                <p
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
+                <label
+                    v-for="ratio in aspectRatios"
+                    :key="ratio.value"
+                    class="flex cursor-pointer items-center gap-2 text-sm"
                 >
-                    {{ $t('posts.form.facebook.variant_label') }}
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    <button
-                        v-for="variant in variants"
-                        :key="variant.value"
-                        type="button"
-                        class="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="
-                            contentType === variant.value
-                                ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-xs'
-                                : 'border-border bg-card text-muted-foreground hover:border-amber-200 hover:bg-amber-50 hover:text-foreground'
-                        "
-                        :disabled="disabled"
-                        @click="pickVariant(variant.value)"
-                    >
-                        {{ $t(variant.labelKey) }}
-                    </button>
-                </div>
-            </div>
-
-            <div v-if="isFeed" class="space-y-2">
-                <p
-                    class="text-[11px] font-black tracking-widest text-foreground/60 uppercase"
-                >
-                    {{ $t('posts.form.facebook.aspect_label') }}
-                </p>
-                <div class="flex flex-wrap gap-2">
-                    <button
-                        v-for="ratio in aspectRatios"
-                        :key="ratio.value"
-                        type="button"
-                        class="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        :class="
-                            selectedAspectRatio === ratio.value
-                                ? 'border-amber-300 bg-amber-100 text-amber-950 shadow-xs'
-                                : 'border-border bg-card text-muted-foreground hover:border-amber-200 hover:bg-amber-50 hover:text-foreground'
-                        "
-                        :disabled="disabled"
-                        @click="pickAspectRatio(ratio.value)"
-                    >
-                        {{ $t(ratio.labelKey) }}
-                    </button>
-                </div>
-            </div>
-
-            <MediaRulesWarning
-                :content-type="contentType"
-                :media="media"
-                :platform="Platform.Facebook"
-            />
-        </div>
-    </div>
+                    <RadioGroupItem
+                        :value="ratio.value"
+                        :data-testid="`facebook-aspect-${ratio.value}`"
+                    />
+                    {{ $t(ratio.labelKey) }}
+                </label>
+            </RadioGroup>
+        </SettingsRow>
+    </SettingsSection>
 </template>

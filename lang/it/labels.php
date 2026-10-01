@@ -9,14 +9,13 @@ return [
     'no_search_results' => 'Nessuna etichetta corrisponde alla ricerca',
     'try_different_search' => 'Prova con un\'altra parola chiave o cancella la ricerca.',
     'create_first_label' => 'Crea la tua prima etichetta',
-    'table' => [
-        'name' => 'Nome',
-        'created_at' => 'Creata',
-    ],
 
     'actions' => [
         'edit' => 'Modifica etichetta',
         'delete' => 'Elimina etichetta',
+        'more' => 'Altre azioni',
+        'view_posts' => 'Visualizza post',
+        'open_reporting' => 'Apri report',
     ],
 
     'create' => [
@@ -44,11 +43,5 @@ return [
         'description' => 'Vuoi davvero eliminare questa etichetta? Questa azione non può essere annullata.',
         'confirm' => 'Elimina',
         'cancel' => 'Annulla',
-    ],
-
-    'flash' => [
-        'created' => 'Etichetta creata con successo!',
-        'updated' => 'Etichetta aggiornata con successo!',
-        'deleted' => 'Etichetta eliminata con successo!',
     ],
 ];

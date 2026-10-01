@@ -22,8 +22,6 @@ class DispatchAccountDailyAnalytics extends Command
 
         SocialAccount::query()
             ->connected()
-            ->active()
-            ->reorder()
             ->lazyById(200)
             ->each(function (SocialAccount $account) use ($collectors, $date): void {
                 if ($collectors->supports($account->platform)) {

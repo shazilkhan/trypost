@@ -24,9 +24,7 @@ class DispatchPublicationMetrics extends Command
 
         SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
-            ->reorder()
             ->lazyById(100)
             ->each(function (SocialAccount $account) use ($now): void {
                 $days = $account->platform === Platform::X ? 20 : 30;

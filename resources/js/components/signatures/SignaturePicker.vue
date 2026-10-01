@@ -154,7 +154,7 @@ const save = async (): Promise<void> => {
             <p
                 v-if="saveError"
                 role="alert"
-                class="mt-2 text-sm text-destructive"
+                class="mt-2 text-sm text-destructive-text"
             >
                 {{ $t('signatures.save_failed') }}
             </p>

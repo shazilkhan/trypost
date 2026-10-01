@@ -52,7 +52,6 @@ class FinalizeAccountDailySnapshot implements ShouldQueue
     ): void {
         $account = SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
             ->find($this->socialAccountId);
 

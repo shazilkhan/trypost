@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Plan\Slug;
+use App\Enums\User\Locale;
 use App\Enums\UserWorkspace\Role;
-use App\Enums\Workspace\ContentLanguage;
 use App\Models\Account;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -172,7 +172,7 @@ test('plan change actions exist in every locale', function (string $locale) {
         ->and(__('billing.plans.downgrade', ['plan' => 'Socials'], $locale))
         ->not->toBe('billing.plans.downgrade')
         ->toContain('Socials');
-})->with(ContentLanguage::values());
+})->with(Locale::values());
 
 test('english plan change actions say upgrade and downgrade instead of choose', function () {
     expect(__('billing.plans.upgrade', ['plan' => 'Workspaces']))

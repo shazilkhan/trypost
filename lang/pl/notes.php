@@ -6,7 +6,6 @@ return [
     'reply_placeholder' => 'Napisz odpowiedź...',
     'reply' => 'Odpowiedz',
     'react' => 'Zareaguj',
-    'unknown_user' => 'ktoś',
     'edit' => 'Edytuj',
     'delete' => 'Usuń',
     'edited' => 'edytowano',

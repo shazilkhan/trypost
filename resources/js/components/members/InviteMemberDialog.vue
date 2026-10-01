@@ -37,7 +37,7 @@ const onSuccess = () => {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="sm:max-w-md">
+        <DialogContent class="sm:max-w-md" data-testid="invite-member-dialog">
             <DialogHeader>
                 <DialogTitle>{{
                     $t('settings.members.invite.title')
@@ -99,7 +99,7 @@ const onSuccess = () => {
 
                 <DialogFooter>
                     <Button
-                        variant="secondary"
+                        variant="ghost"
                         type="button"
                         @click="open = false"
                     >

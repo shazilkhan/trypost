@@ -2,6 +2,7 @@
 import { IconX } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
+import PlatformLogo from '@/components/PlatformLogo.vue';
 import {
     Tooltip,
     TooltipContent,
@@ -42,8 +43,7 @@ const remove = (): void => {
                         type="button"
                         :data-testid="`composer-account-${account.id}`"
                         :aria-pressed="active"
-                        class="relative block size-10 rounded-lg transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        :class="active ? 'ring-1 ring-primary/50' : ''"
+                        class="relative block size-10 rounded-xl transition-shadow outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                         @click="
                             tooltipOpen = true;
                             emit('focus');
@@ -55,12 +55,14 @@ const remove = (): void => {
                                 getPlatformLogo(account.platform)
                             "
                             :alt="account.display_name || account.username"
-                            class="size-full rounded-lg object-cover"
+                            class="size-full rounded-xl object-cover"
                         />
-                        <img
-                            :src="getPlatformLogo(account.platform)"
-                            :alt="getPlatformLabel(account.platform)"
-                            class="absolute -right-1 -bottom-1 size-4 rounded-full bg-background"
+                        <PlatformLogo
+                            :platform="account.platform"
+                            :size="18"
+                            ring="background"
+                            :title="null"
+                            class="absolute -right-1.5 -bottom-px"
                         />
                     </button>
                 </TooltipTrigger>
@@ -75,10 +77,10 @@ const remove = (): void => {
             type="button"
             :data-testid="`composer-remove-account-${account.id}`"
             :aria-label="`${$t('settings.remove')} ${account.handle_label}`"
-            class="absolute -top-2 -right-2 z-10 flex size-5 items-center justify-center rounded-full border border-border bg-background opacity-100 shadow-sm transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
+            class="absolute -top-2.5 -right-3 z-10 flex size-6 items-center justify-center rounded-md border border-border-strong bg-background text-muted-foreground opacity-100 transition-[opacity,background-color] hover:bg-accent sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
             @click.stop="remove"
         >
-            <IconX class="size-3" />
+            <IconX class="size-4" />
         </button>
     </div>
 </template>

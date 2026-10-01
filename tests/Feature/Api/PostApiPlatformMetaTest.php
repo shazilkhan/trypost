@@ -16,6 +16,7 @@ use App\Models\SocialAccount;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 it('youtube description survives create read update omission and clear', function (string $description) {
     $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
@@ -123,6 +124,7 @@ it('youtube description checks effective API metadata before scheduling or publi
 ])->with([PostStatus::Scheduled->value, PostStatus::Publishing->value]);
 
 beforeEach(function () {
+    Storage::fake();
     $result = createApiTestToken();
     $this->user = $result['user'];
     $this->workspace = $result['workspace'];
@@ -268,16 +270,11 @@ it('rejects unowned media on the legacy single-platform update payload', functio
     $this->withHeaders($this->headers)
         ->putJson(route('api.posts.update', $post), [
             'status' => PostStatus::Draft->value,
-            'media' => [[
-                'id' => 'foreign-asset',
-                'path' => 'assets/foreign.jpg',
-                'url' => 'https://example.com/foreign.jpg',
-                'type' => 'image',
-            ]],
+            'media' => [['id' => (string) Str::uuid()]],
             'platforms' => [['id' => $target->id]],
         ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['destinations.0.media.0.id']);
+        ->assertJsonValidationErrors(['media.0.id']);
 
     expect($post->fresh()->media)->toBeEmpty();
 });
@@ -673,7 +670,7 @@ it('rejects non-http Pinterest links', function () {
 
 it('rejects scheduling an independent Pinterest draft without a board when settings are omitted', function () {
     $pinterest = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Pinterest]);
-    $image = Media::factory()->assets()->for($this->workspace, 'mediable')->create();
+    $image = Media::factory()->stored()->temporaryUpload($this->workspace)->create();
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -703,7 +700,7 @@ it('rejects scheduling an independent Pinterest draft without a board when setti
 it('accepts changing an independent Instagram reel to a feed image during scheduling', function () {
     Storage::fake(null, ['url' => 'https://cdn.example.com']);
     $instagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
-    $image = Media::factory()->assets()->for($this->workspace, 'mediable')->create();
+    $image = Media::factory()->stored()->temporaryUpload($this->workspace)->create();
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,

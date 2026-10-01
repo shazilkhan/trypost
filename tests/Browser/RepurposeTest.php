@@ -101,13 +101,11 @@ test('a destination is not warned about missing media before there is any', func
 
     $page = visit(route('app.repurposes.show', $repurpose));
 
-    waitForRepurposeTestId($page, 'facebook-settings-toggle');
+    waitForRepurposeTestId($page, "channel-type-{$facebook->id}-facebook_reel");
 
-    $page->click('@facebook-settings-toggle');
-
-    usleep(300000);
-
-    $page->assertDontSee('requires_media')
+    $page->assertVisible("@channel-settings-{$facebook->id}")
+        ->assertAttribute("@channel-type-{$facebook->id}-facebook_reel", 'aria-checked', 'true')
+        ->assertDontSee('requires_media')
         ->assertDontSee(trans('posts.form.warnings.requires_media'))
         ->assertNoJavaScriptErrors();
 });
@@ -307,5 +305,45 @@ test('a source account that needs reconnecting says so in the picker', function 
 
     $page->assertVisible("@source-option-disconnected-{$broken->id}")
         ->assertMissing("@source-option-disconnected-{$source->id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('the list shows each repurpose as a row that opens it and the back button returns', function () {
+    [$user, $workspace, $source, $destination] = repurposeOwnerWithAccounts();
+
+    $repurpose = Repurpose::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'source_social_account_id' => $source->id,
+        'source_format' => SourceFormat::Reel,
+        'destinations' => [[
+            'social_account_id' => $destination->id,
+            'content_type' => ContentType::TikTokVideo->value,
+            'meta' => [],
+        ]],
+    ]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.repurposes.index'));
+
+    waitForRepurposeTestId($page, "repurpose-row-{$repurpose->id}");
+
+    $page->assertVisible('@create-repurpose-button')
+        ->assertVisible('@header-icon')
+        ->assertScript("document.querySelector('[data-testid=\"repurpose-row-{$repurpose->id}\"]').tagName", 'A')
+        ->assertScript('document.documentElement.scrollWidth <= window.innerWidth + 1', true)
+        ->click("@repurpose-row-{$repurpose->id}");
+
+    waitForRepurposeTestId($page, 'repurpose-back');
+
+    $page->assertRoute('app.repurposes.show', ['repurpose' => $repurpose->id])
+        ->click('@repurpose-back');
+
+    waitForRepurposeTestId($page, 'repurposes-table');
+
+    $page->assertRoute('app.repurposes.index')
+        ->resize(390, 844)
+        ->assertScript('document.documentElement.scrollWidth <= window.innerWidth + 1', true)
         ->assertNoJavaScriptErrors();
 });

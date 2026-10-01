@@ -6,7 +6,6 @@ return [
     'reply_placeholder' => '写下回复…',
     'reply' => '回复',
     'react' => '回应',
-    'unknown_user' => '某人',
     'edit' => '编辑',
     'delete' => '删除',
     'edited' => '已编辑',

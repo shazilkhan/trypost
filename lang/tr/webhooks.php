@@ -9,8 +9,6 @@ return [
     'empty_title' => 'Henüz webhook yok',
     'empty_description' => 'Anlık olay bildirimleri almak için bir webhook oluşturun.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => 'Dinlenenler',
         'status' => 'Durum',
         'last_sent' => 'Son gönderim',
     ],

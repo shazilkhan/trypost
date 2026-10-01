@@ -6,6 +6,7 @@ namespace App\Http\Controllers\App;
 
 use App\Actions\Ai\AssistPostContent;
 use App\Enums\Ai\PostAssistantMode;
+use App\Enums\SocialAccount\Platform;
 use App\Http\Requests\App\Ai\AssistPostContentRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
@@ -31,6 +32,8 @@ class PostAiAssistantController extends Controller
                 mode: PostAssistantMode::from($request->string('mode')->toString()),
                 currentContent: $request->string('current_content')->toString(),
                 prompt: $request->input('prompt'),
+                previousContent: $request->input('previous_content'),
+                platform: $request->enum('platform', Platform::class),
             ),
         ]);
     }

@@ -39,7 +39,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <DialogContent
       data-slot="sheet-content"
       :class="cn(
-        'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500',
+        'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-lg data-[state=open]:duration-(--motion-duration-drawer) data-[state=open]:ease-(--motion-easing-drawer) data-[state=closed]:duration-200 data-[state=closed]:ease-in motion-reduce:animate-none',
         side === 'right'
           && 'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm',
         side === 'left'
@@ -56,9 +56,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       <DialogClose
         v-if="showCloseButton"
         :aria-label="$t('common.close')"
-        class="absolute top-3 right-3 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border bg-background text-foreground shadow-xs transition-all hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
+        class="absolute top-4 right-4 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-strong bg-transparent text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:pointer-events-none disabled:text-subtle-foreground"
       >
-        <IconX class="size-4" stroke-width="2.5" />
+        <IconX class="size-4" />
         <span class="sr-only">{{ $t('common.close') }}</span>
       </DialogClose>
     </DialogContent>

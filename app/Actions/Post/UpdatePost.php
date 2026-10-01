@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Post;
 
+use App\Actions\Media\SyncOwnedMedia;
+use App\Actions\Post\Queue\ReflowChannelQueue;
 use App\Enums\Post\Action as PostAction;
+use App\Enums\Post\QueuePosition;
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\Status as PlatformStatus;
 use App\Enums\SocialAccount\Platform;
@@ -12,6 +16,7 @@ use App\Jobs\PublishPost;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
+use App\Support\Media\MediaCopyBatch;
 use App\Support\PostCompositionValidator;
 use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
@@ -54,11 +59,15 @@ class UpdatePost
             return self::updateChannelPost($workspace, $post, $data);
         }
 
+        if (filled(data_get($data, 'queue'))) {
+            throw ValidationException::withMessages(['queue' => __('posts.errors.queue_legacy_post')]);
+        }
+
         if (array_key_exists('content_type', $data) || array_key_exists('meta', $data)) {
             return self::updateChannelPost($workspace, $post, $data);
         }
 
-        return DB::transaction(function () use ($post, $data): array {
+        return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $data): array {
             $scheduledAt = $post->scheduled_at;
             if (data_get($data, 'scheduled_at')) {
                 $scheduledAt = Carbon::parse(data_get($data, 'scheduled_at'))->utc();
@@ -68,10 +77,16 @@ class UpdatePost
 
             $post->update([
                 'content' => data_get($data, 'content', $post->content),
-                'media' => data_get($data, 'media', $post->media),
                 'status' => $status === PostStatus::Publishing->value ? PostStatus::Publishing : $status,
                 'scheduled_at' => $scheduledAt,
+                'schedule_mode' => in_array($status, [PostStatus::Scheduled, PostStatus::Scheduled->value], true)
+                    ? ScheduleMode::Custom
+                    : null,
             ]);
+
+            if (Arr::has($data, 'media')) {
+                SyncOwnedMedia::execute($post, data_get($data, 'media') ?? [], $batch);
+            }
 
             if (Arr::has($data, 'label_ids')) {
                 $post->labels()->sync(data_get($data, 'label_ids', []));
@@ -165,16 +180,40 @@ class UpdatePost
         }
 
         $target = $post->postPlatforms()->enabled()->sole();
+        $position = filled(data_get($data, 'queue')) ? QueuePosition::from(data_get($data, 'queue')) : null;
+        $channel = $target->socialAccount;
+
+        if ($position !== null && ! $channel?->hasPostingSchedule()) {
+            throw ValidationException::withMessages(['queue' => __('posts.errors.queue_requires_schedule')]);
+        }
+
+        $wasQueued = $post->schedule_mode === ScheduleMode::Queue && $post->status === PostStatus::Scheduled;
+        $keepsQueueSlot = $position === QueuePosition::Next && $wasQueued && $post->scheduled_at?->isFuture();
+
+        if ($keepsQueueSlot) {
+            $position = null;
+        }
         $meta = array_filter(
             array_merge($target->meta ?? [], $data['meta'] ?? []),
             fn (mixed $value): bool => $value !== null,
         );
         $status = $data['status'] ?? $post->status->value;
-        $scheduledAt = array_key_exists('scheduled_at', $data)
-            ? $data['scheduled_at']
-            : $post->scheduled_at?->toIso8601String();
+        $scheduledAt = match (true) {
+            $position !== null => null,
+            $keepsQueueSlot => $post->scheduled_at->toIso8601String(),
+            array_key_exists('scheduled_at', $data) => $data['scheduled_at'],
+            default => $post->scheduled_at?->toIso8601String(),
+        };
+        $mode = match (true) {
+            $position !== null => ScheduleMode::Queue,
+            $status !== PostStatus::Scheduled->value => null,
+            $keepsQueueSlot => ScheduleMode::Queue,
+            filled(data_get($data, 'scheduled_at')) => ScheduleMode::Custom,
+            default => $post->schedule_mode ?? ScheduleMode::Custom,
+        };
         $resolved = PostCompositionValidator::validate($workspace, [
             'status' => $status,
+            'queue' => $position?->value,
             'content' => array_key_exists('content', $data) ? $data['content'] : $post->content,
             'media' => $data['media'] ?? $post->media ?? [],
             'scheduled_at' => $scheduledAt,
@@ -186,14 +225,15 @@ class UpdatePost
             ]],
         ], $post->media ?? []);
 
-        return DB::transaction(function () use ($post, $target, $data, $resolved, $meta, $status, $scheduledAt): array {
+        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $meta, $status, $scheduledAt, $mode, $position, $wasQueued): array {
             $destination = $resolved['destinations'][0];
             $post->update([
                 'content' => $destination['content'],
-                'media' => $destination['media'],
                 'status' => $status,
                 'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt)->utc() : null,
+                'schedule_mode' => $mode,
             ]);
+            SyncOwnedMedia::execute($post, $destination['media'], $batch);
             $target->update([
                 'content_type' => $destination['content_type'],
                 'meta' => $meta,
@@ -201,6 +241,12 @@ class UpdatePost
 
             if (array_key_exists('label_ids', $data)) {
                 $post->labels()->sync($data['label_ids']);
+            }
+
+            if ($position !== null) {
+                CreateChannelPost::enqueue($channel, $post, $position);
+            } elseif ($wasQueued && $mode !== ScheduleMode::Queue) {
+                ReflowChannelQueue::afterCommit($target->social_account_id);
             }
 
             if ($status === PostStatus::Publishing->value) {
@@ -216,5 +262,9 @@ class UpdatePost
 
             return ['post' => $post, 'action' => null];
         });
+
+        return $position === null
+            ? $write()
+            : ReflowChannelQueue::withLock([$target->social_account_id], $write);
     }
 }

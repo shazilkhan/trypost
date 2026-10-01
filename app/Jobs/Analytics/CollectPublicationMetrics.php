@@ -74,7 +74,6 @@ class CollectPublicationMetrics implements ShouldQueue
         $publication = AnalyticsPublication::query()->available()->find($this->publicationId);
         $account = $publication ? SocialAccount::query()
             ->connected()
-            ->active()
             ->includedInAnalytics()
             ->find($publication->social_account_id) : null;
 

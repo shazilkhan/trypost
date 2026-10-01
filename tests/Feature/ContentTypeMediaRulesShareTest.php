@@ -29,5 +29,9 @@ test('inertia shares content type media rules for the frontend', function () {
             ->where('contentTypeMediaRules.facebook_reel.max_video_duration_sec', 90)
             ->where('contentTypeMediaRules.tiktok_video.max_video_duration_sec', 10 * 60)
             ->where('contentTypeMediaRules.linkedin_post.max_document_bytes', 100 * 1024 * 1024)
+            ->where('contentTypeMediaRules.instagram_feed.crop_presets', ['3:4', '4:5', '1:1', '1.91:1'])
+            ->where('contentTypeMediaRules.instagram_feed.supports_user_tags', true)
+            ->where('contentTypeMediaRules.tiktok_photo.supports_alt_text', false)
+            ->where('defaultCropPresets', ['1:1', '9:16'])
         );
 });

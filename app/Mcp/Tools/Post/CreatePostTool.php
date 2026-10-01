@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\Post;
 
 use App\Actions\Post\CreatePosts;
+use App\Actions\Post\HostInlineMedia;
 use App\Enums\Post\CreatedVia;
 use App\Enums\PostPlatform\ContentType;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
+use App\Mcp\Concerns\DescribesPostMedia;
+use App\Models\Post;
+use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Rules\ContentTypeMatchesPlatform;
 use App\Support\PostMediaRules;
@@ -25,6 +29,7 @@ use Laravel\Mcp\Server\Tool;
 class CreatePostTool extends Tool
 {
     use AuthorizesMcpTool;
+    use DescribesPostMedia;
 
     public function handle(Request $request): Response|ResponseFactory
     {
@@ -41,17 +46,16 @@ class CreatePostTool extends Tool
         $validated = $request->validate(
             [
                 'content' => ['nullable', 'string', 'max:10000'],
-                ...PostMediaRules::rules(hosted: true),
+                ...PostMediaRules::rules(),
                 'scheduled_at' => ['nullable', 'date', 'after:now', 'before:2038-01-19'],
                 'label_ids' => ['sometimes', 'array'],
-                'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)],
+                'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)->withoutTrashed()],
                 'platforms' => ['required', 'array', 'size:1'],
                 'platforms.*.social_account_id' => [
                     'required',
                     'uuid',
                     Rule::exists('social_accounts', 'id')
-                        ->where('workspace_id', $workspace->id)
-                        ->where('is_active', true),
+                        ->where('workspace_id', $workspace->id),
                 ],
                 'platforms.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value')), new ContentTypeMatchesPlatform],
                 ...PostPlatformMetaRules::rules(),
@@ -60,10 +64,16 @@ class CreatePostTool extends Tool
             PostPlatformMetaRules::attributes(),
         );
 
+        $platform = SocialAccount::query()->whereKey($validated['platforms'][0]['social_account_id'])->value('platform');
+
         $post = CreatePosts::execute($workspace, $request->user(), [
             'status' => 'draft',
             'content' => $validated['content'] ?? '',
-            'media' => $validated['media'] ?? [],
+            'media' => HostInlineMedia::execute(
+                $workspace,
+                Post::allowedMediaTypesFor(collect([$platform])),
+                $validated['media'] ?? [],
+            ),
             'scheduled_at' => $validated['scheduled_at'] ?? null,
             'label_ids' => $validated['label_ids'] ?? [],
             'created_via' => CreatedVia::Mcp,
@@ -79,7 +89,7 @@ class CreatePostTool extends Tool
     {
         return [
             'content' => $schema->string()->description('The post caption/text body. Optional — can be edited later.'),
-            'media' => $schema->array()->items($schema->object())->description('Hosted media snapshots from this workspace.'),
+            'media' => $this->mediaSchema($schema, 'Media for the post.'),
             'scheduled_at' => $schema->string()->description('Optional ISO 8601 datetime in the future (e.g. 2026-05-10T15:30:00Z). Omit it or pass null to create an unscheduled draft.'),
             'label_ids' => $schema->array()
                 ->items($schema->string())

@@ -8,7 +8,6 @@ return [
     'reply_placeholder' => 'Escribe una respuesta...',
     'reply' => 'Responder',
     'react' => 'Reaccionar',
-    'unknown_user' => 'alguien',
     'edit' => 'Editar',
     'delete' => 'Eliminar',
     'edited' => 'editado',

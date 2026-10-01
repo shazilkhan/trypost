@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { trans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 
+import { Badge } from '@/components/ui/badge';
 import date from '@/date';
 import dayjs from '@/dayjs';
-import { formatNumberCompact, formatPercent } from '@/lib/utils';
+import {
+    formatPublicationMetric,
+    isVisiblePublicationMetric,
+    publicationMetricLabel,
+} from '@/lib/publicationMetrics';
+import type { PublicationAnalyticsDetail } from '@/types/analytics';
 
-import type {
-    PublicationAnalyticsDetail,
-    PublicationMetricFact,
-} from '@/types/analytics';
 import AnalyticsSection from './AnalyticsSection.vue';
 
 const props = defineProps<{ detail: PublicationAnalyticsDetail }>();
@@ -86,33 +87,11 @@ const visibleGroups = computed(() =>
             ...group,
             metrics: group.keys.flatMap((key) => {
                 const fact = props.detail.metrics[key];
-                return fact?.availability === 'available' && fact.value !== null
-                    ? [{ key, fact }]
-                    : [];
+                return isVisiblePublicationMetric(fact) ? [{ key, fact }] : [];
             }),
         }))
         .filter((group) => group.metrics.length > 0),
 );
-
-const label = (key: string): string => {
-    const core = `analytics.metrics.${key}`;
-    const coreLabel = trans(core);
-    if (coreLabel !== core) return coreLabel;
-
-    const specialized = `analytics.detail.labels.${key}`;
-    const specializedLabel = trans(specialized);
-    return specializedLabel;
-};
-
-const display = (key: string, fact: PublicationMetricFact): string => {
-    if (fact.value === null) return '—';
-    if (fact.unit === 'percent') return formatPercent(fact.value);
-    if (fact.unit === 'milliseconds') {
-        const average = key.includes('average');
-        return `${formatNumberCompact(fact.value / (average ? 1000 : 60000))} ${average ? 's' : 'min'}`;
-    }
-    return formatNumberCompact(fact.value);
-};
 
 const stale = computed(() =>
     props.detail.snapshot?.collected_at
@@ -125,7 +104,7 @@ const stale = computed(() =>
     <div class="flex flex-col gap-6">
         <div
             v-if="detail.snapshot"
-            class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground"
+            class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
         >
             <span
                 >{{ $t('analytics.detail.last_collected') }}
@@ -135,16 +114,14 @@ const stale = computed(() =>
                         : detail.snapshot.date
                 }}</time></span
             >
-            <span
-                v-if="stale"
-                class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200"
-                >{{ $t('analytics.detail.stale') }}</span
-            >
+            <Badge v-if="stale" variant="warning" class="h-6 px-2">{{
+                $t('analytics.detail.stale')
+            }}</Badge>
         </div>
 
         <p
             v-if="visibleGroups.length === 0"
-            class="rounded-xl border-2 border-dashed border-foreground/35 bg-card px-6 py-12 text-center text-sm text-muted-foreground"
+            class="rounded-xl border border-dashed border-border-strong bg-card px-6 py-12 text-center text-sm text-muted-foreground"
         >
             {{ $t('analytics.detail.awaiting_metrics') }}
         </p>
@@ -154,18 +131,13 @@ const stale = computed(() =>
             :title="$t(group.label)"
         >
             <div
-                class="grid gap-3"
-                :class="
-                    group.metrics.length <= 2
-                        ? 'grid-cols-1 sm:grid-cols-2'
-                        : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-5'
-                "
+                class="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]"
             >
                 <div
                     v-for="metric in group.metrics"
                     :key="metric.key"
                     :data-testid="`analytics-metric-${metric.key}`"
-                    class="flex min-h-28 min-w-0 flex-col justify-between rounded-xl border-2 border-foreground bg-background px-4 py-4 shadow-xs"
+                    class="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-card px-4 py-3"
                     :title="
                         metric.fact.time_basis
                             ? $t(
@@ -174,20 +146,20 @@ const stale = computed(() =>
                             : undefined
                     "
                 >
-                    <p class="text-sm font-medium text-foreground/70">
-                        {{ label(metric.key) }}
+                    <p class="flex min-h-6 items-center text-xs text-muted-foreground">
+                        {{ publicationMetricLabel(metric.key) }}
                     </p>
                     <p
-                        class="mt-3 text-2xl font-semibold tracking-tight break-words text-foreground tabular-nums"
+                        class="font-heading text-xl leading-tight font-medium break-words text-foreground tabular-nums"
                     >
-                        {{ display(metric.key, metric.fact) }}
+                        {{ formatPublicationMetric(metric.key, metric.fact) }}
                     </p>
                     <p
                         v-if="
                             metric.fact.precision &&
                             metric.fact.precision !== 'exact'
                         "
-                        class="text-[11px] text-muted-foreground"
+                        class="-mt-1 text-xs text-muted-foreground"
                     >
                         {{ $t('analytics.detail.estimated') }}
                     </p>

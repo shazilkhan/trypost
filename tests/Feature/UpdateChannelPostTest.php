@@ -13,13 +13,18 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+
+beforeEach(function () {
+    Storage::fake();
+});
 
 test('editing one Instagram post changes its type, media and caption without changing its sibling', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $accounts = SocialAccount::factory()->instagram()->count(2)->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $video = Media::factory()->assets()->video()->for($workspace, 'mediable')->create();
+    $accounts = SocialAccount::factory()->instagram()->count(2)->create(['workspace_id' => $workspace->id]);
+    $video = Media::factory()->stored()->video()->temporaryUpload($workspace)->create();
     $posts = CreatePosts::execute($workspace, $user, [
         'status' => 'draft',
         'content' => 'Texto inicial',
@@ -48,8 +53,8 @@ test('editing one Instagram post changes its type, media and caption without cha
 test('an incompatible type and media leaves the edited post unchanged', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $image = Media::factory()->assets()->for($workspace, 'mediable')->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $image = Media::factory()->stored()->temporaryUpload($workspace)->create();
     $post = CreatePosts::execute($workspace, $user, [
         'status' => 'draft',
         'content' => 'Antes',
@@ -72,7 +77,7 @@ test('an incompatible type and media leaves the edited post unchanged', function
 test('the selected social account cannot change during edit', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $accounts = SocialAccount::factory()->instagram()->count(2)->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $accounts = SocialAccount::factory()->instagram()->count(2)->create(['workspace_id' => $workspace->id]);
     $post = CreatePosts::execute($workspace, $user, [
         'status' => 'draft',
         'destinations' => [['social_account_id' => $accounts[0]->id, 'content_type' => ContentType::InstagramFeed->value]],
@@ -94,8 +99,8 @@ test('the selected social account cannot change during edit', function () {
 test('settled posts and legacy multi-target posts cannot use the independent editor', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $instagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
-    $xAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'is_active' => true]);
+    $instagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $xAccount = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
     $post = CreatePosts::execute($workspace, $user, [
         'status' => 'draft',
         'destinations' => [['social_account_id' => $instagram->id, 'content_type' => ContentType::InstagramFeed->value]],

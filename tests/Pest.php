@@ -11,6 +11,7 @@ use App\Models\Account;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\Http\HostResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -163,6 +164,16 @@ function billingAccount(string $price, array $subscriptionAttributes = [], int $
     Workspace::factory()->count($workspaces)->create(['account_id' => $account->id]);
 
     return $account->refresh();
+}
+
+/**
+ * Every host name resolves to one public documentation address, so a fetch
+ * through SafeHttpFetcher never depends on real DNS. IP literals are still
+ * vetted by the guard itself.
+ */
+function fakePublicDns(string $address = '93.184.216.34'): void
+{
+    test()->mock(HostResolver::class)->shouldReceive('addresses')->andReturn([$address]);
 }
 
 /**

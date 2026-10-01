@@ -12,7 +12,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 <template>
     <div
-        class="inline-flex rounded-lg border-2 border-foreground bg-card p-1 shadow-xs"
+        class="inline-flex h-8 items-center gap-1 rounded-lg border border-border-strong bg-card p-[3px]"
         role="group"
         :aria-label="trans(label)"
     >
@@ -21,11 +21,11 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
             :key="option.mode"
             type="button"
             :data-testid="option.test"
-            class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            class="inline-flex h-6 items-center rounded-md px-2 text-sm font-medium whitespace-nowrap transition-control focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
             :class="
                 modelValue === option.mode
-                    ? 'bg-violet-100 text-foreground'
-                    : 'text-foreground/65 hover:bg-muted hover:text-foreground'
+                    ? 'bg-primary-selected text-primary-text'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             "
             :aria-pressed="modelValue === option.mode"
             @click="emit('update:modelValue', option.mode)"

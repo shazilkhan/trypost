@@ -28,7 +28,6 @@ beforeEach(function () {
         'workspace_id' => $this->workspace->id,
         'token_expires_at' => now()->addHour(),
         'status' => AccountStatus::Connected,
-        'is_active' => true,
     ]);
     $this->analytics = new GoogleBusinessAnalytics;
 });

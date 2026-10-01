@@ -2,11 +2,13 @@
 import { InfiniteScroll } from '@inertiajs/vue3';
 import { IconCheck, IconClock, IconX } from '@tabler/icons-vue';
 
+
 import { Spinner } from '@/components/ui/spinner';
 import date from '@/date';
 import type { WebhookLog } from '@/types/webhook';
 
 import { webhookEventLabel } from './webhook-events';
+
 
 defineProps<{
     logs: WebhookLog[];
@@ -45,15 +47,15 @@ const isFailed = (log: WebhookLog): boolean => Boolean(log.failed_at);
                     >
                         <span
                             v-if="newLogIds.includes(log.id)"
-                            class="absolute top-1/2 left-1.5 size-1.5 -translate-y-1/2 animate-pulse rounded-full bg-primary"
+                            class="absolute top-1/2 left-1.5 size-1.5 -translate-y-1/2 animate-pulse rounded-full bg-primary-strong"
                         />
                         <span
                             class="flex size-7 shrink-0 items-center justify-center rounded-full"
                             :class="
                                 isSuccess(log)
-                                    ? 'bg-[var(--success)]/15 text-[var(--success)]'
+                                    ? 'bg-success/15 text-success'
                                     : isFailed(log)
-                                      ? 'bg-[var(--error)]/15 text-[var(--error)]'
+                                      ? 'bg-destructive/15 text-destructive'
                                       : 'bg-muted text-foreground/60'
                             "
                         >

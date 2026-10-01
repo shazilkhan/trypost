@@ -5,13 +5,27 @@ declare(strict_types=1);
 namespace App\Support;
 
 /**
- * Shared maximum length for AI prompts from the post assistant and the
- * existing post editing tools.
+ * Shared limits for prompts sent to the post assistant.
  */
-class AiPromptRules
+final class AiPromptRules
 {
     /**
      * Maximum prompt length (characters); mirrored by the frontend counter.
      */
-    public const PROMPT_MAX_LENGTH = 2000;
+    public const int PROMPT_MAX_LENGTH = 10000;
+
+    public const int PROMPT_MIN_WORDS = 4;
+
+    /**
+     * Counts whitespace-separated words, with each Han, Hiragana or Katakana
+     * character counted as one word since those scripts do not use spaces.
+     */
+    public static function wordCount(string $text): int
+    {
+        $pattern = '/[\p{Han}\p{Hiragana}\p{Katakana}]/u';
+        $ideographs = preg_match_all($pattern, $text);
+        $rest = preg_split('/\s+/u', trim((string) preg_replace($pattern, ' ', $text)), -1, PREG_SPLIT_NO_EMPTY);
+
+        return $ideographs + count($rest);
+    }
 }

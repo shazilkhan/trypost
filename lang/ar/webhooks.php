@@ -9,8 +9,6 @@ return [
     'empty_title' => 'لا توجد ويب هوكس بعد',
     'empty_description' => 'أنشئ ويب هوكًا لتلقي إشعارات الأحداث فور حدوثها.',
     'table' => [
-        'endpoint' => 'Endpoint',
-        'events' => 'يستمع إلى',
         'status' => 'الحالة',
         'last_sent' => 'آخر إرسال',
     ],
