@@ -2,11 +2,10 @@
 import { IconLayoutGrid } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
-import PlatformLogo from '@/components/PlatformLogo.vue';
 import {
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 
 interface Channel {
@@ -56,23 +55,12 @@ const channelFor = (id: string): Channel => channelsById.value.get(id)!;
         </template>
         <template #option="{ option }">
             <span class="flex min-w-0 items-center gap-3">
-                <span class="relative size-8 shrink-0">
-                    <img
-                        :src="
-                            channelFor(option.id).avatar_url ??
-                            getPlatformLogo(channelFor(option.id).platform)
-                        "
-                        alt=""
-                        class="size-8 rounded-md object-cover"
-                    />
-                    <PlatformLogo
-                        v-if="channelFor(option.id).avatar_url"
-                        :platform="channelFor(option.id).platform"
-                        :size="16"
-                        ring="popover"
-                        class="absolute -right-1 -bottom-1"
-                    />
-                </span>
+                <ChannelAvatar
+                    :platform="channelFor(option.id).platform"
+                    :src="channelFor(option.id).avatar_url"
+                    :name="option.label"
+                    ring="popover"
+                />
                 <span class="min-w-0 truncate">{{ option.label }}</span>
             </span>
         </template>

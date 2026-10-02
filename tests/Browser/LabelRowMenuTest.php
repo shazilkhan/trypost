@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
@@ -28,7 +27,7 @@ function labelMenuOwner(): array
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id, 'name' => 'Campaign']);
 
@@ -66,7 +65,7 @@ test('label row menu opens posts and reporting filtered by the label in a new ta
         ->and($links[0]['href'])->toContain("labels[]={$label->id}")
         ->and($links[1]['target'])->toBe('_blank')
         ->and($links[1]['rel'])->toContain('noopener')
-        ->and($links[1]['href'])->toStartWith(route('app.analytics'))
+        ->and($links[1]['href'])->toStartWith(route('app.insights'))
         ->and($links[1]['href'])->toContain("labels[]={$label->id}");
 
     $page->assertNoJavaScriptErrors();
@@ -77,5 +76,5 @@ test('filtered posts and analytics pages land with the label selected', function
     $this->actingAs($user);
 
     assertLabelFilterSelected(visit(route('app.posts.index', ['labels' => [$label->id]])), 'posts-label', $label->id);
-    assertLabelFilterSelected(visit(route('app.analytics', ['labels' => [$label->id]])), 'analytics-label', $label->id);
+    assertLabelFilterSelected(visit(route('app.insights', ['labels' => [$label->id]])), 'analytics-label', $label->id);
 });

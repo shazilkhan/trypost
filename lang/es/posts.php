@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Publicar publicaciones',
         'destination_issues' => '{1} :count problema por corregir|[0,*] :count problemas por corregir',
         'create_another' => 'Crear otro',
+        'request_approval' => 'Guardar y pedir aprobación',
         'templates' => 'Plantillas',
         'expand' => 'Ampliar diálogo',
         'post_previews' => 'Vistas previas de posts',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'Pendiente',
         'draft' => 'Borrador',
+        'pending_approval' => 'Pendiente de aprobación',
         'scheduled' => 'Programado',
         'publishing' => 'Publicando',
         'retrying' => 'Reintentando',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Detalles del post',
-        'back' => 'Volver',
-        'no_platforms' => 'Ninguna plataforma seleccionada.',
-        'view_on_platform' => 'Ver en la plataforma',
         'published_on' => 'Publicado el :date',
         'scheduled_for' => 'Programado para el :date',
-        'draft' => 'Borrador',
-        'metrics' => 'Métricas',
-        'pending_review' => 'Google está revisando esta publicación. La actualizaremos cuando termine la revisión.',
     ],
 
     'edit' => [
@@ -807,12 +803,18 @@ return [
         'all_channels' => 'Todos los canales',
         'tabs' => [
             'queue' => 'Cola',
+            'approvals' => 'Aprobaciones',
             'drafts' => 'Borradores',
             'sent' => 'Enviados',
         ],
         'view' => [
             'list' => 'Lista',
             'calendar' => 'Calendario',
+        ],
+        'metrics' => [
+            'refreshed' => 'Actualizado :time',
+            'previous' => 'Métricas anteriores',
+            'next' => 'Más métricas',
         ],
         'new_post' => 'Nueva publicación',
         'today' => 'Hoy',
@@ -853,10 +855,75 @@ return [
         ],
         'created_by' => 'Creado por :name :when',
         'empty' => [
-            'queue' => 'Tu cola está vacía. Añade horarios de publicación o crea una publicación.',
-            'drafts' => 'Aún no hay borradores.',
-            'sent' => 'Aún no se ha publicado nada.',
+            'queue' => [
+                'title' => 'No hay publicaciones programadas',
+                'description' => 'Tu cola está vacía. Programa una publicación y aparecerá aquí.',
+            ],
+            'approvals' => [
+                'title' => 'No hay publicaciones pendientes',
+                'description' => 'Las publicaciones que necesitan aprobación aparecerán aquí.',
+            ],
+            'drafts' => [
+                'title' => 'No hay borradores',
+                'description' => 'Aún no has guardado ningún borrador. Cuando lo hagas, aparecerá aquí.',
+            ],
+            'sent' => [
+                'title' => 'No hay publicaciones enviadas',
+                'description' => 'Las publicaciones que publiques aparecerán aquí.',
+            ],
         ],
         'reordered' => 'Cola actualizada',
+    ],
+    'group' => [
+        'channels' => 'Canales (:count)',
+        'collapse' => 'Ocultar canales',
+        'expand' => 'Mostrar canales',
+    ],
+    'approvals' => [
+        'badge' => 'Aprobación',
+        'time_passed' => 'La hora ya pasó',
+        'approve' => 'Aprobar',
+        'schedule' => 'Programar',
+        'reject' => 'Rechazar',
+        'revert' => 'Retirar solicitud de aprobación',
+        'requested' => 'Aprobación solicitada',
+        'errors' => [
+            'not_pending' => 'Esta publicación ya no está pendiente de aprobación.',
+            'time_passed' => 'La hora solicitada ya pasó. Elige una nueva hora.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Recurrente',
+        'make' => 'Hacer recurrente',
+        'edit' => 'Editar recurrencia',
+        'title' => 'Publicación recurrente',
+        'description' => 'Programaremos las próximas repeticiones según la fecha y la hora de esta publicación.',
+        'repeat_every' => 'Repetir cada',
+        'for' => 'durante',
+        'times' => '{1} vez|[0,*] veces',
+        'interval_label' => 'Intervalo de repetición',
+        'frequency_label' => 'Unidad de repetición',
+        'times_label' => 'Número de veces',
+        'frequency' => [
+            'day' => '{1} Día|[0,*] Días',
+            'week' => '{1} Semana|[0,*] Semanas',
+            'month' => '{1} Mes|[0,*] Meses',
+            'year' => '{1} Año|[0,*] Años',
+        ],
+        'rule' => [
+            'day' => '{1} todos los días a las :time|[0,*] cada :count días a las :time',
+            'week' => '{1} cada :weekday a las :time|[0,*] cada :count semanas el :weekday a las :time',
+            'month' => '{1} cada mes el día :day a las :time|[0,*] cada :count meses el día :day a las :time',
+            'year' => '{1} cada año el :date a las :time|[0,*] cada :count años el :date a las :time',
+        ],
+        'summary' => 'Esta publicación se compartirá :rule, hasta el :until.',
+        'banner' => '{1} Esta publicación se compartirá :rule, hasta el :until (queda :count publicación).|[0,*] Esta publicación se compartirá :rule, hasta el :until (quedan :count publicaciones).',
+        'save' => 'Guardar',
+        'stop' => 'Dejar de repetir',
+        'cancel' => 'Cancelar',
+        'errors' => [
+            'not_scheduled' => 'Solo las publicaciones programadas pueden repetirse.',
+            'too_far' => 'La última repetición debe ser antes de 2038.',
+        ],
     ],
 ];

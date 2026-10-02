@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\User;
@@ -18,7 +17,7 @@ function postMediaAltTextOwnedItem(Post $post, array $meta, array $rowMeta = [])
 test('post update keeps media alt_text in meta', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $post = Post::factory()->create([
@@ -39,7 +38,7 @@ test('post update keeps media alt_text in meta', function () {
 test('post update keeps the measured media meta and adds the alt_text edit', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $post = Post::factory()->create([
@@ -70,7 +69,7 @@ test('post update keeps the measured media meta and adds the alt_text edit', fun
 test('media alt_text over 2000 chars is rejected', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $post = Post::factory()->create([
@@ -93,7 +92,7 @@ test('media alt_text over 2000 chars is rejected', function () {
 test('media alt_text at exactly 2000 chars is accepted', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $post = Post::factory()->create([
@@ -116,7 +115,7 @@ test('media alt_text at exactly 2000 chars is accepted', function () {
 test('non-string media alt_text is rejected', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $post = Post::factory()->create([
@@ -139,7 +138,7 @@ test('non-string media alt_text is rejected', function () {
 test('post update keeps Instagram user tags in media meta', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $post = Post::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
     $tags = [['username' => 'paulo.castellano_', 'x' => 0.2, 'y' => 0.8]];
@@ -156,7 +155,7 @@ test('post update keeps Instagram user tags in media meta', function () {
 test('invalid Instagram user tags are rejected', function (array $tags, string $error) {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $post = Post::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
 

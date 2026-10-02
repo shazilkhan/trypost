@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -26,7 +25,7 @@ function postingGoalSetup(): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id, 'posting_goal' => 3]);
 

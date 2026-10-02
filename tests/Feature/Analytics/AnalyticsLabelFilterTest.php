@@ -71,7 +71,7 @@ beforeEach(function () {
 
 function analyticsLabelFilterRoute(array $labels = []): string
 {
-    return route('app.analytics', array_filter([
+    return route('app.insights', array_filter([
         'range' => 'custom',
         'start' => '2026-09-01',
         'end' => '2026-09-30',
@@ -96,7 +96,7 @@ test('label filter restricts post metrics and lists to posts carrying any select
         ->get(analyticsLabelFilterRoute([$this->campaign->id]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('analytics/Index')
+            ->component('insights/Index')
             ->where('report.filters.labels', [$this->campaign->id])
             ->has('labels', 2)
             ->where('report.summary.posts.value', 1)

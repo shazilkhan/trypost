@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => 'アナリティクス',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform の分析',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'テキスト',
             'image' => '画像',
@@ -61,7 +61,7 @@ return [
         'stale' => '最新ではない可能性があります',
         'awaiting_metrics' => '指標はまだ収集されていません。',
         'estimated' => '推定値',
-        'back_to_analytics' => '分析に戻る',
+        'back_to_insights' => 'Insights に戻る',
         'details' => '詳細',
         'published_via_trypost' => 'TryPostから公開',
         'published_on' => ':platformで公開',

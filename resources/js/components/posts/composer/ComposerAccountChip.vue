@@ -2,7 +2,7 @@
 import { IconX } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
-import PlatformLogo from '@/components/PlatformLogo.vue';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import {
     Tooltip,
     TooltipContent,
@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/tooltip';
 import {
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import type { ComposerAccount } from '@/composables/usePostComposition';
 
@@ -43,26 +42,19 @@ const remove = (): void => {
                         type="button"
                         :data-testid="`composer-account-${account.id}`"
                         :aria-pressed="active"
-                        class="relative block size-10 rounded-xl transition-shadow outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                        class="relative block rounded-xl transition-shadow outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                         @click="
                             tooltipOpen = true;
                             emit('focus');
                         "
                     >
-                        <img
-                            :src="
-                                account.avatar_url ||
-                                getPlatformLogo(account.platform)
-                            "
-                            :alt="account.display_name || account.username"
-                            class="size-full rounded-xl object-cover"
-                        />
-                        <PlatformLogo
+                        <ChannelAvatar
                             :platform="account.platform"
-                            :size="18"
-                            ring="background"
-                            :title="null"
-                            class="absolute -right-1.5 -bottom-px"
+                            :src="account.avatar_url"
+                            :name="account.display_name || account.username"
+                            :size="40"
+                            :reserve-space="false"
+                            class="align-top"
                         />
                     </button>
                 </TooltipTrigger>

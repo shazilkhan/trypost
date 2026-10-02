@@ -19,7 +19,9 @@ import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
 import DayHeading from '@/components/publish/DayHeading.vue';
 import DisplayTimezoneSelect from '@/components/publish/DisplayTimezoneSelect.vue';
+import NewPostButton from '@/components/publish/NewPostButton.vue';
 import PostTimelineCard from '@/components/publish/PostTimelineCard.vue';
+import PublishEmptyIllustration from '@/components/publish/PublishEmptyIllustration.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
 import PublishTabs from '@/components/publish/PublishTabs.vue';
 import QueueTimeline from '@/components/publish/QueueTimeline.vue';
@@ -47,12 +49,13 @@ import type {
     PostComposition,
 } from '@/composables/usePostComposition';
 import { useShowPostingSlots } from '@/composables/useShowPostingSlots';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { calendar } from '@/routes/app';
 import {
     calendar as channelCalendar,
+    grid,
     publish,
     settings,
 } from '@/routes/app/channels';
@@ -117,7 +120,7 @@ const SENT_STATUSES: readonly string[] = [
 
 const props = defineProps<Props>();
 const page = usePage();
-const { canCreatePost, canManageAccounts } = useWorkspaceRole();
+const { canManageAccounts, canPublishDirectly } = useWorkspaceAbilities();
 
 const userTimezone = computed(
     () => (page.props.auth.user as User).timezone || props.displayTimezone,
@@ -235,7 +238,7 @@ const listGroups = computed<CardGroup[]>(() => {
 
     for (const post of (props.posts?.data ?? []).flatMap(splitSettledTargets)) {
         const at =
-            props.tab === 'drafts'
+            props.tab === 'drafts' || props.tab === 'approvals'
                 ? post.scheduled_at
                 : (post.published_at ?? post.updated_at);
         const key = at ? dayKey(at) : NO_TIME;
@@ -482,6 +485,7 @@ const initialPost = computed<ComposerInitialPost | null>(() => {
         scheduled_at: date.formatUtcForDateTimeLocalInput(post.scheduled_at),
         status: post.status,
         schedule_mode: post.schedule_mode ?? null,
+        queue_position: post.approval_queue_position ?? null,
         social_account_id: target.social_account_id,
         content_type: target.content_type ?? '',
         meta: target.meta ?? {},
@@ -603,20 +607,13 @@ const submitComposition = (
                     active-view="list"
                     :list-href="listUrl()"
                     :calendar-href="calendarUrl"
+                    :grid-href="
+                        channel?.has_grid ? grid.url(channel.id) : undefined
+                    "
                 />
-                <Button
-                    v-if="canCreatePost"
-                    variant="outline"
-                    class="max-sm:w-8 max-sm:px-0"
-                    :aria-label="$t('posts.publish.new_post')"
-                    data-testid="posts-new-post"
-                    @click="newPost"
-                >
-                    <IconPlus class="size-4" />
-                    <span class="max-sm:sr-only">{{
-                        $t('posts.publish.new_post')
-                    }}</span>
-                </Button>
+                <NewPostButton
+                    :social-account-ids="channel ? [channel.id] : []"
+                />
             </div>
         </template>
 
@@ -693,19 +690,30 @@ const submitComposition = (
             </div>
 
             <EmptyState
-                v-if="isEmpty"
+                v-if="isEmpty && hasActiveFilters"
                 :icon="IconFileText"
-                :title="
-                    hasActiveFilters
-                        ? $t('posts.no_search_results')
-                        : $t(`posts.publish.empty.${tab}`)
-                "
-                :description="
-                    hasActiveFilters
-                        ? $t('posts.try_different_search')
-                        : undefined
-                "
+                :title="$t('posts.no_search_results')"
+                :description="$t('posts.try_different_search')"
             />
+
+            <EmptyState
+                v-else-if="isEmpty"
+                :title="$t(`posts.publish.empty.${tab}.title`)"
+                :description="$t(`posts.publish.empty.${tab}.description`)"
+            >
+                <template #illustration>
+                    <PublishEmptyIllustration />
+                </template>
+                <template #action>
+                    <Button
+                        :data-testid="`publish-empty-new-post-${tab}`"
+                        @click="newPost"
+                    >
+                        <IconPlus class="size-4" />
+                        {{ $t('posts.publish.new_post') }}
+                    </Button>
+                </template>
+            </EmptyState>
 
             <div
                 v-else-if="tab === 'queue'"
@@ -730,6 +738,7 @@ const submitComposition = (
                             :channels="queueChannels"
                             :display-timezone="timezone"
                             :reorderable="
+                                canPublishDirectly &&
                                 selectedLabelIds.length === 0 &&
                                 !selectedUntagged &&
                                 !reordering

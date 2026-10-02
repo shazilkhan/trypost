@@ -14,11 +14,9 @@ use App\Actions\Post\RecoverEmptyDraft;
 use App\Actions\Post\UpdatePost;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\CreatedVia;
-use App\Enums\Post\Status as PostStatus;
 use App\Http\Controllers\App\Concerns\RendersPublishPage;
 use App\Http\Requests\App\Post\StorePostRequest;
 use App\Http\Requests\App\Post\UpdatePostRequest;
-use App\Http\Resources\Api\PostResource;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Support\PostStatusRules;
@@ -153,31 +151,6 @@ class PostController extends Controller
         return response()->json(app(ReadPublicationAnalytics::class)->forPlatform($postPlatform));
     }
 
-    public function show(Request $request, Post $post): Response|RedirectResponse
-    {
-        $workspace = $request->user()->currentWorkspace;
-
-        if (! $workspace) {
-            return redirect()->route('app.workspaces.create');
-        }
-
-        $this->authorize('view', $post);
-
-        if (in_array($post->status, [PostStatus::Draft, PostStatus::Scheduled], true) && $this->canOpenComposer($post)) {
-            return redirect()->route('app.posts.edit', $post);
-        }
-
-        $post->load(['postPlatforms.socialAccount', 'labels']);
-
-        return Inertia::render('posts/Show', [
-            'workspace' => $workspace,
-            'post' => (new PostResource($post))->resolve(),
-            'postMetrics' => app(ReadPublicationAnalytics::class)->forPost($post)
-                ->mapWithKeys(fn (array $row): array => [$row['post_platform_id'] => $row['metrics']])
-                ->all(),
-        ]);
-    }
-
     public function edit(Request $request, Post $post): Response|RedirectResponse
     {
         $workspace = $request->user()->currentWorkspace;
@@ -196,7 +169,7 @@ class PostController extends Controller
         }
 
         if (PostStatusRules::blocksEditing($post) || ! $this->canOpenComposer($post)) {
-            return redirect()->route('app.posts.show', $post);
+            return redirect()->route('app.posts.index', ['post' => $post->id]);
         }
 
         return redirect()->route('app.posts.index', [
@@ -215,7 +188,7 @@ class PostController extends Controller
 
         $this->authorize('update', $post);
 
-        $result = UpdatePost::execute($workspace, $post, $request->validated());
+        $result = UpdatePost::execute($workspace, $post, $request->validated(), $request->user());
 
         $action = data_get($result, 'action');
 
@@ -227,14 +200,14 @@ class PostController extends Controller
         }
 
         if ($action === PostAction::Publishing) {
-            return redirect()->route('app.posts.show', $post);
+            return redirect()->route('app.posts.index', ['post' => $post->id]);
         }
 
         if ($action === PostAction::Scheduled) {
             session()->flash('flash.banner', __('posts.flash.scheduled'));
             session()->flash('flash.bannerStyle', 'success');
 
-            return redirect($this->publishPageReturnUrl() ?? route('app.posts.show', $post));
+            return redirect($this->publishPageReturnUrl() ?? route('app.posts.index', ['post' => $post->id]));
         }
 
         $publishPage = $this->publishPageReturnUrl();

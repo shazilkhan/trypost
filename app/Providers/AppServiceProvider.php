@@ -34,7 +34,6 @@ use App\Models\User;
 use App\Models\Webhook;
 use App\Models\WebhookLog;
 use App\Models\Workspace;
-use App\Models\WorkspaceInvite;
 use App\Models\WorkspaceLabel;
 use App\Models\WorkspaceSignature;
 use App\Services\PostHogService;
@@ -132,7 +131,6 @@ class AppServiceProvider extends ServiceProvider
             'webhook' => Webhook::class,
             'webhookLog' => WebhookLog::class,
             'workspace' => Workspace::class,
-            'workspaceInvite' => WorkspaceInvite::class,
             'workspaceLabel' => WorkspaceLabel::class,
             'workspaceSignature' => WorkspaceSignature::class,
         ]);
@@ -185,6 +183,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for(
             'analytics-publications',
             fn (object $job): Limit => Limit::perMinute(30)->by($job->providerRateLimitKey()),
+        );
+
+        RateLimiter::for(
+            'external-post-media',
+            fn (object $job): Limit => Limit::perMinute((int) config('trypost.external_posts.media_requests_per_network_per_minute'))
+                ->by($job->providerRateLimitKey()),
         );
 
         // Signed media uploads (api.uploads.store). MCP hosts share egress IPs

@@ -10,7 +10,12 @@ use App\Models\AnalyticsPublication;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Cache;
 
+/**
+ * Plans a live story's metric checks once: discovery sees the same story on
+ * every run until it expires.
+ */
 class ScheduleInstagramStoryMetrics implements ShouldQueue
 {
     use Queueable;
@@ -34,7 +39,8 @@ class ScheduleInstagramStoryMetrics implements ShouldQueue
         $publishedAt = $publication->provider_published_at;
         $expiresAt = $publishedAt->addDay();
 
-        if ($now->greaterThanOrEqualTo($expiresAt)) {
+        if ($now->greaterThanOrEqualTo($expiresAt)
+            || ! Cache::add("instagram-story-metrics:{$publication->id}", true, $expiresAt)) {
             return;
         }
 

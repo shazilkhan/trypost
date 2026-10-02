@@ -13,6 +13,7 @@ use App\Models\Workspace;
 use App\Support\RequestIds;
 use App\Support\Timezone;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -66,13 +67,26 @@ class BuildCalendarPageProps
                 'postPlatforms',
                 fn (Builder $platforms) => $platforms->enabled()->whereIn('social_account_id', $scopedChannelIds),
             ))
-            ->matchingLabelFilter($labelIds, $untagged);
+            ->matchingLabelFilter($labelIds, $untagged)
+            ->visiblePendingApprovalsFor(BuildPublishPageProps::pendingApprovalsRequester($request->user(), $workspace));
+
+        $range = [$rangeStart->utc(), $rangeEnd->utc()];
+        $sent = BuildPublishPageProps::SENT_STATUSES;
 
         $posts = self::whereStatus($scopedPosts(), $status)
-            ->whereBetween('scheduled_at', [$rangeStart->utc(), $rangeEnd->utc()])
-            ->orderBy('scheduled_at')
+            ->where(fn (Builder $query): Builder => $query
+                ->where(fn (Builder $published): Builder => $published
+                    ->whereIn('status', $sent)
+                    ->whereNotNull('published_at')
+                    ->whereBetween('published_at', $range))
+                ->orWhere(fn (Builder $planned): Builder => $planned
+                    ->where(fn (Builder $unpublished): Builder => $unpublished->whereNotIn('status', $sent)->orWhereNull('published_at'))
+                    ->whereBetween('scheduled_at', $range)))
             ->get()
-            ->groupBy(fn (Post $post): string => $post->scheduled_at->setTimezone($timezone)->format('Y-m-d'));
+            ->each(fn (Post $post) => $post->setAttribute('calendar_at', self::calendarAt($post)->utc()->toIso8601ZuluString()))
+            ->sortBy('calendar_at')
+            ->values()
+            ->groupBy(fn (Post $post): string => CarbonImmutable::parse($post->calendar_at)->setTimezone($timezone)->format('Y-m-d'));
 
         $props = [
             'workspace' => $workspace,
@@ -152,6 +166,13 @@ class BuildCalendarPageProps
         }
 
         return $slots;
+    }
+
+    private static function calendarAt(Post $post): CarbonInterface
+    {
+        return in_array($post->status, BuildPublishPageProps::SENT_STATUSES, true) && $post->published_at !== null
+            ? $post->published_at
+            : $post->scheduled_at;
     }
 
     private static function whereStatus(Builder $query, string $status): Builder

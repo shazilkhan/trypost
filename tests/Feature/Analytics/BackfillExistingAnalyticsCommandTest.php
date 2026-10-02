@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Analytics\ResolveAnalyticsAccountKey;
+use App\Actions\Post\ImportExternalPosts;
 use App\Enums\Analytics\SyncCollector;
 use App\Enums\Analytics\SyncStatus;
 use App\Enums\PostPlatform\Status as PostPlatformStatus;
@@ -329,4 +330,94 @@ test('local backfill resolves one account identity per batch without repeated ac
 
     expect($accountReads)->toHaveCount(1)
         ->and(AnalyticsPublication::query()->whereIn('post_platform_id', $destinations->pluck('id'))->count())->toBe(3);
+});
+
+test('the rollout can be limited to some platforms', function () {
+    Bus::fake();
+    $workspace = Workspace::factory()->create();
+    $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id, 'status' => Status::Connected]);
+    SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'status' => Status::Connected]);
+    Bus::fake();
+
+    $this->artisan('analytics:backfill-existing', ['--workspace' => $workspace->id, '--include-unsubscribed' => true, '--platforms' => 'x'])
+        ->expectsOutputToContain('accounts_dispatched=1')
+        ->assertSuccessful();
+
+    expect(Bus::dispatched(BootstrapAccountAnalytics::class)->pluck('socialAccountId')->all())->toBe([$x->id]);
+});
+
+test('an unknown platform stops the rollout before dispatching anything', function () {
+    Bus::fake();
+
+    $this->artisan('analytics:backfill-existing', ['--platforms' => 'instagram,myspace'])
+        ->expectsOutputToContain('myspace')
+        ->assertFailed();
+
+    Bus::assertNothingDispatched();
+});
+
+test('the rollout spaces account batches by the configured delay', function () {
+    Bus::fake();
+    $workspace = Workspace::factory()->create();
+    SocialAccount::factory()->instagram()->count(3)->create(['workspace_id' => $workspace->id, 'status' => Status::Connected]);
+    Bus::fake();
+
+    $this->artisan('analytics:backfill-existing', ['--workspace' => $workspace->id, '--include-unsubscribed' => true, '--chunk' => 2, '--delay' => 300])
+        ->expectsOutputToContain('accounts_dispatched=3')
+        ->assertSuccessful();
+
+    expect(Bus::dispatched(BootstrapAccountAnalytics::class)->map(fn ($job): int => (int) $job->delay)->sort()->values()->all())
+        ->toBe([0, 0, 300]);
+});
+
+test('the rollout reports links queued and posts already imported', function () {
+    Bus::fake();
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'status' => Status::Connected]);
+    $published = PostPlatform::factory()->instagram()->published()->create(['social_account_id' => $account->id, 'platform' => $account->platform]);
+    $published->post->update(['workspace_id' => $workspace->id]);
+    Post::factory()->imported()->count(2)->create(['workspace_id' => $workspace->id]);
+    Bus::fake();
+
+    $this->artisan('analytics:backfill-existing', ['--workspace' => $workspace->id, '--include-unsubscribed' => true])
+        ->expectsOutputToContain('publications_to_link=1')
+        ->expectsOutputToContain('posts_imported=2')
+        ->assertSuccessful();
+});
+
+test('a trypost post linked by the rollout is not imported a second time', function () {
+    Bus::fake();
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $published = PostPlatform::factory()->instagram()->published()->create([
+        'social_account_id' => $account->id,
+        'platform' => $account->platform,
+        'platform_post_id' => 'ours-1',
+    ]);
+    $published->post->update(['workspace_id' => $workspace->id]);
+
+    app()->call([new BackfillTryPostPublications([$published->id]), 'handle']);
+    AnalyticsPublication::query()->where('post_platform_id', $published->id)->update(['social_account_id' => $account->id]);
+    ImportExternalPosts::execute($account);
+
+    expect(Post::query()->imported()->count())->toBe(0)
+        ->and(AnalyticsPublication::query()->where('post_platform_id', $published->id)->count())->toBe(1);
+});
+
+test('the rollout counts imported posts one workspace page at a time', function () {
+    Bus::fake();
+    $workspaces = Workspace::factory()->count(101)->create();
+    Post::factory()->imported()->create(['workspace_id' => $workspaces->first()->id]);
+    Post::factory()->imported()->create(['workspace_id' => $workspaces->last()->id]);
+    $workspaceIds = $workspaces->modelKeys();
+    $largestWorkspaceBinding = 0;
+    DB::listen(function ($query) use ($workspaceIds, &$largestWorkspaceBinding): void {
+        $largestWorkspaceBinding = max($largestWorkspaceBinding, count(array_intersect($query->bindings, $workspaceIds)));
+    });
+
+    $this->artisan('analytics:backfill-existing', ['--include-unsubscribed' => true])
+        ->expectsOutputToContain('posts_imported=2')
+        ->assertSuccessful();
+
+    expect($largestWorkspaceBinding)->toBeLessThanOrEqual(100);
 });

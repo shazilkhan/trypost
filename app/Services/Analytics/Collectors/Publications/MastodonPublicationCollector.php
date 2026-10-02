@@ -19,12 +19,8 @@ class MastodonPublicationCollector extends AbstractPublicationHistoryCollector
 
     public function page(SocialAccount $account, ?string $cursor, CarbonImmutable $cutoff): PublicationPage
     {
-        $hasPrivateHistoryScope = count(array_intersect(['read', 'read:statuses'], $account->scopes ?? [])) > 0;
-        $instance = rtrim((string) data_get(
-            $account->meta,
-            'instance',
-            config('trypost.platforms.mastodon.default_instance'),
-        ), '/');
+        $hasPrivateHistoryScope = $account->canReadMastodonStatuses();
+        $instance = $account->mastodonInstance();
         $response = $this->get(
             $account,
             "{$instance}/api/v1/accounts/{$account->platform_user_id}/statuses",

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -20,7 +19,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $this->workspace->id]);
@@ -84,9 +83,18 @@ test('scheduling an edit outside the publish page still lands on the post', func
     $post = publishRedirectPost($this->channel);
 
     $this->actingAs($this->user)
-        ->from(route('app.posts.show', $post))
+        ->from(route('app.calendar'))
         ->put(route('app.posts.update', $post), publishRedirectUpdatePayload($post, 'scheduled'))
-        ->assertRedirect(route('app.posts.show', $post));
+        ->assertRedirect(route('app.posts.index', ['post' => $post->id]));
+});
+
+test('returning to the publish page drops the post details deep link', function () {
+    $post = publishRedirectPost($this->channel);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => 'drafts', 'post' => $post->id]))
+        ->put(route('app.posts.update', $post), publishRedirectUpdatePayload($post, 'draft'))
+        ->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
 });
 
 test('creating from the channel page returns to that page', function () {
@@ -134,11 +142,11 @@ test('deleting from the channel page returns to that page', function () {
     expect(Post::find($post->id))->toBeNull();
 });
 
-test('deleting from the post page falls back to the all channels page', function () {
+test('deleting from outside the publish page falls back to the all channels page', function () {
     $post = publishRedirectPost($this->channel);
 
     $this->actingAs($this->user)
-        ->from(route('app.posts.show', $post))
+        ->from(route('app.calendar'))
         ->delete(route('app.posts.destroy', $post))
         ->assertRedirect(route('app.posts.index'));
 });
@@ -159,7 +167,7 @@ test('duplicating outside the publish page opens the copy through its edit route
     $post = publishRedirectPost($this->channel, PostStatus::Scheduled);
 
     $response = $this->actingAs($this->user)
-        ->from(route('app.posts.show', $post))
+        ->from(route('app.calendar'))
         ->post(route('app.posts.duplicate', $post));
 
     $copy = Post::query()->whereKeyNot($post->id)->sole();

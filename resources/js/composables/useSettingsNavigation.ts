@@ -18,7 +18,7 @@ import {
 import { trans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { members } from '@/routes/app';
 import { edit as accountEdit } from '@/routes/app/account';
 import { index as apiKeys } from '@/routes/app/api-keys';
@@ -43,12 +43,12 @@ export interface SettingsNavGroup {
 export const useSettingsNavigation = () => {
     const page = usePage();
     const {
-        isAdminOrAbove,
+        canManageWorkspace,
         canCreatePost,
         canManageAccounts,
         canManageWebhooks,
         canManageBilling,
-    } = useWorkspaceRole();
+    } = useWorkspaceAbilities();
 
     const hasWorkspace = computed(() =>
         Boolean(page.props.auth?.currentWorkspace),
@@ -108,7 +108,7 @@ export const useSettingsNavigation = () => {
                         'general',
                         workspaceSettings.url(),
                         IconSettings,
-                        workspace && isAdminOrAbove.value,
+                        workspace && canManageWorkspace.value,
                     ),
                     ...item(
                         'channels',
@@ -120,7 +120,7 @@ export const useSettingsNavigation = () => {
                         'members',
                         members.url(),
                         IconUsers,
-                        workspace && isAdminOrAbove.value,
+                        workspace && canManageWorkspace.value,
                     ),
                 ],
             },
@@ -156,7 +156,7 @@ export const useSettingsNavigation = () => {
                         'api_keys',
                         apiKeys.url(),
                         IconKey,
-                        workspace && isAdminOrAbove.value,
+                        workspace && canManageWorkspace.value,
                     ),
                     ...item('mcp', mcp.url(), IconPlugConnected, workspace),
                 ],

@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => '소셜 계정 연결이 해제되면 이메일을 받습니다',
         'post_note_added' => '게시물의 새 메모',
         'post_note_added_description' => '팀원이 게시물에 메모를 추가하면 이메일을 받습니다',
+        'collaboration' => '협업',
+        'collaboration_description' => '승인 요청과 승인 또는 거절된 게시물에 대한 이메일 받기',
         'save' => '설정 저장',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => '취소',
         'remove' => '제거',
-        'make_role' => ':role(으)로 지정',
 
         'invite' => [
             'title' => '멤버 초대',
             'description' => '이메일 초대를 보내 협업자를 추가하세요',
             'email' => '이메일',
             'email_placeholder' => 'collaborator@email.com',
-            'role' => '역할',
-            'role_placeholder' => '역할 선택',
             'submit' => '초대 보내기',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => '소유자',
             'admin' => '관리자',
             'member' => '멤버',
-            'viewer' => '뷰어',
+        ],
+        'access' => [
+            'admin_description' => '멤버와 설정을 관리합니다',
+            'publishing' => '게시',
+            'publishes_directly' => '바로 게시',
+            'needs_approval' => '승인 필요',
+            'publishing_help' => '승인이 필요한 멤버의 게시물은 관리자 또는 바로 게시하는 멤버의 승인을 기다립니다.',
+        ],
+        'edit' => [
+            'title' => '멤버 편집',
+            'description' => '이 워크스페이스에서 이 멤버가 할 수 있는 일을 선택하세요.',
+            'submit' => '저장',
+            'action' => '접근 권한 편집',
         ],
 
         'errors' => [
             'invite_exists' => '이 이메일에 대한 초대가 이미 존재합니다.',
             'email_belongs_to_account' => '이 이메일은 이미 다른 TryPost 계정에 속해 있습니다. 전용 업무용 이메일을 사용해 주세요.',
+            'cannot_remove_self' => '자신을 제거할 수 없습니다.',
+            'cannot_remove_owner' => '계정 소유자는 제거할 수 없습니다.',
+            'cannot_change_own_access' => '자신의 접근 권한은 변경할 수 없습니다.',
+            'cannot_change_owner_access' => '계정 소유자의 접근 권한은 변경할 수 없습니다.',
         ],
 
         'flash' => [
             'invite_sent' => '초대가 성공적으로 전송되었습니다!',
             'invite_deleted' => '초대가 삭제되었습니다.',
             'member_removed' => '멤버가 성공적으로 제거되었습니다.',
-            'role_updated' => '멤버 역할이 업데이트되었습니다.',
             'wrong_email' => '이 초대는 다른 이메일 주소를 위한 것입니다.',
             'already_member' => '이미 이 워크스페이스의 멤버입니다.',
             'invite_accepted' => '환영합니다! 이제 워크스페이스의 멤버입니다.',

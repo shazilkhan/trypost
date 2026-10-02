@@ -53,8 +53,28 @@ class Workspace extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class)
-            ->withPivot('role')
+            ->withPivot(['is_admin', 'requires_approval'])
             ->withTimestamps();
+    }
+
+    /**
+     * Users who may approve posts here: the account owner and every member who publishes directly.
+     *
+     * @return Collection<int, User>
+     */
+    public function approvers(): Collection
+    {
+        $approvers = $this->members()
+            ->with('account')
+            ->get()
+            ->filter(fn (User $member): bool => $member->publishesDirectlyThrough($this, $member->pivot));
+        $owner = $this->account?->owner;
+
+        if ($owner !== null && ! $approvers->contains('id', $owner->id)) {
+            $approvers->push($owner);
+        }
+
+        return $approvers->values();
     }
 
     public function socialAccounts(): HasMany

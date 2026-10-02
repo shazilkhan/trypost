@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Opublikuj posty',
         'destination_issues' => '{1} Problemy do poprawienia: :count|[0,*] Problemy do poprawienia: :count',
         'create_another' => 'Utwórz kolejny',
+        'request_approval' => 'Zapisz i poproś o zatwierdzenie',
         'templates' => 'Szablony',
         'expand' => 'Powiększ okno',
         'post_previews' => 'Podglądy postów',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'Oczekuje',
         'draft' => 'Szkic',
+        'pending_approval' => 'Oczekuje na zatwierdzenie',
         'scheduled' => 'Zaplanowany',
         'publishing' => 'Publikowanie',
         'retrying' => 'Ponawianie',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Szczegóły posta',
-        'back' => 'Wstecz',
-        'no_platforms' => 'Nie wybrano platform.',
-        'view_on_platform' => 'Zobacz na platformie',
         'published_on' => 'Opublikowano :date',
         'scheduled_for' => 'Zaplanowano na :date',
-        'draft' => 'Szkic',
-        'metrics' => 'Metryki',
-        'pending_review' => 'Google recenzuje ten wpis. Zaktualizujemy go po zakończeniu recenzji.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'Wszystkie kanały',
         'tabs' => [
             'queue' => 'Kolejka',
+            'approvals' => 'Zatwierdzenia',
             'drafts' => 'Wersje robocze',
             'sent' => 'Wysłane',
         ],
         'view' => [
             'list' => 'Lista',
             'calendar' => 'Kalendarz',
+        ],
+        'metrics' => [
+            'refreshed' => 'Odświeżono :time',
+            'previous' => 'Poprzednie metryki',
+            'next' => 'Następne metryki',
         ],
         'new_post' => 'Nowy post',
         'today' => 'Dzisiaj',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => 'Utworzone przez :name :when',
         'empty' => [
-            'queue' => 'Twoja kolejka jest pusta. Dodaj godziny publikacji lub utwórz post.',
-            'drafts' => 'Brak wersji roboczych.',
-            'sent' => 'Nic jeszcze nie opublikowano.',
+            'queue' => [
+                'title' => 'Brak zaplanowanych postów',
+                'description' => 'Twoja kolejka jest pusta. Zaplanuj post, a pojawi się tutaj.',
+            ],
+            'approvals' => [
+                'title' => 'Brak postów do zatwierdzenia',
+                'description' => 'Posty wymagające zatwierdzenia pojawią się tutaj.',
+            ],
+            'drafts' => [
+                'title' => 'Brak wersji roboczych',
+                'description' => 'Nie zapisano jeszcze żadnej wersji roboczej. Gdy to zrobisz, pojawi się tutaj.',
+            ],
+            'sent' => [
+                'title' => 'Brak wysłanych postów',
+                'description' => 'Posty, które opublikujesz, pojawią się tutaj.',
+            ],
         ],
         'reordered' => 'Kolejka zaktualizowana',
+    ],
+    'group' => [
+        'channels' => 'Kanały (:count)',
+        'collapse' => 'Ukryj kanały',
+        'expand' => 'Pokaż kanały',
+    ],
+    'approvals' => [
+        'badge' => 'Zatwierdzenie',
+        'time_passed' => 'Czas minął',
+        'approve' => 'Zatwierdź',
+        'schedule' => 'Zaplanuj',
+        'reject' => 'Odrzuć',
+        'revert' => 'Wycofaj prośbę o zatwierdzenie',
+        'requested' => 'Wysłano prośbę o zatwierdzenie',
+        'errors' => [
+            'not_pending' => 'Ten post nie czeka już na zatwierdzenie.',
+            'time_passed' => 'Wybrany czas minął. Wybierz nowy czas.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Cykliczny',
+        'make' => 'Ustaw jako cykliczny',
+        'edit' => 'Edytuj powtarzanie',
+        'title' => 'Post cykliczny',
+        'description' => 'Zaplanujemy kolejne powtórzenia na podstawie daty i godziny tego posta.',
+        'repeat_every' => 'Powtarzaj co',
+        'for' => 'przez',
+        'times' => 'raz|razy|razy',
+        'interval_label' => 'Odstęp powtarzania',
+        'frequency_label' => 'Jednostka powtarzania',
+        'times_label' => 'Liczba powtórzeń',
+        'frequency' => [
+            'day' => 'Dzień|Dni|Dni',
+            'week' => 'Tydzień|Tygodnie|Tygodni',
+            'month' => 'Miesiąc|Miesiące|Miesięcy',
+            'year' => 'Rok|Lata|Lat',
+        ],
+        'rule' => [
+            'day' => 'codziennie o :time|co :count dni o :time|co :count dni o :time',
+            'week' => 'w każdy dzień :weekday o :time|co :count tygodnie, w dzień :weekday, o :time|co :count tygodni, w dzień :weekday, o :time',
+            'month' => 'co miesiąc, dnia :day, o :time|co :count miesiące, dnia :day, o :time|co :count miesięcy, dnia :day, o :time',
+            'year' => 'co roku, :date, o :time|co :count lata, :date, o :time|co :count lat, :date, o :time',
+        ],
+        'summary' => 'Ten post będzie publikowany :rule, do :until.',
+        'banner' => 'Ten post będzie publikowany :rule, do :until (pozostał :count post).|Ten post będzie publikowany :rule, do :until (pozostały :count posty).|Ten post będzie publikowany :rule, do :until (pozostało :count postów).',
+        'save' => 'Zapisz',
+        'stop' => 'Zatrzymaj powtarzanie',
+        'cancel' => 'Anuluj',
+        'errors' => [
+            'not_scheduled' => 'Powtarzać można tylko zaplanowane posty.',
+            'too_far' => 'Ostatnie powtórzenie musi przypadać przed 2038 rokiem.',
+        ],
     ],
 ];

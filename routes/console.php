@@ -16,7 +16,9 @@ use App\Console\Commands\RecoverStuckPosts;
 use App\Console\Commands\RefreshExpiringTokens;
 use App\Console\Commands\Repurpose\PollRepurposes;
 use App\Console\Commands\RssFeed\PollRssFeeds;
+use App\Enums\SocialAccount\Platform;
 use App\Jobs\Analytics\FinalizeAccountDailySnapshots;
+use App\Support\Analytics\DiscoverySchedule;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::command(ProcessScheduledPosts::class)->everyMinute()->withoutOverlapping()->onOneServer();
@@ -35,13 +37,18 @@ Schedule::command(DispatchAccountDailyAnalytics::class)
     ->timezone('UTC')
     ->withoutOverlapping()
     ->onOneServer();
-Schedule::command(DispatchPublicationDiscovery::class)
-    ->dailyAt('03:00')
+Schedule::command(DispatchPublicationDiscovery::class, ['--except-platform' => Platform::X->value])
+    ->cron(DiscoverySchedule::cron((int) config('trypost.analytics.discovery_interval_hours')))
+    ->timezone('UTC')
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command(DispatchPublicationDiscovery::class, ['--platform' => Platform::X->value])
+    ->cron(DiscoverySchedule::cron((int) config('trypost.analytics.x_discovery_interval_hours')))
     ->timezone('UTC')
     ->withoutOverlapping()
     ->onOneServer();
 Schedule::command(DispatchPublicationMetrics::class)
-    ->dailyAt('04:00')
+    ->dailyAt('03:00')
     ->timezone('UTC')
     ->withoutOverlapping()
     ->onOneServer();

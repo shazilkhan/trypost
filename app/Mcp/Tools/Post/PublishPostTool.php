@@ -23,7 +23,7 @@ use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
 #[IsDestructive]
-#[Description('Publish a draft post — either immediately or scheduled for a future time. The post must already have at least one enabled platform. Use update-post-tool first to set content/platforms. Before queueing, the attached media is validated against every enabled content_type (file size, video duration, GIF, MOV — see list-content-types-tool); a cap violation returns a per-platform error and nothing is published.')]
+#[Description('Publish a draft post — either immediately or scheduled for a future time. The post must already have at least one enabled platform. Use update-post-tool first to set content/platforms. Before queueing, the attached media is validated against every enabled content_type (file size, video duration, GIF, MOV — see list-content-types-tool); a cap violation returns a per-platform error and nothing is published. When the acting member needs approval in this workspace, the post is stored with status pending_approval instead and waits for approve-post-tool.')]
 class PublishPostTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -66,7 +66,7 @@ class PublishPostTool extends Tool
             ] : [
                 'status' => $scheduledAt ? Status::Scheduled->value : Status::Publishing->value,
                 'scheduled_at' => $scheduledAt,
-            ]);
+            ], $request->user());
         } catch (QueueBusyException) {
             return Response::error(__('posts.errors.queue_busy'));
         }

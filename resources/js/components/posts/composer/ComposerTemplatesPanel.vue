@@ -186,7 +186,6 @@ const openDelete = (template: PostTemplate): void => {
 
     deleteModal.value?.open({
         url,
-        confirmText: trans('common.confirm_modal.delete_keyword'),
         request: async () => {
             try {
                 await deleteHttp.delete(url);

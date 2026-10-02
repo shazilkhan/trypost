@@ -220,7 +220,6 @@ const collectionDeleteModal = ref<InstanceType<
 const deleteFeed = (feedId: string): void => {
     feedDeleteModal.value?.open({
         url: destroy.url(feedId),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 
@@ -232,7 +231,6 @@ const deleteScope = (): void => {
     if (props.scope.kind === 'collection') {
         collectionDeleteModal.value?.open({
             url: destroyCollection.url(props.scope.collection.id),
-            confirmText: trans('common.confirm_modal.delete_keyword'),
         });
     }
 };
@@ -282,7 +280,6 @@ const removeFromDirectory = (entry: RssFeedDirectoryEntry): void => {
     if (entry.feed_id) {
         directoryDeleteModal.value?.open({
             url: destroy.url(entry.feed_id),
-            confirmText: trans('common.confirm_modal.delete_keyword'),
         });
     }
 };

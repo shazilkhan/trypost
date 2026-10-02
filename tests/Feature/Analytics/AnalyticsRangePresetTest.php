@@ -63,7 +63,7 @@ test('an unknown preset is rejected', function () {
     $user = analyticsPresetUserWithSnapshot('2026-09-20');
 
     $this->actingAs($user)
-        ->get(route('app.analytics', ['range' => 'forever']))
+        ->get(route('app.insights', ['range' => 'forever']))
         ->assertSessionHasErrors('range');
 });
 
@@ -71,7 +71,7 @@ test('custom requires both dates', function () {
     $user = analyticsPresetUserWithSnapshot('2026-09-20');
 
     $this->actingAs($user)
-        ->get(route('app.analytics', ['range' => 'custom']))
+        ->get(route('app.insights', ['range' => 'custom']))
         ->assertSessionHasErrors(['start', 'end']);
 });
 
@@ -80,7 +80,7 @@ test('a preset resolves in the user time zone and is not clamped to the availabl
     $user = analyticsPresetUserWithSnapshot('2026-09-28');
 
     $this->actingAs($user)
-        ->get(route('app.analytics', ['range' => '7d']))
+        ->get(route('app.insights', ['range' => '7d']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('report.filters.range', '7d')
@@ -96,7 +96,7 @@ test('a custom range is still clamped to the available data', function () {
     $user = analyticsPresetUserWithSnapshot('2026-09-20');
 
     $this->actingAs($user)
-        ->get(route('app.analytics', ['range' => 'custom', 'start' => '2026-09-01', 'end' => '2026-09-30']))
+        ->get(route('app.insights', ['range' => 'custom', 'start' => '2026-09-01', 'end' => '2026-09-30']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('report.filters.range', 'custom')
@@ -111,7 +111,7 @@ test('no range resolves through the default preset in the user time zone', funct
     $user->update(['timezone' => 'America/Sao_Paulo']);
 
     $this->actingAs($user)
-        ->get(route('app.analytics'))
+        ->get(route('app.insights'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('report.filters.range', ResolveAnalyticsRangePreset::DEFAULT)
@@ -125,7 +125,7 @@ test('empty dates with a preset range are ignored instead of rejected', function
     $user = analyticsPresetUserWithSnapshot('2026-09-20');
 
     $this->actingAs($user)
-        ->get(route('app.analytics', ['range' => '7d', 'start' => '', 'end' => '']))
+        ->get(route('app.insights', ['range' => '7d', 'start' => '', 'end' => '']))
         ->assertOk()
         ->assertSessionHasNoErrors()
         ->assertInertia(fn (Assert $page) => $page

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
+import { IconRepeat } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import PostScheduleModeBadge from '@/components/posts/PostScheduleModeBadge.vue';
@@ -9,7 +10,7 @@ import {
 } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import { isImage } from '@/lib/mediaType';
-import { edit as editPost, show as showPost } from '@/routes/app/posts';
+import { edit as editPost } from '@/routes/app/posts';
 import { PostStatus } from '@/types/post';
 import type { CalendarPost } from '@/types/publish';
 
@@ -23,6 +24,7 @@ const MAX_LOGOS = 4;
 const EDITABLE_STATUSES: readonly string[] = [
     PostStatus.Draft,
     PostStatus.Scheduled,
+    PostStatus.PendingApproval,
 ];
 
 const STATUS_CLASSES: Record<string, string> = {
@@ -31,10 +33,8 @@ const STATUS_CLASSES: Record<string, string> = {
     failed: 'border-destructive/40 bg-destructive/5',
 };
 
-const href = computed(() =>
-    EDITABLE_STATUSES.includes(props.post.status)
-        ? editPost.url(props.post.id)
-        : showPost.url(props.post.id),
+const isEditable = computed(() =>
+    EDITABLE_STATUSES.includes(props.post.status),
 );
 
 const visibleTargets = computed(() =>
@@ -61,7 +61,7 @@ const channels = computed(() =>
 );
 
 const time = computed(() =>
-    date.formatTimeInTimezone(props.post.scheduled_at, props.timezone),
+    date.formatTimeInTimezone(props.post.calendar_at, props.timezone),
 );
 
 const thumbnail = computed(
@@ -76,10 +76,14 @@ const scheduleMode = computed(() =>
 </script>
 
 <template>
-    <Link
-        :href="href"
-        class="flex h-7 min-w-0 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-card px-1 transition-control hover:bg-secondary"
-        :class="STATUS_CLASSES[post.status] ?? ''"
+    <component
+        :is="isEditable ? Link : 'div'"
+        :href="isEditable ? editPost.url(post.id) : undefined"
+        class="flex h-7 min-w-0 shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-card px-1 transition-control"
+        :class="[
+            STATUS_CLASSES[post.status] ?? '',
+            isEditable ? 'hover:bg-secondary' : '',
+        ]"
         :title="`${channels} · ${post.content?.trim() || $t('calendar.no_content')}`"
         :data-testid="`calendar-post-${post.id}`"
     >
@@ -97,8 +101,14 @@ const scheduleMode = computed(() =>
             class="truncate text-xs font-medium text-muted-foreground"
             >{{ time }}</span
         >
+        <IconRepeat
+            v-if="scheduleMode && post.recurrence_frequency"
+            class="size-3 shrink-0 text-muted-foreground"
+            :aria-label="$t('posts.recurrence.marker')"
+            :data-testid="`calendar-post-recurring-${post.id}`"
+        />
         <PostScheduleModeBadge
-            v-if="scheduleMode"
+            v-else-if="scheduleMode"
             :post-id="post.id"
             :mode="scheduleMode"
             compact
@@ -111,5 +121,5 @@ const scheduleMode = computed(() =>
             loading="lazy"
             class="ms-auto size-5 shrink-0 rounded object-cover"
         />
-    </Link>
+    </component>
 </template>

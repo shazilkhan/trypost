@@ -106,6 +106,7 @@ return [
         'publish_posts' => '发布帖子',
         'destination_issues' => '需要修复的问题：:count 个',
         'create_another' => '再创建一条',
+        'request_approval' => '保存并请求审批',
         'templates' => '模板',
         'expand' => '展开对话框',
         'post_previews' => '帖子预览',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => '等待中',
         'draft' => '草稿',
+        'pending_approval' => '待审批',
         'scheduled' => '已排期',
         'publishing' => '发布中',
         'retrying' => '重试中',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => '帖子详情',
-        'back' => '返回',
-        'no_platforms' => '未选择任何平台。',
-        'view_on_platform' => '在平台上查看',
         'published_on' => '发布于 :date',
         'scheduled_for' => '排期于 :date',
-        'draft' => '草稿',
-        'metrics' => '指标',
-        'pending_review' => 'Google 正在审核这篇帖子。审核结束后我们会更新状态。',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => '所有频道',
         'tabs' => [
             'queue' => '队列',
+            'approvals' => '审批',
             'drafts' => '草稿',
             'sent' => '已发送',
         ],
         'view' => [
             'list' => '列表',
             'calendar' => '日历',
+        ],
+        'metrics' => [
+            'refreshed' => ':time刷新',
+            'previous' => '上一组指标',
+            'next' => '下一组指标',
         ],
         'new_post' => '新帖子',
         'today' => '今天',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => '创建者：:name :when',
         'empty' => [
-            'queue' => '队列为空。请添加发布时间或创建帖子。',
-            'drafts' => '暂无草稿。',
-            'sent' => '尚未发布任何内容。',
+            'queue' => [
+                'title' => '没有已排期的帖子',
+                'description' => '你的队列为空。排期一条帖子后会显示在这里。',
+            ],
+            'approvals' => [
+                'title' => '没有待审批的帖子',
+                'description' => '需要审批的帖子会显示在这里。',
+            ],
+            'drafts' => [
+                'title' => '没有草稿',
+                'description' => '你还没有保存任何草稿。保存后会显示在这里。',
+            ],
+            'sent' => [
+                'title' => '没有已发送的帖子',
+                'description' => '你发布的帖子会显示在这里。',
+            ],
         ],
         'reordered' => '队列已更新',
+    ],
+    'group' => [
+        'channels' => '频道 (:count)',
+        'collapse' => '隐藏频道',
+        'expand' => '显示频道',
+    ],
+    'approvals' => [
+        'badge' => '审批',
+        'time_passed' => '时间已过',
+        'approve' => '批准',
+        'schedule' => '排期',
+        'reject' => '拒绝',
+        'revert' => '撤回审批请求',
+        'requested' => '已提交审批请求',
+        'errors' => [
+            'not_pending' => '该帖子已不再等待审批。',
+            'time_passed' => '请求的时间已过，请选择新的时间。',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => '重复',
+        'make' => '设为重复',
+        'edit' => '编辑重复',
+        'title' => '重复帖子',
+        'description' => '我们会根据这条帖子的日期和时间安排后续发布。',
+        'repeat_every' => '每隔',
+        'for' => '共',
+        'times' => '{1} 次|[0,*] 次',
+        'interval_label' => '重复间隔',
+        'frequency_label' => '重复单位',
+        'times_label' => '次数',
+        'frequency' => [
+            'day' => '{1} 天|[0,*] 天',
+            'week' => '{1} 周|[0,*] 周',
+            'month' => '{1} 个月|[0,*] 个月',
+            'year' => '{1} 年|[0,*] 年',
+        ],
+        'rule' => [
+            'day' => '{1} 每天 :time|[0,*] 每 :count 天的 :time',
+            'week' => '{1} 每:weekday :time|[0,*] 每 :count 周的:weekday :time',
+            'month' => '{1} 每月 :day 日 :time|[0,*] 每 :count 个月的 :day 日 :time',
+            'year' => '{1} 每年 :date :time|[0,*] 每 :count 年的 :date :time',
+        ],
+        'summary' => '这条帖子将于:rule分享，直到 :until。',
+        'banner' => '{1} 这条帖子将于:rule分享，直到 :until（还剩 :count 条）。|[0,*] 这条帖子将于:rule分享，直到 :until（还剩 :count 条）。',
+        'save' => '保存',
+        'stop' => '停止重复',
+        'cancel' => '取消',
+        'errors' => [
+            'not_scheduled' => '只有已排期的帖子可以重复。',
+            'too_far' => '最后一次发布必须在 2038 年之前。',
+        ],
     ],
 ];

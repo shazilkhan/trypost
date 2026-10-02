@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Publish posts',
         'destination_issues' => '{1} :count issue to fix|[0,*] :count issues to fix',
         'create_another' => 'Create another',
+        'request_approval' => 'Save and request approval',
         'templates' => 'Templates',
         'expand' => 'Expand dialog',
         'post_previews' => 'Post previews',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'Pending',
         'draft' => 'Draft',
+        'pending_approval' => 'Pending approval',
         'scheduled' => 'Scheduled',
         'publishing' => 'Publishing',
         'retrying' => 'Retrying',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Post Details',
-        'back' => 'Back',
-        'no_platforms' => 'No platforms selected.',
-        'view_on_platform' => 'View on platform',
         'published_on' => 'Published on :date',
         'scheduled_for' => 'Scheduled for :date',
-        'draft' => 'Draft',
-        'metrics' => 'Metrics',
-        'pending_review' => 'Google is reviewing this post. We will update it when the review finishes.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'All channels',
         'tabs' => [
             'queue' => 'Queue',
+            'approvals' => 'Approvals',
             'drafts' => 'Drafts',
             'sent' => 'Sent',
         ],
         'view' => [
             'list' => 'List',
             'calendar' => 'Calendar',
+        ],
+        'metrics' => [
+            'refreshed' => 'Refreshed :time',
+            'previous' => 'Previous metrics',
+            'next' => 'Next metrics',
         ],
         'new_post' => 'New post',
         'today' => 'Today',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => 'Created by :name :when',
         'empty' => [
-            'queue' => 'Your queue is empty. Add posting times or create a post.',
-            'drafts' => 'No drafts yet.',
-            'sent' => 'Nothing published yet.',
+            'queue' => [
+                'title' => 'No scheduled posts',
+                'description' => 'Your queue is empty. Schedule a post and it will appear here.',
+            ],
+            'approvals' => [
+                'title' => 'No posts awaiting approval',
+                'description' => 'Posts that need approval will appear here.',
+            ],
+            'drafts' => [
+                'title' => 'No drafts',
+                'description' => 'You haven\'t saved any drafts yet. Once you do, they will appear here.',
+            ],
+            'sent' => [
+                'title' => 'No sent posts',
+                'description' => 'Posts you publish will appear here.',
+            ],
         ],
         'reordered' => 'Queue updated',
+    ],
+    'group' => [
+        'channels' => 'Channels (:count)',
+        'collapse' => 'Hide channels',
+        'expand' => 'Show channels',
+    ],
+    'approvals' => [
+        'badge' => 'Approval',
+        'time_passed' => 'Time has passed',
+        'approve' => 'Approve',
+        'schedule' => 'Schedule',
+        'reject' => 'Reject',
+        'revert' => 'Revert approval request',
+        'requested' => 'Approval requested',
+        'errors' => [
+            'not_pending' => 'This post is no longer waiting for approval.',
+            'time_passed' => 'The requested time has passed. Choose a new time.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Recurring',
+        'make' => 'Make Recurring',
+        'edit' => 'Edit Recurrence',
+        'title' => 'Recurring Post',
+        'description' => 'We\'ll schedule future occurrences based on this post\'s date and time.',
+        'repeat_every' => 'Repeat every',
+        'for' => 'for',
+        'times' => '{1} time|[0,*] times',
+        'interval_label' => 'Repeat interval',
+        'frequency_label' => 'Repeat unit',
+        'times_label' => 'Number of times',
+        'frequency' => [
+            'day' => '{1} Day|[0,*] Days',
+            'week' => '{1} Week|[0,*] Weeks',
+            'month' => '{1} Month|[0,*] Months',
+            'year' => '{1} Year|[0,*] Years',
+        ],
+        'rule' => [
+            'day' => '{1} every day at :time|[0,*] every :count days at :time',
+            'week' => '{1} every :weekday at :time|[0,*] every :count weeks on :weekday at :time',
+            'month' => '{1} every month on the :day at :time|[0,*] every :count months on the :day at :time',
+            'year' => '{1} every year on :date at :time|[0,*] every :count years on :date at :time',
+        ],
+        'summary' => 'This post will be shared :rule, until :until.',
+        'banner' => '{1} This post will be shared :rule, until :until (:count post left).|[0,*] This post will be shared :rule, until :until (:count posts left).',
+        'save' => 'Save',
+        'stop' => 'Stop Recurring',
+        'cancel' => 'Cancel',
+        'errors' => [
+            'not_scheduled' => 'Only scheduled posts can repeat.',
+            'too_far' => 'The last occurrence must be before 2038.',
+        ],
     ],
 ];

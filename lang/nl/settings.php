@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'Ontvang een e-mail wanneer een social account wordt losgekoppeld',
         'post_note_added' => 'Nieuwe notitie bij een bericht',
         'post_note_added_description' => 'Ontvang een e-mail wanneer een teamlid een notitie aan een bericht toevoegt',
+        'collaboration' => 'Samenwerking',
+        'collaboration_description' => 'Ontvang e-mails over goedkeuringsverzoeken en goedgekeurde of afgewezen berichten',
         'save' => 'Voorkeuren opslaan',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'Annuleren',
         'remove' => 'Verwijderen',
-        'make_role' => 'Maak :role',
 
         'invite' => [
             'title' => 'Lid uitnodigen',
             'description' => 'Stuur een e-mailuitnodiging om medewerkers toe te voegen',
             'email' => 'E-mail',
             'email_placeholder' => 'medewerker@email.com',
-            'role' => 'Rol',
-            'role_placeholder' => 'Selecteer een rol',
             'submit' => 'Uitnodiging versturen',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'Eigenaar',
             'admin' => 'Beheerder',
             'member' => 'Lid',
-            'viewer' => 'Kijker',
+        ],
+        'access' => [
+            'admin_description' => 'Beheert leden en instellingen',
+            'publishing' => 'Publiceren',
+            'publishes_directly' => 'Publiceert direct',
+            'needs_approval' => 'Goedkeuring nodig',
+            'publishing_help' => 'Berichten van leden die goedkeuring nodig hebben, wachten op een beheerder of een lid dat direct publiceert.',
+        ],
+        'edit' => [
+            'title' => 'Lid bewerken',
+            'description' => 'Kies wat dit lid in deze workspace mag doen.',
+            'submit' => 'Opslaan',
+            'action' => 'Toegang bewerken',
         ],
 
         'errors' => [
             'invite_exists' => 'Er bestaat al een uitnodiging voor dit e-mailadres.',
             'email_belongs_to_account' => 'Dit e-mailadres behoort al tot een ander TryPost-account. Vraag om een speciaal werk-e-mailadres.',
+            'cannot_remove_self' => 'Je kunt jezelf niet verwijderen.',
+            'cannot_remove_owner' => 'Je kunt de accounteigenaar niet verwijderen.',
+            'cannot_change_own_access' => 'Je kunt je eigen toegang niet wijzigen.',
+            'cannot_change_owner_access' => 'Je kunt de toegang van de accounteigenaar niet wijzigen.',
         ],
 
         'flash' => [
             'invite_sent' => 'Uitnodiging succesvol verstuurd!',
             'invite_deleted' => 'Uitnodiging verwijderd.',
             'member_removed' => 'Lid succesvol verwijderd.',
-            'role_updated' => 'Rol van lid bijgewerkt.',
             'wrong_email' => 'Deze uitnodiging is voor een ander e-mailadres.',
             'already_member' => 'Je bent al lid van deze workspace.',
             'invite_accepted' => 'Welkom! Je bent nu lid van de workspace.',

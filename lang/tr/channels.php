@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Kanal bağlantısını kes',
-        'description' => 'Bu kanalın bağlantısını kesmek istediğinizden emin misiniz? İstediğiniz zaman yeniden bağlayabilirsiniz.',
+        'description' => 'Bu işlem, taslaklar, zamanlanmış gönderiler ve yayın geçmişi dahil olmak üzere bu kanalın TryPost’taki tüm gönderilerini siler. Ağda zaten bulunan gönderiler orada kalır.',
         'confirm' => 'Bağlantıyı kes',
+        'keyword' => 'BAĞLANTIYI KES',
         'cancel' => 'İptal',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Tarayıcının algıladığı saat dilimi',
         'placeholder' => 'Şehir veya saat dilimi ara',
         'empty' => 'Saat dilimi bulunamadı',
+    ],
+    'grid' => [
+        'title' => 'Izgara',
+        'info' => 'Bu, gönderi ızgaranın yaklaşık bir görünümüdür. Diğer cihazlarda farklı olabilir ve doğrudan Instagram’da yayınlanan gönderiler senkronize ettiğimizde güncellenir.',
+        'sent_at' => 'Bu gönderi :date tarihinde :time saatinde gönderildi',
+        'empty_title' => 'Henüz yayınlanmış gönderi yok',
+        'empty_description' => 'Bu kanalda yayınlanan akış gönderileri ve reels burada görünecek.',
+        'reel' => 'Reels',
+        'carousel' => 'Karusel',
     ],
 ];

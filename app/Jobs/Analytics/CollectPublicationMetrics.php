@@ -89,7 +89,7 @@ class CollectPublicationMetrics implements ShouldQueue
             if ($collector instanceof TikTokPublicationMetricsCollector
                 && $publication->post_platform_id
                 && ! ctype_digit($publication->remote_id)) {
-                $publications->reconcileTikTokPublicId($publication, $collector->publicVideoId($publication));
+                $publications->reconcileRemoteId($publication, $collector->publicVideoId($publication));
             }
 
             $observation = $collector->collect($publication, $date);

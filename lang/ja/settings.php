@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'ソーシャルアカウントの接続が解除されたときにメールを受け取ります',
         'post_note_added' => '投稿への新しいメモ',
         'post_note_added_description' => 'チームメンバーが投稿にメモを追加したときにメールを受け取ります',
+        'collaboration' => 'コラボレーション',
+        'collaboration_description' => '承認リクエストや、承認・却下された投稿についてメールを受け取る',
         'save' => '設定を保存',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'キャンセル',
         'remove' => '削除',
-        'make_role' => ':role にする',
 
         'invite' => [
             'title' => 'メンバーを招待',
             'description' => 'メールで招待を送り、コラボレーターを追加します',
             'email' => 'メールアドレス',
             'email_placeholder' => 'collaborator@email.com',
-            'role' => '役割',
-            'role_placeholder' => '役割を選択',
             'submit' => '招待を送信',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'オーナー',
             'admin' => '管理者',
             'member' => 'メンバー',
-            'viewer' => '閲覧者',
+        ],
+        'access' => [
+            'admin_description' => 'メンバーと設定を管理できます',
+            'publishing' => '公開',
+            'publishes_directly' => '直接公開',
+            'needs_approval' => '承認が必要',
+            'publishing_help' => '承認が必要なメンバーの投稿は、管理者または直接公開できるメンバーの承認を待ちます。',
+        ],
+        'edit' => [
+            'title' => 'メンバーを編集',
+            'description' => 'このワークスペースでこのメンバーができることを選択します。',
+            'submit' => '保存',
+            'action' => 'アクセスを編集',
         ],
 
         'errors' => [
             'invite_exists' => 'このメールアドレスには既に招待が存在します。',
             'email_belongs_to_account' => 'このメールアドレスは既に別の TryPost アカウントに属しています。専用の仕事用メールアドレスをご利用ください。',
+            'cannot_remove_self' => '自分自身を削除することはできません。',
+            'cannot_remove_owner' => 'アカウントのオーナーは削除できません。',
+            'cannot_change_own_access' => '自分のアクセス権は変更できません。',
+            'cannot_change_owner_access' => 'アカウントのオーナーのアクセス権は変更できません。',
         ],
 
         'flash' => [
             'invite_sent' => '招待を正常に送信しました！',
             'invite_deleted' => '招待を削除しました。',
             'member_removed' => 'メンバーを正常に削除しました。',
-            'role_updated' => 'メンバーの役割を更新しました。',
             'wrong_email' => 'この招待は別のメールアドレス宛てです。',
             'already_member' => 'あなたはすでにこのワークスペースのメンバーです。',
             'invite_accepted' => 'ようこそ！これでワークスペースのメンバーになりました。',

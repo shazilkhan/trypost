@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Dto\MediaItem;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\Media;
 use App\Models\Post;
@@ -116,7 +115,7 @@ test('the Canva button shows only on Canva-made tiles and replaces the tile in p
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -232,7 +231,7 @@ test('the idea editor replaces a Canva tile in place and the save releases the r
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $this->actingAs($user);

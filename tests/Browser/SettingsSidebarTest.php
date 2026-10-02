@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -20,29 +19,29 @@ function waitForSettingsSidebarTestId(mixed $page, string $testId): void
     JS);
 }
 
-function settingsSidebarUser(Role $role): User
+function settingsSidebarUser(string $role): User
 {
     $owner = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($owner->id, membershipPivot('admin'));
     $owner->update(['current_workspace_id' => $workspace->id]);
 
-    if ($role === Role::Admin) {
+    if ($role === 'admin') {
         return $owner->fresh();
     }
 
     $member = User::factory()->create(['account_id' => $owner->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
+    $workspace->members()->attach($member->id, membershipPivot($role));
     $member->update(['current_workspace_id' => $workspace->id]);
 
     return $member->fresh();
 }
 
 test('settings pages swap the app sidebar for the settings sidebar', function () {
-    $this->actingAs(settingsSidebarUser(Role::Admin));
+    $this->actingAs(settingsSidebarUser('admin'));
 
     $page = visit(route('app.profile.edit'));
     waitForSettingsSidebarTestId($page, 'settings-sidebar');
@@ -60,7 +59,7 @@ test('settings pages swap the app sidebar for the settings sidebar', function ()
 });
 
 test('members only see the settings they may use', function () {
-    $this->actingAs(settingsSidebarUser(Role::Member));
+    $this->actingAs(settingsSidebarUser('member'));
 
     $page = visit(route('app.profile.edit'));
     waitForSettingsSidebarTestId($page, 'settings-sidebar');
@@ -87,7 +86,7 @@ test('a user without a workspace sees only personal settings', function () {
 });
 
 test('the back link returns to the app', function () {
-    $this->actingAs(settingsSidebarUser(Role::Admin));
+    $this->actingAs(settingsSidebarUser('admin'));
 
     $page = visit(route('app.labels.index'));
     waitForSettingsSidebarTestId($page, 'settings-back');

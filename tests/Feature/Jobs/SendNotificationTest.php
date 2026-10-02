@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Notification\Type;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\SendNotification;
 use App\Mail\AccountDisconnected;
 use App\Mail\PostAtRisk;
@@ -26,7 +25,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
 });
 
 /**

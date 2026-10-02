@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router } from '@inertiajs/vue3';
 import { IconChevronRight, IconPlus, IconTemplate } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
@@ -126,7 +125,6 @@ const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 const deleteTemplate = (template: PostTemplate): void => {
     deleteModal.value?.open({
         url: destroy.url(template.id),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 

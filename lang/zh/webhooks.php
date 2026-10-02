@@ -120,7 +120,6 @@ return [
         'endpoint_http_status' => '该 endpoint 返回了 HTTP :status。',
     ],
     'flash' => [
-        'created' => '已创建 webhook。',
         'updated' => '已更新 webhook。',
         'deleted' => '已删除 webhook。',
         'secret_rotated' => '已轮换签名密钥。',

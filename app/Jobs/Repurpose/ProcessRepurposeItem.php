@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs\Repurpose;
 
 use App\Actions\Media\DeleteOwnedMedia;
+use App\Actions\Post\Approval\NotifyApprovalRequested;
 use App\Actions\Post\CreateChannelPost;
 use App\Enums\Post\CreatedVia;
 use App\Enums\Post\ScheduleMode;
@@ -24,6 +25,7 @@ use App\Services\Post\MediaAttacher;
 use App\Services\Repurpose\CaptionAdapter;
 use App\Services\Social\TokenRedactor;
 use App\Support\Media\MediaCopyBatch;
+use App\Support\PostApproval;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -119,9 +121,11 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             throw new SourceDownloadException("Could not download the source video for repurpose item {$this->item->id}.");
         }
 
+        $groupId = (string) Str::uuid7();
+
         try {
             $posts = MediaCopyBatch::run(fn (MediaCopyBatch $batch): array => array_map(
-                fn (array $target): Post => $this->createPost($workspace, $user, $target, $upload, $batch),
+                fn (array $target): Post => $this->createPost($workspace, $user, $target, $upload, $groupId, $batch),
                 $targets,
             ));
         } catch (Throwable $exception) {
@@ -136,11 +140,24 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        DB::transaction(function () use ($posts): void {
+        $requiresApproval = PostApproval::isRequired($workspace, $user, PostStatus::Scheduled->value);
+
+        DB::transaction(function () use ($posts, $requiresApproval, $user): void {
             foreach ($posts as $post) {
-                $post->update(['status' => PostStatus::Scheduled, 'scheduled_at' => now(), 'schedule_mode' => ScheduleMode::Custom]);
+                $post->update($requiresApproval
+                    ? [
+                        'status' => PostStatus::PendingApproval,
+                        'scheduled_at' => null,
+                        'schedule_mode' => null,
+                        ...PostApproval::transition(PostStatus::Draft, PostStatus::PendingApproval, $user),
+                    ]
+                    : ['status' => PostStatus::Scheduled, 'scheduled_at' => now(), 'schedule_mode' => ScheduleMode::Custom]);
             }
         });
+
+        if ($requiresApproval) {
+            NotifyApprovalRequested::execute(collect($posts), $user);
+        }
 
         $this->item->update(['status' => ItemStatus::Published, 'reason' => null, 'error' => null]);
     }
@@ -181,12 +198,13 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
      *
      * @param  array{account: SocialAccount, destination: array<string, mixed>, content: string}  $target
      */
-    private function createPost(Workspace $workspace, User $user, array $target, Media $upload, MediaCopyBatch $batch): Post
+    private function createPost(Workspace $workspace, User $user, array $target, Media $upload, string $groupId, MediaCopyBatch $batch): Post
     {
         $account = data_get($target, 'account');
         $destination = data_get($target, 'destination');
 
         $post = CreateChannelPost::execute($workspace, $user, [
+            'post_group_id' => $groupId,
             'content' => data_get($target, 'content'),
             'media' => [['id' => $upload->id]],
             'status' => PostStatus::Draft->value,

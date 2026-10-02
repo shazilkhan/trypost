@@ -8,6 +8,7 @@ import {
 } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import PlatformLogo from '@/components/PlatformLogo.vue';
 import ChannelMediaWarnings from '@/components/posts/editor/ChannelMediaWarnings.vue';
 import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
@@ -18,7 +19,6 @@ import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
 import YouTubeSettings from '@/components/posts/editor/YouTubeSettings.vue';
-import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
     Tooltip,
@@ -30,7 +30,6 @@ import { isDocumentMedia } from '@/composables/useMedia';
 import {
     getContentTypeOptions,
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import type { Channel } from '@/types/channel';
 import type { MediaItem } from '@/types/media';
@@ -112,31 +111,25 @@ const updateMeta = (channel: Channel, value: Record<string, any>) =>
                             :data-testid="`channel-${channel.id}`"
                             @click="emit('toggle', channel.id)"
                         >
-                            <div class="relative">
-                                <Avatar
-                                    :src="channel.avatarUrl"
-                                    :name="channel.displayName"
-                                    class="size-10 shrink-0 rounded-full border"
-                                    :class="
-                                        isSelected(channel.id)
-                                            ? [
-                                                  'shadow-xs ring-2',
-                                                  channel.issue
-                                                      ? 'border-rose-500 ring-rose-200'
-                                                      : 'border-primary-strong ring-primary-subtle',
-                                              ]
-                                            : 'border-border'
-                                    "
-                                />
-                                <span
-                                    class="absolute -right-1 -bottom-1 inline-flex size-5 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-2xs"
-                                >
-                                    <img
-                                        :src="getPlatformLogo(channel.platform)"
-                                        :alt="channel.platform"
-                                        class="size-full object-cover"
-                                    />
-                                </span>
+                            <ChannelAvatar
+                                :platform="channel.platform"
+                                :src="channel.avatarUrl"
+                                :name="channel.displayName"
+                                :size="40"
+                                ring="card"
+                                :reserve-space="false"
+                                :avatar-class="[
+                                    'rounded-full border',
+                                    isSelected(channel.id)
+                                        ? [
+                                              'shadow-xs ring-2',
+                                              channel.issue
+                                                  ? 'border-rose-500 ring-rose-200'
+                                                  : 'border-primary-strong ring-primary-subtle',
+                                          ]
+                                        : 'border-border',
+                                ]"
+                            >
                                 <Badge
                                     v-if="
                                         channel.status ===
@@ -184,7 +177,7 @@ const updateMeta = (channel: Channel, value: Record<string, any>) =>
                                 >
                                     <IconAlertCircle class="h-2.5 w-2.5" />
                                 </Badge>
-                            </div>
+                            </ChannelAvatar>
                             <span
                                 class="line-clamp-2 text-center text-xs leading-tight"
                                 :class="

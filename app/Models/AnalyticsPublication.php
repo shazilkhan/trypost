@@ -26,6 +26,7 @@ class AnalyticsPublication extends Model
         'social_account_id',
         'social_account_key',
         'post_platform_id',
+        'post_dismissed_at',
         'network',
         'platform_user_id',
         'platform',
@@ -51,6 +52,7 @@ class AnalyticsPublication extends Model
     {
         return [
             'platform' => Platform::class,
+            'post_dismissed_at' => 'immutable_datetime',
             'provider_published_at' => 'immutable_datetime',
             'origin' => PublicationOrigin::class,
             'content_type' => PublicationContentType::class,

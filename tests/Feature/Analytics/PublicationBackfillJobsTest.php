@@ -14,9 +14,12 @@ use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Jobs\Analytics\BackfillAccountPublications;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
+use App\Jobs\Analytics\CollectPublicationMetrics;
 use App\Jobs\Analytics\DiscoverAccountPublications;
+use App\Jobs\Post\ImportExternalPostMedia;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsSyncState;
+use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Services\Analytics\Collectors\Publications\AbstractPublicationHistoryCollector;
 use App\Services\Analytics\Collectors\Publications\PublicationHistoryCollectorFactory;
@@ -25,6 +28,7 @@ use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(fn () => Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]));
@@ -591,7 +595,7 @@ test('daily discovery is suppressed during backfill and resumes after terminal s
     $collector->shouldReceive('page')->once()->withArgs(
         fn (SocialAccount $received, ?string $cursor, CarbonImmutable $cutoff): bool => $received->is($account)
             && $cursor === null
-            && $cutoff->equalTo(CarbonImmutable::parse('2026-09-17 12:00:00', 'UTC')),
+            && $cutoff->equalTo(CarbonImmutable::parse('2026-09-20 06:00:00', 'UTC')),
     )->andReturn(new PublicationPage([], null, true));
     $factory = Mockery::mock(PublicationHistoryCollectorFactory::class);
     $factory->shouldReceive('for')->once()->andReturn($collector);
@@ -667,7 +671,7 @@ test('reconnecting the same identity reuses completed history and discovers only
     $collector->shouldReceive('page')->once()->withArgs(
         fn (SocialAccount $received, ?string $cursor, CarbonImmutable $cutoff): bool => $received->is($replacement)
             && $cursor === null
-            && $cutoff->equalTo(CarbonImmutable::parse('2026-09-17 12:00:00', 'UTC')),
+            && $cutoff->equalTo(CarbonImmutable::parse('2026-09-20 06:00:00', 'UTC')),
     )->andReturn(new PublicationPage([
         new DiscoveredPublication('after-reconnect', CarbonImmutable::parse('2026-09-22 12:00:00', 'UTC'), PublicationContentType::Text),
     ], null, true));
@@ -796,4 +800,198 @@ test('history without a surviving checkpoint is marked partial and only new post
 
     expect($backfill->fresh()->status)->toBe(SyncStatus::Partial);
     Bus::assertNotDispatched(BackfillAccountPublications::class);
+});
+
+test('a backfill page imports its publications as network posts', function () {
+    Bus::fake();
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'checkpoint' => ['cursor' => null, 'revision' => 0],
+        'target_since' => CarbonImmutable::parse('2025-09-23', 'UTC'),
+    ]);
+    bindPublicationPage(new PublicationPage([
+        new DiscoveredPublication('native-1', CarbonImmutable::now('UTC')->subDay(), PublicationContentType::Image, excerpt: 'From the app'),
+    ], null, true));
+
+    app()->call([new BackfillAccountPublications($account->id, $state->id), 'handle']);
+
+    $post = Post::query()->imported()->sole();
+
+    expect($post->content)->toBe('From the app')
+        ->and($post->postPlatforms()->sole()->platform_post_id)->toBe('native-1');
+});
+
+test('discovery imports a post published since the last run', function () {
+    Bus::fake();
+    $account = SocialAccount::factory()->instagram()->create();
+    AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'collector' => SyncCollector::PublicationBackfill,
+        'status' => SyncStatus::Complete,
+    ]);
+    $discovery = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'collector' => SyncCollector::PublicationDiscovery,
+        'status' => SyncStatus::Complete,
+        'high_watermark_at' => CarbonImmutable::now('UTC')->subHours(3),
+    ]);
+    bindPublicationPage(new PublicationPage([
+        new DiscoveredPublication('fresh-1', CarbonImmutable::now('UTC')->subHour(), PublicationContentType::Image),
+    ], null, true));
+
+    app()->call([new DiscoverAccountPublications($account->id, $discovery->id), 'handle']);
+
+    expect(Post::query()->imported()->sole()->postPlatforms()->sole()->platform_post_id)->toBe('fresh-1');
+});
+
+test('a page dispatches one media import per imported post', function () {
+    Bus::fake();
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'checkpoint' => ['cursor' => null, 'revision' => 0],
+        'target_since' => CarbonImmutable::parse('2025-09-23', 'UTC'),
+    ]);
+    bindPublicationPage(new PublicationPage([
+        new DiscoveredPublication('native-1', CarbonImmutable::now('UTC')->subDay(), PublicationContentType::Image),
+    ], null, true));
+
+    app()->call([new BackfillAccountPublications($account->id, $state->id), 'handle']);
+
+    $post = Post::query()->imported()->sole();
+    Bus::assertDispatched(ImportExternalPostMedia::class, fn (ImportExternalPostMedia $job): bool => $job->postId === $post->id);
+});
+
+test('a failing import is reported and the page still queues its metrics', function () {
+    Bus::fake();
+    Exceptions::fake();
+    config()->set('trypost.posts.history_retention_days', 'broken');
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'checkpoint' => ['cursor' => null, 'revision' => 0],
+        'target_since' => CarbonImmutable::parse('2025-09-23', 'UTC'),
+    ]);
+    bindPublicationPage(new PublicationPage([
+        new DiscoveredPublication('native-1', CarbonImmutable::now('UTC')->subDay(), PublicationContentType::Image),
+    ], 'next-page', false));
+
+    app()->call([new BackfillAccountPublications($account->id, $state->id), 'handle']);
+
+    expect(Post::query()->imported()->exists())->toBeFalse();
+    Exceptions::assertReported(InvalidArgumentException::class);
+    Bus::assertDispatched(CollectPublicationMetrics::class);
+    Bus::assertDispatched(BackfillAccountPublications::class, fn ($job): bool => $job->syncStateId === $state->id);
+});
+
+test('discovery reads back the configured overlap from the high watermark', function () {
+    config()->set('trypost.analytics.discovery_overlap_hours', 1);
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'collector' => SyncCollector::PublicationDiscovery,
+        'status' => SyncStatus::Complete,
+        'high_watermark_at' => CarbonImmutable::parse('2026-09-20 12:00:00', 'UTC'),
+    ]);
+
+    $capture = app(AdvanceAnalyticsSyncState::class)->begin($state->id, restartTerminal: true);
+
+    expect($capture['cutoff']->toIso8601String())->toBe('2026-09-20T11:00:00+00:00');
+});
+
+test('a failed discovery run keeps the watermark so the next run starts from the same point', function () {
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'collector' => SyncCollector::PublicationDiscovery,
+        'status' => SyncStatus::Pending,
+        'high_watermark_at' => CarbonImmutable::parse('2026-09-20 12:00:00', 'UTC'),
+    ]);
+    $sync = app(AdvanceAnalyticsSyncState::class);
+
+    $first = $sync->begin($state->id);
+    $sync->recordFailure($state->id, $first['revision'], 'transient', false, $account->id);
+    $second = $sync->begin($state->id);
+
+    expect($state->fresh()->high_watermark_at->toIso8601String())->toBe('2026-09-20T12:00:00+00:00')
+        ->and($second['cutoff']->equalTo($first['cutoff']))->toBeTrue();
+});
+
+test('a discovery run failing on a later page keeps the previous watermark', function () {
+    config()->set('trypost.analytics.discovery_overlap_hours', 6);
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'collector' => SyncCollector::PublicationDiscovery,
+        'status' => SyncStatus::Complete,
+        'high_watermark_at' => CarbonImmutable::parse('2026-09-20 12:00:00', 'UTC'),
+    ]);
+    $sync = app(AdvanceAnalyticsSyncState::class);
+
+    $first = $sync->begin($state->id, restartTerminal: true, socialAccountId: $account->id);
+    $sync->handle($state->id, $first['revision'], $account, new PublicationPage([
+        new DiscoveredPublication('newest', CarbonImmutable::parse('2026-09-21 10:00:00', 'UTC'), PublicationContentType::Image),
+    ], 'page-2', false));
+    $second = $sync->begin($state->id, socialAccountId: $account->id);
+    $sync->recordFailure($state->id, $second['revision'], 'permission_denied', true, $account->id);
+    $next = $sync->begin($state->id, restartTerminal: true, socialAccountId: $account->id);
+
+    expect($second['cursor'])->toBe('page-2')
+        ->and($second['cutoff']->toIso8601String())->toBe('2026-09-20T06:00:00+00:00')
+        ->and($state->fresh()->high_watermark_at->toIso8601String())->toBe('2026-09-20T12:00:00+00:00')
+        ->and($next['cursor'])->toBeNull()
+        ->and($next['cutoff']->toIso8601String())->toBe('2026-09-20T06:00:00+00:00');
+});
+
+test('a discovery run advances the watermark once it reaches its last page', function () {
+    $account = SocialAccount::factory()->instagram()->create();
+    $state = AnalyticsSyncState::factory()->create([
+        'social_account_id' => $account->id,
+        'collector' => SyncCollector::PublicationDiscovery,
+        'status' => SyncStatus::Complete,
+        'high_watermark_at' => CarbonImmutable::parse('2026-09-20 12:00:00', 'UTC'),
+    ]);
+    $sync = app(AdvanceAnalyticsSyncState::class);
+
+    $first = $sync->begin($state->id, restartTerminal: true, socialAccountId: $account->id);
+    $sync->handle($state->id, $first['revision'], $account, new PublicationPage([
+        new DiscoveredPublication('newest', CarbonImmutable::parse('2026-09-21 10:00:00', 'UTC'), PublicationContentType::Image),
+    ], 'page-2', false));
+    $second = $sync->begin($state->id, socialAccountId: $account->id);
+    $result = $sync->handle($state->id, $second['revision'], $account, new PublicationPage([
+        new DiscoveredPublication('older', CarbonImmutable::parse('2026-09-20 13:00:00', 'UTC'), PublicationContentType::Image),
+    ], null, true));
+
+    expect($result['terminal'])->toBeTrue()
+        ->and($state->fresh()->status)->toBe(SyncStatus::Complete)
+        ->and($state->fresh()->high_watermark_at->toIso8601String())->toBe('2026-09-21T10:00:00+00:00')
+        ->and($state->fresh()->checkpoint)->not->toHaveKey('run_high_watermark_at');
+});
+
+test('the discovery command can run only x or everything but x', function () {
+    $x = SocialAccount::factory()->x()->create();
+    $instagram = SocialAccount::factory()->instagram()->create();
+
+    foreach ([$x, $instagram] as $account) {
+        AnalyticsSyncState::factory()->create([
+            ...AnalyticsSyncState::identityFor($account),
+            'social_account_id' => $account->id,
+            'collector' => SyncCollector::PublicationBackfill,
+            'status' => SyncStatus::Complete,
+        ]);
+        AnalyticsSyncState::factory()->create([
+            ...AnalyticsSyncState::identityFor($account),
+            'social_account_id' => $account->id,
+            'collector' => SyncCollector::PublicationDiscovery,
+        ]);
+    }
+
+    Bus::fake();
+    $this->artisan('analytics:dispatch-publication-discovery', ['--platform' => ['x']])->assertSuccessful();
+    expect(Bus::dispatched(DiscoverAccountPublications::class)->pluck('socialAccountId')->all())->toBe([$x->id]);
+
+    Bus::fake();
+    $this->artisan('analytics:dispatch-publication-discovery', ['--except-platform' => ['x']])->assertSuccessful();
+    expect(Bus::dispatched(DiscoverAccountPublications::class)->pluck('socialAccountId')->all())->toBe([$instagram->id]);
 });

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -46,22 +45,22 @@ function waitForCommandPalettePath(mixed $page, string $path): void
     JS);
 }
 
-function commandPaletteUser(Role $role): User
+function commandPaletteUser(string $role): User
 {
     $owner = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($owner->id, membershipPivot('admin'));
     $owner->update(['current_workspace_id' => $workspace->id]);
 
-    if ($role === Role::Admin) {
+    if ($role === 'admin') {
         return $owner->fresh();
     }
 
     $member = User::factory()->create(['account_id' => $owner->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
+    $workspace->members()->attach($member->id, membershipPivot($role));
     $member->update(['current_workspace_id' => $workspace->id]);
 
     return $member->fresh();
@@ -75,7 +74,7 @@ function openCommandPalette(mixed $page): void
 }
 
 test('the shortcut opens the palette and escape closes it', function () {
-    $this->actingAs(commandPaletteUser(Role::Admin));
+    $this->actingAs(commandPaletteUser('admin'));
 
     $page = visit(route('app.posts.index'));
     openCommandPalette($page);
@@ -92,7 +91,7 @@ test('the shortcut opens the palette and escape closes it', function () {
 });
 
 test('the palette lists quick actions, navigation and channels', function () {
-    $user = commandPaletteUser(Role::Admin);
+    $user = commandPaletteUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $user->current_workspace_id,
         'display_name' => 'Acme Page',
@@ -115,7 +114,7 @@ test('the palette lists quick actions, navigation and channels', function () {
         ->assertSeeIn('@command-palette-item-nav-ideas', 'Create → Ideas')
         ->assertSeeIn('@command-palette-item-nav-templates', 'Create → Templates')
         ->assertSeeIn('@command-palette-item-nav-feeds', 'Create → Feeds')
-        ->assertPresent('@command-palette-item-nav-analytics')
+        ->assertPresent('@command-palette-item-nav-insights')
         ->assertPresent('@command-palette-item-nav-repurposes')
         ->assertPresent('@command-palette-item-nav-settings')
         ->assertSeeIn("@command-palette-item-channel-{$channel->id}", 'Acme Page')
@@ -127,7 +126,7 @@ test('the palette lists quick actions, navigation and channels', function () {
 });
 
 test('typing filters the list and exposes settings and insights pages', function () {
-    $user = commandPaletteUser(Role::Admin);
+    $user = commandPaletteUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $user->current_workspace_id,
         'display_name' => 'Acme LinkedIn',
@@ -157,7 +156,7 @@ test('typing filters the list and exposes settings and insights pages', function
 });
 
 test('an unmatched query shows the empty state', function () {
-    $this->actingAs(commandPaletteUser(Role::Admin));
+    $this->actingAs(commandPaletteUser('admin'));
 
     $page = visit(route('app.posts.index'));
     openCommandPalette($page);
@@ -171,7 +170,7 @@ test('an unmatched query shows the empty state', function () {
 });
 
 test('selecting a channel opens its publish page and it shows up under recent', function () {
-    $user = commandPaletteUser(Role::Admin);
+    $user = commandPaletteUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create([
         'workspace_id' => $user->current_workspace_id,
         'display_name' => 'Acme LinkedIn',
@@ -199,7 +198,7 @@ test('selecting a channel opens its publish page and it shows up under recent', 
 });
 
 test('create new post opens the composer', function () {
-    $this->actingAs(commandPaletteUser(Role::Admin));
+    $this->actingAs(commandPaletteUser('admin'));
 
     $page = visit(route('app.posts.index'));
     openCommandPalette($page);
@@ -213,7 +212,7 @@ test('create new post opens the composer', function () {
 });
 
 test('invite and connect open their dialogs for admins', function () {
-    $this->actingAs(commandPaletteUser(Role::Admin));
+    $this->actingAs(commandPaletteUser('admin'));
 
     $page = visit(route('app.posts.index'));
     openCommandPalette($page);
@@ -234,22 +233,21 @@ test('invite and connect open their dialogs for admins', function () {
     $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 
-test('viewers do not get invite, connect or create actions', function () {
-    $this->actingAs(commandPaletteUser(Role::Viewer));
+test('members who need approval can create but not invite or connect', function () {
+    $this->actingAs(commandPaletteUser('approval'));
 
     $page = visit(route('app.posts.index'));
     openCommandPalette($page);
 
     $page->assertVisible('@command-palette-item-nav-publish')
+        ->assertVisible('@command-palette-item-action-create-post')
         ->assertMissing('@command-palette-item-action-invite-member')
         ->assertMissing('@command-palette-item-action-connect-channel')
-        ->assertMissing('@command-palette-item-action-create-post')
-        ->assertMissing('@command-palette-item-nav-ideas')
         ->assertNoJavaScriptErrors();
 });
 
 test('members can create but not invite or connect', function () {
-    $this->actingAs(commandPaletteUser(Role::Member));
+    $this->actingAs(commandPaletteUser('member'));
 
     $page = visit(route('app.posts.index'));
     openCommandPalette($page);
@@ -262,7 +260,7 @@ test('members can create but not invite or connect', function () {
 });
 
 test('the sidebar channels search button opens the palette', function () {
-    $user = commandPaletteUser(Role::Admin);
+    $user = commandPaletteUser('admin');
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -276,7 +274,7 @@ test('the sidebar channels search button opens the palette', function () {
 });
 
 test('the shortcut does not open the palette over the post composer', function () {
-    $this->actingAs(commandPaletteUser(Role::Admin));
+    $this->actingAs(commandPaletteUser('admin'));
 
     $page = visit(route('app.posts.index'));
     waitForCommandPaletteTestId($page, 'sidebar-new');

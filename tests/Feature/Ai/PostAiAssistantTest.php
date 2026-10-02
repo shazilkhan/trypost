@@ -7,7 +7,6 @@ use App\Ai\Agents\PostWritingAssistant;
 use App\Enums\Ai\PostAssistantMode;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Social\ContentSanitizer;
@@ -21,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 });
 

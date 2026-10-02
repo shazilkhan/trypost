@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Kanal trennen',
-        'description' => 'Möchtest du diesen Kanal wirklich trennen? Du kannst ihn jederzeit wieder verbinden.',
+        'description' => 'Dadurch werden alle Beiträge dieses Kanals in TryPost gelöscht, einschließlich Entwürfen, geplanten Beiträgen und dem Veröffentlichungsverlauf. Beiträge, die bereits im Netzwerk sind, bleiben dort.',
         'confirm' => 'Trennen',
+        'keyword' => 'TRENNEN',
         'cancel' => 'Abbrechen',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Vom Browser erkannte Zeitzone',
         'placeholder' => 'Städte oder Zeitzonen suchen',
         'empty' => 'Keine Zeitzone gefunden',
+    ],
+    'grid' => [
+        'title' => 'Raster',
+        'info' => 'Dies ist eine Annäherung an dein Beitragsraster. Auf anderen Geräten kann es abweichen, und direkt auf Instagram veröffentlichte Beiträge erscheinen nach der nächsten Synchronisierung.',
+        'sent_at' => 'Dieser Beitrag wurde am :date um :time gesendet',
+        'empty_title' => 'Noch keine veröffentlichten Beiträge',
+        'empty_description' => 'Feed-Beiträge und Reels, die auf diesem Kanal veröffentlicht werden, erscheinen hier.',
+        'reel' => 'Reel',
+        'carousel' => 'Karussell',
     ],
 ];

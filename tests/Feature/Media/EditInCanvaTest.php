@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ExportCanvaDesign;
 use App\Models\Account;
 use App\Models\Media;
@@ -35,7 +34,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 
@@ -142,7 +141,7 @@ test('editing a Canva media fetches a fresh edit url and remembers which media t
 test('a teammate can reopen a Canva media another member brought into the workspace', function () {
     editInCanvaFakeApi($this->signingJwk);
     $teammate = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($teammate->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($teammate->id, membershipPivot('member'));
     $teammate->update(['current_workspace_id' => $this->workspace->id]);
     MediaSourceConnection::factory()->for($teammate)->create(['access_token' => 'teammate-token']);
     $post = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
@@ -197,11 +196,9 @@ test('editing needs a nonce, createPost and Canva enabled', function () {
             ->where('nonce', null)
             ->where('message', __('posts.composer.media_sources.errors.canva_edit_failed')));
 
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->get(route('app.integrations.canva.designs.edit', ['media' => $media->id, 'nonce' => EDIT_IN_CANVA_NONCE]))
         ->assertForbidden();
 

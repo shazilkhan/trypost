@@ -15,7 +15,9 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Media\MediaCopyBatch;
+use App\Support\PostApproval;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class CreateChannelPost
@@ -36,8 +38,10 @@ class CreateChannelPost
 
         $status = PostStatus::from($destination['status']);
         $position = data_get($destination, 'queue');
+        $pending = $status === PostStatus::PendingApproval;
 
         $post = $workspace->posts()->create([
+            'post_group_id' => data_get($destination, 'post_group_id') ?? (string) Str::uuid7(),
             'user_id' => $user->id,
             'content' => $destination['content'],
             'media' => [],
@@ -45,20 +49,20 @@ class CreateChannelPost
             'schedule_mode' => match (true) {
                 $position instanceof QueuePosition => ScheduleMode::Queue,
                 $status === PostStatus::Scheduled => ScheduleMode::Custom,
+                $pending && filled(data_get($destination, 'scheduled_at')) => ScheduleMode::Custom,
                 default => null,
             },
             'created_via' => $destination['created_via'] ?? null,
             'scheduled_at' => ! $position instanceof QueuePosition && isset($destination['scheduled_at'])
                 ? Carbon::parse($destination['scheduled_at'])->utc()
                 : null,
+            ...($pending ? PostApproval::transition(PostStatus::Draft, PostStatus::PendingApproval, $user, $position instanceof QueuePosition ? $position : null) : []),
         ]);
 
         $post->postPlatforms()->create([
             'social_account_id' => $account->id,
             'platform' => $account->platform,
-            'platform_name' => $account->accountDisplayName(),
-            'platform_username' => $account->username,
-            'platform_avatar' => $account->getRawOriginal('avatar_url'),
+            ...$account->channelSnapshot(),
             'content_type' => $destination['content_type'],
             'status' => PostPlatformStatus::Pending,
             'enabled' => true,
@@ -77,7 +81,7 @@ class CreateChannelPost
             $post->labels()->sync($destination['label_ids']);
         }
 
-        if ($position instanceof QueuePosition) {
+        if ($position instanceof QueuePosition && ! $pending) {
             self::enqueue($account, $post, $position);
         }
 

@@ -7,7 +7,6 @@ use App\Actions\Post\Queue\ReorderChannelQueue;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -20,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['account_id' => $this->user->account_id, 'user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $schedule = PostingSchedule::empty();
@@ -223,15 +222,15 @@ test('a channel of another workspace is not found', function () {
         ->assertNotFound();
 });
 
-test('a viewer cannot reorder the queue', function () {
-    $viewer = User::factory()->create([
+test('a member who needs approval cannot reorder the queue', function () {
+    $requester = User::factory()->create([
         'account_id' => $this->user->account_id,
         'current_workspace_id' => $this->workspace->id,
     ]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
+    $this->workspace->members()->attach($requester->id, membershipPivot('approval'));
     $before = reorderTimes($this->a, $this->b, $this->c);
 
-    $this->actingAs($viewer)
+    $this->actingAs($requester)
         ->putJson(route('app.channels.queue.order', $this->channel), ['post_ids' => [$this->c->id, $this->a->id, $this->b->id]])
         ->assertForbidden();
 

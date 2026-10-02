@@ -6,7 +6,6 @@ use App\Actions\Media\StartMediaImport;
 use App\Dto\ImportedFile;
 use App\Dto\RemoteFile;
 use App\Enums\Media\Source;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Models\Media;
 use App\Models\User;
@@ -28,7 +27,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 });
 
@@ -147,7 +146,7 @@ test('a user who lost access by the time the job runs gets nothing imported', fu
     Http::fake();
 
     $member = User::factory()->create();
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     [$importId] = StartMediaImport::execute($member, $this->workspace, Source::GoogleDrive, driveFile());
     $this->workspace->members()->detach($member->id);

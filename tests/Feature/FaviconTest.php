@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\Cache;
@@ -26,7 +25,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);

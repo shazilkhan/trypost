@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { router, usePage } from '@inertiajs/vue3';
+import { usePage } from '@inertiajs/vue3';
 import {
     IconClock,
     IconDotsVertical,
-    IconEye,
     IconShield,
     IconTrash,
-    IconUser,
 } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import EditMemberDialog from '@/components/members/EditMemberDialog.vue';
 import InviteMemberDialog from '@/components/members/InviteMemberDialog.vue';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -22,59 +21,40 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { destroy as destroyInvite } from '@/routes/app/invites';
-import { remove as removeMemberRoute, updateRole } from '@/routes/app/members';
-import { WorkspaceRole } from '@/types/workspace-role';
+import { remove as removeMemberRoute } from '@/routes/app/members';
+import {
+    memberAccessLabelKey,
+    type WorkspaceInvitation,
+    type WorkspaceMember,
+} from '@/types/members';
 
-interface Member {
-    id: string;
-    name: string;
-    email: string;
-    photo_url: string | null;
-    role: string;
-}
-
-interface Invitation {
-    id: string;
-    email: string;
-    role: string;
-}
-
-interface Role {
-    value: string;
-    label: string;
-}
-
-defineProps<{
-    members: Member[];
-    invitations: Invitation[];
-    roles: Role[];
+const props = defineProps<{
+    members: WorkspaceMember[];
+    invitations: WorkspaceInvitation[];
+    ownerId: string | null;
 }>();
-
-const roleIcon = (role: string) => {
-    if (role === WorkspaceRole.Admin) {
-        return IconShield;
-    }
-
-    if (role === WorkspaceRole.Viewer) {
-        return IconEye;
-    }
-
-    return IconUser;
-};
 
 const page = usePage();
 const currentUserId = computed(() => page.props.auth.user.id);
 
-const { canManageTeam } = useWorkspaceRole();
+const { canManageTeam } = useWorkspaceAbilities();
 
 const inviteOpen = defineModel<boolean>('inviteOpen', { default: false });
+const editOpen = ref(false);
+const editing = ref<WorkspaceMember | null>(null);
 const removeMemberModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 const cancelInvitationModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 
-const changeRole = (member: Member, role: string) => {
-    router.put(updateRole.url(member.id), { role });
+const isManageable = (member: WorkspaceMember): boolean =>
+    canManageTeam.value &&
+    member.id !== currentUserId.value &&
+    member.id !== props.ownerId;
+
+const editMember = (member: WorkspaceMember): void => {
+    editing.value = member;
+    editOpen.value = true;
 };
 </script>
 
@@ -100,37 +80,36 @@ const changeRole = (member: Member, role: string) => {
                         >
                             {{ member.name }}
                         </p>
-                        <Badge variant="secondary">
-                            {{ $t(`settings.members.roles.${member.role}`) }}
+                        <Badge
+                            variant="secondary"
+                            :data-testid="`member-badge-${member.id}`"
+                        >
+                            {{ $t(memberAccessLabelKey(member, member.id === ownerId)) }}
                         </Badge>
                     </div>
                     <p class="truncate text-sm text-muted-foreground">
                         {{ member.email }}
                     </p>
                 </div>
-                <DropdownMenu v-if="canManageTeam && member.id !== currentUserId">
+                <DropdownMenu v-if="isManageable(member)">
                     <DropdownMenuTrigger as-child>
                         <Button
                             variant="ghost"
                             size="icon"
                             class="shrink-0 text-muted-foreground data-[state=open]:bg-accent"
                             :aria-label="member.name"
+                            :data-testid="`member-menu-${member.id}`"
                         >
                             <IconDotsVertical class="size-4" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                            v-for="role in roles.filter((r) => r.value !== member.role)"
-                            :key="role.value"
-                            @click="changeRole(member, role.value)"
+                            :data-testid="`member-edit-${member.id}`"
+                            @click="editMember(member)"
                         >
-                            <component :is="roleIcon(role.value)" class="size-4" />
-                            {{
-                                $t('settings.members.make_role', {
-                                    role: $t(`settings.members.roles.${role.value}`),
-                                })
-                            }}
+                            <IconShield class="size-4" />
+                            {{ $t('settings.members.edit.action') }}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -166,7 +145,7 @@ const changeRole = (member: Member, role: string) => {
                             {{ invitation.email }}
                         </p>
                         <Badge variant="secondary">
-                            {{ $t(`settings.members.roles.${invitation.role}`) }}
+                            {{ $t(memberAccessLabelKey(invitation)) }}
                         </Badge>
                     </div>
                     <p class="text-sm text-muted-foreground">
@@ -192,6 +171,7 @@ const changeRole = (member: Member, role: string) => {
         </ul>
 
         <InviteMemberDialog v-model:open="inviteOpen" />
+        <EditMemberDialog v-model:open="editOpen" :member="editing" />
 
         <ConfirmDeleteModal
             ref="removeMemberModal"

@@ -2,20 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\PostTemplate;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\DB;
-
-function templatePickerMember(Workspace $workspace, Role $role): User
-{
-    $member = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
-    $member->update(['current_workspace_id' => $workspace->id]);
-
-    return $member->fresh();
-}
 
 beforeEach(function () {
     config(['trypost.self_hosted' => false]);
@@ -25,8 +15,8 @@ beforeEach(function () {
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $this->alice = templatePickerMember($this->workspace, Role::Member);
-    $this->bob = templatePickerMember($this->workspace, Role::Member);
+    $this->alice = workspaceMember($this->workspace, 'member');
+    $this->bob = workspaceMember($this->workspace, 'member');
     subscribeAccount($owner->account);
 });
 
@@ -86,10 +76,10 @@ test('search filters the library, team and personal lists together', function ()
         ->assertJsonPath('library.0.key', 'quick_win');
 });
 
-test('a viewer is forbidden and a guest is unauthenticated', function () {
-    $viewer = templatePickerMember($this->workspace, Role::Viewer);
+test('a user outside the workspace is forbidden and a guest is unauthenticated', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer)->getJson(route('app.create.templates.picker'))->assertForbidden();
+    $this->actingAs($outsider)->getJson(route('app.create.templates.picker'))->assertForbidden();
 
     auth()->logout();
     $this->getJson(route('app.create.templates.picker'))->assertUnauthorized();

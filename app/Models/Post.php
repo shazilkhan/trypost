@@ -8,11 +8,15 @@ use App\Actions\Media\SyncOwnedMedia;
 use App\Dto\MediaItem;
 use App\Enums\Media\Type;
 use App\Enums\Post\CreatedVia;
+use App\Enums\Post\Origin;
+use App\Enums\Post\QueuePosition;
+use App\Enums\Post\RecurrenceFrequency;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\SocialAccount\Platform;
 use App\Observers\PostObserver;
 use App\Support\Media\MediaCopyBatch;
+use Carbon\CarbonInterface;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,15 +38,34 @@ class Post extends Model
 
     protected $fillable = [
         'workspace_id',
+        'post_group_id',
         'user_id',
         'content',
         'media',
         'status',
         'schedule_mode',
+        'recurrence_interval',
+        'recurrence_frequency',
+        'recurrence_remaining',
+        'recurrence_anchor_at',
+        'recurrence_origin_at',
         'created_via',
+        'origin',
         'repurpose_item_id',
         'scheduled_at',
         'published_at',
+        'approval_requested_at',
+        'approval_requested_by',
+        'approved_by',
+        'approved_at',
+        'approval_queue_position',
+    ];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'origin' => Origin::DEFAULT->value,
     ];
 
     protected function casts(): array
@@ -50,10 +73,19 @@ class Post extends Model
         return [
             'status' => PostStatus::class,
             'schedule_mode' => ScheduleMode::class,
+            'recurrence_interval' => 'integer',
+            'recurrence_frequency' => RecurrenceFrequency::class,
+            'recurrence_remaining' => 'integer',
+            'recurrence_anchor_at' => 'datetime',
+            'recurrence_origin_at' => 'datetime',
             'created_via' => CreatedVia::class,
+            'origin' => Origin::class,
             'media' => 'array',
             'scheduled_at' => 'datetime',
             'published_at' => 'datetime',
+            'approval_requested_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'approval_queue_position' => QueuePosition::class,
         ];
     }
 
@@ -79,6 +111,25 @@ class Post extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function approvalRequestedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approval_requested_by');
+    }
+
+    /**
+     * Who asked for approval: the member who sent the post for approval, or
+     * its author for requests stored before that was recorded.
+     */
+    public function approvalRequester(): ?User
+    {
+        return $this->approval_requested_by !== null ? $this->approvalRequestedBy : $this->user;
+    }
+
     public function ownedMedia(): HasMany
     {
         return $this->hasMany(Media::class, 'post_id')->orderBy('order');
@@ -92,6 +143,14 @@ class Post extends Model
     public function notes(): HasMany
     {
         return $this->hasMany(PostNote::class);
+    }
+
+    /**
+     * Posts created together with this one (one per destination), this post included.
+     */
+    public function groupPosts(): HasMany
+    {
+        return $this->hasMany(self::class, 'post_group_id', 'post_group_id');
     }
 
     public function labels(): BelongsToMany
@@ -112,6 +171,43 @@ class Post extends Model
     public function scopeDraft(Builder $query): Builder
     {
         return $query->where('status', PostStatus::Draft);
+    }
+
+    public function scopePendingApproval(Builder $query): Builder
+    {
+        return $query->where('status', PostStatus::PendingApproval);
+    }
+
+    /**
+     * Posts whose approval was asked by the user (see approvalRequester()).
+     */
+    public function scopeApprovalRequestedBy(Builder $query, User $user): Builder
+    {
+        return $query->where(fn (Builder $requested): Builder => $requested
+            ->where('posts.approval_requested_by', $user->id)
+            ->orWhere(fn (Builder $legacy): Builder => $legacy
+                ->whereNull('posts.approval_requested_by')
+                ->where('posts.user_id', $user->id)));
+    }
+
+    /**
+     * Hides the pending posts a requester did not ask for; null (an approver) sees every one.
+     */
+    public function scopeVisiblePendingApprovalsFor(Builder $query, ?User $requester): Builder
+    {
+        return $query->when($requester !== null, fn (Builder $visible): Builder => $visible->where(fn (Builder $inner): Builder => $inner
+            ->where('posts.status', '!=', PostStatus::PendingApproval)
+            ->orWhere(fn (Builder $own): Builder => $own->approvalRequestedBy($requester))));
+    }
+
+    public function scopeCreatedInTryPost(Builder $query): Builder
+    {
+        return $query->where('posts.origin', Origin::TryPost);
+    }
+
+    public function scopeImported(Builder $query): Builder
+    {
+        return $query->where('posts.origin', Origin::Network);
     }
 
     public function scopePublished(Builder $query): Builder
@@ -160,6 +256,49 @@ class Post extends Model
     public function markAsFailed(): void
     {
         $this->update(['status' => PostStatus::Failed]);
+    }
+
+    /**
+     * Moves a post being published right now to the current time, remembering the
+     * occurrence it consumed so a recurring series keeps its rhythm. Callers read
+     * that occurrence before they overwrite scheduled_at.
+     */
+    public function moveScheduleToNow(?CarbonInterface $occurrence): void
+    {
+        $this->update([
+            'scheduled_at' => now(),
+            'recurrence_anchor_at' => $this->isRecurring()
+                ? ($this->recurrence_anchor_at ?? $occurrence)
+                : null,
+        ]);
+    }
+
+    /**
+     * The occurrence this post stands for in its series: the one publish-now
+     * consumed, or its scheduled time.
+     */
+    public function currentOccurrence(): ?CarbonInterface
+    {
+        return $this->recurrence_anchor_at ?? $this->scheduled_at;
+    }
+
+    public function isRecurring(): bool
+    {
+        return $this->recurrence_frequency !== null && $this->recurrence_interval !== null;
+    }
+
+    /**
+     * @return array{recurrence_interval: null, recurrence_frequency: null, recurrence_remaining: null, recurrence_anchor_at: null, recurrence_origin_at: null}
+     */
+    public static function withoutRecurrence(): array
+    {
+        return [
+            'recurrence_interval' => null,
+            'recurrence_frequency' => null,
+            'recurrence_remaining' => null,
+            'recurrence_anchor_at' => null,
+            'recurrence_origin_at' => null,
+        ];
     }
 
     /**

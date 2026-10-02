@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
+use App\Enums\User\Theme;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -27,7 +28,7 @@ test('switching language in the sidebar translates the page in place', function 
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
@@ -72,7 +73,7 @@ test('switching to a right-to-left language flips the document direction', funct
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
@@ -111,7 +112,7 @@ test('the calendar header follows the language, not the previous one', function 
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
@@ -148,7 +149,7 @@ test('the month view header follows the language too', function () {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
@@ -176,3 +177,81 @@ test('the month view header follows the language too', function () {
     $page->assertScript('/setembro/i.test(window.__monthHeader)', true)
         ->assertScript('/September/.test(window.__monthHeader)', false);
 });
+
+test('switching theme in the sidebar applies it in place and saves it', function () {
+    $user = User::factory()->create(['theme' => Theme::Light]);
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar'));
+    waitForSidebarLanguageTestId($page, 'sidebar-workspace-menu');
+
+    $page->script('window.__notReloaded = true;');
+
+    $pick = fn (string $theme) => $page->script(<<<JS
+        (async () => {
+            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+            document.querySelector('[data-testid="sidebar-workspace-menu"]').click();
+            await wait(400);
+            const trigger = document.querySelector('[data-testid="sidebar-theme-trigger"]');
+            trigger.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+            trigger.click();
+            await wait(600);
+            document.querySelector('[data-testid="sidebar-theme-{$theme}"]').click();
+            await wait(600);
+        })();
+    JS);
+
+    expect($page->script('document.documentElement.classList.contains("dark")'))->toBeFalse();
+
+    $pick('dark');
+
+    expect($page->script('document.documentElement.classList.contains("dark")'))->toBeTrue();
+
+    for ($attempt = 0; $attempt < 30 && $user->refresh()->theme !== Theme::Dark; $attempt++) {
+        $page->script('new Promise((r) => setTimeout(r, 100))');
+    }
+
+    expect($user->theme)->toBe(Theme::Dark);
+
+    $pick('light');
+
+    expect($page->script('document.documentElement.classList.contains("dark")'))->toBeFalse();
+
+    for ($attempt = 0; $attempt < 30 && $user->refresh()->theme !== Theme::Light; $attempt++) {
+        $page->script('new Promise((r) => setTimeout(r, 100))');
+    }
+
+    expect($user->theme)->toBe(Theme::Light);
+
+    $page->assertScript('window.__notReloaded === true', true)
+        ->assertNoJavaScriptErrors();
+});
+
+test('the sidebar menu header pluralizes the channel count in the user language', function (int $channels) {
+    $user = User::factory()->create(['locale' => Locale::Polish]);
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    SocialAccount::factory()->count($channels)->create(['workspace_id' => $workspace->id]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar'));
+    waitForSidebarLanguageTestId($page, 'sidebar-workspace-menu');
+    $page->click('@sidebar-workspace-menu');
+    waitForSidebarLanguageTestId($page, 'sidebar-menu-plan');
+
+    $page->assertSeeIn('@sidebar-menu-plan', trans_choice('sidebar.channels_count', $channels, [], 'pl'))
+        ->assertSeeIn('@sidebar-menu-manage-team', __('sidebar.manage_team', [], 'pl'))
+        ->assertNoJavaScriptErrors();
+})->with([1, 3, 5]);

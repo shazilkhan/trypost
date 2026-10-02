@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Actions\Post\UpdatePost;
 use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -24,7 +23,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id, 'account_id' => $this->user->account_id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->x = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id, 'token_expires_at' => now()->addHours(2)]);

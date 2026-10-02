@@ -8,7 +8,7 @@ import {
     postCardLabelsKey,
     syncPostCardLabels,
 } from '@/composables/usePostCardActions';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import type { PostCardLabel } from '@/types/publish';
 
 const MAX_VISIBLE = 3;
@@ -19,7 +19,7 @@ const props = defineProps<{
     testKey: string;
 }>();
 
-const { canCreatePost } = useWorkspaceRole();
+const { canCreatePost } = useWorkspaceAbilities();
 const workspaceLabels = inject(
     postCardLabelsKey,
     computed(() => []),

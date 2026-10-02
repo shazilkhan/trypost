@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 use App\Actions\Analytics\SyncTryPostPublication;
 use App\Actions\Analytics\UpsertAnalyticsPublication;
+use App\Actions\Post\ImportExternalPosts;
 use App\Dto\Analytics\DiscoveredPublication;
 use App\Enums\Analytics\PublicationContentType;
 use App\Enums\Analytics\PublicationOrigin;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\PostPlatform\Status;
 use App\Enums\SocialAccount\Platform;
+use App\Events\PostDeleted;
 use App\Jobs\Analytics\SyncTryPostPublication as SyncTryPostPublicationJob;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsPublicationDailySnapshot;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
@@ -93,7 +97,7 @@ test('TikTok public video id merges a provisional TryPost post with earlier disc
         'views_count' => 12,
     ]);
 
-    app(UpsertAnalyticsPublication::class)->reconcileTikTokPublicId($provisional, '123456789');
+    app(UpsertAnalyticsPublication::class)->reconcileRemoteId($provisional, '123456789');
 
     expect(AnalyticsPublication::query()->count())->toBe(1)
         ->and($provisional->fresh()->remote_id)->toBe('123456789')
@@ -108,6 +112,85 @@ test('TikTok public video id merges a provisional TryPost post with earlier disc
         contentType: PublicationContentType::Video,
     ));
     expect(AnalyticsPublication::query()->count())->toBe(1);
+});
+
+test('TikTok public video id replaces a post imported from that video with the TryPost post', function () {
+    Event::fake([PostDeleted::class]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::TikTok]);
+    $post = Post::factory()->create(['workspace_id' => $account->workspace_id]);
+    $postPlatform = PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::TikTok,
+        'content_type' => ContentType::TikTokVideo,
+        'platform_post_id' => 'v_pub_provisional',
+    ]);
+    $provisional = app(SyncTryPostPublication::class)->handle($postPlatform);
+    $discovered = app(UpsertAnalyticsPublication::class)->external($account, new DiscoveredPublication(
+        providerPostId: '123456789',
+        publishedAt: now()->subDay()->toImmutable(),
+        contentType: PublicationContentType::Video,
+        permalink: 'https://www.tiktok.com/@example/video/123456789',
+    ));
+    ImportExternalPosts::execute($account);
+    $imported = Post::query()->imported()->sole();
+    $media = Media::factory()->ownedByPost($imported)->create();
+    AnalyticsPublicationDailySnapshot::factory()->create([
+        'publication_id' => $discovered->id,
+        'date' => '2026-09-21',
+        'collected_at' => '2026-09-21 12:00:00',
+        'views_count' => 12,
+    ]);
+
+    app(UpsertAnalyticsPublication::class)->reconcileRemoteId($provisional, '123456789');
+
+    expect(AnalyticsPublication::query()->sole()->id)->toBe($provisional->id)
+        ->and($provisional->fresh()->post_platform_id)->toBe($postPlatform->id)
+        ->and($provisional->dailySnapshots()->sole()->views_count)->toBe(12)
+        ->and($postPlatform->fresh()->platform_post_id)->toBe('123456789')
+        ->and(Post::query()->imported()->exists())->toBeFalse()
+        ->and(Post::query()->sole()->id)->toBe($post->id)
+        ->and(Media::query()->whereKey($media->id)->exists())->toBeFalse();
+    Event::assertNotDispatched(PostDeleted::class);
+
+    expect(ImportExternalPosts::execute($account))->toBe([])
+        ->and(Post::query()->count())->toBe(1);
+});
+
+test('TikTok public id owned by another TryPost post is still refused', function () {
+    $account = SocialAccount::factory()->create(['platform' => Platform::TikTok]);
+    $targets = collect(['v_pub_provisional', '123456789'])->map(fn (string $remoteId): PostPlatform => PostPlatform::factory()->published()->create([
+        'post_id' => Post::factory()->create(['workspace_id' => $account->workspace_id])->id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::TikTok,
+        'content_type' => ContentType::TikTokVideo,
+        'platform_post_id' => $remoteId,
+    ]));
+    $provisional = app(SyncTryPostPublication::class)->handle($targets->first());
+    app(SyncTryPostPublication::class)->handle($targets->last());
+
+    expect(fn () => app(UpsertAnalyticsPublication::class)->reconcileRemoteId($provisional, '123456789'))
+        ->toThrow(LogicException::class);
+});
+
+test('an excerpt longer than the text column is cut on a character boundary and imported', function () {
+    $account = SocialAccount::factory()->x()->create();
+    $excerpt = str_repeat('नम', 11100);
+
+    $publication = app(UpsertAnalyticsPublication::class)->external($account, new DiscoveredPublication(
+        providerPostId: 'long-1',
+        publishedAt: now()->subDay()->toImmutable(),
+        contentType: PublicationContentType::Text,
+        excerpt: $excerpt,
+    ));
+    ImportExternalPosts::execute($account);
+
+    $stored = $publication->fresh()->excerpt;
+    expect(strlen($excerpt))->toBeGreaterThan(65535)
+        ->and(strlen($stored))->toBeLessThanOrEqual(65535)
+        ->and(mb_check_encoding($stored, 'UTF-8'))->toBeTrue()
+        ->and(str_starts_with($excerpt, $stored))->toBeTrue()
+        ->and(Post::query()->imported()->sole()->content)->toBe($stored);
 });
 
 test('database failures other than identity collisions are not swallowed', function () {

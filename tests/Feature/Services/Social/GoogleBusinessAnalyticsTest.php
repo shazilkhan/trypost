@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\SocialAccount\Status as AccountStatus;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -15,7 +14,7 @@ use Illuminate\Support\Str;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->account->subscriptions()->create([
         'type' => Account::SUBSCRIPTION_NAME,
         'stripe_id' => 'sub_test_'.fake()->uuid(),
@@ -94,7 +93,7 @@ test('returns empty array when the account has no location', function () {
 });
 
 test('google business is excluded from workspace analytics', function () {
-    $response = $this->actingAs($this->user)->get(route('app.analytics'));
+    $response = $this->actingAs($this->user)->get(route('app.insights'));
 
     $response->assertOk();
 
@@ -108,7 +107,7 @@ test('workspace analytics does not request google business reporting', function 
     Http::fake();
 
     $response = $this->actingAs($this->user)
-        ->get(route('app.analytics'));
+        ->get(route('app.insights'));
 
     $response->assertOk();
     Http::assertNothingSent();

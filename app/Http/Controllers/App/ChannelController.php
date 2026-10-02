@@ -11,12 +11,14 @@ use App\Actions\Analytics\ResolveAnalyticsAccountKey;
 use App\Actions\Analytics\ResolveAnalyticsRangePreset;
 use App\Actions\Post\BuildCalendarPageProps;
 use App\Actions\Post\BuildPublishPageProps;
+use App\Actions\SocialAccount\ListInstagramGridPosts;
 use App\Actions\SocialAccount\ReorderSocialAccounts;
 use App\Http\Controllers\App\Concerns\EnsuresChannelInCurrentWorkspace;
 use App\Http\Controllers\App\Concerns\RendersPublishPage;
 use App\Http\Requests\App\Channel\ChannelInsightsRequest;
 use App\Http\Requests\App\Channel\ReorderChannelsRequest;
 use App\Http\Resources\App\ChannelPostingScheduleResource;
+use App\Http\Resources\App\InstagramGridTileResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\SocialAccount;
 use App\Support\Analytics\ChannelMetrics;
@@ -26,6 +28,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class ChannelController extends Controller
 {
@@ -71,6 +74,21 @@ class ChannelController extends Controller
         }
 
         return $this->renderPublishPage($request, $workspace, $account);
+    }
+
+    /**
+     * An approximation of the Instagram profile grid; other networks have none.
+     */
+    public function grid(Request $request, SocialAccount $account): Response
+    {
+        $this->ensureCurrentWorkspace($request, $account);
+        $this->authorize('view', $request->user()->currentWorkspace);
+        abort_unless($account->platform->hasProfileGrid(), HttpResponse::HTTP_NOT_FOUND);
+
+        return Inertia::render('channels/Grid', [
+            'channel' => BuildPublishPageProps::channelHeader($account),
+            'posts' => Inertia::scroll(fn () => InstagramGridTileResource::collection(ListInstagramGridPosts::execute($account))),
+        ]);
     }
 
     public function calendar(Request $request, SocialAccount $account, ?string $view = null): Response|RedirectResponse

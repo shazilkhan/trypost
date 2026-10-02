@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\Media;
 use App\Models\User;
@@ -29,7 +28,7 @@ function seedChunkedUploadWorkspace(): void
         'account_id' => test()->account->id,
         'user_id' => test()->user->id,
     ]);
-    test()->workspace->members()->attach(test()->user->id, ['role' => Role::Member->value]);
+    test()->workspace->members()->attach(test()->user->id, membershipPivot('member'));
     test()->user->update(['current_workspace_id' => test()->workspace->id]);
     test()->account->subscriptions()->create([
         'type' => Account::SUBSCRIPTION_NAME,

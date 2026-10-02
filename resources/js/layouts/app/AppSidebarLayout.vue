@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { usePage } from '@inertiajs/vue3';
-
 import AppHeader from '@/components/AppHeader.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import ConnectChannelDialog from '@/components/channels/ConnectChannelDialog.vue';
@@ -14,23 +12,17 @@ import {
     SidebarTrigger,
 } from '@/components/ui/sidebar';
 
-const page = usePage();
-
 type Props = {
     fullWidth?: boolean;
-    alwaysExpanded?: boolean;
 };
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
     fullWidth: false,
-    alwaysExpanded: false,
 });
-
-const isOpen = props.alwaysExpanded || Boolean(page.props.sidebarOpen);
 </script>
 
 <template>
-    <SidebarProvider :default-open="isOpen" class="bg-sidebar">
+    <SidebarProvider :open="true" class="bg-sidebar">
         <slot name="sidebar">
             <AppSidebar />
         </slot>

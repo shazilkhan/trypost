@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import PlatformLogo from '@/components/PlatformLogo.vue';
-import { Avatar } from '@/components/ui/avatar';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import { CommandItem } from '@/components/ui/command';
 import { channelName } from '@/types/channel';
 import type {
@@ -40,24 +39,15 @@ const title = (value: CommandPaletteTitle, translate: Translate): string =>
         :data-testid="testId"
         @select="emit('select', entry)"
     >
-        <span
+        <ChannelAvatar
             v-if="entry.channel"
-            class="relative shrink-0 self-center"
-        >
-            <Avatar
-                :src="entry.channel.avatar_url"
-                :name="channelName(entry.channel)"
-                class="size-7 rounded-md"
-                fallback-class="bg-secondary text-[10px] font-bold"
-            />
-            <PlatformLogo
-                :platform="entry.channel.platform"
-                :size="16"
-                ring="popover"
-                :title="null"
-                class="absolute -end-1 -bottom-1"
-            />
-        </span>
+            :platform="entry.channel.platform"
+            :src="entry.channel.avatar_url"
+            :name="channelName(entry.channel)"
+            :size="28"
+            ring="popover"
+            class="self-center"
+        />
         <component
             :is="entry.icon"
             v-else-if="entry.icon"
@@ -75,7 +65,7 @@ const title = (value: CommandPaletteTitle, translate: Translate): string =>
         </span>
         <span
             v-if="entry.count"
-            class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-success-subtle px-1.5 text-xs font-medium text-success-text tabular-nums"
+            class="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary-subtle px-1.5 text-xs font-medium text-primary-text tabular-nums"
             :data-testid="`${testId}-count`"
             >{{ entry.count }}</span
         >

@@ -9,7 +9,6 @@ import {
     IconTag,
     IconTrash,
 } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
@@ -27,7 +26,7 @@ import {
 import { TableLoadMore } from '@/components/ui/table';
 import debounce from '@/debounce';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
-import { analytics } from '@/routes/app';
+import { insights } from '@/routes/app';
 import {
     destroy as labelsDestroy,
     index as labelsIndex,
@@ -77,7 +76,6 @@ const openEditDialog = (label: Label) => {
 const handleDelete = (label: Label) => {
     deleteModal.value?.open({
         url: labelsDestroy.url(label.id),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 
@@ -211,7 +209,7 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                                         <DropdownMenuItem as-child>
                                             <a
                                                 :href="
-                                                    analytics.url(
+                                                    insights.url(
                                                         labelQuery(label),
                                                     )
                                                 "

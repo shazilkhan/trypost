@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Ai\Agents\MediaAltTextGenerator;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -23,7 +22,7 @@ function seedMediaEditorPost(ContentType $contentType = ContentType::InstagramFe
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $base64 = base64_encode((string) file_get_contents(base_path('tests/fixtures/crop-quadrants.png')));
 
@@ -246,7 +245,7 @@ test('an X post offers Edit and Alt Text with X\'s presets in order', function (
 test('each channel\'s editor shows that channel\'s presets', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $tiktok = SocialAccount::factory()->tiktok()->create(['workspace_id' => $workspace->id]);
@@ -513,7 +512,7 @@ function mediaEditorComposerUser(): User
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 

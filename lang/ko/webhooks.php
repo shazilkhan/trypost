@@ -120,7 +120,6 @@ return [
         'endpoint_http_status' => 'endpoint가 HTTP :status를 반환했습니다.',
     ],
     'flash' => [
-        'created' => '웹훅을 만들었습니다.',
         'updated' => '웹훅을 업데이트했습니다.',
         'deleted' => '웹훅을 삭제했습니다.',
         'secret_rotated' => '서명 시크릿을 교체했습니다.',

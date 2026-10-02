@@ -2,21 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\PostTemplate;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\TemplateLibrary;
 use Inertia\Testing\AssertableInertia as Assert;
-
-function templatesPageMember(Workspace $workspace, Role $role): User
-{
-    $member = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
-    $member->update(['current_workspace_id' => $workspace->id]);
-
-    return $member->fresh();
-}
 
 beforeEach(function () {
     config(['trypost.self_hosted' => false]);
@@ -26,8 +16,8 @@ beforeEach(function () {
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $this->alice = templatesPageMember($this->workspace, Role::Member);
-    $this->bob = templatesPageMember($this->workspace, Role::Member);
+    $this->alice = workspaceMember($this->workspace, 'member');
+    $this->bob = workspaceMember($this->workspace, 'member');
     subscribeAccount($owner->account);
 });
 
@@ -166,8 +156,8 @@ test('the library cards carry the resolved strings the detail dialog shows', fun
             ->where('library.featured.0.body', __("template_library.{$featured->key}.body")));
 });
 
-test('a viewer cannot open the templates page', function () {
-    $viewer = templatesPageMember($this->workspace, Role::Viewer);
+test('a user outside the workspace cannot open the templates page', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer)->get(route('app.create.templates.index'))->assertForbidden();
+    $this->actingAs($outsider)->get(route('app.create.templates.index'))->assertForbidden();
 });

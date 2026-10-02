@@ -44,10 +44,13 @@ const disconnectModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
 const reconnectChannel = (channel: ConnectedAccount): void =>
     startConnect(channel.platform, channel.id);
 
-const disconnectChannel = (channel: ConnectedAccount): void => {
+const disconnectChannel = (
+    channel: ConnectedAccount,
+    keyword: string,
+): void => {
     disconnectModal.value?.open({
         url: disconnect.url(channel.id),
-        confirmText: channel.handle_label,
+        confirmText: keyword,
     });
 };
 </script>
@@ -85,7 +88,13 @@ const disconnectChannel = (channel: ConnectedAccount): void => {
                         :can-move-up="reorderable && index > 0"
                         :can-move-down="reorderable && index < channels.length - 1"
                         @reconnect="reconnectChannel"
-                        @disconnect="disconnectChannel"
+                        @disconnect="
+                            (disconnected) =>
+                                disconnectChannel(
+                                    disconnected,
+                                    $t('channels.disconnect_modal.keyword'),
+                                )
+                        "
                         @move="(moved, offset) => move(moved.id, offset)"
                     >
                         <template v-if="reorderable" #handle>

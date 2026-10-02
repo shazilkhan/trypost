@@ -40,6 +40,7 @@ export interface ComposerInitialPost {
     scheduled_at: string | null;
     status: string;
     schedule_mode?: ScheduleModeValue | null;
+    queue_position?: QueuePositionValue | null;
     social_account_id: string;
     content_type: string;
     meta: Record<string, any>;

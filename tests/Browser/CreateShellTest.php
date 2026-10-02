@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -41,7 +40,7 @@ function createShellUser(): User
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -123,7 +122,7 @@ test('the new menu lists post, idea, connect channel and invite member in order 
 test('the new menu hides connect channel and invite member from a member', function () {
     $owner = createShellUser();
     $member = User::factory()->create(['account_id' => $owner->account_id]);
-    $owner->currentWorkspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $owner->currentWorkspace->members()->attach($member->id, membershipPivot('member'));
     $member->update(['current_workspace_id' => $owner->current_workspace_id]);
     $this->actingAs($member->fresh());
 
@@ -151,25 +150,16 @@ test('connect a new channel from the new menu opens the connect dialog', functio
     $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 
-test('invite new member from the collapsed sidebar opens the invite dialog', function () {
+test('invite new member from the sidebar new menu opens the invite dialog', function () {
     $this->actingAs(createShellUser());
 
     $page = visit(route('app.create.ideas.index'));
-    waitForCreateShellTestId($page, 'sidebar-collapse');
-    $page->click('@sidebar-collapse');
-    $page->script(<<<'JS'
-        (async () => {
-            for (let i = 0; i < 100; i++) {
-                if (document.querySelector('[data-slot="sidebar"]')?.dataset.state === 'collapsed') return;
-                await new Promise((r) => setTimeout(r, 50));
-            }
-        })();
-    JS);
+    waitForCreateShellTestId($page, 'sidebar-new');
     $page->click('@sidebar-new');
     waitForCreateShellTestId($page, 'sidebar-new-member');
     waitForCreateShellMenuSettled($page);
 
-    expect($page->script("document.querySelector('[data-testid=\"sidebar-new-menu\"]').getBoundingClientRect().left >= document.querySelector('[data-testid=\"sidebar-new\"]').getBoundingClientRect().right"))->toBeTrue();
+    expect($page->script("document.querySelector('[data-testid=\"sidebar-new-menu\"]').getBoundingClientRect().top >= document.querySelector('[data-testid=\"sidebar-new\"]').getBoundingClientRect().bottom"))->toBeTrue();
 
     $page->click('@sidebar-new-member');
     waitForCreateShellTestId($page, 'invite-member-dialog');

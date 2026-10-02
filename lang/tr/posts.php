@@ -108,6 +108,7 @@ return [
         'publish_posts' => 'Gönderileri yayınla',
         'destination_issues' => '{1} Düzeltilecek :count sorun|[0,*] Düzeltilecek :count sorun',
         'create_another' => 'Bir tane daha oluştur',
+        'request_approval' => 'Kaydet ve onay iste',
         'templates' => 'Şablonlar',
         'expand' => 'Pencereyi büyüt',
         'post_previews' => 'Gönderi önizlemeleri',
@@ -447,6 +448,7 @@ return [
     'status' => [
         'pending' => 'Beklemede',
         'draft' => 'Taslak',
+        'pending_approval' => 'Onay bekliyor',
         'scheduled' => 'Zamanlandı',
         'publishing' => 'Yayınlanıyor',
         'retrying' => 'Yeniden deneniyor',
@@ -463,14 +465,8 @@ return [
 
     'show' => [
         'title' => 'Gönderi Ayrıntıları',
-        'back' => 'Geri',
-        'no_platforms' => 'Platform seçilmedi.',
-        'view_on_platform' => 'Platformda görüntüle',
         'published_on' => ':date tarihinde yayınlandı',
         'scheduled_for' => ':date için zamanlandı',
-        'draft' => 'Taslak',
-        'metrics' => 'Metrikler',
-        'pending_review' => 'Google bu gönderiyi inceliyor. İnceleme bitince güncelleyeceğiz.',
     ],
 
     'edit' => [
@@ -808,12 +804,18 @@ return [
         'all_channels' => 'Tüm kanallar',
         'tabs' => [
             'queue' => 'Kuyruk',
+            'approvals' => 'Onaylar',
             'drafts' => 'Taslaklar',
             'sent' => 'Gönderilenler',
         ],
         'view' => [
             'list' => 'Liste',
             'calendar' => 'Takvim',
+        ],
+        'metrics' => [
+            'refreshed' => ':time yenilendi',
+            'previous' => 'Önceki metrikler',
+            'next' => 'Sonraki metrikler',
         ],
         'new_post' => 'Yeni gönderi',
         'today' => 'Bugün',
@@ -854,10 +856,75 @@ return [
         ],
         'created_by' => 'Oluşturan: :name :when',
         'empty' => [
-            'queue' => 'Kuyruğunuz boş. Paylaşım saatleri ekleyin veya bir gönderi oluşturun.',
-            'drafts' => 'Henüz taslak yok.',
-            'sent' => 'Henüz hiçbir şey yayınlanmadı.',
+            'queue' => [
+                'title' => 'Planlanmış gönderi yok',
+                'description' => 'Kuyruğun boş. Bir gönderi planla, burada görünecek.',
+            ],
+            'approvals' => [
+                'title' => 'Onay bekleyen gönderi yok',
+                'description' => 'Onay gerektiren gönderiler burada görünecek.',
+            ],
+            'drafts' => [
+                'title' => 'Taslak yok',
+                'description' => 'Henüz taslak kaydetmedin. Kaydettiğinde burada görünecek.',
+            ],
+            'sent' => [
+                'title' => 'Gönderilmiş gönderi yok',
+                'description' => 'Yayınladığın gönderiler burada görünecek.',
+            ],
         ],
         'reordered' => 'Kuyruk güncellendi',
+    ],
+    'group' => [
+        'channels' => 'Kanallar (:count)',
+        'collapse' => 'Kanalları gizle',
+        'expand' => 'Kanalları göster',
+    ],
+    'approvals' => [
+        'badge' => 'Onay',
+        'time_passed' => 'Saat geçti',
+        'approve' => 'Onayla',
+        'schedule' => 'Zamanla',
+        'reject' => 'Reddet',
+        'revert' => 'Onay isteğini geri al',
+        'requested' => 'Onay istendi',
+        'errors' => [
+            'not_pending' => 'Bu gönderi artık onay beklemiyor.',
+            'time_passed' => 'İstenen saat geçti. Yeni bir saat seçin.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Yinelenen',
+        'make' => 'Yinelenen yap',
+        'edit' => 'Yinelemeyi düzenle',
+        'title' => 'Yinelenen gönderi',
+        'description' => 'Sonraki tekrarları bu gönderinin tarih ve saatine göre planlayacağız.',
+        'repeat_every' => 'Tekrarla: her',
+        'for' => 'toplam',
+        'times' => '{1} kez|[0,*] kez',
+        'interval_label' => 'Tekrar aralığı',
+        'frequency_label' => 'Tekrar birimi',
+        'times_label' => 'Tekrar sayısı',
+        'frequency' => [
+            'day' => '{1} Gün|[0,*] Gün',
+            'week' => '{1} Hafta|[0,*] Hafta',
+            'month' => '{1} Ay|[0,*] Ay',
+            'year' => '{1} Yıl|[0,*] Yıl',
+        ],
+        'rule' => [
+            'day' => '{1} her gün saat :time|[0,*] her :count günde bir saat :time',
+            'week' => '{1} her :weekday saat :time|[0,*] her :count haftada bir :weekday günü saat :time',
+            'month' => '{1} her ayın :day gününde saat :time|[0,*] her :count ayda bir, ayın :day gününde saat :time',
+            'year' => '{1} her yıl :date tarihinde saat :time|[0,*] her :count yılda bir :date tarihinde saat :time',
+        ],
+        'summary' => 'Bu gönderi :until tarihine kadar :rule paylaşılacak.',
+        'banner' => '{1} Bu gönderi :until tarihine kadar :rule paylaşılacak (:count gönderi kaldı).|[0,*] Bu gönderi :until tarihine kadar :rule paylaşılacak (:count gönderi kaldı).',
+        'save' => 'Kaydet',
+        'stop' => 'Yinelemeyi durdur',
+        'cancel' => 'İptal',
+        'errors' => [
+            'not_scheduled' => 'Yalnızca planlanmış gönderiler tekrarlanabilir.',
+            'too_far' => 'Son tekrar 2038’den önce olmalıdır.',
+        ],
     ],
 ];

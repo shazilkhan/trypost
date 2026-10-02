@@ -19,13 +19,13 @@ export type {
     WelcomeSummary,
 } from '@/types/welcome';
 
-export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
-
 export interface Workspace {
     id: string;
     name: string;
     logo_url: string | null;
-    role?: WorkspaceRole | null;
+    is_owner?: boolean;
+    is_admin?: boolean;
+    requires_approval?: boolean;
     [key: string]: unknown;
 }
 
@@ -37,7 +37,6 @@ export interface AuthAccount {
 
 export interface Auth {
     user: User;
-    role: WorkspaceRole | null;
     currentWorkspace: Workspace | null;
     workspaces: Workspace[];
     account: AuthAccount | null;
@@ -108,7 +107,6 @@ export interface SharedData {
     name: string;
     auth: Auth;
     flash: FlashData;
-    sidebarOpen: boolean;
     selfHosted: boolean;
     legal: LegalLinks;
     contentTypeMediaRules?: Record<string, ContentTypeMediaRule>;

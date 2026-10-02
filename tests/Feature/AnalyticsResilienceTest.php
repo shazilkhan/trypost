@@ -14,10 +14,10 @@ test('workspace analytics remains available when a provider is unavailable', fun
     Http::fake(['*' => Http::response([], 503)]);
 
     $this->actingAs($user)
-        ->get(route('app.analytics'))
+        ->get(route('app.insights'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('analytics/Index')
+            ->component('insights/Index')
             ->where('report.summary.followers.value', null)
             ->etc());
 
@@ -34,6 +34,6 @@ test('a read-model defect is not hidden behind empty numbers', function () {
         ->andThrow(new RuntimeException('a real report bug'));
 
     $this->actingAs($user)
-        ->get(route('app.analytics'))
+        ->get(route('app.insights'))
         ->assertStatus(500);
 });

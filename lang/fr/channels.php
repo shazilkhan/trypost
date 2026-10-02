@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Déconnecter le canal',
-        'description' => 'Voulez-vous vraiment déconnecter ce canal ? Vous pourrez le reconnecter à tout moment.',
+        'description' => 'Cela supprime toutes les publications de ce canal dans TryPost, y compris les brouillons, les publications programmées et l’historique des publications. Les publications déjà en ligne sur le réseau y restent.',
         'confirm' => 'Déconnecter',
+        'keyword' => 'DÉCONNECTER',
         'cancel' => 'Annuler',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Fuseau horaire détecté par le navigateur',
         'placeholder' => 'Rechercher des villes ou des fuseaux horaires',
         'empty' => 'Aucun fuseau horaire trouvé',
+    ],
+    'grid' => [
+        'title' => 'Grille',
+        'info' => 'Ceci est une approximation de votre grille de publications. Elle peut varier sur d’autres appareils, et les publications faites directement sur Instagram apparaissent à la prochaine synchronisation.',
+        'sent_at' => 'Cette publication a été envoyée le :date à :time',
+        'empty_title' => 'Aucune publication pour le moment',
+        'empty_description' => 'Les publications du fil et les reels publiés sur ce canal apparaîtront ici.',
+        'reel' => 'Reel',
+        'carousel' => 'Carrousel',
     ],
 ];

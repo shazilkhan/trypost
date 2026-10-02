@@ -1,0 +1,115 @@
+<script setup lang="ts">
+import { router } from '@inertiajs/vue3';
+import { IconCheck, IconSend } from '@tabler/icons-vue';
+import { computed, ref } from 'vue';
+
+import { approve } from '@/actions/App/Http/Controllers/App/PostApprovalController';
+import ComposerSchedulePicker from '@/components/posts/composer/ComposerSchedulePicker.vue';
+import { Button } from '@/components/ui/button';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { toastFirstError } from '@/composables/usePostCardActions';
+import date from '@/date';
+import dayjs from '@/dayjs';
+import { ScheduleMode } from '@/types/post';
+import type { PostCard } from '@/types/publish';
+
+const props = defineProps<{
+    post: PostCard;
+    testKey: string;
+}>();
+
+const pickerOpen = ref(false);
+
+const isQueued = computed(
+    () => props.post.schedule_mode === ScheduleMode.Queue,
+);
+
+const needsTime = computed(
+    () =>
+        !isQueued.value &&
+        (!props.post.scheduled_at ||
+            dayjs(props.post.scheduled_at).isBefore(dayjs())),
+);
+
+const labelKey = computed(() => {
+    if (needsTime.value) {
+        return 'posts.approvals.approve';
+    }
+
+    return isQueued.value
+        ? 'posts.publish.actions.add_to_queue'
+        : 'posts.approvals.schedule';
+});
+
+const send = (payload: { scheduled_at?: string; publish_now?: true }): void => {
+    router.put(approve.url(props.post.id), payload, {
+        only: ['posts', 'counts'],
+        reset: ['posts'],
+        preserveScroll: true,
+        onSuccess: () => {
+            pickerOpen.value = false;
+        },
+        onError: toastFirstError,
+    });
+};
+
+const confirmTime = (value: string): void => {
+    const scheduledAt = date.formatLocalDateTimeForApi(value);
+
+    if (scheduledAt) {
+        send({ scheduled_at: scheduledAt });
+    }
+};
+</script>
+
+<template>
+    <Popover v-if="needsTime" v-model:open="pickerOpen">
+        <PopoverTrigger as-child>
+            <Button
+                variant="outline"
+                class="text-success-text"
+                :data-testid="`post-approve-${testKey}`"
+            >
+                <IconCheck class="size-4" />
+                {{ $t(labelKey) }}
+            </Button>
+        </PopoverTrigger>
+        <PopoverContent
+            align="end"
+            side="top"
+            class="w-[21rem] p-0"
+            :data-testid="`post-approve-picker-${testKey}`"
+        >
+            <ComposerSchedulePicker
+                model-value=""
+                @back="pickerOpen = false"
+                @confirm="confirmTime"
+            />
+            <div class="border-t border-border-strong p-3">
+                <Button
+                    variant="outline"
+                    class="w-full"
+                    :data-testid="`post-approve-publish-now-${testKey}`"
+                    @click="send({ publish_now: true })"
+                >
+                    <IconSend class="size-4" />
+                    {{ $t('posts.publish.actions.publish_now') }}
+                </Button>
+            </div>
+        </PopoverContent>
+    </Popover>
+    <Button
+        v-else
+        variant="outline"
+        class="text-success-text"
+        :data-testid="`post-approve-${testKey}`"
+        @click="send({})"
+    >
+        <IconCheck class="size-4" />
+        {{ $t(labelKey) }}
+    </Button>
+</template>

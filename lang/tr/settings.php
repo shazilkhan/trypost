@@ -45,6 +45,8 @@ return [
         'account_disconnected_description' => 'Bir sosyal hesabın bağlantısı kesildiğinde bir e-posta alın',
         'post_note_added' => 'Bir gönderide yeni not',
         'post_note_added_description' => 'Bir ekip üyesi bir gönderiye not eklediğinde e-posta al',
+        'collaboration' => 'İş birliği',
+        'collaboration_description' => 'Onay istekleri ile onaylanan veya reddedilen gönderiler hakkında e-posta alın',
         'save' => 'Tercihleri kaydet',
     ],
 
@@ -197,15 +199,12 @@ return [
 
         'cancel' => 'İptal',
         'remove' => 'Kaldır',
-        'make_role' => ':role yap',
 
         'invite' => [
             'title' => 'Üye Davet Et',
             'description' => 'İş birlikçiler eklemek için bir e-posta daveti gönderin',
             'email' => 'E-posta',
             'email_placeholder' => 'isbirlikci@email.com',
-            'role' => 'Rol',
-            'role_placeholder' => 'Bir rol seçin',
             'submit' => 'Davet Gönder',
         ],
 
@@ -237,19 +236,34 @@ return [
             'owner' => 'Sahip',
             'admin' => 'Yönetici',
             'member' => 'Üye',
-            'viewer' => 'İzleyici',
+        ],
+        'access' => [
+            'admin_description' => 'Üyeleri ve ayarları yönetir',
+            'publishing' => 'Yayınlama',
+            'publishes_directly' => 'Doğrudan yayınlar',
+            'needs_approval' => 'Onay gerekir',
+            'publishing_help' => 'Onay gereken üyelerin gönderileri, bir yöneticiyi veya doğrudan yayınlayan bir üyeyi bekler.',
+        ],
+        'edit' => [
+            'title' => 'Üyeyi düzenle',
+            'description' => 'Bu üyenin bu çalışma alanında neler yapabileceğini seçin.',
+            'submit' => 'Kaydet',
+            'action' => 'Erişimi düzenle',
         ],
 
         'errors' => [
             'invite_exists' => 'Bu e-posta için zaten bir davet var.',
             'email_belongs_to_account' => 'Bu e-posta zaten başka bir TryPost hesabına ait. Bunun yerine özel bir iş e-postası isteyin.',
+            'cannot_remove_self' => 'Kendinizi kaldıramazsınız.',
+            'cannot_remove_owner' => 'Hesap sahibini kaldıramazsınız.',
+            'cannot_change_own_access' => 'Kendi erişiminizi değiştiremezsiniz.',
+            'cannot_change_owner_access' => 'Hesap sahibinin erişimini değiştiremezsiniz.',
         ],
 
         'flash' => [
             'invite_sent' => 'Davet başarıyla gönderildi!',
             'invite_deleted' => 'Davet silindi.',
             'member_removed' => 'Üye başarıyla kaldırıldı.',
-            'role_updated' => 'Üye rolü güncellendi.',
             'wrong_email' => 'Bu davet farklı bir e-posta adresi için.',
             'already_member' => 'Zaten bu çalışma alanının bir üyesisiniz.',
             'invite_accepted' => 'Hoş geldiniz! Artık çalışma alanının bir üyesisiniz.',

@@ -220,16 +220,29 @@ In dialogs and slide-overs with Cancel and a primary action, render **Cancel fir
 
 ## Delete confirmations (type-to-confirm)
 
-When a delete confirmation for an everyday resource (label, signature, API key, webhook, repurpose, asset, …) asks the user to type something, it asks for the fixed delete keyword — never the resource's name.
+**Typing to confirm is reserved for critical actions.** Everything else — posts, ideas, templates and other everyday content — uses a plain confirmation dialog (title, description, Cancel, destructive action) with no typing. The dialog states what will be removed and nothing more: there is no generic "This action cannot be undone" line.
 
-**Posts are the exception the other way:** deleting a post uses a plain confirmation dialog (title, description, Cancel, destructive "Delete post") with no typing — a user decision, since a post is not critical enough to warrant it.
+Critical means losing it breaks something outside the item itself or cannot be rebuilt by the user in a minute. Only these ask the user to type:
 
-**Exception — high-impact or identity-bound deletions keep type-the-name:** deleting a workspace (its name), removing a member or invitation (their email), disconnecting a channel (its handle) and removing an MCP client (its name). Typing the exact name is the stronger guard there, on purpose; do not switch those to the keyword.
+- **The resource's name or identity:** deleting a workspace (its name), removing a member or invitation (their email) and removing an MCP client (its name).
+- **A fixed keyword:** deleting or regenerating an API key (`REGENERATE` for the latter), because integrations stop working at once, and disconnecting a channel (`DISCONNECT`), because its queue and automations stop.
+
+Do not add typing to a new dialog unless it meets that bar; when in doubt, ask.
+
+Typing the exact name is the stronger guard for the identity-bound ones, on purpose; do not switch those to the keyword. When the keyword is used:
 
 - The keyword is translated and **always fully uppercase** in every locale (`DELETE`, `EXCLUIR`, `ELIMINAR`, …), shown uppercase in the helper text, and compared **case-sensitively** after trimming: `delete` or `excluir` must not confirm.
 - It comes from one shared lang key in all 16 locales — never a literal, and never a per-feature copy of the word.
 - Resolve it with `$t` in the template, not `trans()` in script (see `.ai/rules/js.md`).
-- The same rules apply to other irreversible, non-delete actions that get a keyword of their own: regenerating an API key asks for `settings.api_keys.regenerate_modal.keyword` (`REGENERATE`, `REGENERAR`, …), because the old key stops working at once.
+- Regenerating an API key uses its own keyword, `settings.api_keys.regenerate_modal.keyword` (`REGENERATE`, `REGENERAR`, …), and disconnecting a channel uses `channels.disconnect_modal.keyword` (`DISCONNECT`, `DESCONECTAR`, …), under the same rules.
+
+## Translated copy must fit its UI slot
+
+Every lang string is rendered in all 16 locales, and the longest one decides the layout. Menu items, buttons, tabs, badges and other single-line controls must not wrap onto a second line in any locale.
+
+- When adding or changing a key, check the longest translations (French, German, Ukrainian, Russian, Polish and Portuguese usually run longest) against the slot, and shorten the copy in that locale rather than letting it wrap. A shorter natural phrase beats a literal one (`Ajustes do workspace`, not `Configurações do workspace`).
+- Never fix a wrap by truncating the text or widening one locale's layout; the label has to stay readable everywhere.
+- Cover dense menus with a browser test that renders every `Locale` case and fails on wrapped items — `tests/Browser/SidebarMenuTest.php` ("no sidebar menu item wraps onto a second line in any language") is the pattern.
 
 ## AI agents (`app/Ai/Agents`)
 
@@ -324,6 +337,71 @@ not reintroduce either. What still holds:
 - `accounts.popup_callback.network_taken` / `accounts.telegram.network_taken` stay
  in the lang files because `NetworkAlreadyConnectedException` still uses the key
  for a reconnect that collides on the unique identity index.
+
+## Disconnecting a channel deletes its posts
+
+`SocialController@disconnect` runs `DeleteChannelPosts::forAccount()` before it
+deletes the account: every post of that channel (drafts, scheduled, pending
+approval, failed, sent and imported) goes with its media. There is no orphaned
+history — a post without a channel is a history that no longer exists.
+
+- Quiet: no `post.deleted` webhook or notification per post.
+- A legacy post with another live, enabled target keeps that target and loses
+  only this one (a Publishing post is re-settled through `FinalizePostPublication`).
+- Analytics publications stay and are only unlinked, never dismissed, so
+  reconnecting the same identity re-imports its recent posts once.
+- `posts:purge-orphaned {--workspace=}` removes orphans left by earlier
+  disconnects through the same action.
+
+## Member permissions and post approvals
+
+A workspace membership (`user_workspace`) and an invite carry two flags:
+`is_admin` (manages members, settings, channels) and `requires_approval` (the
+member's posts need approval; always `false` for admins). There are no roles any
+more (Admin / Member / Viewer) — `App\Enums\UserWorkspace\Role` was removed in
+October 2026; do not reintroduce it. The account owner is always an admin and
+publishes directly.
+
+- Read abilities through `User::isWorkspaceAdmin()`, `requiresApprovalIn()`,
+  `canPublishDirectlyIn()` and the `WorkspacePolicy` abilities (`createPost` =
+  any member, `publishDirectly` / `approvePosts` = owner or member who publishes
+  directly). On the client, `useWorkspaceAbilities()`.
+- `App\Support\PostApproval` is the only approval rule. `CreatePosts`,
+  `UpdatePost` and `ProcessRepurposeItem` decide through
+  `PostApproval::isRequired()` with the acting user and store
+  `Status::PendingApproval` instead of scheduling, queueing or publishing;
+  `CreateChannelPost` stores the status its caller decided. `ApprovePost` replays
+  the request through `UpdatePost`; `RejectPost` writes `Draft` with
+  `PostApproval::transition()`. Media attached by the MCP/API attach tools goes
+  through `AppendPostMedia`, which sends an approved, scheduled post back through
+  `UpdatePost` when `PostApproval::isRequired()` says so. Never add a second check
+  in a controller, API or MCP tool. System callers (`ScheduleNextOccurrence`, recovery) pass no actor and are
+  never gated, so an approved recurring series keeps publishing.
+- `posts.approval_requested_by` records who asked, which is not always the author
+  (a member who needs approval editing someone else's approved post). It is set
+  and cleared only by `PostApproval::transition()`; read it through
+  `Post::approvalRequester()` / `scopeApprovalRequestedBy()`, which fall back to
+  `posts.user_id` when it is null. Requesters see only their own requests in the
+  Approvals tab and the calendar (`scopeVisiblePendingApprovalsFor()`), and the
+  decision email goes to the requester.
+- Approving, rejecting and any `UpdatePost` of a pending post run under the
+  post's approval lock (`PostApproval::whilePending()`), which re-reads the post
+  and fails with `posts.approvals.errors.not_pending` when it is no longer pending.
+  `AppendPostMedia` takes the same lock for every post (`PostApproval::locked()`,
+  no status requirement) and decides from the status re-read there. The lock is
+  re-entrant within one process, so `ApprovePost` can call `UpdatePost`.
+- A pending queue request has `schedule_mode = queue`, no `scheduled_at` and its
+  position in `approval_queue_position`; it is placed in the queue only when
+  approved. Approving replays the stored request through `UpdatePost` as the
+  approver (`ApprovePost`), which records `approved_by` / `approved_at`.
+- A repurpose item created by a member who requires approval stays marked
+  Published while its posts are pending approval: the item records the hand-off to
+  the queue, not the network publication.
+- Approval emails go through `SendNotification` with `Type::Collaboration`.
+  Requests email every approver except the requester, list only the posts still
+  pending when the job runs and are dropped when none is; decisions are grouped
+  per `post_group_id`, approver and requester by `NotifyApprovalDecision`
+  (cache + one unique delayed job).
 
 ## UI locale (`users.locale`)
 
@@ -644,6 +722,7 @@ Standing constraints:
 - NEVER add `Co-Authored-By` lines to commit messages.
 - NEVER commit, push, or open PRs unless explicitly asked by the user.
 - Always create a new branch for feature work before making changes.
+- **Exception — TryPost 2.0:** while the checked-out branch is `codex/independent-social-posts`, every change belongs to TryPost 2.0 and stays on that branch. Do not create new branches or worktrees for features, fixes or follow-ups there. This exception ends when that branch is merged into `main`; from then on the rule above applies again.
 
 ## Repurpose account health
 

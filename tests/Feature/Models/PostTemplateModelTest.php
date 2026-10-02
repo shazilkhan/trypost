@@ -2,19 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\PostTemplate;
 use App\Models\User;
 use App\Models\Workspace;
-
-function postTemplateMember(Workspace $workspace, Role $role): User
-{
-    $member = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
-    $member->update(['current_workspace_id' => $workspace->id]);
-
-    return $member->fresh();
-}
 
 beforeEach(function () {
     $owner = User::factory()->create();
@@ -22,8 +12,8 @@ beforeEach(function () {
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $this->alice = postTemplateMember($this->workspace, Role::Member);
-    $this->bob = postTemplateMember($this->workspace, Role::Member);
+    $this->alice = workspaceMember($this->workspace, 'member');
+    $this->bob = workspaceMember($this->workspace, 'member');
 });
 
 test('a teammate personal template never leaks through the scopes', function () {
@@ -53,25 +43,19 @@ test('orphaned personal templates are hidden and team templates survive their cr
 test('the policy allows team templates and own personal templates only', function () {
     $team = PostTemplate::factory()->team()->create(['workspace_id' => $this->workspace->id]);
     $alicePersonal = PostTemplate::factory()->personal($this->alice)->create(['workspace_id' => $this->workspace->id]);
-    $viewer = postTemplateMember($this->workspace, Role::Viewer);
-    $stranger = User::factory()->create();
-    $otherWorkspace = Workspace::factory()->create(['account_id' => $stranger->account_id, 'user_id' => $stranger->id]);
-    $otherWorkspace->members()->attach($stranger->id, ['role' => Role::Member->value]);
-    $stranger->update(['current_workspace_id' => $otherWorkspace->id]);
-    $stranger = $stranger->fresh();
+    $outsider = workspaceOutsider($this->workspace);
 
     foreach (['view', 'update', 'delete'] as $ability) {
         expect($this->bob->can($ability, $team))->toBeTrue($ability)
             ->and($this->alice->can($ability, $alicePersonal))->toBeTrue($ability)
             ->and($this->bob->can($ability, $alicePersonal))->toBeFalse($ability)
-            ->and($viewer->can($ability, $team))->toBeFalse($ability)
-            ->and($stranger->can($ability, $team))->toBeFalse($ability);
+            ->and($outsider->can($ability, $team))->toBeFalse($ability);
     }
 
     expect($this->bob->can('create', PostTemplate::class))->toBeTrue()
         ->and($this->bob->can('viewAny', PostTemplate::class))->toBeTrue()
-        ->and($viewer->can('create', PostTemplate::class))->toBeFalse()
-        ->and($viewer->can('viewAny', PostTemplate::class))->toBeFalse();
+        ->and($outsider->can('create', PostTemplate::class))->toBeFalse()
+        ->and($outsider->can('viewAny', PostTemplate::class))->toBeFalse();
 });
 
 test('an orphaned personal template is denied to everyone', function () {

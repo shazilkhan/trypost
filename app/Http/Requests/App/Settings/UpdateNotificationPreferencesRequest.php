@@ -19,6 +19,7 @@ class UpdateNotificationPreferencesRequest extends FormRequest
             'post_failed' => ['required', 'boolean'],
             'account_disconnected' => ['required', 'boolean'],
             'post_note_added' => ['required', 'boolean'],
+            'collaboration' => ['required', 'boolean'],
         ];
     }
 }

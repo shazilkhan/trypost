@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\MediaItem;
+use App\Enums\Notification\Type;
 use App\Enums\Post\CreatedVia;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
@@ -20,6 +21,8 @@ use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Jobs\PublishPost;
 use App\Jobs\Repurpose\ProcessRepurposeItem;
+use App\Jobs\SendNotification;
+use App\Mail\PostApprovalRequested;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -574,4 +577,67 @@ test('a redelivered job does not replicate an item that was skipped', function (
     expect(Post::query()->where('repurpose_item_id', $item->id)->count())->toBe(0)
         ->and($item->fresh()->status)->toBe(ItemStatus::Skipped)
         ->and($item->fresh()->reason)->toBe(ItemReason::PublishedViaTrypost);
+});
+
+test('repurpose auto-posts of a requester wait for approval', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+    $item = repurposeWithTwoDestinations();
+    $requester = workspaceMember($item->repurpose->workspace, 'approval');
+    $item->repurpose->update(['user_id' => $requester->id]);
+
+    processItem($item->fresh());
+
+    $posts = Post::where('repurpose_item_id', $item->id)->get();
+
+    expect($posts)->toHaveCount(2)
+        ->and(Post::query()->due()->whereIn('id', $posts->pluck('id'))->count())->toBe(0);
+    $posts->each(fn (Post $post) => expect($post->status)->toBe(PostStatus::PendingApproval)
+        ->and($post->approval_requested_at)->not->toBeNull());
+    Bus::assertNotDispatched(PublishPost::class);
+});
+
+test('a requester repurpose run emails each approver once with every post, never the creator', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class, SendNotification::class]);
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+    $item = repurposeWithTwoDestinations();
+    $workspace = $item->repurpose->workspace;
+    $publisher = workspaceMember($workspace, 'member');
+    $requester = workspaceMember($workspace, 'approval');
+    workspaceMember($workspace, 'approval');
+    $item->repurpose->update(['user_id' => $requester->id]);
+    $ownerId = $workspace->account->owner_id;
+
+    processItem($item->fresh());
+
+    $postIds = Post::where('repurpose_item_id', $item->id)->pluck('id')->sort()->values()->all();
+    $notifications = Queue::pushed(SendNotification::class)
+        ->filter(fn (SendNotification $job): bool => $job->mailable instanceof PostApprovalRequested);
+
+    expect($ownerId)->not->toBeNull()
+        ->and($postIds)->toHaveCount(2)
+        ->and($notifications->map(fn (SendNotification $job): string => $job->user->id)->sort()->values()->all())
+        ->toBe(collect([$ownerId, $publisher->id])->sort()->values()->all());
+
+    $notifications->each(fn (SendNotification $job) => expect($job->type)->toBe(Type::Collaboration)
+        ->and(collect($job->mailable->postIds)->sort()->values()->all())->toBe($postIds)
+        ->and($job->mailable->requester->is($requester))->toBeTrue());
+    expect(Post::whereIn('id', $postIds)->pluck('approval_requested_by')->unique()->values()->all())->toBe([$requester->id]);
+});
+
+test('a requester repurpose in draft mode sends no approval email', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class, SendNotification::class]);
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+    $item = repurposeWithTwoDestinations();
+    $workspace = $item->repurpose->workspace;
+    workspaceMember($workspace, 'member');
+    $requester = workspaceMember($workspace, 'approval');
+    $item->repurpose->update(['user_id' => $requester->id, 'publish_mode' => PublishMode::Draft]);
+
+    processItem($item->fresh());
+
+    expect(Post::where('repurpose_item_id', $item->id)->count())->toBe(2);
+    Queue::assertNotPushed(SendNotification::class);
 });

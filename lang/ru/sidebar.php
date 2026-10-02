@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'workspaces' => 'Рабочие пространства',
     'select_workspace' => 'Выберите рабочее пространство',
-    'create_workspace' => 'Создать рабочее пространство',
+    'create_workspace' => 'Новое пространство',
     'new' => 'Создать',
     'create' => 'Создание',
     'new_menu' => [
@@ -22,11 +22,13 @@ return [
     'log_out' => 'Выйти',
     'help' => 'Помощь',
     'language' => 'Язык: :name',
+    'theme' => 'Тема: :name',
+    'manage_team' => 'Управление командой',
+    'channels_count' => ':count канал|:count канала|:count каналов',
     'groups' => [
         'posts' => 'Публикация',
         'others' => 'Прочее',
     ],
-    'analytics' => 'Аналитика',
     'channels' => 'Каналы',
     'search_channels' => 'Поиск каналов',
     'channel_submenu' => 'Подменю :name',

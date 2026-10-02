@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Post\AppendPostMedia;
 use App\Actions\Post\CreatePosts;
 use App\Actions\Post\DeletePost;
 use App\Actions\Post\HostInlineMedia;
@@ -115,7 +116,7 @@ class PostController extends Controller
             );
         }
 
-        $result = UpdatePost::execute($request->user()->currentWorkspace, $post, $data);
+        $result = UpdatePost::execute($request->user()->currentWorkspace, $post, $data, $request->user());
 
         if (data_get($result, 'action') === PostAction::Finalized) {
             return response()->json(
@@ -160,7 +161,7 @@ class PostController extends Controller
 
         $media = $post->workspace->addMedia($file, Media::COLLECTION_UPLOADS);
 
-        $post->appendMedia([MediaItem::fromMedia($media)->toArray()]);
+        AppendPostMedia::execute($post, [MediaItem::fromMedia($media)->toArray()], $request->user());
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);
 
@@ -179,7 +180,7 @@ class PostController extends Controller
             ]);
         }
 
-        $post->appendMedia([MediaItem::fromMedia($media, $request->validated('alt'))->toArray()]);
+        AppendPostMedia::execute($post, [MediaItem::fromMedia($media, $request->validated('alt'))->toArray()], $request->user());
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);
 
@@ -190,7 +191,7 @@ class PostController extends Controller
     {
         $this->authorize('update', $post);
 
-        $result = app(MediaAttacher::class)->attachFromUrls($post, $request->validated('urls'));
+        $result = app(MediaAttacher::class)->attachFromUrls($post, $request->validated('urls'), $request->user());
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);
 

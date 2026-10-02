@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Actions\User\CreateUser;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\User;
 use App\Models\Workspace;
@@ -27,7 +26,7 @@ test('user without subscription is redirected to subscribe', function () {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
@@ -47,7 +46,7 @@ test('user with active subscription can access the app', function () {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $user->account->subscriptions()->create([
@@ -82,7 +81,7 @@ test('user on trialing subscription (legacy trial-with-card) can access the app'
         'account_id' => $account->id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
@@ -109,7 +108,7 @@ test('user with past_due subscription can access the app instead of being forced
         'account_id' => $account->id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));
@@ -132,7 +131,7 @@ test('user on generic trial can access the app when card is not required', funct
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $response = $this->actingAs($user->fresh())->get(route('app.workspace.channels'));

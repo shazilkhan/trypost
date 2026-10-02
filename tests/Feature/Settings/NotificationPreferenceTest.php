@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Notification\Type;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\SendNotification;
 use App\Mail\PostPublished;
 use App\Mail\PostPublishFailed;
@@ -16,7 +15,7 @@ use Illuminate\Support\Facades\Mail;
 beforeEach(function () {
     $this->user = User::factory()->create([]);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 });
 
@@ -47,6 +46,7 @@ test('notification preferences are created with defaults on first visit', functi
     expect($preference->post_failed)->toBeTrue();
     expect($preference->account_disconnected)->toBeTrue();
     expect($preference->post_note_added)->toBeTrue();
+    expect($preference->collaboration)->toBeTrue();
 });
 
 test('user can update notification preferences', function () {
@@ -55,6 +55,7 @@ test('user can update notification preferences', function () {
         'post_failed' => true,
         'account_disconnected' => false,
         'post_note_added' => false,
+        'collaboration' => false,
     ]);
 
     $response->assertRedirect();
@@ -64,6 +65,7 @@ test('user can update notification preferences', function () {
     expect($preference->post_failed)->toBeTrue();
     expect($preference->account_disconnected)->toBeFalse();
     expect($preference->post_note_added)->toBeFalse();
+    expect($preference->collaboration)->toBeFalse();
 });
 
 test('update validates boolean fields', function () {
@@ -73,7 +75,7 @@ test('update validates boolean fields', function () {
         'account_disconnected' => true,
     ]);
 
-    $response->assertSessionHasErrors(['post_published', 'post_note_added']);
+    $response->assertSessionHasErrors(['post_published', 'post_note_added', 'collaboration']);
 });
 
 test('wantsEmailFor respects preferences', function () {
@@ -138,4 +140,11 @@ test('notification preferences update requires authentication', function () {
     ]);
 
     $response->assertRedirect(route('login'));
+});
+
+test('wantsEmailFor respects the collaboration preference', function () {
+    NotificationPreference::factory()->create(['user_id' => $this->user->id, 'collaboration' => false]);
+
+    expect($this->user->fresh()->wantsEmailFor(Type::Collaboration))->toBeFalse()
+        ->and($this->user->fresh()->wantsEmailFor(Type::PostPublished))->toBeTrue();
 });

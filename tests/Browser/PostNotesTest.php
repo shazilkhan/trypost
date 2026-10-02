@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Mail\PostNoteAdded;
 use App\Models\Post;
 use App\Models\PostNote;
@@ -33,11 +32,11 @@ test('adding a note from the popover shows it and emails the other members', fun
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $teammate = User::factory()->create();
-    $workspace->members()->attach($teammate->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($teammate->id, membershipPivot('member'));
 
     $post = Post::factory()->create([
         'workspace_id' => $workspace->id,

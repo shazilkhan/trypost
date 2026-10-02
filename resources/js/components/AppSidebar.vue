@@ -32,15 +32,14 @@ import {
     SidebarContent,
     SidebarFooter,
     SidebarHeader,
-    SidebarTrigger,
     useSidebar,
 } from '@/components/ui/sidebar';
 import WorkspaceMenuContent from '@/components/WorkspaceMenuContent.vue';
 import WorkspaceUpgradeDialog from '@/components/workspaces/WorkspaceUpgradeDialog.vue';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
-import { analytics } from '@/routes/app';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
+import { insights } from '@/routes/app';
 import { portal } from '@/routes/app/billing';
 import { index as ideasIndex, create as createIdea } from '@/routes/app/create/ideas';
 import { index as repurposes } from '@/routes/app/repurposes';
@@ -71,7 +70,7 @@ const {
     canCreateWorkspace,
     canManageAccounts,
     canManageTeam,
-} = useWorkspaceRole();
+} = useWorkspaceAbilities();
 const { open: openConnectDialog } = useConnectChannelDialog();
 
 const inviteMemberDialogOpen = ref(false);
@@ -105,8 +104,8 @@ const mainNavItems = computed<NavItem[]>(() => [
           ]
         : []),
     {
-        title: trans('sidebar.analytics'),
-        href: analytics.url(),
+        title: trans('channels.insights'),
+        href: insights.url(),
         icon: IconTrendingUp,
     },
     ...(canManageRepurposes.value
@@ -158,11 +157,13 @@ const mainNavItems = computed<NavItem[]>(() => [
                 <DropdownMenu>
                     <DropdownMenuTrigger as-child>
                         <Button
-                            class="h-9 w-full justify-center gap-1.5 rounded-full font-medium data-[state=open]:bg-primary-hover group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:px-0"
+                            class="h-9 w-full justify-center gap-1.5 rounded-full bg-primary-strong font-medium text-primary-strong-foreground hover:bg-primary-text-hover data-[state=open]:bg-primary-text-hover group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:px-0"
                             :aria-label="$t('sidebar.new')"
                             data-testid="sidebar-new"
                         >
-                            <IconPlus class="size-4" />
+                            <IconPlus
+                                class="hidden size-4 group-data-[collapsible=icon]:block"
+                            />
                             <span class="group-data-[collapsible=icon]:hidden">{{
                                 $t('sidebar.new')
                             }}</span>
@@ -185,9 +186,9 @@ const mainNavItems = computed<NavItem[]>(() => [
                             @select="openPostComposer()"
                         >
                             <span
-                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info-subtle text-info-text"
+                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-text-hover"
                             >
-                                <IconFileText class="size-5 text-info" />
+                                <IconFileText class="size-5 text-primary-text-hover" />
                             </span>
                             <span class="grid gap-0.5">
                                 <span class="text-sm font-semibold">{{
@@ -207,9 +208,9 @@ const mainNavItems = computed<NavItem[]>(() => [
                             @select="router.visit(createIdea.url())"
                         >
                             <span
-                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-success-subtle text-success-text"
+                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-strong"
                             >
-                                <IconBulb class="size-5 text-success" />
+                                <IconBulb class="size-5 text-primary-strong" />
                             </span>
                             <span class="grid gap-0.5">
                                 <span class="text-sm font-semibold">{{
@@ -328,11 +329,6 @@ const mainNavItems = computed<NavItem[]>(() => [
                         />
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <SidebarTrigger
-                    v-if="!isMobile"
-                    class="size-8 shrink-0 text-muted-foreground"
-                    data-testid="sidebar-collapse"
-                />
             </div>
         </SidebarFooter>
 

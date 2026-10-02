@@ -6,7 +6,6 @@ use App\Dto\MediaItem;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostNote;
@@ -44,7 +43,7 @@ test('schedule view switch navigates between the list and month calendar', funct
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $this->actingAs($user);
@@ -67,7 +66,7 @@ test('posts label filter searches and selects multiple labels with checkboxes', 
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -106,7 +105,7 @@ test('posts channel filter keeps accounts distinct and persists across tabs', fu
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $firstInstagram = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id, 'username' => 'first_channel']);
@@ -149,7 +148,7 @@ test('new post buttons open the global dialog without changing the page URL', fu
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -180,13 +179,13 @@ test('the global composer opens without accessibility or attribute warnings', fu
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
     $this->actingAs($user);
 
-    $page = visit(route('app.analytics'));
+    $page = visit(route('app.insights'));
     $page->assertVisible('@sidebar-new');
     $page->script(<<<'JS'
         (() => {
@@ -212,7 +211,7 @@ test('composer can search channels, preview a selected account, and expand to th
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $instagram = SocialAccount::factory()->create([
@@ -271,7 +270,8 @@ test('composer can search channels, preview a selected account, and expand to th
     JS);
     expect(abs($viewport['width'] - $viewport['viewportWidth']))->toBeLessThan(2)
         ->and(abs($viewport['height'] - $viewport['viewportHeight']))->toBeLessThan(2);
-    expect($page->script('document.querySelectorAll("[data-testid=composer-all-accounts] img").length'))->toBe(4);
+    expect($page->script('document.querySelectorAll("[data-testid=composer-all-accounts] [data-slot=avatar]").length'))->toBe(2)
+        ->and($page->script('document.querySelectorAll("[data-testid=composer-all-accounts] img").length'))->toBe(2);
 
     $composerPosition = <<<'JS'
         (async () => {
@@ -356,7 +356,7 @@ test('composer renders the Facebook and TikTok previews even before media is upl
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->create([
@@ -393,7 +393,7 @@ test('composer slide-over fills the mobile viewport without horizontal overflow'
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id]);
@@ -440,7 +440,7 @@ test('composer searches and selects multiple labels and exposes emoji and signat
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -507,7 +507,7 @@ test('composer creates and edits signatures in the popover without losing the dr
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -550,7 +550,7 @@ test('creating a four account draft keeps composition in the browser until save'
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -611,7 +611,7 @@ test('a channel without posting times keeps immediate publishing and an explicit
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -641,7 +641,7 @@ test('create another reopens a fresh composer after saving a draft', function ()
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -676,7 +676,7 @@ test('composer has the assistant in its sidebar and no template shortcut', funct
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -695,7 +695,7 @@ test('composer has the assistant in its sidebar and no template shortcut', funct
 test('recovering an empty-target draft retains its caption media and labels', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -744,7 +744,7 @@ test('recovering an empty-target draft retains its caption media and labels', fu
 test('post notes open after creation while the edit dialog still has its AI assistant', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -816,7 +816,7 @@ test('post notes open after creation while the edit dialog still has its AI assi
 test('account overrides inherit later shared edits and are discarded when an account is removed', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $accounts = SocialAccount::factory()->count(2)->create(['workspace_id' => $workspace->id, 'platform' => Platform::Instagram]);
@@ -855,7 +855,7 @@ test('X remaining characters use the same link defusing as its preview', functio
     config()->set('trypost.platforms.x.defuse_links', true);
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::X]);
@@ -875,7 +875,7 @@ test('X remaining characters use the same link defusing as its preview', functio
 test('selecting a new image uploads an asset before any post is saved', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::LinkedIn]);
@@ -912,7 +912,7 @@ test('dropping an image into the composer uploads it without saving a post', fun
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -946,7 +946,7 @@ test('dropping an image into the composer uploads it without saving a post', fun
 test('cropping one account creates a separate asset and leaves the other account image intact', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $accounts = SocialAccount::factory()->count(2)->create(['workspace_id' => $workspace->id, 'platform' => Platform::LinkedIn]);
@@ -1027,7 +1027,7 @@ test('cropping one account creates a separate asset and leaves the other account
 test('animated GIFs and videos do not offer the static image crop action', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::X]);
@@ -1051,7 +1051,7 @@ test('animated GIFs and videos do not offer the static image crop action', funct
 test('video thumbnails appear in shared and channel media', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
@@ -1087,7 +1087,7 @@ test('video thumbnails appear in shared and channel media', function () {
 test('failed crop upload keeps the original asset selected', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::X]);
@@ -1154,7 +1154,7 @@ test('failed crop upload keeps the original asset selected', function () {
 test('settled legacy multi-target history appears as one read-only card per target', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $post = Post::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id, 'status' => PostStatus::Published]);
@@ -1180,7 +1180,7 @@ test('settled legacy multi-target history appears as one read-only card per targ
 test('customizing several channels uses plural actions and flags the collapsed channel that needs fixing', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
@@ -1206,7 +1206,7 @@ test('customizing several channels uses plural actions and flags the collapsed c
 test('a persisted image in the composer offers no AI image adjustment', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);

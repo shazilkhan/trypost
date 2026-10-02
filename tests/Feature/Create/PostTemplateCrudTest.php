@@ -4,20 +4,10 @@ declare(strict_types=1);
 
 use App\Enums\PostTemplate\Visibility;
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
 use App\Models\PostTemplate;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Str;
-
-function templateCrudMember(Workspace $workspace, Role $role, array $attributes = []): User
-{
-    $member = User::factory()->create(['account_id' => $workspace->account_id, ...$attributes]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
-    $member->update(['current_workspace_id' => $workspace->id]);
-
-    return $member->fresh();
-}
 
 function templatePayload(array $overrides = []): array
 {
@@ -39,8 +29,8 @@ beforeEach(function () {
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $this->alice = templateCrudMember($this->workspace, Role::Member);
-    $this->bob = templateCrudMember($this->workspace, Role::Member);
+    $this->alice = workspaceMember($this->workspace, 'member');
+    $this->bob = workspaceMember($this->workspace, 'member');
     subscribeAccount($owner->account);
 });
 
@@ -125,7 +115,7 @@ test('duplicating a custom template adds the copy suffix and redirects to the ta
 });
 
 test('duplicating a library template copies the strings of the actor locale', function () {
-    $user = templateCrudMember($this->workspace, Role::Member, ['locale' => Locale::PortugueseBrazil]);
+    $user = workspaceMember($this->workspace, 'member', ['locale' => Locale::PortugueseBrazil]);
     app()->setLocale('pt-BR');
     $title = __('template_library.origin_story.title');
     $description = __('template_library.origin_story.description');
@@ -193,10 +183,10 @@ test('the same routes answer JSON when the request expects it', function () {
     $this->postJson(route('app.create.templates.duplicate', $aliceOnly), ['visibility' => 'team'])->assertForbidden();
 });
 
-test('a viewer is forbidden on every write endpoint', function () {
-    $viewer = templateCrudMember($this->workspace, Role::Viewer);
+test('a user outside the workspace is forbidden on every write endpoint', function () {
+    $outsider = workspaceOutsider($this->workspace);
     $template = PostTemplate::factory()->team()->create(['workspace_id' => $this->workspace->id]);
-    $this->actingAs($viewer);
+    $this->actingAs($outsider);
 
     $this->post(route('app.create.templates.store'), templatePayload())->assertForbidden();
     $this->put(route('app.create.templates.update', $template), templatePayload())->assertForbidden();
@@ -234,7 +224,7 @@ test('a member can duplicate a teammate team template', function () {
 });
 
 test('duplicating a custom template uses the actor locale for the suffix', function () {
-    $user = templateCrudMember($this->workspace, Role::Member, ['locale' => Locale::PortugueseBrazil]);
+    $user = workspaceMember($this->workspace, 'member', ['locale' => Locale::PortugueseBrazil]);
     $source = PostTemplate::factory()->team()->create(['workspace_id' => $this->workspace->id, 'title' => 'Recap']);
 
     $this->actingAs($user)->post(route('app.create.templates.duplicate', $source), ['visibility' => 'team'])->assertRedirect();

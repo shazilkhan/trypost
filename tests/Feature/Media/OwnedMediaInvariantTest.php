@@ -6,7 +6,6 @@ use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\Repurpose\PublishMode;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Repurpose\ProcessRepurposeItem;
 use App\Mcp\Servers\TryPostServer;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
@@ -40,7 +39,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id, 'account_id' => $this->user->account_id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $this->workspace->id]);
 });

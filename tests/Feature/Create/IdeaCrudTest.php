@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Actions\Idea\UpdateIdea;
 use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\Media;
@@ -28,7 +27,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -45,15 +44,6 @@ function ideaCrudAsset(Workspace $workspace): Media
 function ideaCrudMediaIds(Idea $idea): array
 {
     return collect($idea->fresh()->media)->pluck('id')->all();
-}
-
-function ideaCrudViewer(Workspace $workspace): User
-{
-    $viewer = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $workspace->id]);
-
-    return $viewer->fresh();
 }
 
 test('store creates an idea at the end of the stage with labels and media in order', function () {
@@ -279,15 +269,15 @@ test('destroy deletes the idea', function () {
     expect(Idea::find($idea->id))->toBeNull();
 });
 
-test('a viewer is forbidden on every endpoint', function () {
-    $viewer = ideaCrudViewer($this->workspace);
+test('a user outside the workspace is forbidden on every endpoint', function () {
+    $outsider = workspaceOutsider($this->workspace);
     $idea = Idea::factory()->create(['workspace_id' => $this->workspace->id]);
 
-    $this->actingAs($viewer)->postJson(route('app.create.ideas.store'), ['title' => 'x'])->assertForbidden();
-    $this->actingAs($viewer)->putJson(route('app.create.ideas.update', $idea), ['title' => 'x'])->assertForbidden();
-    $this->actingAs($viewer)->deleteJson(route('app.create.ideas.destroy', $idea))->assertForbidden();
-    $this->actingAs($viewer)->deleteJson(route('app.create.ideas.bulk-destroy'), ['idea_ids' => [$idea->id]])->assertForbidden();
-    $this->actingAs($viewer)->postJson(route('app.create.ideas.duplicate', $idea))->assertForbidden();
+    $this->actingAs($outsider)->postJson(route('app.create.ideas.store'), ['title' => 'x'])->assertForbidden();
+    $this->actingAs($outsider)->putJson(route('app.create.ideas.update', $idea), ['title' => 'x'])->assertForbidden();
+    $this->actingAs($outsider)->deleteJson(route('app.create.ideas.destroy', $idea))->assertForbidden();
+    $this->actingAs($outsider)->deleteJson(route('app.create.ideas.bulk-destroy'), ['idea_ids' => [$idea->id]])->assertForbidden();
+    $this->actingAs($outsider)->postJson(route('app.create.ideas.duplicate', $idea))->assertForbidden();
 
     expect(Idea::find($idea->id))->not->toBeNull();
 });

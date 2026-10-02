@@ -74,7 +74,7 @@ const rotate = (direction: 1 | -1): void => {
                 class="flex h-11 w-full items-center gap-3 rounded-lg border py-2 pr-3 pl-2 text-left transition-colors"
                 :class="
                     edit.preset === preset.value
-                        ? 'border-primary-strong bg-primary-selected text-success-text'
+                        ? 'border-primary-strong bg-primary-selected text-primary-text'
                         : 'border-border bg-muted'
                 "
                 @click="selectPreset(preset.value)"
@@ -84,7 +84,7 @@ const rotate = (direction: 1 | -1): void => {
                     class="size-4 shrink-0"
                     :class="
                         edit.preset === preset.value
-                            ? 'text-success-text'
+                            ? 'text-primary-text'
                             : 'text-muted-foreground'
                     "
                 />
@@ -96,7 +96,7 @@ const rotate = (direction: 1 | -1): void => {
                         class="block text-xs"
                         :class="
                             edit.preset === preset.value
-                                ? 'text-success-text'
+                                ? 'text-primary-text'
                                 : 'text-muted-foreground'
                         "
                         >{{ $t(presetHint(preset)) }}</span

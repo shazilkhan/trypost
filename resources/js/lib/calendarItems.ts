@@ -15,7 +15,7 @@ export const calendarItems = (
     [
         ...posts.map((post) => ({
             key: `post-${post.id}`,
-            at: post.scheduled_at,
+            at: post.calendar_at,
             post,
         })),
         ...slots.map((slot) => ({

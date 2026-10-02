@@ -11,7 +11,6 @@ use App\Actions\RssFeed\SyncRssFeedItems;
 use App\Actions\Workspace\DeleteWorkspace;
 use App\Actions\Workspace\PurgeWorkspace;
 use App\Enums\RssFeed\Format;
-use App\Enums\UserWorkspace\Role;
 use App\Events\PostDeleted;
 use App\Jobs\Media\DeleteMediaFiles;
 use App\Models\Idea;
@@ -252,7 +251,7 @@ test('large owner sets are deleted in chunks, one file job per chunk', function 
 function deleteOwnedMediaWorkspaceWithOwners(User $owner): array
 {
     $workspace = Workspace::factory()->create(['account_id' => $owner->account_id, 'user_id' => $owner->id]);
-    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($owner->id, membershipPivot('admin'));
     $post = Post::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $owner->id]);
     $idea = Idea::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $owner->id]);
     $item = RssFeedItem::factory()->for(RssFeed::factory()->create(['workspace_id' => $workspace->id]), 'feed')->create();

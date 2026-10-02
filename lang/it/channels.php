@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Scollega canale',
-        'description' => 'Vuoi davvero scollegare questo canale? Puoi ricollegarlo in qualsiasi momento.',
+        'description' => 'Questo elimina tutti i post di questo canale in TryPost, compresi bozze, post programmati e la cronologia dei pubblicati. I post già presenti sul social restano lì.',
         'confirm' => 'Scollega',
+        'keyword' => 'SCOLLEGA',
         'cancel' => 'Annulla',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Fuso orario rilevato dal browser',
         'placeholder' => 'Cerca città o fusi orari',
         'empty' => 'Nessun fuso orario trovato',
+    ],
+    'grid' => [
+        'title' => 'Griglia',
+        'info' => 'Questa è un’approssimazione della tua griglia di post. Può variare su altri dispositivi, e i post pubblicati direttamente su Instagram compaiono quando li sincronizziamo.',
+        'sent_at' => 'Questo post è stato inviato il :date alle :time',
+        'empty_title' => 'Ancora nessun post pubblicato',
+        'empty_description' => 'I post del feed e i reel pubblicati su questo canale appariranno qui.',
+        'reel' => 'Reel',
+        'carousel' => 'Carosello',
     ],
 ];

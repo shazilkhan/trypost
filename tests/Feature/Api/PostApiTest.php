@@ -897,3 +897,18 @@ it('accepts the original aspect_ratio (no crop) on create', function () {
         ->postPlatforms()->where('social_account_id', $this->socialAccount->id)->first();
     expect($platform->meta['aspect_ratio'])->toBe('original');
 });
+
+it('shows the origin of imported and trypost posts', function () {
+    $imported = Post::factory()->imported()->create(['workspace_id' => $this->workspace->id]);
+    $ours = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+
+    $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+        ->getJson(route('api.posts.show', $imported))
+        ->assertOk()
+        ->assertJsonPath('origin', 'network')
+        ->assertJsonPath('status', 'published');
+
+    $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+        ->getJson(route('api.posts.show', $ours))
+        ->assertJsonPath('origin', 'trypost');
+});

@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'Recevez un e-mail lorsqu\'un compte social est déconnecté',
         'post_note_added' => 'Nouvelle note sur une publication',
         'post_note_added_description' => 'Recevoir un e-mail quand un membre de l\'équipe ajoute une note à une publication',
+        'collaboration' => 'Collaboration',
+        'collaboration_description' => 'Recevez des e-mails sur les demandes d\'approbation et les publications approuvées ou refusées',
         'save' => 'Enregistrer les préférences',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'Annuler',
         'remove' => 'Retirer',
-        'make_role' => 'Nommer :role',
 
         'invite' => [
             'title' => 'Inviter un membre',
             'description' => 'Envoyez une invitation par e-mail pour ajouter des collaborateurs',
             'email' => 'E-mail',
             'email_placeholder' => 'collaborateur@email.com',
-            'role' => 'Rôle',
-            'role_placeholder' => 'Sélectionner un rôle',
             'submit' => 'Envoyer l\'invitation',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'Propriétaire',
             'admin' => 'Administrateur',
             'member' => 'Membre',
-            'viewer' => 'Lecteur',
+        ],
+        'access' => [
+            'admin_description' => 'Gère les membres et les paramètres',
+            'publishing' => 'Publication',
+            'publishes_directly' => 'Publie directement',
+            'needs_approval' => 'Nécessite une approbation',
+            'publishing_help' => 'Les publications des membres qui nécessitent une approbation attendent un administrateur ou un membre qui publie directement.',
+        ],
+        'edit' => [
+            'title' => 'Modifier le membre',
+            'description' => 'Choisissez ce que ce membre peut faire dans cet espace de travail.',
+            'submit' => 'Enregistrer',
+            'action' => 'Modifier l\'accès',
         ],
 
         'errors' => [
             'invite_exists' => 'Une invitation existe déjà pour cet e-mail.',
             'email_belongs_to_account' => 'Cet e-mail appartient déjà à un autre compte TryPost. Demandez un e-mail professionnel dédié.',
+            'cannot_remove_self' => 'Vous ne pouvez pas vous retirer vous-même.',
+            'cannot_remove_owner' => 'Vous ne pouvez pas retirer le propriétaire du compte.',
+            'cannot_change_own_access' => 'Vous ne pouvez pas modifier votre propre accès.',
+            'cannot_change_owner_access' => 'Vous ne pouvez pas modifier l\'accès du propriétaire du compte.',
         ],
 
         'flash' => [
             'invite_sent' => 'Invitation envoyée avec succès !',
             'invite_deleted' => 'Invitation supprimée.',
             'member_removed' => 'Membre retiré avec succès.',
-            'role_updated' => 'Rôle du membre mis à jour.',
             'wrong_email' => 'Cette invitation concerne une autre adresse e-mail.',
             'already_member' => 'Vous êtes déjà membre de cet espace de travail.',
             'invite_accepted' => 'Bienvenue ! Vous êtes maintenant membre de l\'espace de travail.',

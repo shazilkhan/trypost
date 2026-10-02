@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'استلم بريدًا إلكترونيًا عند فصل حساب اجتماعي',
         'post_note_added' => 'ملاحظة جديدة على منشور',
         'post_note_added_description' => 'تلقَّ بريدًا إلكترونيًا عندما يضيف أحد أعضاء الفريق ملاحظة إلى منشور',
+        'collaboration' => 'التعاون',
+        'collaboration_description' => 'تلقَّ رسائل حول طلبات الموافقة والمنشورات المقبولة أو المرفوضة',
         'save' => 'حفظ التفضيلات',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'إلغاء',
         'remove' => 'إزالة',
-        'make_role' => 'تعيين كـ:role',
 
         'invite' => [
             'title' => 'دعوة عضو',
             'description' => 'أرسل دعوة عبر البريد الإلكتروني لإضافة متعاونين',
             'email' => 'البريد الإلكتروني',
             'email_placeholder' => 'collaborator@email.com',
-            'role' => 'الدور',
-            'role_placeholder' => 'اختر دورًا',
             'submit' => 'إرسال الدعوة',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'المالك',
             'admin' => 'مشرف',
             'member' => 'عضو',
-            'viewer' => 'مشاهد',
+        ],
+        'access' => [
+            'admin_description' => 'يدير الأعضاء والإعدادات',
+            'publishing' => 'النشر',
+            'publishes_directly' => 'ينشر مباشرة',
+            'needs_approval' => 'يحتاج إلى موافقة',
+            'publishing_help' => 'منشورات الأعضاء الذين يحتاجون إلى موافقة تنتظر مشرفًا أو عضوًا ينشر مباشرة.',
+        ],
+        'edit' => [
+            'title' => 'تعديل العضو',
+            'description' => 'اختر ما يمكن لهذا العضو فعله في مساحة العمل هذه.',
+            'submit' => 'حفظ',
+            'action' => 'تعديل الصلاحيات',
         ],
 
         'errors' => [
             'invite_exists' => 'يوجد بالفعل دعوة لهذا البريد الإلكتروني.',
             'email_belongs_to_account' => 'هذا البريد الإلكتروني ينتمي بالفعل إلى حساب TryPost آخر. اطلب بريد عمل مخصص بدلاً من ذلك.',
+            'cannot_remove_self' => 'لا يمكنك إزالة نفسك.',
+            'cannot_remove_owner' => 'لا يمكنك إزالة مالك الحساب.',
+            'cannot_change_own_access' => 'لا يمكنك تغيير صلاحياتك.',
+            'cannot_change_owner_access' => 'لا يمكنك تغيير صلاحيات مالك الحساب.',
         ],
 
         'flash' => [
             'invite_sent' => 'تم إرسال الدعوة بنجاح!',
             'invite_deleted' => 'تم حذف الدعوة.',
             'member_removed' => 'تمت إزالة العضو بنجاح.',
-            'role_updated' => 'تم تحديث دور العضو.',
             'wrong_email' => 'هذه الدعوة مخصصة لبريد إلكتروني مختلف.',
             'already_member' => 'أنت عضو بالفعل في مساحة العمل هذه.',
             'invite_accepted' => 'مرحبًا! أنت الآن عضو في مساحة العمل.',

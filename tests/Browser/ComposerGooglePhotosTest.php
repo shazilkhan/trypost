@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Media\Source;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -55,7 +54,7 @@ function openComposerForGooglePhotos(mixed $test): mixed
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);

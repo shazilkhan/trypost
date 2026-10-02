@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 use App\Enums\Post\Status as PostStatus;
-use App\Enums\UserWorkspace\Role;
+use App\Enums\PostPlatform\Status as PostPlatformStatus;
+use App\Enums\User\TimeFormat;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -34,7 +35,7 @@ function calendarPageSetup(): array
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -339,4 +340,32 @@ test('show posting times renders empty slots in the week and month views', funct
 
     expect($month->script('document.querySelector(\'[data-testid="composer-submit"]\').dataset.scheduleMode'))->toBe('next');
     $month->assertNoJavaScriptErrors();
+});
+
+test('an imported post shows in the hour it was published', function () {
+    [$user, $linkedin, $x] = calendarPageSetup();
+    $user->update(['time_format' => TimeFormat::TwentyFourHour]);
+    $weekStart = now('UTC')->startOfWeek()->addWeek();
+    $day = $weekStart->copy()->addDays(1);
+    $dayKey = $day->format('Y-m-d');
+
+    $post = Post::factory()->imported()->create([
+        'workspace_id' => $x->workspace_id,
+        'published_at' => $day->copy()->setTime(16, 40),
+    ]);
+    PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $x->id,
+        'platform' => $x->platform,
+        'status' => PostPlatformStatus::Published,
+    ]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'week', 'week' => $weekStart->format('Y-m-d')]));
+    waitForCalendarTestId($page, "calendar-post-{$post->id}");
+
+    expect(calendarChipSlot($page, $post))->toBe("calendar-slot-{$dayKey}-16");
+    $page->assertSeeIn("@calendar-post-{$post->id}", '16:40');
+    $page->assertNoJavaScriptErrors();
 });

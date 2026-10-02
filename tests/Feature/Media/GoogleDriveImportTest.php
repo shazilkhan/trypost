@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Actions\Media\StartMediaImport;
 use App\Enums\Media\Source;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Models\Account;
 use App\Models\Media;
@@ -40,7 +39,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 

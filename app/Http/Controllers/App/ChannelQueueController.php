@@ -17,7 +17,7 @@ class ChannelQueueController extends Controller
     public function reorder(ReorderChannelQueueRequest $request, SocialAccount $account): RedirectResponse
     {
         $this->ensureCurrentWorkspace($request, $account);
-        $this->authorize('createPost', $request->user()->currentWorkspace);
+        $this->authorize('publishDirectly', $request->user()->currentWorkspace);
 
         ReorderChannelQueue::handle($account, $request->validated('post_ids'));
 

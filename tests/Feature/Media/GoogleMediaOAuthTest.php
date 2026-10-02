@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Models\Account;
 use App\Models\User;
@@ -48,7 +47,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 
@@ -209,21 +208,19 @@ test('start rejects an unknown or disabled source and a malformed nonce', functi
     'unsafe nonce' => [['source' => 'google_drive', 'nonce' => 'composer nonce/../0123456'], 'nonce'],
 ]);
 
-test('a viewer cannot start, finish or claim a google sign-in', function () {
+test('a user outside the workspace cannot start, finish or claim a google sign-in', function () {
     Http::fake();
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->get(route('app.integrations.google.start', ['source' => 'google_drive', 'nonce' => GOOGLE_MEDIA_TEST_NONCE]))
         ->assertForbidden();
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->get(route('app.integrations.google.callback', ['code' => 'auth-code', 'state' => 'state']))
         ->assertForbidden();
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->postJson(route('app.integrations.google.returns.claim', GOOGLE_MEDIA_TEST_NONCE))
         ->assertForbidden();
 
@@ -260,12 +257,12 @@ test('a callback is refused for another user or after switching workspace', func
     $query = startGoogleMediaSignIn($this->user, 'google_drive');
 
     $other = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($other->id, membershipPivot('member'));
     $other->update(['current_workspace_id' => $this->workspace->id]);
 
     if ($case === 'other workspace') {
         $second = Workspace::factory()->create(['account_id' => $this->account->id, 'user_id' => $this->user->id]);
-        $second->members()->attach($this->user->id, ['role' => Role::Member->value]);
+        $second->members()->attach($this->user->id, membershipPivot('member'));
         $this->user->update(['current_workspace_id' => $second->id]);
     }
 
@@ -354,7 +351,7 @@ test('drive: the code is exchanged server-side and the composer claims the token
     expect(serialize($stored))->not->toContain(GOOGLE_MEDIA_TEST_TOKEN);
 
     $other = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($other->id, membershipPivot('member'));
     $other->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->actingAs($other)

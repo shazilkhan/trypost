@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Pubblica post',
         'destination_issues' => '{1} :count problema da risolvere|[0,*] :count problemi da risolvere',
         'create_another' => 'Crea un altro',
+        'request_approval' => 'Salva e chiedi approvazione',
         'templates' => 'Modelli',
         'expand' => 'Espandi finestra',
         'post_previews' => 'Anteprime dei post',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'In attesa',
         'draft' => 'Bozza',
+        'pending_approval' => 'In attesa di approvazione',
         'scheduled' => 'Programmato',
         'publishing' => 'In pubblicazione',
         'retrying' => 'Nuovo tentativo',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Dettagli del post',
-        'back' => 'Indietro',
-        'no_platforms' => 'Nessuna piattaforma selezionata.',
-        'view_on_platform' => 'Visualizza sulla piattaforma',
         'published_on' => 'Pubblicato il :date',
         'scheduled_for' => 'Programmato per il :date',
-        'draft' => 'Bozza',
-        'metrics' => 'Metriche',
-        'pending_review' => 'Google sta esaminando questo post. Lo aggiorneremo a revisione conclusa.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'Tutti i canali',
         'tabs' => [
             'queue' => 'Coda',
+            'approvals' => 'Approvazioni',
             'drafts' => 'Bozze',
             'sent' => 'Inviati',
         ],
         'view' => [
             'list' => 'Elenco',
             'calendar' => 'Calendario',
+        ],
+        'metrics' => [
+            'refreshed' => 'Aggiornato :time',
+            'previous' => 'Metriche precedenti',
+            'next' => 'Metriche successive',
         ],
         'new_post' => 'Nuovo post',
         'today' => 'Oggi',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => 'Creato da :name :when',
         'empty' => [
-            'queue' => 'La tua coda è vuota. Aggiungi orari di pubblicazione o crea un post.',
-            'drafts' => 'Ancora nessuna bozza.',
-            'sent' => 'Ancora nulla di pubblicato.',
+            'queue' => [
+                'title' => 'Nessun post programmato',
+                'description' => 'La tua coda è vuota. Programma un post e apparirà qui.',
+            ],
+            'approvals' => [
+                'title' => 'Nessun post in attesa',
+                'description' => 'I post che richiedono approvazione appariranno qui.',
+            ],
+            'drafts' => [
+                'title' => 'Nessuna bozza',
+                'description' => 'Non hai ancora salvato bozze. Quando lo farai, appariranno qui.',
+            ],
+            'sent' => [
+                'title' => 'Nessun post inviato',
+                'description' => 'I post che pubblichi appariranno qui.',
+            ],
         ],
         'reordered' => 'Coda aggiornata',
+    ],
+    'group' => [
+        'channels' => 'Canali (:count)',
+        'collapse' => 'Nascondi canali',
+        'expand' => 'Mostra canali',
+    ],
+    'approvals' => [
+        'badge' => 'Approvazione',
+        'time_passed' => 'Orario superato',
+        'approve' => 'Approva',
+        'schedule' => 'Programma',
+        'reject' => 'Rifiuta',
+        'revert' => 'Ritira richiesta di approvazione',
+        'requested' => 'Approvazione richiesta',
+        'errors' => [
+            'not_pending' => 'Questo post non è più in attesa di approvazione.',
+            'time_passed' => 'L\'orario richiesto è passato. Scegli un nuovo orario.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Ricorrente',
+        'make' => 'Rendi ricorrente',
+        'edit' => 'Modifica ricorrenza',
+        'title' => 'Post ricorrente',
+        'description' => 'Programmeremo le prossime ripetizioni in base alla data e all’ora di questo post.',
+        'repeat_every' => 'Ripeti ogni',
+        'for' => 'per',
+        'times' => '{1} volta|[0,*] volte',
+        'interval_label' => 'Intervallo di ripetizione',
+        'frequency_label' => 'Unità di ripetizione',
+        'times_label' => 'Numero di volte',
+        'frequency' => [
+            'day' => '{1} Giorno|[0,*] Giorni',
+            'week' => '{1} Settimana|[0,*] Settimane',
+            'month' => '{1} Mese|[0,*] Mesi',
+            'year' => '{1} Anno|[0,*] Anni',
+        ],
+        'rule' => [
+            'day' => '{1} ogni giorno alle :time|[0,*] ogni :count giorni alle :time',
+            'week' => '{1} ogni :weekday alle :time|[0,*] ogni :count settimane il :weekday alle :time',
+            'month' => '{1} ogni mese il giorno :day alle :time|[0,*] ogni :count mesi il giorno :day alle :time',
+            'year' => '{1} ogni anno il :date alle :time|[0,*] ogni :count anni il :date alle :time',
+        ],
+        'summary' => 'Questo post verrà condiviso :rule, fino al :until.',
+        'banner' => '{1} Questo post verrà condiviso :rule, fino al :until (:count post rimanente).|[0,*] Questo post verrà condiviso :rule, fino al :until (:count post rimanenti).',
+        'save' => 'Salva',
+        'stop' => 'Interrompi ricorrenza',
+        'cancel' => 'Annulla',
+        'errors' => [
+            'not_scheduled' => 'Solo i post programmati possono ripetersi.',
+            'too_far' => 'L’ultima ripetizione deve essere prima del 2038.',
+        ],
     ],
 ];

@@ -120,7 +120,6 @@ return [
         'endpoint_http_status' => 'Endpoint повернув HTTP :status.',
     ],
     'flash' => [
-        'created' => 'Вебхук створено.',
         'updated' => 'Вебхук оновлено.',
         'deleted' => 'Вебхук видалено.',
         'secret_rotated' => 'Секрет підпису змінено.',

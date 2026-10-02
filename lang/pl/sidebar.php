@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'workspaces' => 'Przestrzenie robocze',
     'select_workspace' => 'Wybierz przestrzeń roboczą',
-    'create_workspace' => 'Utwórz przestrzeń roboczą',
+    'create_workspace' => 'Nowa przestrzeń',
     'new' => 'Nowy',
     'create' => 'Twórz',
     'new_menu' => [
@@ -22,11 +22,13 @@ return [
     'log_out' => 'Wyloguj się',
     'help' => 'Pomoc',
     'language' => 'Język: :name',
+    'theme' => 'Motyw: :name',
+    'manage_team' => 'Zarządzaj zespołem',
+    'channels_count' => ':count kanał|:count kanały|:count kanałów',
     'groups' => [
         'posts' => 'Publikuj',
         'others' => 'Inne',
     ],
-    'analytics' => 'Analityka',
     'channels' => 'Kanały',
     'search_channels' => 'Szukaj kanałów',
     'channel_submenu' => 'Podmenu :name',

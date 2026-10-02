@@ -169,7 +169,9 @@ class PollRepurposeSource implements ShouldBeUnique, ShouldQueue
 
         return PostPlatform::query()
             ->whereIn('platform_post_id', $ids)
-            ->whereHas('post', fn (Builder $query) => $query->where('workspace_id', $this->account->workspace_id))
+            ->whereHas('post', fn (Builder $query) => $query
+                ->createdInTryPost()
+                ->where('workspace_id', $this->account->workspace_id))
             ->pluck('platform_post_id')
             ->all();
     }

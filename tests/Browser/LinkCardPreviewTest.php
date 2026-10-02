@@ -6,7 +6,6 @@ use Amp\DeferredFuture;
 use Amp\TimeoutCancellation;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -36,7 +35,7 @@ function seedLinkCardPreviewPost(
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 

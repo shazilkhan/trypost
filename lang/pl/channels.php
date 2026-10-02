@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Rozłącz kanał',
-        'description' => 'Czy na pewno chcesz rozłączyć ten kanał? Możesz połączyć go ponownie w dowolnym momencie.',
+        'description' => 'Spowoduje to usunięcie wszystkich postów tego kanału w TryPost, w tym wersji roboczych, zaplanowanych postów i historii publikacji. Posty, które są już w sieci, pozostaną tam.',
         'confirm' => 'Rozłącz',
+        'keyword' => 'ROZŁĄCZ',
         'cancel' => 'Anuluj',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Strefa czasowa wykryta przez przeglądarkę',
         'placeholder' => 'Szukaj miast lub stref czasowych',
         'empty' => 'Nie znaleziono strefy czasowej',
+    ],
+    'grid' => [
+        'title' => 'Siatka',
+        'info' => 'To przybliżony wygląd siatki Twoich postów. Na innych urządzeniach może się różnić, a posty opublikowane bezpośrednio na Instagramie pojawią się po synchronizacji.',
+        'sent_at' => 'Ten post został wysłany :date o :time',
+        'empty_title' => 'Brak opublikowanych postów',
+        'empty_description' => 'Tutaj pojawią się posty w feedzie i rolki opublikowane na tym kanale.',
+        'reel' => 'Rolka',
+        'carousel' => 'Karuzela',
     ],
 ];

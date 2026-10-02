@@ -2,7 +2,7 @@
 import type { Component } from 'vue';
 
 defineProps<{
-    icon: Component;
+    icon?: Component;
     title: string;
     description?: string;
 }>();
@@ -13,7 +13,11 @@ defineProps<{
         class="flex min-h-0 flex-1 flex-col items-center justify-center p-12 text-center"
         data-testid="empty-state"
     >
+        <div v-if="$slots.illustration" class="mb-6">
+            <slot name="illustration" />
+        </div>
         <div
+            v-else-if="icon"
             class="mb-4 flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground"
         >
             <component :is="icon" class="size-6" stroke-width="1.75" />

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Dto\MediaItem;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\Media;
@@ -20,7 +19,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -168,12 +167,10 @@ test('show carries the full idea', function () {
             ->where('editor.idea.label_ids', [$label->id]));
 });
 
-test('a foreign idea and a viewer are forbidden', function () {
+test('a foreign idea and a user outside the workspace are forbidden', function () {
     $this->actingAs($this->user)->get(route('app.create.ideas.show', Idea::factory()->create()))->assertForbidden();
 
-    $viewer = User::factory()->create(['account_id' => $this->workspace->account_id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())->get(route('app.create.ideas.index'))->assertForbidden();
+    $this->actingAs($outsider->fresh())->get(route('app.create.ideas.index'))->assertForbidden();
 });

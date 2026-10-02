@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Analytics;
 
+use App\Actions\Media\DeleteOwnedMedia;
 use App\Dto\Analytics\DiscoveredPublication;
 use App\Dto\Analytics\TryPostPublicationIdentity;
 use App\Enums\Analytics\PublicationAvailability;
@@ -11,14 +12,18 @@ use App\Enums\Analytics\PublicationContentType;
 use App\Enums\Analytics\PublicationOrigin;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsPublicationDailySnapshot;
+use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
 class UpsertAnalyticsPublication
 {
+    private const int EXCERPT_MAX_BYTES = 65535;
+
     public function __construct(private readonly ResolveAnalyticsAccountKey $accountKeys) {}
 
     public function external(
@@ -70,12 +75,12 @@ class UpsertAnalyticsPublication
         );
     }
 
-    public function reconcileTikTokPublicId(AnalyticsPublication $publication, string $publicId): void
+    public function reconcileRemoteId(AnalyticsPublication $publication, string $remoteId): void
     {
-        DB::transaction(function () use ($publication, $publicId): void {
+        DB::transaction(function () use ($publication, $remoteId): void {
             $current = AnalyticsPublication::query()->lockForUpdate()->findOrFail($publication->id);
 
-            if ($current->remote_id === $publicId || ! $current->post_platform_id) {
+            if ($current->remote_id === $remoteId || ! $current->post_platform_id) {
                 return;
             }
 
@@ -83,13 +88,13 @@ class UpsertAnalyticsPublication
                 ->where('workspace_id', $current->workspace_id)
                 ->where('social_account_key', $current->social_account_key)
                 ->where('network', $current->network)
-                ->where('remote_id', $publicId)
+                ->where('remote_id', $remoteId)
                 ->lockForUpdate()
                 ->first();
 
             if ($discovered) {
                 if ($discovered->post_platform_id && $discovered->post_platform_id !== $current->post_platform_id) {
-                    throw new LogicException('TikTok public id is already attached to another TryPost publication.');
+                    $this->deleteImportedPost($discovered->post_platform_id);
                 }
 
                 $discovered->dailySnapshots()->lockForUpdate()->reorder()->lazyById(100)->each(function (AnalyticsPublicationDailySnapshot $snapshot) use ($current): void {
@@ -122,20 +127,38 @@ class UpsertAnalyticsPublication
                     'preview_metadata' => $discovered->preview_metadata ?? $current->preview_metadata,
                     'provider_metadata' => $discovered->provider_metadata ?? $current->provider_metadata,
                     'provider_synced_at' => $discovered->provider_synced_at ?? $current->provider_synced_at,
+                    'excerpt' => $discovered->excerpt ?? $current->excerpt,
+                    'provider_published_at' => $discovered->provider_published_at ?? $current->provider_published_at,
                 ]);
                 $discovered->delete();
             }
 
-            $current->remote_id = $publicId;
+            $current->remote_id = $remoteId;
             $current->save();
 
             PostPlatform::query()->whereKey($current->post_platform_id)->update([
-                'platform_post_id' => $publicId,
+                'platform_post_id' => $remoteId,
                 'platform_url' => $current->permalink,
             ]);
 
             $publication->setRawAttributes($current->getAttributes(), true);
         });
+    }
+
+    private function deleteImportedPost(string $postPlatformId): void
+    {
+        $post = Post::query()
+            ->imported()
+            ->whereHas('postPlatforms', fn (Builder $query): Builder => $query->whereKey($postPlatformId))
+            ->lockForUpdate()
+            ->first();
+
+        if ($post === null) {
+            throw new LogicException('The remote id is already attached to another TryPost publication.');
+        }
+
+        DeleteOwnedMedia::forPosts([$post->id]);
+        Post::withoutEvents(fn (): ?bool => $post->delete());
     }
 
     /**
@@ -157,6 +180,8 @@ class UpsertAnalyticsPublication
         ?\DateTimeInterface $providerSyncedAt = null,
         ?SocialAccount $liveAccount = null,
     ): AnalyticsPublication {
+        $excerpt = $excerpt === null ? null : mb_strcut($excerpt, 0, self::EXCERPT_MAX_BYTES, 'UTF-8');
+
         try {
             return $this->write(
                 $identity,

@@ -20,6 +20,7 @@ import {
     useTemplateDialogForm,
     type TemplateDialogMode,
 } from '@/composables/useTemplateDialogForm';
+import { templateVisibilityIcons } from '@/lib/templateVisibility';
 import { duplicate } from '@/routes/app/create/templates';
 import { duplicate as duplicateLibrary } from '@/routes/app/create/templates/library';
 import type {
@@ -106,9 +107,18 @@ const confirm = async (): Promise<void> => {
                         :aria-label="$t('create.templates.duplicate_dialog.target')"
                         data-testid="template-duplicate-visibility"
                     >
-                        <SelectValue>{{
-                            $t(`create.templates.visibility.${form.visibility}`)
-                        }}</SelectValue>
+                        <SelectValue class="flex items-center gap-2">
+                            <component
+                                :is="templateVisibilityIcons[form.visibility]"
+                                class="size-4 shrink-0 text-muted-foreground"
+                                :data-testid="`template-duplicate-visibility-icon-${form.visibility}`"
+                            />
+                            {{
+                                $t(
+                                    `create.templates.visibility.${form.visibility}`,
+                                )
+                            }}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem
@@ -117,6 +127,10 @@ const confirm = async (): Promise<void> => {
                             :value="option"
                             :data-testid="`template-duplicate-visibility-${option}`"
                         >
+                            <component
+                                :is="templateVisibilityIcons[option]"
+                                class="size-4 shrink-0 text-muted-foreground"
+                            />
                             {{ $t(`create.templates.visibility.${option}`) }}
                         </SelectItem>
                     </SelectContent>

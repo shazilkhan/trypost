@@ -2,7 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     IconCalendarEvent,
-    IconChartBar,
+    IconTrendingUp,
     IconChevronDown,
     IconGripVertical,
     IconPlus,
@@ -11,14 +11,12 @@ import {
 } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
-import PlatformLogo from '@/components/PlatformLogo.vue';
-import { Avatar } from '@/components/ui/avatar';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import {
     SidebarGroup,
     SidebarGroupAction,
     SidebarGroupLabel,
-    SidebarMenu,
     SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
@@ -37,7 +35,7 @@ import { useCommandPalette } from '@/composables/useCommandPalette';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import { useNetworkConnect } from '@/composables/useNetworkConnect';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { insights, publish } from '@/routes/app/channels';
 import { channels as channelsSettings } from '@/routes/app/workspace';
 import { channelName, type SidebarChannel } from '@/types/channel';
@@ -48,14 +46,47 @@ const page = usePage();
 const channels = computed<SidebarChannel[]>(() =>
     orderChannels((page.props.channels as SidebarChannel[]) ?? []),
 );
-const { canManageAccounts, canCreatePost } = useWorkspaceRole();
-const { vSortableChannel, onHandleKeydown, dropIndicator } = useChannelOrder({
-    list: 'sidebar',
-    order: () => channels.value.map((channel) => channel.id),
-});
+const { canManageAccounts, canCreatePost } = useWorkspaceAbilities();
+const { vSortableChannel, vSortableChannelList, onHandleKeydown, dragPreview } =
+    useChannelOrder({
+        list: 'sidebar',
+        order: () => channels.value.map((channel) => channel.id),
+        placeholder: true,
+    });
 const reorderable = computed(
     () => canManageAccounts.value && channels.value.length > 1,
 );
+const draggedChannel = computed<SidebarChannel | null>(
+    () =>
+        channels.value.find(
+            (channel) => channel.id === dragPreview.value?.channelId,
+        ) ?? null,
+);
+
+type ChannelListEntry =
+    | { key: string; channel: SidebarChannel }
+    | { key: 'placeholder'; channel: null };
+
+const listEntries = computed<ChannelListEntry[]>(() => {
+    const entries: ChannelListEntry[] = channels.value.map((channel) => ({
+        key: channel.id,
+        channel,
+    }));
+    const preview = dragPreview.value;
+
+    if (!preview) {
+        return entries;
+    }
+
+    const anchor = entries.filter(
+        (entry) => entry.channel?.id !== preview.channelId,
+    )[preview.index];
+    const position = anchor ? entries.indexOf(anchor) : entries.length;
+
+    entries.splice(position, 0, { key: 'placeholder', channel: null });
+
+    return entries;
+});
 const { urlIsActive } = useActiveUrl();
 const { open: openConnectDialog } = useConnectChannelDialog();
 const { open: openCommandPalette } = useCommandPalette();
@@ -163,11 +194,19 @@ const reconnect = (channel: SidebarChannel): void => {
             class="mb-4 hidden h-px bg-sidebar-border group-data-[collapsible=icon]:block"
         />
 
-        <SidebarMenu
-            class="-mx-4 mt-1 min-h-0 w-auto gap-2 overflow-y-auto px-4 pb-4 group-data-[collapsible=icon]:-mx-2.5 group-data-[collapsible=icon]:px-2.5"
+        <TransitionGroup
+            v-sortable-channel-list="reorderable"
+            tag="ul"
+            move-class="transition-transform duration-200 ease-out motion-reduce:transition-none"
+            data-slot="sidebar-menu"
+            data-sidebar="menu"
+            class="relative -mx-4 mt-1 flex min-h-0 w-auto min-w-0 flex-col gap-2 overflow-y-auto px-4 pb-4 group-data-[collapsible=icon]:-mx-2.5 group-data-[collapsible=icon]:px-2.5"
             data-testid="sidebar-channels-list"
         >
-            <SidebarMenuItem v-if="channels.length === 0">
+            <SidebarMenuItem
+                v-if="channels.length === 0"
+                key="empty"
+            >
                 <SidebarMenuButton
                     v-if="canManageAccounts"
                     data-testid="sidebar-channels-empty"
@@ -185,159 +224,182 @@ const reconnect = (channel: SidebarChannel): void => {
                 </p>
             </SidebarMenuItem>
 
-            <SidebarMenuItem
-                v-for="channel in channels"
-                :key="channel.id"
-                v-sortable-channel="reorderable ? channel.id : null"
-                class="group/channel data-dragging:opacity-40"
-                :data-testid="`sidebar-channel-row-${channel.id}`"
+            <template
+                v-for="{ key, channel } in listEntries"
+                :key="key"
             >
-                <div
-                    v-if="dropIndicator?.channelId === channel.id"
-                    class="pointer-events-none absolute inset-x-0 h-0.5 rounded-full bg-primary-strong"
-                    :class="dropIndicator.edge === 'top' ? '-top-[5px]' : '-bottom-[5px]'"
-                    :data-testid="`sidebar-channel-drop-indicator-${channel.id}`"
-                />
-                <button
-                    v-if="reorderable"
-                    type="button"
-                    class="absolute top-2 -start-3.5 z-10 flex h-5 w-3.5 cursor-grab items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-hidden transition-opacity group-hover/channel:opacity-100 group-data-[collapsible=icon]:hidden focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-sidebar-ring active:cursor-grabbing max-md:hidden"
-                    :aria-label="$t('channels.reorder.handle', { name: channelName(channel) })"
-                    :title="$t('channels.reorder.handle', { name: channelName(channel) })"
-                    :data-channel-handle="`sidebar:${channel.id}`"
-                    :data-testid="`sidebar-channel-handle-${channel.id}`"
-                    @keydown="onHandleKeydown($event, channel.id)"
-                >
-                    <IconGripVertical class="size-3.5" />
-                </button>
-                <SidebarMenuButton
-                    as-child
-                    :is-active="isCurrentChannel(channel)"
-                    class="h-9 gap-2 py-1 ps-2 max-md:pe-16 group-hover/channel:pe-16 group-has-focus-visible/channel:pe-16 data-[active=true]:bg-transparent data-[active=true]:hover:bg-sidebar-accent [&:has(~[data-sidebar=group-action]:hover)]:bg-sidebar-accent group-data-[collapsible=icon]:p-0.5! group-data-[collapsible=icon]:data-[active=true]:bg-sidebar-accent"
-                    :tooltip="
-                        isConnectionLost(channel) && !canManageAccounts
-                            ? `${channelName(channel)} - ${$t('channels.connection_lost_hint')}`
-                            : channelName(channel)
+                <li
+                    v-if="channel === null"
+                    aria-hidden="true"
+                    class="shrink-0 cursor-grabbing rounded-lg"
+                    :class="
+                        draggedChannel
+                            ? null
+                            : 'border border-dashed border-sidebar-border bg-sidebar-accent/60'
                     "
+                    :style="{ height: `${dragPreview?.height ?? 0}px` }"
+                    data-testid="sidebar-channel-placeholder"
                 >
-                    <Link
-                        :href="publish.url(channel.id)"
-                        :data-testid="`sidebar-channel-${channel.id}`"
+                    <div
+                        v-if="draggedChannel"
+                        class="flex h-9 items-center gap-2 rounded-lg bg-background ps-2 pe-2 shadow-md ring-1 ring-sidebar-border group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0.5"
+                        data-testid="sidebar-channel-placeholder-preview"
                     >
-                        <span class="relative shrink-0">
-                            <Avatar
+                        <ChannelAvatar
+                            :platform="draggedChannel.platform"
+                            :src="draggedChannel.avatar_url"
+                            :name="channelName(draggedChannel)"
+                            :size="28"
+                            ring="sidebar"
+                        />
+                        <span
+                            class="truncate text-sm group-data-[collapsible=icon]:hidden"
+                            >{{ channelName(draggedChannel) }}</span
+                        >
+                    </div>
+                </li>
+                <SidebarMenuItem
+                    v-else
+                    v-sortable-channel="reorderable ? channel.id : null"
+                    class="group/channel"
+                    :class="{ hidden: dragPreview?.channelId === channel.id }"
+                    :data-testid="`sidebar-channel-row-${channel.id}`"
+                >
+                    <button
+                        v-if="reorderable"
+                        type="button"
+                        class="absolute top-2 -start-3.5 z-10 flex h-5 w-3.5 cursor-grab items-center justify-center rounded-sm text-muted-foreground opacity-0 outline-hidden transition-opacity group-hover/channel:opacity-100 group-data-[collapsible=icon]:hidden focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-sidebar-ring active:cursor-grabbing max-md:hidden"
+                        :aria-label="$t('channels.reorder.handle', { name: channelName(channel) })"
+                        :title="$t('channels.reorder.handle', { name: channelName(channel) })"
+                        :data-channel-handle="`sidebar:${channel.id}`"
+                        :data-testid="`sidebar-channel-handle-${channel.id}`"
+                        @keydown="onHandleKeydown($event, channel.id)"
+                    >
+                        <IconGripVertical class="size-3.5" />
+                    </button>
+                    <SidebarMenuButton
+                        as-child
+                        :is-active="isCurrentChannel(channel)"
+                        class="h-9 gap-2 py-1 ps-2 max-md:pe-16 group-hover/channel:pe-16 group-has-focus-visible/channel:pe-16 data-[active=true]:bg-transparent data-[active=true]:hover:bg-sidebar-accent [&:has(~[data-sidebar=group-action]:hover)]:bg-sidebar-accent group-data-[collapsible=icon]:p-0.5! group-data-[collapsible=icon]:data-[active=true]:bg-sidebar-accent"
+                        :tooltip="
+                            isConnectionLost(channel) && !canManageAccounts
+                                ? `${channelName(channel)} - ${$t('channels.connection_lost_hint')}`
+                                : channelName(channel)
+                        "
+                    >
+                        <Link
+                            :href="publish.url(channel.id)"
+                            :data-testid="`sidebar-channel-${channel.id}`"
+                        >
+                            <ChannelAvatar
+                                :platform="channel.platform"
                                 :src="channel.avatar_url"
                                 :name="channelName(channel)"
-                                class="size-7 rounded-md"
-                                fallback-class="bg-secondary text-[10px] font-bold"
-                            />
-                            <PlatformLogo
-                                :platform="channel.platform"
-                                :size="18"
+                                :size="28"
                                 ring="sidebar"
-                                class="absolute -end-1 -bottom-px"
-                            />
-                            <span
-                                v-if="isConnectionLost(channel) && !canManageAccounts"
-                                aria-hidden="true"
-                                class="absolute -top-0.5 -left-0.5 size-2 rounded-full bg-destructive ring-2 ring-sidebar"
-                                :data-testid="`sidebar-channel-${channel.id}-lost`"
-                            />
-                        </span>
-                        <span class="truncate text-sm">{{ channelName(channel) }}</span>
-                    </Link>
-                </SidebarMenuButton>
-                <button
-                    v-if="isConnectionLost(channel) && canManageAccounts"
-                    type="button"
-                    class="absolute start-1.5 top-0.5 z-10 size-2 cursor-pointer rounded-full bg-destructive ring-2 ring-sidebar outline-hidden focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:start-0 group-data-[collapsible=icon]:top-0"
-                    :aria-label="$t('channels.reconnect')"
-                    :title="$t('channels.connection_lost_hint')"
-                    :data-testid="`sidebar-channel-${channel.id}-lost`"
-                    @click="reconnect(channel)"
-                />
-                <SidebarMenuBadge
-                    :class="[
-                        'top-2 right-0 group-hover/channel:hidden group-has-focus-visible/channel:hidden max-md:hidden',
-                        isExpanded(channel) ? 'hidden' : '',
-                    ]"
-                    :data-testid="`sidebar-channel-count-${channel.id}`"
-                >
-                    {{ channel.scheduled_posts_count }}
-                </SidebarMenuBadge>
-                <SidebarGroupAction
-                    v-if="canCreatePost"
-                    :class="['right-[30px]', channelActionClass]"
-                    :title="$t('channels.new_post')"
-                    :data-testid="`sidebar-channel-${channel.id}-new-post`"
-                    @click="openPostComposer({ socialAccountIds: [channel.id] })"
-                >
-                    <IconPlus />
-                </SidebarGroupAction>
-
-                <SidebarGroupAction
-                    :class="['right-0.5 aria-expanded:bg-transparent', channelActionClass]"
-                    :aria-label="
-                        $t('sidebar.channel_submenu', {
-                            name: channelName(channel),
-                        })
-                    "
-                    :aria-expanded="isExpanded(channel)"
-                    :data-testid="`sidebar-channel-${channel.id}-toggle`"
-                    @click="toggleChannel(channel)"
-                >
-                    <IconChevronDown
-                        :class="[
-                            'transition-transform duration-200 ease-[ease] motion-reduce:transition-none',
-                            isExpanded(channel) ? 'rotate-180' : '',
-                        ]"
+                            >
+                                <span
+                                    v-if="isConnectionLost(channel) && !canManageAccounts"
+                                    aria-hidden="true"
+                                    class="absolute -top-0.5 -start-0.5 size-2 rounded-full bg-destructive ring-2 ring-sidebar"
+                                    :data-testid="`sidebar-channel-${channel.id}-lost`"
+                                />
+                            </ChannelAvatar>
+                            <span class="truncate text-sm">{{ channelName(channel) }}</span>
+                        </Link>
+                    </SidebarMenuButton>
+                    <button
+                        v-if="isConnectionLost(channel) && canManageAccounts"
+                        type="button"
+                        class="absolute start-1.5 top-0.5 z-10 size-2 cursor-pointer rounded-full bg-destructive ring-2 ring-sidebar outline-hidden focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:start-0 group-data-[collapsible=icon]:top-0"
+                        :aria-label="$t('channels.reconnect')"
+                        :title="$t('channels.connection_lost_hint')"
+                        :data-testid="`sidebar-channel-${channel.id}-lost`"
+                        @click="reconnect(channel)"
                     />
-                </SidebarGroupAction>
+                    <SidebarMenuBadge
+                        :class="[
+                            'top-2 right-0 group-hover/channel:hidden group-has-focus-visible/channel:hidden max-md:hidden',
+                            isExpanded(channel) ? 'hidden' : '',
+                        ]"
+                        :data-testid="`sidebar-channel-count-${channel.id}`"
+                    >
+                        {{ channel.scheduled_posts_count }}
+                    </SidebarMenuBadge>
+                    <SidebarGroupAction
+                        v-if="canCreatePost"
+                        :class="['right-[30px]', channelActionClass]"
+                        :title="$t('channels.new_post')"
+                        :data-testid="`sidebar-channel-${channel.id}-new-post`"
+                        @click="openPostComposer({ socialAccountIds: [channel.id] })"
+                    >
+                        <IconPlus />
+                    </SidebarGroupAction>
 
-                <div
-                    class="motion-collapse"
-                    :data-expanded="isExpanded(channel)"
-                    :data-testid="`sidebar-channel-${channel.id}-submenu`"
-                >
-                    <div>
-                        <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                                <SidebarMenuSubButton
-                                    as-child
-                                    :is-active="urlIsActive(publish.url(channel.id))"
-                                >
-                                    <Link
-                                        :href="publish.url(channel.id)"
-                                        :data-testid="`sidebar-channel-${channel.id}-publish`"
+                    <SidebarGroupAction
+                        :class="['right-0.5 aria-expanded:bg-transparent', channelActionClass]"
+                        :aria-label="
+                            $t('sidebar.channel_submenu', {
+                                name: channelName(channel),
+                            })
+                        "
+                        :aria-expanded="isExpanded(channel)"
+                        :data-testid="`sidebar-channel-${channel.id}-toggle`"
+                        @click="toggleChannel(channel)"
+                    >
+                        <IconChevronDown
+                            :class="[
+                                'transition-transform duration-200 ease-[ease] motion-reduce:transition-none',
+                                isExpanded(channel) ? 'rotate-180' : '',
+                            ]"
+                        />
+                    </SidebarGroupAction>
+
+                    <div
+                        class="motion-collapse"
+                        :data-expanded="isExpanded(channel)"
+                        :data-testid="`sidebar-channel-${channel.id}-submenu`"
+                    >
+                        <div>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton
+                                        as-child
+                                        :is-active="urlIsActive(publish.url(channel.id))"
                                     >
-                                        <IconCalendarEvent />
-                                        <span class="min-w-0 flex-1 truncate">{{ $t('channels.publish') }}</span>
-                                        <span
-                                            v-if="channel.scheduled_posts_count > 0"
-                                            class="flex w-6 shrink-0 justify-center tabular-nums"
-                                            :data-testid="`sidebar-channel-${channel.id}-publish-count`"
-                                        >{{ channel.scheduled_posts_count }}</span>
-                                    </Link>
-                                </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                                <SidebarMenuSubButton
-                                    as-child
-                                    :is-active="urlIsActive(insights.url(channel.id))"
-                                >
-                                    <Link
-                                        :href="insights.url(channel.id)"
-                                        :data-testid="`sidebar-channel-${channel.id}-insights`"
+                                        <Link
+                                            :href="publish.url(channel.id)"
+                                            :data-testid="`sidebar-channel-${channel.id}-publish`"
+                                        >
+                                            <IconCalendarEvent />
+                                            <span class="min-w-0 flex-1 truncate">{{ $t('channels.publish') }}</span>
+                                            <span
+                                                v-if="channel.scheduled_posts_count > 0"
+                                                class="flex w-6 shrink-0 justify-center tabular-nums"
+                                                :data-testid="`sidebar-channel-${channel.id}-publish-count`"
+                                            >{{ channel.scheduled_posts_count }}</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton
+                                        as-child
+                                        :is-active="urlIsActive(insights.url(channel.id))"
                                     >
-                                        <IconChartBar />
-                                        <span>{{ $t('channels.insights') }}</span>
-                                    </Link>
-                                </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                        </SidebarMenuSub>
+                                        <Link
+                                            :href="insights.url(channel.id)"
+                                            :data-testid="`sidebar-channel-${channel.id}-insights`"
+                                        >
+                                            <IconTrendingUp />
+                                            <span>{{ $t('channels.insights') }}</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </div>
                     </div>
-                </div>
-            </SidebarMenuItem>
-        </SidebarMenu>
+                </SidebarMenuItem>
+            </template>
+        </TransitionGroup>
     </SidebarGroup>
 </template>

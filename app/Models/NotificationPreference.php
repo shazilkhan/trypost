@@ -21,6 +21,7 @@ class NotificationPreference extends Model
         'post_failed',
         'account_disconnected',
         'post_note_added',
+        'collaboration',
     ];
 
     protected function casts(): array
@@ -30,6 +31,7 @@ class NotificationPreference extends Model
             'post_failed' => 'boolean',
             'account_disconnected' => 'boolean',
             'post_note_added' => 'boolean',
+            'collaboration' => 'boolean',
         ];
     }
 

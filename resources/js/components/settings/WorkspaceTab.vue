@@ -9,7 +9,7 @@ import SettingsSection from '@/components/settings/SettingsSection.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { uploadLogo, deleteLogo } from '@/routes/app/workspace';
 
 interface Workspace {
@@ -25,7 +25,7 @@ defineProps<{
     otherMemberCount: number;
 }>();
 
-const { canManageBilling } = useWorkspaceRole();
+const { canManageBilling } = useWorkspaceAbilities();
 </script>
 
 <template>

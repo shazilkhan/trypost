@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Actions\Post;
 
 use App\Actions\Media\SyncOwnedMedia;
+use App\Actions\Post\Approval\NotifyApprovalDecision;
+use App\Actions\Post\Approval\NotifyApprovalRequested;
 use App\Actions\Post\Queue\ReflowChannelQueue;
 use App\Enums\Post\Action as PostAction;
+use App\Enums\Post\ApprovalDecision;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
@@ -15,14 +18,17 @@ use App\Enums\SocialAccount\Platform;
 use App\Jobs\PublishPost;
 use App\Models\Post;
 use App\Models\PostPlatform;
+use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Media\MediaCopyBatch;
+use App\Support\PostApproval;
 use App\Support\PostCompositionValidator;
 use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
 use App\Support\Social\AbandonGoogleBusinessReview;
 use App\Support\Social\GoogleBusinessDerivativeCleaner;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,9 +36,22 @@ use Illuminate\Validation\ValidationException;
 class UpdatePost
 {
     /**
+     * `$actor` is the user making the change; system callers pass none and are never gated.
+     * A pending post is changed under its approval lock (see PostApproval::whilePending()).
+     *
      * @return array{post: Post, action: PostAction|null}
      */
-    public static function execute(Workspace $workspace, Post $post, array $data): array
+    public static function execute(Workspace $workspace, Post $post, array $data, ?User $actor = null): array
+    {
+        return $post->status === PostStatus::PendingApproval
+            ? PostApproval::whilePending($post, fn (): array => self::apply($workspace, $post, $data, $actor))
+            : self::apply($workspace, $post, $data, $actor);
+    }
+
+    /**
+     * @return array{post: Post, action: PostAction|null}
+     */
+    private static function apply(Workspace $workspace, Post $post, array $data, ?User $actor): array
     {
         if (PostStatusRules::blocksEditing($post)) {
             return ['post' => $post, 'action' => PostAction::Finalized];
@@ -56,7 +75,7 @@ class UpdatePost
                 ];
             }
 
-            return self::updateChannelPost($workspace, $post, $data);
+            return self::updateChannelPost($workspace, $post, $data, $actor);
         }
 
         if (filled(data_get($data, 'queue'))) {
@@ -64,24 +83,34 @@ class UpdatePost
         }
 
         if (array_key_exists('content_type', $data) || array_key_exists('meta', $data)) {
-            return self::updateChannelPost($workspace, $post, $data);
+            return self::updateChannelPost($workspace, $post, $data, $actor);
         }
 
-        return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $data): array {
+        return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($workspace, $post, $data, $actor): array {
+            $occurrence = $post->currentOccurrence();
+            $previousStatus = $post->status;
             $scheduledAt = $post->scheduled_at;
             if (data_get($data, 'scheduled_at')) {
                 $scheduledAt = Carbon::parse(data_get($data, 'scheduled_at'))->utc();
             }
 
-            $status = data_get($data, 'status', $post->status);
+            $status = (string) data_get($data, 'status', $post->status->value);
+            $storedStatus = PostApproval::isRequired($workspace, $actor, $status)
+                ? PostStatus::PendingApproval
+                : PostStatus::from($status);
+            $publishRequest = ($storedStatus === PostStatus::PendingApproval || $previousStatus === PostStatus::PendingApproval)
+                && $status === PostStatus::Publishing->value;
 
             $post->update([
                 'content' => data_get($data, 'content', $post->content),
-                'status' => $status === PostStatus::Publishing->value ? PostStatus::Publishing : $status,
-                'scheduled_at' => $scheduledAt,
-                'schedule_mode' => in_array($status, [PostStatus::Scheduled, PostStatus::Scheduled->value], true)
-                    ? ScheduleMode::Custom
-                    : null,
+                'status' => $storedStatus,
+                'scheduled_at' => $publishRequest ? null : $scheduledAt,
+                'schedule_mode' => match (true) {
+                    $storedStatus === PostStatus::Scheduled => ScheduleMode::Custom,
+                    $storedStatus === PostStatus::PendingApproval && ! $publishRequest && $scheduledAt !== null => ScheduleMode::Custom,
+                    default => null,
+                },
+                ...PostApproval::transition($previousStatus, $storedStatus, $actor),
             ]);
 
             if (Arr::has($data, 'media')) {
@@ -150,18 +179,7 @@ class UpdatePost
                 });
             }
 
-            if ($status === PostStatus::Publishing->value) {
-                $post->update(['scheduled_at' => now()]);
-                PublishPost::dispatch($post)->afterCommit();
-
-                return ['post' => $post, 'action' => PostAction::Publishing];
-            }
-
-            if ($status === PostStatus::Scheduled->value) {
-                return ['post' => $post, 'action' => PostAction::Scheduled];
-            }
-
-            return ['post' => $post, 'action' => null];
+            return self::finish($post, $previousStatus, $storedStatus, $occurrence, $actor);
         });
     }
 
@@ -169,7 +187,7 @@ class UpdatePost
      * @param  array<string, mixed>  $data
      * @return array{post: Post, action: PostAction|null}
      */
-    private static function updateChannelPost(Workspace $workspace, Post $post, array $data): array
+    private static function updateChannelPost(Workspace $workspace, Post $post, array $data, ?User $actor): array
     {
         if (array_key_exists('platforms', $data)) {
             throw ValidationException::withMessages(['platforms' => __('validation.in', ['attribute' => 'platforms'])]);
@@ -187,51 +205,66 @@ class UpdatePost
             throw ValidationException::withMessages(['queue' => __('posts.errors.queue_requires_schedule')]);
         }
 
-        $wasQueued = $post->schedule_mode === ScheduleMode::Queue && $post->status === PostStatus::Scheduled;
-        $keepsQueueSlot = $position === QueuePosition::Next && $wasQueued && $post->scheduled_at?->isFuture();
+        $previousStatus = $post->status;
+        $keepsPending = $previousStatus === PostStatus::PendingApproval && ! array_key_exists('status', $data);
+        $status = $keepsPending ? PostStatus::Draft->value : (string) data_get($data, 'status', $previousStatus->value);
+        $pending = $keepsPending || PostApproval::isRequired($workspace, $actor, $status);
+        $wasQueued = $post->schedule_mode === ScheduleMode::Queue && $previousStatus === PostStatus::Scheduled;
+        $keepsQueueSlot = ! $pending && $position === QueuePosition::Next && $wasQueued && $post->scheduled_at?->isFuture();
 
         if ($keepsQueueSlot) {
             $position = null;
         }
+
+        if ($keepsPending) {
+            $position = $post->approval_queue_position;
+        }
+
         $meta = array_filter(
-            array_merge($target->meta ?? [], $data['meta'] ?? []),
+            array_merge($target->meta ?? [], data_get($data, 'meta') ?? []),
             fn (mixed $value): bool => $value !== null,
         );
-        $status = $data['status'] ?? $post->status->value;
         $scheduledAt = match (true) {
+            $keepsPending => $post->scheduled_at?->toIso8601String(),
             $position !== null => null,
             $keepsQueueSlot => $post->scheduled_at->toIso8601String(),
-            array_key_exists('scheduled_at', $data) => $data['scheduled_at'],
+            ($pending || $previousStatus === PostStatus::PendingApproval) && $status === PostStatus::Publishing->value => null,
+            array_key_exists('scheduled_at', $data) => data_get($data, 'scheduled_at'),
             default => $post->scheduled_at?->toIso8601String(),
         };
         $mode = match (true) {
+            $keepsPending => $post->schedule_mode,
             $position !== null => ScheduleMode::Queue,
             $status !== PostStatus::Scheduled->value => null,
             $keepsQueueSlot => ScheduleMode::Queue,
             filled(data_get($data, 'scheduled_at')) => ScheduleMode::Custom,
+            $pending => ScheduleMode::Custom,
             default => $post->schedule_mode ?? ScheduleMode::Custom,
         };
+        $storedStatus = $pending ? PostStatus::PendingApproval : PostStatus::from($status);
         $resolved = PostCompositionValidator::validate($workspace, [
             'status' => $status,
-            'queue' => $position?->value,
+            'queue' => $keepsPending ? null : $position?->value,
             'content' => array_key_exists('content', $data) ? $data['content'] : $post->content,
-            'media' => $data['media'] ?? $post->media ?? [],
-            'scheduled_at' => $scheduledAt,
-            'label_ids' => $data['label_ids'] ?? $post->labels()->pluck('workspace_labels.id')->all(),
+            'media' => data_get($data, 'media') ?? $post->media ?? [],
+            'scheduled_at' => $keepsPending ? null : $scheduledAt,
+            'label_ids' => data_get($data, 'label_ids') ?? $post->labels()->pluck('workspace_labels.id')->all(),
             'destinations' => [[
                 'social_account_id' => $target->social_account_id,
-                'content_type' => $data['content_type'] ?? $target->content_type->value,
+                'content_type' => data_get($data, 'content_type') ?? $target->content_type->value,
                 'meta' => $meta,
             ]],
         ], $post->media ?? []);
 
-        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $meta, $status, $scheduledAt, $mode, $position, $wasQueued): array {
+        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $meta, $scheduledAt, $mode, $position, $wasQueued, $pending, $previousStatus, $storedStatus, $actor): array {
             $destination = $resolved['destinations'][0];
+            $occurrence = $post->currentOccurrence();
             $post->update([
                 'content' => $destination['content'],
-                'status' => $status,
+                'status' => $storedStatus,
                 'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt)->utc() : null,
                 'schedule_mode' => $mode,
+                ...PostApproval::transition($previousStatus, $storedStatus, $actor, $pending ? $position : null),
             ]);
             SyncOwnedMedia::execute($post, $destination['media'], $batch);
             $target->update([
@@ -240,31 +273,47 @@ class UpdatePost
             ]);
 
             if (array_key_exists('label_ids', $data)) {
-                $post->labels()->sync($data['label_ids']);
+                $post->labels()->sync(data_get($data, 'label_ids'));
             }
 
-            if ($position !== null) {
+            if ($position !== null && ! $pending) {
                 CreateChannelPost::enqueue($channel, $post, $position);
-            } elseif ($wasQueued && $mode !== ScheduleMode::Queue) {
+            } elseif ($wasQueued && ($pending || $mode !== ScheduleMode::Queue)) {
                 ReflowChannelQueue::afterCommit($target->social_account_id);
             }
 
-            if ($status === PostStatus::Publishing->value) {
-                $post->update(['scheduled_at' => now()]);
-                PublishPost::dispatch($post)->afterCommit();
-
-                return ['post' => $post, 'action' => PostAction::Publishing];
-            }
-
-            if ($status === PostStatus::Scheduled->value) {
-                return ['post' => $post, 'action' => PostAction::Scheduled];
-            }
-
-            return ['post' => $post, 'action' => null];
+            return self::finish($post, $previousStatus, $storedStatus, $occurrence, $actor);
         });
 
-        return $position === null
+        return $position === null || $pending
             ? $write()
             : ReflowChannelQueue::withLock([$target->social_account_id], $write);
+    }
+
+    /**
+     * @return array{post: Post, action: PostAction|null}
+     */
+    private static function finish(Post $post, PostStatus $previousStatus, PostStatus $storedStatus, ?CarbonInterface $occurrence, ?User $actor): array
+    {
+        if ($actor !== null && PostApproval::isRequest($previousStatus, $storedStatus)) {
+            NotifyApprovalRequested::execute(collect([$post]), $actor);
+        }
+
+        if ($actor !== null && PostApproval::isApproval($previousStatus, $storedStatus)) {
+            NotifyApprovalDecision::execute($post, ApprovalDecision::Approved, $actor, $post->approvalRequester());
+        }
+
+        if ($storedStatus === PostStatus::Publishing) {
+            $post->moveScheduleToNow($occurrence);
+            PublishPost::dispatch($post)->afterCommit();
+
+            return ['post' => $post, 'action' => PostAction::Publishing];
+        }
+
+        return match ($storedStatus) {
+            PostStatus::PendingApproval => ['post' => $post, 'action' => PostAction::PendingApproval],
+            PostStatus::Scheduled => ['post' => $post, 'action' => PostAction::Scheduled],
+            default => ['post' => $post, 'action' => null],
+        };
     }
 }

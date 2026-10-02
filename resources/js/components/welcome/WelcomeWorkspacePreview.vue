@@ -2,7 +2,7 @@
 import { IconCheck } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
-import { Avatar } from '@/components/ui/avatar';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import {
     Tooltip,
     TooltipContent,
@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/tooltip';
 import {
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import { goalMeta, personaMeta, welcomeOptionMeta } from '@/lib/welcomeOptions';
 import type { WelcomeStep, WelcomeSummary } from '@/types';
@@ -176,31 +175,20 @@ const PENDING_CLASS =
                                                     "
                                                     :data-testid="`welcome-preview-network-${network.id}`"
                                                 >
-                                                    <Avatar
+                                                    <ChannelAvatar
+                                                        :platform="
+                                                            network.platform
+                                                        "
                                                         :src="
                                                             network.avatar_url
                                                         "
                                                         :name="
                                                             network.display_label
                                                         "
-                                                        class="size-10 shrink-0 rounded-lg"
-                                                        fallback-class="rounded-lg bg-secondary text-xs font-medium"
+                                                        :size="40"
+                                                        ring="card"
+                                                        :reserve-space="false"
                                                     />
-                                                    <span
-                                                        class="absolute -end-1 -bottom-1 inline-flex size-5 items-center justify-center overflow-hidden rounded-md bg-card ring-2 ring-card"
-                                                    >
-                                                        <img
-                                                            :src="
-                                                                getPlatformLogo(
-                                                                    network.platform,
-                                                                )
-                                                            "
-                                                            :alt="
-                                                                network.platform
-                                                            "
-                                                            class="size-full object-cover"
-                                                        />
-                                                    </span>
                                                 </button>
                                             </TooltipTrigger>
                                             <TooltipContent>

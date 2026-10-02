@@ -36,7 +36,7 @@ class PostScheduleController extends Controller
             'queue_top' => ['status' => PostStatus::Scheduled->value, 'queue' => QueuePosition::Top->value],
         };
 
-        $result = UpdatePost::execute($workspace, $post, $data);
+        $result = UpdatePost::execute($workspace, $post, $data, $request->user());
 
         $action = data_get($result, 'action');
 

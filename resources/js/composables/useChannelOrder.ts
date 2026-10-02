@@ -4,6 +4,7 @@ import {
     dropTargetForElements,
     monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { disableNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview';
 import { reorder } from '@atlaskit/pragmatic-drag-and-drop/reorder';
 import { attachClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge/attach-closest-edge';
 import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge/extract-closest-edge';
@@ -20,17 +21,32 @@ export interface ChannelDropIndicator {
     edge: 'top' | 'bottom';
 }
 
+export interface ChannelDragPreview {
+    channelId: string;
+    index: number;
+    height: number;
+}
+
 const ITEM_KEY = 'sortableChannel';
+const LIST_KEY = 'sortableChannelList';
+const AUTO_SCROLL_EDGE = 48;
+const AUTO_SCROLL_MAX_STEP = 14;
 const CHANNEL_ORDER_PROPS = ['channels', 'connectedChannels'];
 
 const optimisticOrder = ref<string[] | null>(null);
 const saving = ref(false);
+let queuedOrder: string[] | null = null;
 
 const isChannelItem = (
     data: Record<string | symbol, unknown>,
     list: string,
 ): data is Record<string | symbol, unknown> & { channelId: string } =>
     data[ITEM_KEY] === list && typeof data.channelId === 'string';
+
+const isListTarget = (
+    data: Record<string | symbol, unknown>,
+    list: string,
+): boolean => data[LIST_KEY] === list;
 
 export const orderChannels = <T extends { id: string }>(items: T[]): T[] => {
     const order = optimisticOrder.value;
@@ -49,14 +65,18 @@ export const orderChannels = <T extends { id: string }>(items: T[]): T[] => {
 };
 
 const saveChannelOrder = (orderedIds: string[]): void => {
+    optimisticOrder.value = orderedIds;
+
     if (saving.value) {
+        queuedOrder = orderedIds;
+
         return;
     }
 
     saving.value = true;
-    optimisticOrder.value = orderedIds;
 
     const rollback = (message: string): void => {
+        queuedOrder = null;
         optimisticOrder.value = null;
         toast.error(message, { testId: 'channels-reorder-error-toast' });
         router.reload({ only: CHANNEL_ORDER_PROPS });
@@ -87,7 +107,15 @@ const saveChannelOrder = (orderedIds: string[]): void => {
             },
             onFinish: () => {
                 saving.value = false;
-                optimisticOrder.value = null;
+
+                const next = queuedOrder;
+                queuedOrder = null;
+
+                if (next) {
+                    saveChannelOrder(next);
+                } else {
+                    optimisticOrder.value = null;
+                }
             },
         },
     );
@@ -106,75 +134,257 @@ const focusHandle = (list: string, channelId: string): void => {
 /**
  * Drag-and-drop (by handle) and keyboard reordering for one rendered list of
  * channels. `list` keeps two lists on the same page from accepting each
- * other's drops; `order` returns the ids as currently rendered.
+ * other's drops; `order` returns the ids as currently rendered. With
+ * `placeholder`, the list element bound with `vSortableChannelList` is the
+ * only drop target: the dragged row collapses, `dragPreview` holds the slot
+ * it would land in, and dropping anywhere over the list lands it there.
  */
 export const useChannelOrder = (options: {
     list: string;
     order: () => string[];
+    placeholder?: boolean;
 }): {
     vSortableChannel: Directive<HTMLElement, string | null>;
+    vSortableChannelList: Directive<HTMLElement, boolean>;
     move: (channelId: string, offset: -1 | 1) => void;
     onHandleKeydown: (event: KeyboardEvent, channelId: string) => void;
     dropIndicator: Ref<ChannelDropIndicator | null>;
+    dragPreview: Ref<ChannelDragPreview | null>;
     saving: Ref<boolean>;
 } => {
     const { list } = options;
     const dropIndicator = ref<ChannelDropIndicator | null>(null);
+    const dragPreview = ref<ChannelDragPreview | null>(null);
+    let listElement: HTMLElement | null = null;
+    let startIndex = -1;
+    let pointerY: number | null = null;
+    let scrollFrame = 0;
+
+    const stopAutoScroll = (): void => {
+        cancelAnimationFrame(scrollFrame);
+        scrollFrame = 0;
+    };
+
+    const placeholderIndexAt = (clientY: number): number => {
+        if (!listElement || !dragPreview.value) {
+            return startIndex;
+        }
+
+        const draggedId = dragPreview.value.channelId;
+        const y =
+            clientY - listElement.getBoundingClientRect().top + listElement.scrollTop;
+
+        return [...listElement.children].filter(
+            (row): row is HTMLElement =>
+                row instanceof HTMLElement &&
+                row.dataset.sortableChannel !== undefined &&
+                row.dataset.sortableChannel !== draggedId &&
+                row.offsetTop + row.offsetHeight / 2 < y,
+        ).length;
+    };
+
+    const placeAt = (clientY: number): void => {
+        if (dragPreview.value) {
+            dragPreview.value = {
+                ...dragPreview.value,
+                index: placeholderIndexAt(clientY),
+            };
+        }
+    };
+
+    const autoScrollStep = (): number => {
+        if (!listElement || pointerY === null) {
+            return 0;
+        }
+
+        const rect = listElement.getBoundingClientRect();
+        const fromTop = pointerY - rect.top;
+        const fromBottom = rect.bottom - pointerY;
+        const speed = (distance: number): number =>
+            Math.ceil(
+                AUTO_SCROLL_MAX_STEP *
+                    (1 - Math.max(distance, 0) / AUTO_SCROLL_EDGE),
+            );
+
+        if (fromTop < AUTO_SCROLL_EDGE) {
+            return -speed(fromTop);
+        }
+
+        if (fromBottom < AUTO_SCROLL_EDGE) {
+            return speed(fromBottom);
+        }
+
+        return 0;
+    };
+
+    const autoScroll = (): void => {
+        scrollFrame = 0;
+
+        const step = autoScrollStep();
+
+        if (!listElement || pointerY === null || step === 0) {
+            return;
+        }
+
+        const before = listElement.scrollTop;
+        listElement.scrollTop += step;
+
+        if (listElement.scrollTop !== before) {
+            placeAt(pointerY);
+        }
+
+        scrollFrame = requestAnimationFrame(autoScroll);
+    };
+
+    const endPreview = (): void => {
+        stopAutoScroll();
+        pointerY = null;
+        startIndex = -1;
+        dragPreview.value = null;
+        window.removeEventListener('keydown', onPreviewKeydown, true);
+    };
+
+    const onPreviewKeydown = (event: KeyboardEvent): void => {
+        if (event.key === 'Escape') {
+            endPreview();
+        }
+    };
+
+    const startPreview = (channelId: string): void => {
+        const row = listElement?.querySelector<HTMLElement>(
+            `:scope > [data-sortable-channel="${channelId}"]`,
+        );
+
+        startIndex = options.order().indexOf(channelId);
+
+        if (!row || startIndex === -1) {
+            return;
+        }
+
+        dragPreview.value = {
+            channelId,
+            index: startIndex,
+            height: row.offsetHeight,
+        };
+        window.addEventListener('keydown', onPreviewKeydown, true);
+    };
+
+    const dropPreview = (
+        channelId: string,
+        overList: boolean,
+    ): void => {
+        const preview = dragPreview.value;
+
+        endPreview();
+
+        if (!preview || preview.channelId !== channelId || !overList) {
+            return;
+        }
+
+        const order = options.order();
+        const finishIndex = preview.index;
+        const from = order.indexOf(channelId);
+
+        if (from === -1 || finishIndex === from) {
+            return;
+        }
+
+        const next = order.filter((id) => id !== channelId);
+        next.splice(finishIndex, 0, channelId);
+        saveChannelOrder(next);
+    };
+
+    const dropOnRow = (
+        channelId: string,
+        target: { data: Record<string | symbol, unknown> } | undefined,
+    ): void => {
+        if (!target || !isChannelItem(target.data, list)) {
+            return;
+        }
+
+        const order = options.order();
+        const start = order.indexOf(channelId);
+        const targetIndex = order.indexOf(target.data.channelId);
+
+        if (start === -1 || targetIndex === -1) {
+            return;
+        }
+
+        const finishIndex = getReorderDestinationIndex({
+            startIndex: start,
+            indexOfTarget: targetIndex,
+            closestEdgeOfTarget: extractClosestEdge(target.data),
+            axis: 'vertical',
+        });
+
+        if (finishIndex !== start) {
+            saveChannelOrder(reorder({ list: order, startIndex: start, finishIndex }));
+        }
+    };
 
     const stopMonitor = monitorForElements({
         canMonitor: ({ source }) => isChannelItem(source.data, list),
+        onDragStart: ({ source }) => {
+            if (options.placeholder && isChannelItem(source.data, list)) {
+                startPreview(source.data.channelId);
+            }
+        },
         onDrop: ({ source, location }) => {
             dropIndicator.value = null;
 
-            const target = location.current.dropTargets[0];
+            if (!isChannelItem(source.data, list)) {
+                endPreview();
 
-            if (
-                !target ||
-                !isChannelItem(source.data, list) ||
-                !isChannelItem(target.data, list)
-            ) {
                 return;
             }
 
-            const order = options.order();
-            const startIndex = order.indexOf(source.data.channelId);
-            const targetIndex = order.indexOf(target.data.channelId);
-
-            if (startIndex === -1 || targetIndex === -1) {
-                return;
-            }
-
-            const finishIndex = getReorderDestinationIndex({
-                startIndex,
-                indexOfTarget: targetIndex,
-                closestEdgeOfTarget: extractClosestEdge(target.data),
-                axis: 'vertical',
-            });
-
-            if (finishIndex !== startIndex) {
-                saveChannelOrder(
-                    reorder({ list: order, startIndex, finishIndex }),
+            if (options.placeholder) {
+                const overList = location.current.dropTargets.some((target) =>
+                    isListTarget(target.data, list),
                 );
+
+                if (overList) {
+                    placeAt(location.current.input.clientY);
+                }
+
+                dropPreview(source.data.channelId, overList);
+
+                return;
             }
+
+            dropOnRow(source.data.channelId, location.current.dropTargets[0]);
         },
     });
 
-    onBeforeUnmount(stopMonitor);
+    onBeforeUnmount(() => {
+        stopMonitor();
+        endPreview();
+    });
 
     const register = (
         row: HTMLElement,
         handle: HTMLElement,
         channelId: string,
-    ): (() => void) =>
-        combine(
-            draggable({
-                element: row,
-                dragHandle: handle,
-                canDrag: () => !saving.value,
-                getInitialData: () => ({ [ITEM_KEY]: list, channelId }),
-                onDragStart: () => row.setAttribute('data-dragging', ''),
-                onDrop: () => row.removeAttribute('data-dragging'),
-            }),
+    ): (() => void) => {
+        const drag = draggable({
+            element: row,
+            dragHandle: handle,
+            getInitialData: () => ({ [ITEM_KEY]: list, channelId }),
+            onGenerateDragPreview: ({ nativeSetDragImage }) => {
+                if (options.placeholder) {
+                    disableNativeDragPreview({ nativeSetDragImage });
+                }
+            },
+            onDragStart: () => row.setAttribute('data-dragging', ''),
+            onDrop: () => row.removeAttribute('data-dragging'),
+        });
+
+        if (options.placeholder) {
+            return drag;
+        }
+
+        return combine(
+            drag,
             dropTargetForElements({
                 element: row,
                 canDrop: ({ source }) => isChannelItem(source.data, list),
@@ -210,12 +420,14 @@ export const useChannelOrder = (options: {
                 },
             }),
         );
+    };
 
     const cleanups = new WeakMap<HTMLElement, () => void>();
 
     const unbind = (row: HTMLElement): void => {
         cleanups.get(row)?.();
         cleanups.delete(row);
+        delete row.dataset.sortableChannel;
     };
 
     const bind = (row: HTMLElement, channelId: string | null): void => {
@@ -226,6 +438,7 @@ export const useChannelOrder = (options: {
             : null;
 
         if (channelId && handle) {
+            row.dataset.sortableChannel = channelId;
             cleanups.set(row, register(row, handle, channelId));
         }
     };
@@ -243,16 +456,80 @@ export const useChannelOrder = (options: {
         unmounted: (row) => unbind(row),
     };
 
+    const registerList = (element: HTMLElement): (() => void) => {
+        listElement = element;
+
+        const stopTarget = dropTargetForElements({
+            element,
+            canDrop: ({ source }) => isChannelItem(source.data, list),
+            getData: () => ({ [LIST_KEY]: list }),
+            onDrag: ({ location }) => {
+                if (!dragPreview.value) {
+                    return;
+                }
+
+                pointerY = location.current.input.clientY;
+                placeAt(pointerY);
+
+                if (!scrollFrame && autoScrollStep() !== 0) {
+                    scrollFrame = requestAnimationFrame(autoScroll);
+                }
+            },
+            onDragLeave: () => {
+                stopAutoScroll();
+                pointerY = null;
+
+                if (dragPreview.value) {
+                    dragPreview.value = { ...dragPreview.value, index: startIndex };
+                }
+            },
+        });
+
+        return () => {
+            stopTarget();
+
+            if (listElement === element) {
+                listElement = null;
+            }
+        };
+    };
+
+    const listCleanups = new WeakMap<HTMLElement, () => void>();
+
+    const vSortableChannelList: Directive<HTMLElement, boolean> = {
+        mounted: (element, { value }) => {
+            if (value) {
+                listCleanups.set(element, registerList(element));
+            }
+        },
+        updated: (element, { value }) => {
+            if (value === listCleanups.has(element)) {
+                return;
+            }
+
+            listCleanups.get(element)?.();
+            listCleanups.delete(element);
+
+            if (value) {
+                listCleanups.set(element, registerList(element));
+            }
+        },
+        unmounted: (element) => {
+            listCleanups.get(element)?.();
+            listCleanups.delete(element);
+        },
+    };
+
     const move = (channelId: string, offset: -1 | 1): void => {
         const order = options.order();
-        const startIndex = order.indexOf(channelId);
-        const finishIndex = startIndex + offset;
+        const from = order.indexOf(channelId);
+        const finishIndex = from + offset;
 
-        if (startIndex === -1 || finishIndex < 0 || finishIndex >= order.length) {
+        if (from === -1 || finishIndex < 0 || finishIndex >= order.length) {
             return;
         }
 
-        saveChannelOrder(reorder({ list: order, startIndex, finishIndex }));
+        saveChannelOrder(reorder({ list: order, startIndex: from, finishIndex }));
         focusHandle(list, channelId);
     };
 
@@ -265,5 +542,13 @@ export const useChannelOrder = (options: {
         move(channelId, event.key === 'ArrowUp' ? -1 : 1);
     };
 
-    return { vSortableChannel, move, onHandleKeydown, dropIndicator, saving };
+    return {
+        vSortableChannel,
+        vSortableChannelList,
+        move,
+        onHandleKeydown,
+        dropIndicator,
+        dragPreview,
+        saving,
+    };
 };

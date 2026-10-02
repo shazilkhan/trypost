@@ -65,6 +65,8 @@ class FinalizePostPublication
                 $post->markAsFailed();
             }
 
+            ScheduleNextOccurrence::execute($post);
+
             return ['post' => $post, 'successful' => $successful];
         });
 

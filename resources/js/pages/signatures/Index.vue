@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router } from '@inertiajs/vue3';
 import { IconHash, IconPencil, IconPlus, IconTrash } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
@@ -68,7 +67,6 @@ const openEditDialog = (signature: Signature) => {
 const handleDelete = (signature: Signature) => {
     deleteModal.value?.open({
         url: signaturesDestroy.url(signature.id),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 

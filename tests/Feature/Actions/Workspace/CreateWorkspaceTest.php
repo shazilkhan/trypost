@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Actions\Workspace\CreateWorkspace;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\User;
 
@@ -29,7 +28,7 @@ test('CreateWorkspace switches user current workspace and attaches as admin', fu
     expect($workspace->members->contains($user))->toBeTrue();
 
     $member = $workspace->members()->where('user_id', $user->id)->first();
-    expect($member?->pivot->role)->toBe(Role::Admin->value);
+    expect((bool) $member?->pivot->is_admin)->toBeTrue();
 });
 
 test('CreateWorkspace ignores unknown extra keys like logo_url', function () {

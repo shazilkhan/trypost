@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 return [
-    'title' => 'Analysen',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform-Analysen',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Text',
             'image' => 'Bild',
@@ -63,7 +63,7 @@ return [
         'stale' => 'Möglicherweise veraltet',
         'awaiting_metrics' => 'Es wurden noch keine Kennzahlen erfasst.',
         'estimated' => 'Geschätzt',
-        'back_to_analytics' => 'Zurück zu den Analysen',
+        'back_to_insights' => 'Zurück zu Insights',
         'details' => 'Details',
         'published_via_trypost' => 'Über TryPost veröffentlicht',
         'published_on' => 'Auf :platform veröffentlicht',

@@ -58,17 +58,14 @@ class WebhookController extends Controller
         $this->authorize('create', Webhook::class);
 
         try {
-            $webhook = CreateWebhook::execute($workspace, $request->validated(), $webhookService);
+            CreateWebhook::execute($workspace, $request->validated(), $webhookService);
         } catch (RuntimeException $e) {
             return back()->withErrors([
                 'endpoint' => $e->getMessage(),
             ]);
         }
 
-        session()->flash('flash.banner', __('webhooks.flash.created'));
-        session()->flash('flash.bannerStyle', 'success');
-
-        return redirect()->route('app.webhooks.show', $webhook);
+        return back();
     }
 
     public function update(UpdateWebhookRequest $request, Webhook $webhook, WebhookService $webhookService): RedirectResponse

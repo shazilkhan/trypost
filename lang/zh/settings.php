@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => '当某个社交账号断开连接时收到邮件',
         'post_note_added' => '帖子有新备注',
         'post_note_added_description' => '当团队成员为帖子添加备注时接收邮件',
+        'collaboration' => '协作',
+        'collaboration_description' => '接收关于审批请求以及已批准或已拒绝帖子的邮件',
         'save' => '保存偏好',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => '取消',
         'remove' => '移除',
-        'make_role' => '设为:role',
 
         'invite' => [
             'title' => '邀请成员',
             'description' => '发送邮件邀请以添加协作者',
             'email' => '邮箱',
             'email_placeholder' => 'collaborator@email.com',
-            'role' => '角色',
-            'role_placeholder' => '选择一个角色',
             'submit' => '发送邀请',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => '所有者',
             'admin' => '管理员',
             'member' => '成员',
-            'viewer' => '查看者',
+        ],
+        'access' => [
+            'admin_description' => '可管理成员和工作区设置',
+            'publishing' => '发布',
+            'publishes_directly' => '直接发布',
+            'needs_approval' => '需要审批',
+            'publishing_help' => '需要审批的成员发布的帖子会等待管理员或可直接发布的成员审批。',
+        ],
+        'edit' => [
+            'title' => '编辑成员',
+            'description' => '选择该成员在此工作区中可以做什么。',
+            'submit' => '保存',
+            'action' => '编辑权限',
         ],
 
         'errors' => [
             'invite_exists' => '该邮箱已有邀请。',
             'email_belongs_to_account' => '该邮箱已属于另一个 TryPost 账户。请改用专用工作邮箱。',
+            'cannot_remove_self' => '你不能移除自己。',
+            'cannot_remove_owner' => '你不能移除账户所有者。',
+            'cannot_change_own_access' => '你不能更改自己的访问权限。',
+            'cannot_change_owner_access' => '你不能更改账户所有者的访问权限。',
         ],
 
         'flash' => [
             'invite_sent' => '邀请发送成功！',
             'invite_deleted' => '邀请已删除。',
             'member_removed' => '成员移除成功。',
-            'role_updated' => '成员角色已更新。',
             'wrong_email' => '此邀请是发给另一个邮箱地址的。',
             'already_member' => '你已经是此工作区的成员。',
             'invite_accepted' => '欢迎！你现在是此工作区的成员了。',

@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Disconnect channel',
-        'description' => 'Are you sure you want to disconnect this channel? You can reconnect it at any time.',
+        'description' => 'This deletes every post of this channel in TryPost, including drafts, scheduled posts and published history. Posts already on the network stay there.',
         'confirm' => 'Disconnect',
+        'keyword' => 'DISCONNECT',
         'cancel' => 'Cancel',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Browser detected time zone',
         'placeholder' => 'Search cities or time zones',
         'empty' => 'No time zone found',
+    ],
+    'grid' => [
+        'title' => 'Grid',
+        'info' => 'This is an approximation of your post grid. It may differ on other devices, and posts published directly on Instagram update when we sync them.',
+        'sent_at' => 'This post was sent :date at :time',
+        'empty_title' => 'No published posts yet',
+        'empty_description' => 'Feed posts and reels published on this channel will show up here.',
+        'reel' => 'Reel',
+        'carousel' => 'Carousel',
     ],
 ];

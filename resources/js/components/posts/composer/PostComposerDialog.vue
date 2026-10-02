@@ -118,6 +118,7 @@ import {
     type ComposerInitialPost,
     type PostComposition,
 } from '@/composables/usePostComposition';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import date from '@/date';
 import dayjs from '@/dayjs';
@@ -228,6 +229,7 @@ if (
         .format('YYYY-MM-DDTHH:mm');
 }
 const { contentFor } = useXLinkDefuser();
+const { requiresApproval } = useWorkspaceAbilities();
 const errors = usePageErrors();
 const chosenStep = ref<1 | 2>(1);
 type ComposerSidePanel = 'templates' | 'assistant' | 'preview';
@@ -248,14 +250,26 @@ type ComposerScheduleMode = QueuePositionValue | 'now' | 'custom';
 const scheduleModeChosen = ref(
     Boolean(props.initialPost) || Boolean(composition.scheduledAt.value),
 );
-const scheduleMode = ref<ComposerScheduleMode>(
-    props.initialPost?.schedule_mode === ScheduleMode.Queue &&
-        props.initialPost.status === PostStatus.Scheduled
-        ? 'next'
-        : composition.scheduledAt.value
-          ? 'custom'
-          : 'now',
-);
+const initialScheduleMode = (): ComposerScheduleMode => {
+    const initial = props.initialPost;
+
+    if (
+        initial?.schedule_mode === ScheduleMode.Queue &&
+        initial.status === PostStatus.PendingApproval
+    ) {
+        return initial.queue_position ?? 'next';
+    }
+
+    if (
+        initial?.schedule_mode === ScheduleMode.Queue &&
+        initial.status === PostStatus.Scheduled
+    ) {
+        return 'next';
+    }
+
+    return composition.scheduledAt.value ? 'custom' : 'now';
+};
+const scheduleMode = ref<ComposerScheduleMode>(initialScheduleMode());
 const expandedAccountId = ref<string | null>(null);
 const previewAccountId = ref<string | null>(null);
 const cropping = ref(false);
@@ -540,6 +554,15 @@ watch(
     (blocked) => {
         if (blocked && isQueueMode.value) {
             scheduleMode.value = 'custom';
+        }
+    },
+    { immediate: true },
+);
+watch(
+    [scheduleMode, queueBlocked],
+    ([mode, blocked]) => {
+        if (requiresApproval.value && mode === 'now') {
+            scheduleMode.value = blocked ? 'custom' : 'next';
         }
     },
     { immediate: true },
@@ -860,7 +883,7 @@ const scheduleOptions = computed(() => [
         titleKey: 'posts.composer.set_date_time',
         descriptionKey: 'posts.composer.set_date_time_description',
     },
-]);
+].filter((option) => !requiresApproval.value || option.mode !== 'now'));
 const videoDurationSec = computed(
     () =>
         Math.ceil(
@@ -2601,7 +2624,9 @@ const close = (): void => emit('update:open', false);
                                             v-if="submitting || cropUploading"
                                             class="size-4 animate-spin"
                                         />{{
-                                            isQueueMode && !postId
+                                            requiresApproval
+                                                ? $t('posts.composer.request_approval')
+                                                : isQueueMode && !postId
                                                 ? isBatch
                                                     ? $t('posts.composer.queue.add_many', {
                                                           count: String(

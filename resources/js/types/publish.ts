@@ -1,8 +1,14 @@
+import type { RecurrenceFrequency } from '@/lib/recurrence';
 import type { PublicationAnalyticsDetail } from '@/types/analytics';
 import type { MediaItem } from '@/types/media';
-import type { PostStatusValue, ScheduleModeValue } from '@/types/post';
+import type {
+    PostOriginValue,
+    PostStatusValue,
+    QueuePositionValue,
+    ScheduleModeValue,
+} from '@/types/post';
 
-export type PublishTab = 'queue' | 'drafts' | 'sent';
+export type PublishTab = 'queue' | 'approvals' | 'drafts' | 'sent';
 
 export type PublishScope = 'all' | 'channel';
 
@@ -23,6 +29,7 @@ export interface PublishChannel extends PublishSocialAccount {
     has_posting_schedule: boolean;
     posting_goal: number | null;
     sent_this_week: number;
+    has_grid: boolean;
 }
 
 export interface PostCardPlatform {
@@ -55,10 +62,20 @@ export interface PostCard {
     card_key?: string;
     content: string | null;
     status: PostStatusValue;
+    origin: PostOriginValue;
     created_at: string;
     updated_at: string;
     scheduled_at: string | null;
     schedule_mode?: ScheduleModeValue | null;
+    approval_requested_at?: string | null;
+    approval_queue_position?: QueuePositionValue | null;
+    approved_at?: string | null;
+    post_group_id?: string | null;
+    group_posts_count?: number;
+    recurrence_interval?: number | null;
+    recurrence_frequency?: RecurrenceFrequency | null;
+    recurrence_remaining?: number | null;
+    recurrence_origin_at?: string | null;
     published_at: string | null;
     user: { name: string } | null;
     post_platforms: PostCardPlatform[];
@@ -113,6 +130,7 @@ export type PostCardMenuAction =
     | 'move_up'
     | 'move_down'
     | 'duplicate'
+    | 'recurrence'
     | 'move_drafts'
     | 'details'
     | 'delete';
@@ -134,8 +152,10 @@ export interface CalendarPost {
     id: string;
     status: string;
     content: string | null;
-    scheduled_at: string;
+    scheduled_at: string | null;
+    calendar_at: string;
     schedule_mode?: ScheduleModeValue | null;
+    recurrence_frequency?: RecurrenceFrequency | null;
     media?: MediaItem[] | null;
     post_platforms: CalendarPostPlatform[];
 }
@@ -149,7 +169,7 @@ export interface CalendarSlot {
     channel_id: string;
 }
 
-export interface UndatedDraft extends Omit<CalendarPost, 'scheduled_at'> {
+export interface UndatedDraft extends Omit<CalendarPost, 'scheduled_at' | 'calendar_at'> {
     scheduled_at: null;
 }
 

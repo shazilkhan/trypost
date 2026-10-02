@@ -11,7 +11,7 @@ class ResolveAnalyticsDateRange
 {
     /**
      * @param  array{min: ?string, max: ?string}  $bounds
-     * @param  array{start?: string, end?: string}  $selected
+     * @param  array{start?: string, end?: string, observed_through?: string}  $selected
      */
     public function execute(array $bounds, array $selected, bool $clampToBounds = true): DateRange
     {
@@ -19,7 +19,13 @@ class ResolveAnalyticsDateRange
         $selectedEnd = data_get($selected, 'end');
 
         if (! $clampToBounds && $selectedStart !== null && $selectedEnd !== null) {
-            return new DateRange(CarbonImmutable::parse($selectedStart, 'UTC'), CarbonImmutable::parse($selectedEnd, 'UTC'));
+            $observedThrough = data_get($selected, 'observed_through');
+
+            return new DateRange(
+                CarbonImmutable::parse($selectedStart, 'UTC'),
+                CarbonImmutable::parse($selectedEnd, 'UTC'),
+                $observedThrough === null ? null : CarbonImmutable::parse($observedThrough, 'UTC'),
+            );
         }
 
         $minimumDate = data_get($bounds, 'min');

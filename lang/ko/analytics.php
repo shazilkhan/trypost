@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => '분석',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform 분석',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => '텍스트',
             'image' => '이미지',
@@ -61,7 +61,7 @@ return [
         'stale' => '최신 데이터가 아닐 수 있음',
         'awaiting_metrics' => '아직 지표가 수집되지 않았습니다.',
         'estimated' => '추정치',
-        'back_to_analytics' => '분석으로 돌아가기',
+        'back_to_insights' => 'Insights로 돌아가기',
         'details' => '상세 정보',
         'published_via_trypost' => 'TryPost를 통해 게시',
         'published_on' => ':platform에 게시',

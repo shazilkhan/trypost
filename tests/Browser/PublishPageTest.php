@@ -7,7 +7,6 @@ use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsPublicationDailySnapshot;
 use App\Models\Post;
@@ -46,7 +45,7 @@ function publishPageSetup(): array
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -295,9 +294,78 @@ test('a sent card shows the metrics band in order and links to the publication i
     waitForPublishPageTestId($page, "post-metrics-{$post->id}");
 
     expect($page->script("[...document.querySelectorAll('[data-testid=\"post-metrics-{$post->id}\"] dd')].map((value) => value.textContent.trim())"))
-        ->toBe(['900', '600', '7', '5.5%', '40'])
+        ->toBe(['40', '7', '5.5%', '900', '600'])
         ->and($page->script("new URL(document.querySelector('[data-testid=\"post-insights-{$post->id}\"]').href).pathname"))
-        ->toBe(parse_url(route('app.analytics.publications.show', $publication), PHP_URL_PATH));
+        ->toBe(parse_url(route('app.channels.insights', $account), PHP_URL_PATH));
 
     $page->assertNoJavaScriptErrors();
+});
+
+test('the approvals tab groups pending posts by day with unscheduled requests last', function () {
+    [$user, $workspace, $channel] = publishPageSetup();
+    $timed = Post::factory()->pendingApproval()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'scheduled_at' => now()->utc()->addDays(2)->setTime(12, 0),
+    ]);
+    $queued = Post::factory()->pendingApproval()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'scheduled_at' => null,
+        'schedule_mode' => ScheduleMode::Queue,
+    ]);
+
+    foreach ([$timed, $queued] as $post) {
+        PostPlatform::factory()->create([
+            'post_id' => $post->id,
+            'social_account_id' => $channel->id,
+            'platform' => $channel->platform,
+            'enabled' => true,
+        ]);
+    }
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => 'approvals']));
+    waitForPublishPageTestId($page, "post-card-{$queued->id}");
+
+    $timedDay = $timed->scheduled_at->utc()->format('Y-m-d');
+
+    expect($page->script('[...document.querySelectorAll(\'[data-testid^="publish-tab-count-"]\')].map((el) => el.dataset.testid)'))
+        ->toBe(['publish-tab-count-queue', 'publish-tab-count-approvals', 'publish-tab-count-drafts', 'publish-tab-count-sent'])
+        ->and($page->script('[...document.querySelectorAll(\'[data-testid^="publish-day-"]\')].map((el) => el.dataset.testid)'))
+        ->toBe(["publish-day-{$timedDay}", 'publish-day-no-time']);
+
+    $page->assertSeeIn('@publish-tab-count-approvals', '2')
+        ->assertVisible("@post-card-{$timed->id}")
+        ->assertSeeIn('@publish-day-no-time', 'Unscheduled')
+        ->assertNoJavaScriptErrors();
+});
+
+test('an empty tab shows its illustration, copy and a new post button that opens the composer', function (string $tab) {
+    [$user] = publishPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => $tab]));
+    waitForPublishPageTestId($page, 'publish-empty-illustration');
+
+    $page->assertSeeIn('@empty-state', __("posts.publish.empty.{$tab}.title"))
+        ->assertSeeIn('@empty-state', __("posts.publish.empty.{$tab}.description"))
+        ->click("@publish-empty-new-post-{$tab}");
+    waitForPublishPageTestId($page, 'post-composer-dialog');
+
+    $page->assertVisible('@post-composer-dialog')->assertNoJavaScriptErrors();
+})->with(['approvals', 'drafts', 'sent']);
+
+test('the queue tab shows the empty state when there are no posts and no posting times', function () {
+    [$user, , $channel] = publishPageSetup();
+    $channel->update(['posting_schedule' => PostingSchedule::empty()]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => 'queue']));
+    waitForPublishPageTestId($page, 'publish-empty-illustration');
+
+    $page->assertSeeIn('@empty-state', __('posts.publish.empty.queue.title'))
+        ->assertVisible('@publish-empty-new-post-queue')
+        ->assertNoJavaScriptErrors();
 });

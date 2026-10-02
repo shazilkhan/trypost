@@ -20,7 +20,7 @@ class ResolveAnalyticsRangePreset
 
     /**
      * @param  array{range?: ?string, start?: ?string, end?: ?string}  $validated
-     * @return array{range: string, selection: array{start?: string, end?: string}, clamped: bool}
+     * @return array{range: string, selection: array{start?: string, end?: string, observed_through?: string}, clamped: bool}
      */
     public function selection(array $validated, string $timezone): array
     {
@@ -29,6 +29,10 @@ class ResolveAnalyticsRangePreset
 
         if ($range !== 'custom') {
             $selection = $this->handle($range, null, null, $timezone);
+        }
+
+        if ($range !== 'custom' && data_get($selection, 'end') === now($timezone)->toDateString()) {
+            $selection['observed_through'] = now('UTC')->toDateString();
         }
 
         return ['range' => $range, 'selection' => $selection, 'clamped' => $range === 'custom'];

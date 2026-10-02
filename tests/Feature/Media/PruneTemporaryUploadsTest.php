@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Actions\Media\PruneTemporaryUploads;
 use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\Media;
 use App\Models\Post;
@@ -28,7 +27,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 });

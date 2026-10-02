@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
-use App\Enums\UserWorkspace\Role;
 use App\Exceptions\Post\QueueBusyException;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -18,7 +17,7 @@ use Illuminate\Support\Facades\Exceptions;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['account_id' => $this->user->account_id, 'user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $this->workspace->id]);
 });
@@ -55,7 +54,7 @@ test('the settings page renders the channel, schedule, time zones and other chan
 
 test('members cannot open channel settings', function () {
     $member = User::factory()->create();
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
     $member->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->actingAs($member)->get(route('app.channels.settings', $this->channel))->assertForbidden();

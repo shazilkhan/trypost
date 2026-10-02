@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\App\AnalyticsController;
-use App\Http\Controllers\App\AnalyticsPublicationController;
 use App\Http\Controllers\App\ApiKeyController;
 use App\Http\Controllers\App\BillingController;
 use App\Http\Controllers\App\CanvaController;
@@ -16,6 +14,8 @@ use App\Http\Controllers\App\GooglePhotosSessionController;
 use App\Http\Controllers\App\IdeaController;
 use App\Http\Controllers\App\IdeaGenerateController;
 use App\Http\Controllers\App\IdeaStageController;
+use App\Http\Controllers\App\InsightsController;
+use App\Http\Controllers\App\InsightsPublicationController;
 use App\Http\Controllers\App\LibraryTemplateController;
 use App\Http\Controllers\App\LinkPreviewController;
 use App\Http\Controllers\App\McpSettingsController;
@@ -24,9 +24,12 @@ use App\Http\Controllers\App\MediaImportController;
 use App\Http\Controllers\App\MediaUploadController;
 use App\Http\Controllers\App\PinterestBoardController;
 use App\Http\Controllers\App\PostAiAssistantController;
+use App\Http\Controllers\App\PostApprovalController;
 use App\Http\Controllers\App\PostController;
+use App\Http\Controllers\App\PostGroupController;
 use App\Http\Controllers\App\PostLabelController;
 use App\Http\Controllers\App\PostNoteController;
+use App\Http\Controllers\App\PostRecurrenceController;
 use App\Http\Controllers\App\PostScheduleController;
 use App\Http\Controllers\App\PostTemplateController;
 use App\Http\Controllers\App\PostTemplatePickerController;
@@ -203,6 +206,7 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('settings/workspace/channels', [ChannelController::class, 'index'])->name('app.workspace.channels');
     Route::put('settings/workspace/channels/order', [ChannelController::class, 'reorder'])->name('app.channels.reorder');
     Route::get('channels/{account}/publish', [ChannelController::class, 'publish'])->name('app.channels.publish');
+    Route::get('channels/{account}/grid', [ChannelController::class, 'grid'])->name('app.channels.grid');
     Route::get('channels/{account}/calendar/{view?}', [ChannelController::class, 'calendar'])
         ->where('view', 'week|month')
         ->name('app.channels.calendar');
@@ -210,10 +214,10 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('channels/{account}/settings', [ChannelController::class, 'settings'])->name('app.channels.settings');
     Route::put('channels/{account}/queue/order', [ChannelQueueController::class, 'reorder'])->name('app.channels.queue.order');
 
-    // Analytics
-    Route::get('analytics', [AnalyticsController::class, 'index'])->name('app.analytics');
-    Route::get('analytics/publications/{publication}', [AnalyticsPublicationController::class, 'show'])->name('app.analytics.publications.show');
-    Route::get('analytics/{post}', [AnalyticsController::class, 'show'])->name('app.analytics.show');
+    // Insights
+    Route::get('insights', [InsightsController::class, 'index'])->name('app.insights');
+    Route::get('insights/publications/{publication}', [InsightsPublicationController::class, 'show'])->name('app.insights.publications.show');
+    Route::get('insights/{post}', [InsightsController::class, 'show'])->name('app.insights.show');
 
     // Schedule
     Route::get('schedule', [PostController::class, 'index'])->name('app.posts.index');
@@ -226,11 +230,15 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');
-    Route::get('posts/{post}', [PostController::class, 'show'])->name('app.posts.show');
     Route::get('posts/{post}/platforms/{postPlatform}/metrics', [PostController::class, 'platformMetrics'])->name('app.posts.platforms.metrics');
     Route::put('posts/{post}', [PostController::class, 'update'])->name('app.posts.update');
     Route::put('posts/{post}/schedule', [PostScheduleController::class, 'update'])->name('app.posts.schedule.update');
+    Route::put('posts/{post}/approve', [PostApprovalController::class, 'approve'])->name('app.posts.approve');
+    Route::put('posts/{post}/reject', [PostApprovalController::class, 'reject'])->name('app.posts.reject');
     Route::patch('posts/{post}/labels', [PostLabelController::class, 'update'])->name('app.posts.labels.update');
+    Route::patch('posts/{post}/recurrence', [PostRecurrenceController::class, 'update'])->name('app.posts.recurrence.update');
+    Route::delete('posts/{post}/recurrence', [PostRecurrenceController::class, 'destroy'])->name('app.posts.recurrence.destroy');
+    Route::get('posts/{post}/group', [PostGroupController::class, 'show'])->name('app.posts.group.show');
     Route::delete('posts/{post}', [PostController::class, 'destroy'])->name('app.posts.destroy');
     Route::post('posts/{post}/duplicate', [PostController::class, 'duplicate'])->name('app.posts.duplicate');
     Route::post('posts/link-preview', LinkPreviewController::class)
@@ -257,7 +265,7 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('settings/workspace/members/invites', [WorkspaceInviteController::class, 'store'])->name('app.invites.store');
     Route::delete('settings/workspace/members/invites/{invite}', [WorkspaceInviteController::class, 'destroy'])->name('app.invites.destroy');
     Route::delete('settings/workspace/members/{user}', [WorkspaceInviteController::class, 'removeMember'])->name('app.members.remove');
-    Route::put('settings/workspace/members/{user}/role', [WorkspaceInviteController::class, 'updateRole'])->name('app.members.update-role');
+    Route::put('settings/workspace/members/{user}', [WorkspaceInviteController::class, 'updateMember'])->name('app.members.update');
 
     // Signatures
     Route::get('settings/workspace/signatures', [WorkspaceSignatureController::class, 'index'])->name('app.signatures.index');

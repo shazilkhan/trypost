@@ -298,7 +298,6 @@ const blockedReason = computed<string | null>(() => {
 const handleDelete = () => {
     confirmDeleteModal.value?.open({
         url: destroy.url(props.repurpose.id),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 </script>

@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => 'Estadísticas',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Estadísticas de :platform',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Texto',
             'image' => 'Imagen',
@@ -61,7 +61,7 @@ return [
         'stale' => 'Puede estar desactualizado',
         'awaiting_metrics' => 'Todavía no se han recopilado métricas.',
         'estimated' => 'Estimado',
-        'back_to_analytics' => 'Volver a estadísticas',
+        'back_to_insights' => 'Volver a Insights',
         'details' => 'Detalles',
         'published_via_trypost' => 'Publicado mediante TryPost',
         'published_on' => 'Publicado en :platform',

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Mcp\Servers\TryPostServer;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
@@ -395,10 +394,10 @@ test('the alt shorthand is kept for images and ignored for other types', functio
 });
 
 test('an upload from a role that cannot create posts is forbidden before the file is checked', function () {
-    $viewer = User::factory()->create();
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
-    $headers = ['Authorization' => 'Bearer '.passportToken($viewer, $this->workspace), 'Accept' => 'application/json'];
+    $requester = User::factory()->create();
+    $this->workspace->members()->attach($requester->id, membershipPivot('approval'));
+    $requester->update(['current_workspace_id' => $this->workspace->id]);
+    $headers = ['Authorization' => 'Bearer '.passportToken($requester, $this->workspace), 'Accept' => 'application/json'];
 
     $this->withHeaders($headers)
         ->post(route('api.uploads.create'), ['media' => UploadedFile::fake()->createWithContent('run.exe', 'MZ')])

@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
-use App\Enums\PostPlatform\Status as PostPlatformStatus;
+use App\Actions\Post\DeleteChannelPosts;
 use App\Enums\Repurpose\Status as RepurposeStatus;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
 use App\Enums\SocialAccount\Status;
 use App\Exceptions\SocialAccount\ConnectPopupException;
 use App\Exceptions\SocialAccount\NetworkAlreadyConnectedException;
 use App\Http\Controllers\Controller;
-use App\Models\PostPlatform;
 use App\Models\Repurpose;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
-use App\Support\Social\AbandonGoogleBusinessReview;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -52,22 +50,7 @@ class SocialController extends Controller
             abort(403);
         }
 
-        $account->postPlatforms()
-            ->where('platform', SocialPlatform::GoogleBusiness)
-            ->where('status', PostPlatformStatus::PendingReview)
-            ->get()
-            ->each(fn (PostPlatform $platform) => AbandonGoogleBusinessReview::execute(
-                $platform,
-                __('posts.errors.account_disconnected'),
-                ['category' => 'account_disconnected'],
-            ));
-
-        // Drop pending platform rows from drafts/scheduled posts so the account
-        // disappears cleanly from their UI. Published/failed rows survive via the
-        // FK's nullOnDelete cascade and keep their snapshot fields for history.
-        $account->postPlatforms()
-            ->where('status', PostPlatformStatus::Pending->value)
-            ->delete();
+        DeleteChannelPosts::forAccount($account);
 
         $before = $this->repurposeStatesFor($account);
 

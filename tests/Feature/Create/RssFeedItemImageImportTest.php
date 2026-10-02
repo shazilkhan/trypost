@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Media\Type;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\Media;
 use App\Models\Post;
@@ -43,7 +42,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -179,14 +178,12 @@ test('another workspace item cannot be imported or saved', function () {
         ->and(Idea::query()->count())->toBe(0);
 });
 
-test('viewers cannot import an image', function () {
+test('a user outside the workspace cannot import an image', function () {
     Http::fake();
-    $viewer = User::factory()->create(['account_id' => $this->workspace->account_id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+    $outsider = workspaceOutsider($this->workspace);
     $item = rssFeedItemImageImportItem($this->workspace);
 
-    $this->actingAs($viewer->fresh())->postJson(route('app.create.feed-items.import-image', $item))->assertForbidden();
+    $this->actingAs($outsider->fresh())->postJson(route('app.create.feed-items.import-image', $item))->assertForbidden();
 
     Http::assertNothingSent();
 });

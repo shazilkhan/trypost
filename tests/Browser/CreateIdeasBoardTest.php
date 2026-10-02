@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\User;
@@ -50,7 +49,7 @@ function createIdeasBoardSetup(): array
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -181,8 +180,8 @@ test('deleting a stage keeps its ideas under unassigned', function () {
     $page->click("@idea-column-menu-{$stages['todo']->id}");
     waitForCreateIdeasBoardTestId($page, "idea-stage-delete-{$stages['todo']->id}");
     $page->click("@idea-stage-delete-{$stages['todo']->id}");
-    waitForCreateIdeasBoardTestId($page, 'confirm-delete-input');
-    $page->type('@confirm-delete-input', __('common.confirm_modal.delete_keyword'))
+    waitForCreateIdeasBoardTestId($page, 'confirm-delete-action');
+    $page->assertMissing('@confirm-delete-input')
         ->click('@confirm-delete-action');
     waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"idea-column-{$stages['todo']->id}\"]')");
 
@@ -223,8 +222,8 @@ test('selected ideas are deleted in bulk and the selection can be cleared', func
     waitForCreateIdeasBoardTestId($page, 'ideas-bulk-delete');
     $page->assertSeeIn('@ideas-bulk-delete', '2')
         ->click('@ideas-bulk-delete');
-    waitForCreateIdeasBoardTestId($page, 'confirm-delete-input');
-    $page->type('@confirm-delete-input', __('common.confirm_modal.delete_keyword'))
+    waitForCreateIdeasBoardTestId($page, 'ideas-bulk-delete-confirm');
+    $page->assertMissing('@confirm-delete-input')
         ->click('@ideas-bulk-delete-confirm');
     waitForCreateIdeasBoardDatabase($page, fn (): bool => Idea::whereKey([$a->id, $b->id])->doesntExist());
 
@@ -383,8 +382,8 @@ test('deleting a stage removes it from the stages filter', function () {
     $page->click("@idea-column-menu-{$stages['todo']->id}");
     waitForCreateIdeasBoardTestId($page, "idea-stage-delete-{$stages['todo']->id}");
     $page->click("@idea-stage-delete-{$stages['todo']->id}");
-    waitForCreateIdeasBoardTestId($page, 'confirm-delete-input');
-    $page->type('@confirm-delete-input', __('common.confirm_modal.delete_keyword'))
+    waitForCreateIdeasBoardTestId($page, 'confirm-delete-action');
+    $page->assertMissing('@confirm-delete-input')
         ->click('@confirm-delete-action');
     waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"idea-column-{$stages['todo']->id}\"]')");
 
@@ -462,4 +461,28 @@ test('changing a filter clears the selection', function () {
 
     $page->assertMissing('@ideas-bulk-bar')
         ->assertNoJavaScriptErrors();
+});
+
+test('deleting a single idea asks for confirmation without typing a keyword', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    $a = createIdeasBoardIdea($workspace, $user, $stages['todo'], 0, 'Idea A');
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'));
+    waitForCreateIdeasBoardTestId($page, "idea-card-menu-{$a->id}");
+    $page->click("@idea-card-menu-{$a->id}");
+    waitForCreateIdeasBoardTestId($page, "idea-delete-{$a->id}");
+    $page->click("@idea-delete-{$a->id}");
+    waitForCreateIdeasBoardTestId($page, 'confirm-delete-action');
+
+    expect(trim($page->script("document.querySelector('[data-testid=\"confirm-delete-modal\"] [data-slot=\"dialog-description\"]')?.textContent ?? ''")))->toBe(__('create.ideas.delete_confirm_body'));
+
+    expect($page->script("[...document.querySelectorAll('[data-testid=\"confirm-delete-cancel\"], [data-testid=\"confirm-delete-action\"]')].map((button) => button.offsetHeight)"))->toBe([32, 32]);
+
+    $page->assertMissing('@confirm-delete-input')
+        ->click('@confirm-delete-action');
+    waitForCreateIdeasBoardDatabase($page, fn (): bool => Idea::whereKey($a->id)->doesntExist());
+
+    expect(Idea::whereKey($a->id)->exists())->toBeFalse();
+    $page->assertNoJavaScriptErrors();
 });

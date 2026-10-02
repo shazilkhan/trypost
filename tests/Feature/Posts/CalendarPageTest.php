@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\User\WeekStart;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -25,7 +24,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create(['timezone' => 'America/Sao_Paulo']);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->linkedin = SocialAccount::factory()->linkedin()->create(['workspace_id' => $this->workspace->id]);
@@ -320,4 +319,59 @@ test('posting slots load only when enabled, cover the visible range and follow t
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('slots.2026-10-05', 1)
             ->missing('slots.2026-10-06'));
+});
+
+test('an imported post sits on the day it was published', function () {
+    $post = Post::factory()->imported()->create([
+        'workspace_id' => $this->workspace->id,
+        'published_at' => CarbonImmutable::parse('2026-10-07 14:20:00', 'UTC'),
+    ]);
+    PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->x->id,
+        'platform' => $this->x->platform,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.calendar', ['view' => 'week']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('posts.2026-10-07', 1)
+            ->where('posts.2026-10-07.0.id', $post->id)
+            ->where('posts.2026-10-07.0.calendar_at', '2026-10-07T14:20:00Z'));
+});
+
+test('a sent trypost post is placed by its publish time and a scheduled one by its schedule', function () {
+    $sent = calendarPost($this->linkedin, '2026-10-06 12:00:00', 'Sent late', PostStatus::Published, [
+        'published_at' => CarbonImmutable::parse('2026-10-08 09:00:00', 'UTC'),
+    ]);
+    $scheduled = calendarPost($this->linkedin, '2026-10-09 15:00:00', 'Planned');
+
+    $this->actingAs($this->user)
+        ->get(route('app.calendar', ['view' => 'week']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->missing('posts.2026-10-06')
+            ->where('posts.2026-10-08.0.id', $sent->id)
+            ->where('posts.2026-10-09.0.id', $scheduled->id)
+            ->where('posts.2026-10-09.0.calendar_at', '2026-10-09T15:00:00Z'));
+});
+
+test('the calendar shows every pending request to approvers and only their own to requesters', function () {
+    $requester = workspaceMember($this->workspace, 'approval', ['timezone' => 'America/Sao_Paulo']);
+    $otherRequester = workspaceMember($this->workspace, 'approval', ['timezone' => 'America/Sao_Paulo']);
+    $own = calendarPost($this->linkedin, '2026-10-07 15:00:00', 'My request', PostStatus::PendingApproval, ['user_id' => $requester->id]);
+    $editedByMe = calendarPost($this->linkedin, '2026-10-07 16:00:00', 'Edited by me', PostStatus::PendingApproval, ['approval_requested_by' => $requester->id]);
+    calendarPost($this->linkedin, '2026-10-07 17:00:00', 'Their request', PostStatus::PendingApproval, ['user_id' => $otherRequester->id]);
+    $scheduled = calendarPost($this->linkedin, '2026-10-07 18:00:00', 'Scheduled');
+
+    $this->actingAs($requester)
+        ->get(route('app.calendar', ['view' => 'week']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('posts.2026-10-07', 3)
+            ->where('posts.2026-10-07.0.id', $own->id)
+            ->where('posts.2026-10-07.1.id', $editedByMe->id)
+            ->where('posts.2026-10-07.2.id', $scheduled->id));
+
+    $this->actingAs($this->user)
+        ->get(route('app.calendar', ['view' => 'week']))
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('posts.2026-10-07', 4));
 });

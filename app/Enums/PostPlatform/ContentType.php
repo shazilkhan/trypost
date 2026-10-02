@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\PostPlatform;
 
+use App\Enums\Analytics\PublicationContentType;
 use App\Enums\Media\Type as MediaType;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
 
@@ -772,6 +773,36 @@ enum ContentType: string
             SocialPlatform::Telegram => self::TelegramPost,
             SocialPlatform::Discord => self::DiscordMessage,
             SocialPlatform::GoogleBusiness => self::GoogleBusinessPost,
+        };
+    }
+
+    /**
+     * The content type an imported publication is shown as. One place for every
+     * platform and publication type pair.
+     */
+    public static function fromPublication(SocialPlatform $platform, PublicationContentType $type): self
+    {
+        return match ($platform) {
+            SocialPlatform::Instagram, SocialPlatform::InstagramFacebook => match ($type) {
+                PublicationContentType::Reel => self::InstagramReel,
+                PublicationContentType::Story => self::InstagramStory,
+                default => self::InstagramFeed,
+            },
+            SocialPlatform::Facebook => match ($type) {
+                PublicationContentType::Reel => self::FacebookReel,
+                PublicationContentType::Story => self::FacebookStory,
+                default => self::FacebookPost,
+            },
+            SocialPlatform::TikTok => match ($type) {
+                PublicationContentType::Image, PublicationContentType::Carousel => self::TikTokPhoto,
+                default => self::TikTokVideo,
+            },
+            SocialPlatform::Pinterest => match ($type) {
+                PublicationContentType::Video => self::PinterestVideoPin,
+                PublicationContentType::Carousel => self::PinterestCarousel,
+                default => self::PinterestPin,
+            },
+            default => self::defaultFor($platform),
         };
     }
 }

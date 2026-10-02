@@ -7,7 +7,6 @@ use App\Enums\User\Locale;
 use App\Enums\User\Theme;
 use App\Enums\User\TimeFormat;
 use App\Enums\User\WeekStart;
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -32,7 +31,7 @@ function preferencesUser(array $attributes = []): User
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     return $user->fresh();

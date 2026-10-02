@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -25,7 +24,7 @@ test('a workspace is created from its name alone and settings have no brand page
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $this->actingAs($user->fresh());
 

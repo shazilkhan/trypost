@@ -22,9 +22,9 @@ class XPublicationCollector extends AbstractPublicationHistoryCollector
             [
                 'max_results' => self::PAGE_SIZE,
                 'pagination_token' => $cursor,
-                'tweet.fields' => 'created_at,attachments',
+                'tweet.fields' => 'created_at,attachments,note_tweet',
                 'expansions' => 'attachments.media_keys',
-                'media.fields' => 'media_key,type,preview_image_url,url',
+                'media.fields' => 'media_key,type,preview_image_url,url,variants',
             ],
         );
         $media = collect((array) $response->json('includes.media', []))->keyBy('media_key');
@@ -63,10 +63,17 @@ class XPublicationCollector extends AbstractPublicationHistoryCollector
                 contentType: $this->contentType($types->all(), $attachedMedia->count()),
                 providerContentType: $types->implode(','),
                 permalink: filled($account->username) ? "https://x.com/{$account->username}/status/{$postId}" : null,
-                excerpt: data_get($row, 'text'),
+                excerpt: data_get($row, 'note_tweet.text') ?: data_get($row, 'text'),
                 previewMetadata: is_array($preview)
                     ? ['thumbnail_url' => data_get($preview, 'preview_image_url') ?: data_get($preview, 'url')]
                     : null,
+                providerMetadata: $attachedMedia->isEmpty() ? null : ['media' => $attachedMedia
+                    ->map(fn (array $item): array => array_filter([
+                        'type' => data_get($item, 'type'),
+                        'url' => data_get($item, 'url'),
+                        'variants' => data_get($item, 'variants'),
+                    ], fn (mixed $value): bool => $value !== null))
+                    ->all()],
             );
         }
 

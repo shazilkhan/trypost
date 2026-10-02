@@ -14,6 +14,7 @@ use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
 use App\Mcp\Tools\Label\UpdateLabelTool;
 use App\Mcp\Tools\Platform\ListContentTypesTool;
+use App\Mcp\Tools\Post\ApprovePostTool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
@@ -24,6 +25,7 @@ use App\Mcp\Tools\Post\GetPostTool;
 use App\Mcp\Tools\Post\ListPostsTool;
 use App\Mcp\Tools\Post\PreviewPostTool;
 use App\Mcp\Tools\Post\PublishPostTool;
+use App\Mcp\Tools\Post\RejectPostTool;
 use App\Mcp\Tools\Post\RequestMediaUploadTool;
 use App\Mcp\Tools\Post\UpdatePostTool;
 use App\Mcp\Tools\Repurpose\ActivateRepurposeTool;
@@ -63,7 +65,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 #[Name('TryPost')]
 #[Version('1.0.0')]
 #[Icon('images/trypost/icon.png', mimeType: 'image/png')]
-#[Instructions('TryPost is a social media scheduling platform. Use this server to manage posts, analytics, signatures, labels, social accounts, workspaces, outgoing webhooks, repurposes (auto-replicating videos posted outside TryPost), and API keys. Media is attached to a post by upload or URL; an upload is temporary, kept for 24 hours and single-use, and every post keeps its own copy of its files.')]
+#[Instructions('TryPost is a social media scheduling platform. Use this server to manage posts, analytics, signatures, labels, social accounts, workspaces, outgoing webhooks, repurposes (auto-replicating videos posted outside TryPost), and API keys. Media is attached to a post by upload or URL; an upload is temporary, kept for 24 hours and single-use, and every post keeps its own copy of its files. Members who need approval in a workspace can create and edit posts, but scheduling, queueing or publishing stores their post with status pending_approval until a member who publishes directly calls approve-post-tool or reject-post-tool.')]
 class TryPostServer extends Server
 {
     public int $defaultPaginationLength = 100;
@@ -76,6 +78,8 @@ class TryPostServer extends Server
         CreatePostsTool::class,
         UpdatePostTool::class,
         PublishPostTool::class,
+        ApprovePostTool::class,
+        RejectPostTool::class,
         PreviewPostTool::class,
         DeletePostTool::class,
         AttachMediaFromUrlTool::class,

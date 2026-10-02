@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions\Workspace;
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\DB;
@@ -23,9 +22,7 @@ class CreateWorkspace
                 'user_id' => $user->id,
             ]);
 
-            // Creator becomes Admin of the workspace they made. The Account Owner
-            // is resolved separately (via account.owner_id) and outranks this role.
-            $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+            $workspace->members()->attach($user->id, ['is_admin' => true, 'requires_approval' => false]);
             $user->switchWorkspace($workspace);
 
             return $workspace;

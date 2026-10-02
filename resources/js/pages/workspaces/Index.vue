@@ -7,8 +7,8 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import WorkspaceUpgradeDialog from '@/components/workspaces/WorkspaceUpgradeDialog.vue';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { useWorkspaceLimit } from '@/composables/useWorkspaceLimit';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { switchMethod } from '@/routes/app/workspaces';
 
@@ -27,7 +27,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const { canCreateWorkspace } = useWorkspaceRole();
+const { canCreateWorkspace } = useWorkspaceAbilities();
 const { createOrUpgrade } = useWorkspaceLimit(() => props.workspaces.length);
 
 const upgradeDialogOpen = ref(false);

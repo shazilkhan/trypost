@@ -38,7 +38,7 @@ const pixels = computed(() =>
 );
 
 const radiusClass = computed(() => {
-    if (props.plain) {
+    if (props.plain || props.ring) {
         return 'rounded-full';
     }
 

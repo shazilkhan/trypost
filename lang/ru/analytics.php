@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => 'Аналитика',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Аналитика :platform',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Текст',
             'image' => 'Изображение',
@@ -61,7 +61,7 @@ return [
         'stale' => 'Данные могут быть устаревшими',
         'awaiting_metrics' => 'Показатели ещё не собраны.',
         'estimated' => 'Оценка',
-        'back_to_analytics' => 'Вернуться к аналитике',
+        'back_to_insights' => 'Назад к Insights',
         'details' => 'Подробности',
         'published_via_trypost' => 'Опубликовано через TryPost',
         'published_on' => 'Опубликовано в :platform',

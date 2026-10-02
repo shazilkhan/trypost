@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Post;
 
+use App\Actions\Post\AppendPostMedia;
 use App\Dto\MediaItem;
 use App\Dto\RemoteFile;
 use App\Enums\Media\Type as MediaType;
 use App\Models\Media;
 use App\Models\Post;
+use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Media\RemoteMediaImporter;
 
@@ -34,7 +36,7 @@ class MediaAttacher
      * @param  array<int, array{url: string, alt?: ?string}>  $urls
      * @return array{attached: array<int, array<string, mixed>>, failed: array<int, string>}
      */
-    public function attachFromUrls(Post $post, array $urls): array
+    public function attachFromUrls(Post $post, array $urls, ?User $actor = null): array
     {
         $attached = [];
         $failed = [];
@@ -60,7 +62,7 @@ class MediaAttacher
         }
 
         if ($attached !== []) {
-            $post->appendMedia($attached);
+            AppendPostMedia::execute($post, $attached, $actor);
             $owned = collect($post->media ?? [])->keyBy('id');
             $attached = array_map(fn (array $item): array => $owned->get(data_get($item, 'id'), $item), $attached);
         }

@@ -3,16 +3,22 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     IconCheck,
     IconCreditCard,
+    IconDeviceDesktop,
     IconLanguage,
     IconLogout,
+    IconMoon,
     IconPlus,
     IconSettings,
+    IconSun,
     IconUser,
+    IconUsers,
 } from '@tabler/icons-vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
+import PreferencesController from '@/actions/App/Http/Controllers/App/Settings/PreferencesController';
 import { updateLanguage } from '@/actions/App/Http/Controllers/App/Settings/ProfileController';
 import { Avatar } from '@/components/ui/avatar';
+import { buttonVariants } from '@/components/ui/button';
 import {
     DropdownMenuGroup,
     DropdownMenuItem,
@@ -24,15 +30,19 @@ import {
     DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
 import { clearAllComposerAutosaves } from '@/composables/useComposerAutosave';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { useWorkspaceLimit } from '@/composables/useWorkspaceLimit';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { cn } from '@/lib/utils';
 import posthog from '@/posthog';
+import { applyTheme, type Theme } from '@/preferences';
 import { logout } from '@/routes';
+import { members } from '@/routes/app';
 import { edit as accountEdit } from '@/routes/app/account';
 import { edit as profileEdit } from '@/routes/app/profile';
 import { settings as workspaceSettings } from '@/routes/app/workspace';
 import { switchMethod } from '@/routes/app/workspaces';
 import type { Language, User } from '@/types';
+import type { SidebarChannel } from '@/types/channel';
 
 interface Workspace {
     id: string;
@@ -52,13 +62,20 @@ const emit = defineEmits<{
 }>();
 
 const page = usePage();
-const { canManageBilling, canManageWorkspace } = useWorkspaceRole();
+const { canManageBilling, canManageTeam, canManageWorkspace } =
+    useWorkspaceAbilities();
 const { createOrUpgrade } = useWorkspaceLimit(() => props.workspaces.length);
 const selfHosted = computed(() => Boolean(page.props.selfHosted));
 const showAccountSettings = computed(
     () => canManageBilling.value && !selfHosted.value,
 );
 const showWorkspaceSettings = computed(() => canManageWorkspace.value);
+const planName = computed(() =>
+    selfHosted.value ? null : (page.props.auth.plan?.name ?? null),
+);
+const channelCount = computed(
+    () => ((page.props.channels as SidebarChannel[] | undefined) ?? []).length,
+);
 const languages = computed<Language[]>(
     () => page.props.languages as Language[],
 );
@@ -68,6 +85,32 @@ const currentLanguage = computed(() =>
 
 const switchLanguage = (code: string): void => {
     router.put(updateLanguage.url(), { locale: code });
+};
+
+const themes = [
+    { value: 'light', icon: IconSun },
+    { value: 'dark', icon: IconMoon },
+    { value: 'system', icon: IconDeviceDesktop },
+] as const satisfies readonly { value: Theme; icon: unknown }[];
+const currentTheme = ref<Theme>(props.user.theme);
+const currentThemeOption = computed(
+    () =>
+        themes.find((theme) => theme.value === currentTheme.value) ??
+        themes[2],
+);
+
+const switchTheme = (theme: Theme): void => {
+    if (theme === currentTheme.value) {
+        return;
+    }
+
+    currentTheme.value = theme;
+    applyTheme(theme);
+    router.patch(
+        PreferencesController.update.url(),
+        { theme },
+        { preserveScroll: true, preserveState: true },
+    );
 };
 
 const switchWorkspace = (workspaceId: string): void => {
@@ -96,12 +139,50 @@ const handleLogout = (): void => {
 </script>
 
 <template>
-    <DropdownMenuLabel
-        class="px-2 py-1.5 text-xs font-medium tracking-normal text-muted-foreground normal-case"
-        data-testid="sidebar-menu-greeting"
-    >
-        {{ user.first_name }}
-    </DropdownMenuLabel>
+    <div class="flex flex-col gap-3 px-2 pt-2 pb-2">
+        <div class="grid min-w-0 gap-0.5">
+            <span
+                class="mb-2 truncate text-xs text-muted-foreground"
+                data-testid="sidebar-menu-email"
+            >
+                {{ user.email }}
+            </span>
+            <span
+                class="truncate text-sm font-semibold text-foreground"
+                data-testid="sidebar-menu-name"
+            >
+                {{ user.name }}
+            </span>
+            <span
+                class="truncate text-xs text-muted-foreground"
+                data-testid="sidebar-menu-plan"
+            >
+                <template v-if="planName">{{ planName }} · </template>
+                {{ $tChoice('sidebar.channels_count', channelCount) }}
+            </span>
+        </div>
+        <DropdownMenuItem
+            v-if="canManageTeam"
+            :as-child="true"
+            :class="
+                cn(
+                    buttonVariants({ variant: 'outline' }),
+                    'w-full justify-center gap-2 py-0',
+                )
+            "
+        >
+            <Link
+                :href="members.url()"
+                prefetch
+                data-testid="sidebar-menu-manage-team"
+            >
+                <IconUsers class="size-4 text-foreground" />
+                {{ $t('sidebar.manage_team') }}
+            </Link>
+        </DropdownMenuItem>
+    </div>
+
+    <DropdownMenuSeparator />
 
     <DropdownMenuGroup>
         <DropdownMenuItem :as-child="true">
@@ -137,11 +218,6 @@ const handleLogout = (): void => {
                 {{ $t('sidebar.workspace_settings') }}
             </Link>
         </DropdownMenuItem>
-    </DropdownMenuGroup>
-
-    <DropdownMenuSeparator />
-
-    <DropdownMenuGroup>
         <DropdownMenuSub v-if="languages && languages.length > 1">
             <DropdownMenuSubTrigger data-testid="sidebar-language-trigger">
                 <img
@@ -185,6 +261,37 @@ const handleLogout = (): void => {
                 </DropdownMenuSubContent>
             </DropdownMenuPortal>
         </DropdownMenuSub>
+        <DropdownMenuSub>
+            <DropdownMenuSubTrigger data-testid="sidebar-theme-trigger">
+                <component :is="currentThemeOption.icon" />
+                {{
+                    $t('sidebar.theme', {
+                        name: $t(
+                            `settings.preferences.theme.${currentThemeOption.value}`,
+                        ),
+                    })
+                }}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+                <DropdownMenuSubContent>
+                    <DropdownMenuItem
+                        v-for="theme in themes"
+                        :key="theme.value"
+                        :class="theme.value === currentTheme ? 'bg-accent' : ''"
+                        :data-testid="`sidebar-theme-${theme.value}`"
+                        @click="switchTheme(theme.value)"
+                    >
+                        <component :is="theme.icon" />
+                        {{ $t(`settings.preferences.theme.${theme.value}`) }}
+                        <IconCheck
+                            v-if="theme.value === currentTheme"
+                            class="ms-auto size-4 shrink-0 text-foreground"
+                            stroke-width="2.5"
+                        />
+                    </DropdownMenuItem>
+                </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+        </DropdownMenuSub>
     </DropdownMenuGroup>
 
     <DropdownMenuSeparator />
@@ -206,7 +313,7 @@ const handleLogout = (): void => {
                 :src="workspace.logo_url"
                 :name="workspace.name"
                 class="h-6 w-6 shrink-0 rounded-md border border-border"
-                fallback-class="text-[10px] bg-amber-100 text-amber-800 font-bold"
+                fallback-class="text-[10px] bg-primary-subtle text-primary-text font-bold"
             />
             <span class="min-w-0 flex-1 truncate">{{ workspace.name }}</span>
             <IconCheck

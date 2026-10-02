@@ -9,7 +9,6 @@ use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\PostPlatform\Status;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Jobs\PublishPost;
@@ -29,12 +28,13 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Route;
 
 beforeEach(function () {
     Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
     $this->user = User::factory()->create([]);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->socialAccount = SocialAccount::factory()->create([
@@ -239,7 +239,7 @@ test('posts index filters individual accounts and only displays selected targets
             ->where('posts.data.0.id', $sharedPost->id)
             ->has('posts.data.0.post_platforms', 1)
             ->where('posts.data.0.post_platforms.0.social_account_id', $firstInstagram->id)
-            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 1])
+            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 1, 'approvals' => 0])
             ->where('filters.channels', [$firstInstagram->id]));
 });
 
@@ -272,7 +272,7 @@ test('posts index does not accept a channel from another workspace', function ()
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->has('posts.data', 0)
-            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0]));
+            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0, 'approvals' => 0]));
 });
 
 test('posts index redirects to create workspace if no workspace', function () {
@@ -496,7 +496,7 @@ test('posts tabs filter independently and expose counts', function () {
             ->component('publish/Index', false)
             ->where('tab', 'drafts')
             ->has('posts.data', 1)
-            ->where('counts', ['queue' => 1, 'drafts' => 1, 'sent' => 1]));
+            ->where('counts', ['queue' => 1, 'drafts' => 1, 'sent' => 1, 'approvals' => 0]));
 });
 
 test('store post creates one independent draft per selected account', function () {
@@ -640,7 +640,7 @@ test('edit does not open the composer for a single target without a social accou
 
     $this->actingAs($this->user)
         ->get(route('app.posts.edit', $post))
-        ->assertRedirect(route('app.posts.show', $post));
+        ->assertRedirect(route('app.posts.index', ['post' => $post->id]));
 });
 
 test('edit exposes null scheduled_at for an unscheduled draft', function () {
@@ -677,7 +677,7 @@ test('edit post returns 404 for post from different workspace', function () {
     $response->assertNotFound();
 });
 
-test('edit redirects to show for non-editable statuses', function () {
+test('edit redirects to the post details for non-editable statuses', function () {
     foreach ([PostStatus::Published, PostStatus::PartiallyPublished, PostStatus::Publishing, PostStatus::Failed] as $status) {
         $post = Post::factory()->create([
             'workspace_id' => $this->workspace->id,
@@ -692,7 +692,7 @@ test('edit redirects to show for non-editable statuses', function () {
 
         $this->actingAs($this->user)
             ->get(route('app.posts.edit', $post))
-            ->assertRedirect(route('app.posts.show', $post));
+            ->assertRedirect(route('app.posts.index', ['post' => $post->id]));
     }
 });
 
@@ -1533,7 +1533,11 @@ test('platform metrics excludes LinkedIn Page in V1', function () {
     Http::assertNothingSent();
 });
 
-test('show page renders for non-editable posts', function () {
+test('the standalone post page no longer exists', function () {
+    expect(Route::has('app.posts.show'))->toBeFalse();
+});
+
+test('the post details deep link opens a published post on the sent tab', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -1548,16 +1552,27 @@ test('show page renders for non-editable posts', function () {
         'platform_url' => 'https://linkedin.com/posts/abc',
     ]);
 
-    $response = $this->actingAs($this->user)->get(route('app.posts.show', $post));
+    Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Published,
+    ]);
 
-    $response->assertOk();
-    $response->assertInertia(fn ($page) => $page
-        ->component('posts/Show', false)
-        ->has('post.platforms', 1)
-    );
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['post' => $post->id]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('publish/Index', false)
+            ->where('tab', 'sent')
+            ->where('openPostDetailsId', $post->id)
+            ->where('openPostNotesId', null)
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $post->id)
+            ->has('posts.data.0.post_platforms', 1)
+        );
 });
 
-test('show page exposes the content type of each platform', function () {
+test('the post details deep link exposes the content type of the post', function () {
     $facebookAccount = SocialAccount::factory()->facebook()->create([
         'workspace_id' => $this->workspace->id,
     ]);
@@ -1577,33 +1592,35 @@ test('show page exposes the content type of each platform', function () {
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('app.posts.show', $post))
+        ->get(route('app.posts.index', ['post' => $post->id]))
         ->assertInertia(fn ($page) => $page
-            ->component('posts/Show', false)
-            ->where('post.platforms.0.content_type', ContentType::FacebookReel->value)
+            ->component('publish/Index', false)
+            ->where('posts.data.0.post_platforms.0.content_type', ContentType::FacebookReel->value)
         );
 });
 
-test('show page redirects editable posts to edit', function () {
-    foreach ([PostStatus::Draft, PostStatus::Scheduled] as $status) {
-        $post = Post::factory()->create([
-            'workspace_id' => $this->workspace->id,
-            'user_id' => $this->user->id,
-            'status' => $status,
-        ]);
-        PostPlatform::factory()->create([
-            'post_id' => $post->id,
-            'social_account_id' => $this->socialAccount->id,
-            'enabled' => true,
-        ]);
+test('the post details deep link picks the tab of the post status', function (PostStatus $status, string $tab) {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => $status,
+    ]);
 
-        $this->actingAs($this->user)
-            ->get(route('app.posts.show', $post))
-            ->assertRedirect(route('app.posts.edit', $post));
-    }
-});
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['post' => $post->id]))
+        ->assertInertia(fn ($page) => $page
+            ->where('tab', $tab)
+            ->where('openPostDetailsId', $post->id)
+        );
+})->with([
+    'draft' => [PostStatus::Draft, 'drafts'],
+    'scheduled' => [PostStatus::Scheduled, 'queue'],
+    'pending approval' => [PostStatus::PendingApproval, 'approvals'],
+    'failed' => [PostStatus::Failed, 'sent'],
+    'partially published' => [PostStatus::PartiallyPublished, 'sent'],
+]);
 
-test('a scheduled legacy post without an enabled account remains viewable', function () {
+test('a scheduled legacy post without an enabled account opens in the post details', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -1611,20 +1628,8 @@ test('a scheduled legacy post without an enabled account remains viewable', func
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('app.posts.show', $post))
-        ->assertInertia(fn ($page) => $page->component('posts/Show', false));
-});
-
-test('failed posts render show without redirecting to edit', function () {
-    $post = Post::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'user_id' => $this->user->id,
-        'status' => PostStatus::Failed,
-    ]);
-
-    $this->actingAs($this->user)
-        ->get(route('app.posts.show', $post))
-        ->assertOk();
+        ->get(route('app.posts.edit', $post))
+        ->assertRedirect(route('app.posts.index', ['post' => $post->id]));
 });
 
 test('destroy blocks published posts', function () {
@@ -1643,19 +1648,20 @@ test('destroy blocks published posts', function () {
     }
 });
 
-test('show page returns 404 for post in another workspace', function () {
+test('the post details deep link does not expose a post from another workspace', function () {
     $otherWorkspace = Workspace::factory()->create();
-    $post = Post::factory()->create([
+    $post = Post::factory()->published()->create([
         'workspace_id' => $otherWorkspace->id,
         'user_id' => $this->user->id,
     ]);
 
     $this->actingAs($this->user)
-        ->get(route('app.posts.show', $post))
-        ->assertNotFound();
+        ->get(route('app.posts.index', ['post' => $post->id, 'tab' => 'sent']))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('posts.data', 0));
 });
 
-test('update post redirects to show page after publishing', function () {
+test('update post redirects to the post details after publishing', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -1676,7 +1682,7 @@ test('update post redirects to show page after publishing', function () {
         ],
     ]);
 
-    $response->assertRedirect(route('app.posts.show', $post));
+    $response->assertRedirect(route('app.posts.index', ['post' => $post->id]));
 });
 
 test('update post rejects scheduling youtube short with image', function () {
@@ -1942,7 +1948,7 @@ test('member can view posts index', function () {
     $member = User::factory()->create([
         'account_id' => $this->workspace->account_id,
     ]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
     $member->update(['current_workspace_id' => $this->workspace->id]);
 
     $response = $this->actingAs($member)->get(route('app.posts.index'));
@@ -1954,7 +1960,7 @@ test('member can create post', function () {
     $member = User::factory()->create([
         'account_id' => $this->workspace->account_id,
     ]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
     $member->update(['current_workspace_id' => $this->workspace->id]);
 
     $response = $this->actingAs($member)->post(route('app.posts.store'));

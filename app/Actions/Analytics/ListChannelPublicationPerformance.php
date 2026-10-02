@@ -27,7 +27,7 @@ class ListChannelPublicationPerformance
         }
 
         $paginator = $this->latestSnapshots
-            ->execute($channel->workspace_id, [$accountKey ?? $this->accountKey->for($channel)], $range->start, $range->end)
+            ->execute($channel->workspace_id, [$accountKey ?? $this->accountKey->for($channel)], $range->start, $range->observedThrough)
             ->select([
                 'publication.id', 'publication.excerpt', 'publication.preview_metadata', 'publication.permalink',
                 'publication.provider_published_at', 'publication.content_type',
@@ -69,7 +69,7 @@ class ListChannelPublicationPerformance
                 'saves' => $this->integer($row->saves_count),
                 'reach' => $this->integer($row->reach_count),
             ],
-            'url' => route('app.analytics.publications.show', $row->id),
+            'url' => route('app.insights.publications.show', $row->id),
         ];
     }
 

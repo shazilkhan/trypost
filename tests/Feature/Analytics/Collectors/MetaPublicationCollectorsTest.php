@@ -70,7 +70,7 @@ test('instagram reads one owned media page without claiming expired stories', fu
 });
 
 test('instagram stops a page at the cutoff and omits an older provider row', function () {
-    Http::fake(['*' => Http::response([
+    Http::fake(['*/stories*' => Http::response(['data' => []]), '*' => Http::response([
         'data' => [
             ['id' => 'at-cutoff', 'media_type' => 'IMAGE', 'timestamp' => '2026-09-18T12:00:00+0000'],
             ['id' => 'too-old', 'media_type' => 'IMAGE', 'timestamp' => '2026-09-18T11:59:59+0000'],

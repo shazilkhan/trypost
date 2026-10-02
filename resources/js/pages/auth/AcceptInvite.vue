@@ -8,16 +8,14 @@ import { login, register } from '@/routes';
 import { home } from '@/routes/app';
 import { accept, decline } from '@/routes/app/invites';
 import { type SharedData } from '@/types';
+import { type MemberAccess, memberAccessLabelKey } from '@/types/members';
 
-defineProps<{
+const props = defineProps<{
     expired: boolean;
     invite: {
         id: string;
         email: string;
-        role: {
-            value: string;
-            label: string;
-        };
+        access: MemberAccess;
         workspace: {
             id: string;
             name: string;
@@ -31,6 +29,9 @@ defineProps<{
 
 const page = usePage<SharedData>();
 const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
+const accessKey = computed(() =>
+    props.invite ? memberAccessLabelKey(props.invite.access) : '',
+);
 </script>
 
 <template>
@@ -68,7 +69,7 @@ const isLoggedIn = computed(() => Boolean(page.props.auth?.user));
                             {{ $t('auth.accept_invite.your_role') }}
                         </dt>
                         <dd class="min-w-0 truncate font-medium">
-                            {{ invite.role.label }}
+                            {{ $t(accessKey) }}
                         </dd>
                     </div>
                     <div class="flex justify-between gap-3">

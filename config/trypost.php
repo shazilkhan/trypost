@@ -187,6 +187,41 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | External posts
+    |--------------------------------------------------------------------------
+    |
+    | Posts published directly on a network become posts in Sent. Only the
+    | newest `import_limit` publications of a channel are imported (0 turns
+    | importing off); on X only those from the last `x_import_days` days.
+    |
+    */
+
+    'external_posts' => [
+        'import_limit' => (int) env('EXTERNAL_POSTS_IMPORT_LIMIT', 50),
+        'x_import_days' => (int) env('X_EXTERNAL_POSTS_IMPORT_DAYS', 30),
+        'match_window_minutes' => (int) env('EXTERNAL_POSTS_MATCH_WINDOW_MINUTES', 120),
+        'media_requests_per_network_per_minute' => (int) env('EXTERNAL_POSTS_MEDIA_REQUESTS_PER_MINUTE', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Analytics publication discovery
+    |--------------------------------------------------------------------------
+    |
+    | Discovery looks for new posts on every channel every
+    | `discovery_interval_hours` (X separately, since X bills each read), and
+    | reads back `discovery_overlap_hours` from the newest post it has seen.
+    |
+    */
+
+    'analytics' => [
+        'discovery_interval_hours' => (int) env('PUBLICATION_DISCOVERY_INTERVAL_HOURS', 3),
+        'x_discovery_interval_hours' => (int) env('X_PUBLICATION_DISCOVERY_INTERVAL_HOURS', 24),
+        'discovery_overlap_hours' => (int) env('PUBLICATION_DISCOVERY_OVERLAP_HOURS', 6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Google Authentication
     |--------------------------------------------------------------------------
     |

@@ -8,7 +8,6 @@ return [
     'back' => 'Terug',
 
     'confirm_modal' => [
-        'cannot_be_undone' => 'Dit kan niet ongedaan worden gemaakt.',
         'type' => 'Typ',
         'to_confirm' => 'om te bevestigen.',
         'copy_to_clipboard' => 'Kopiëren naar klembord',
@@ -65,5 +64,16 @@ return [
         'copy' => 'Kopiëren',
         'copied' => 'Gekopieerd',
         'copy_failed' => 'Kopiëren naar klembord mislukt',
+    ],
+
+    'media_lightbox' => [
+        'title' => 'Mediavoorbeeld',
+        'previous' => 'Vorige',
+        'next' => 'Volgende',
+        'zoom_in' => 'Inzoomen',
+        'zoom_out' => 'Uitzoomen',
+        'counter' => ':current / :total',
+        'go_to' => 'Item :number tonen',
+        'open' => 'Voorbeeld openen',
     ],
 ];

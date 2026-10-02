@@ -21,39 +21,52 @@ export const editPostCardUrlKey: InjectionKey<(post: PostCard) => string> =
 export const postCardLabelsKey: InjectionKey<Readonly<Ref<PostCardLabel[]>>> =
     Symbol('postCardLabels');
 
-const successMessage = (action: PostScheduleAction): string | null => {
-    if (action === 'queue_next' || action === 'queue_top') {
-        return transChoice('posts.composer.queue.added', 1, { count: '1' });
+const successMessage = (
+    action: PostScheduleAction,
+    requestsApproval: boolean,
+): string | null => {
+    if (action !== 'queue_next' && action !== 'queue_top') {
+        return null;
     }
 
-    return null;
+    return requestsApproval
+        ? trans('posts.approvals.requested')
+        : transChoice('posts.composer.queue.added', 1, { count: '1' });
+};
+
+export const toastFirstError = (errors: Record<string, string>): void => {
+    const message = Object.values(errors)[0];
+
+    if (message) {
+        toast.error(message);
+    }
 };
 
 export const schedulePostCard = (
     postId: string,
     action: PostScheduleAction,
-    options: { only?: string[]; reset?: string[] } = {},
+    options: {
+        only?: string[];
+        reset?: string[];
+        requestsApproval?: boolean;
+    } = {},
 ): void => {
+    const { requestsApproval = false, ...reload } = options;
+
     router.put(
         updatePostSchedule.url(postId),
         { action },
         {
-            ...options,
+            ...reload,
             preserveScroll: true,
             onSuccess: () => {
-                const message = successMessage(action);
+                const message = successMessage(action, requestsApproval);
 
                 if (message) {
                     toast.success(message, { testId: 'post-schedule-toast' });
                 }
             },
-            onError: (errors) => {
-                const message = Object.values(errors)[0];
-
-                if (message) {
-                    toast.error(message);
-                }
-            },
+            onError: toastFirstError,
         },
     );
 };

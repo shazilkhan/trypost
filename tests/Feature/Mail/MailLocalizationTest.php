@@ -6,7 +6,6 @@ use App\Actions\Invite\CreateInvite;
 use App\Enums\Notification\Type;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\SendNotification;
 use App\Mail\AccountDisconnected;
 use App\Mail\WebhookPausedMail;
@@ -24,7 +23,7 @@ function localizedOwner(Locale $locale): User
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     return $user;
@@ -103,7 +102,7 @@ test('an invite is sent in the locale of whoever sent it', function () {
 
     CreateInvite::execute($inviter->currentWorkspace, [
         'email' => 'invitee@example.com',
-        'role' => Role::Member->value,
+        ...membershipPivot('member'),
     ]);
 
     Mail::assertQueued(

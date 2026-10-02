@@ -7,14 +7,14 @@ test('the shared tokens match the design system', function () {
     $buttons = file_get_contents(resource_path('js/components/ui/button/index.ts'));
 
     expect($styles)
-        ->toContain('--primary: #b0ec9c;')
+        ->toContain('--primary: #ddd6fe;')
         ->toContain('--primary-foreground: #292928;')
-        ->toContain('--primary-hover: #90d788;')
-        ->toContain('--primary-strong: #4e975b;')
-        ->toContain('--primary-subtle: #d9f1d1;')
-        ->toContain('--primary-text: #337046;')
-        ->toContain('--ring: #4e975b;')
-        ->toContain('--sidebar-primary: #b0ec9c;')
+        ->toContain('--primary-hover: #c4b5fd;')
+        ->toContain('--primary-strong: #6d28d9;')
+        ->toContain('--primary-subtle: #ede9fe;')
+        ->toContain('--primary-text: #6d28d9;')
+        ->toContain('--ring: #7c3aed;')
+        ->toContain('--sidebar-primary: #ddd6fe;')
         ->toContain('--success-subtle: #d9f1d1;')
         ->toContain('--success-text: #337046;')
         ->toContain('--color-primary-strong: var(--primary-strong);')
@@ -43,6 +43,14 @@ test('the shared tokens match the design system', function () {
     expect(file_get_contents(resource_path('js/components/ui/badge/index.ts')))
         ->toContain('bg-success-subtle text-success-text');
 
+    expect(file_get_contents(resource_path('js/components/ui/switch/Switch.vue')))
+        ->toContain('data-[state=checked]:bg-primary-strong')
+        ->not->toContain('bg-success');
+
+    expect(file_get_contents(resource_path('js/components/command-palette/CommandPaletteItem.vue')))
+        ->toContain('bg-primary-subtle')
+        ->not->toContain('success');
+
     expect($buttons)
         ->toContain('bg-primary text-primary-foreground hover:bg-primary-hover')
         ->toContain('bg-critical text-foreground hover:bg-critical-hover')
@@ -64,6 +72,6 @@ test('post pages use the full-width design while retaining the composer', functi
     expect($tabs)->toContain('data-testid="posts-tabs"');
 
     expect($layout)
-        ->toContain(':default-open="isOpen"')
+        ->toContain(':open="true"')
         ->toContain('<GlobalPostComposer />');
 });

@@ -13,8 +13,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
 
-#[Signature('analytics:dispatch-publication-discovery')]
+#[Signature('analytics:dispatch-publication-discovery {--platform=* : Only these platforms} {--except-platform=* : Skip these platforms}')]
 #[Description('Dispatch incremental publication discovery and recover stale account backfills')]
 class DispatchPublicationDiscovery extends Command
 {
@@ -22,9 +23,14 @@ class DispatchPublicationDiscovery extends Command
     {
         $staleBefore = CarbonImmutable::now('UTC')->subHours(2);
 
+        $only = (array) $this->option('platform');
+        $except = (array) $this->option('except-platform');
+
         SocialAccount::query()
             ->connected()
             ->includedInAnalytics()
+            ->when($only !== [], fn (Builder $query): Builder => $query->whereIn('platform', $only))
+            ->when($except !== [], fn (Builder $query): Builder => $query->whereNotIn('platform', $except))
             ->with('analyticsSyncStates')
             ->lazyById(100)
             ->each(function (SocialAccount $account) use ($staleBefore): void {

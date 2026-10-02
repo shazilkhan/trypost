@@ -22,7 +22,7 @@ class BuildWorkspaceAnalyticsReport
     ) {}
 
     /**
-     * @param  array{start?: string, end?: string}  $selected
+     * @param  array{start?: string, end?: string, observed_through?: string}  $selected
      * @param  array<string, string>|null  $channelKeys  Analytics key of each selected social account (already resolved for tenancy), keyed by account id; null means every channel.
      * @param  list<string>  $labelIds  Workspace label ids already resolved for tenancy; restricts post metrics only.
      * @param  bool  $untagged  Also count TryPost posts without labels (a union with $labelIds); restricts post metrics only.
@@ -36,7 +36,7 @@ class BuildWorkspaceAnalyticsReport
     }
 
     /**
-     * @param  array{start?: string, end?: string}  $selected
+     * @param  array{start?: string, end?: string, observed_through?: string}  $selected
      * @param  list<string>|null  $accountKeys
      * @return array{bounds: array{min: ?string, max: ?string}, range: DateRange}
      */

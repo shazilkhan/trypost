@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => 'Statistieken',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform-analyses',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Tekst',
             'image' => 'Afbeelding',
@@ -61,7 +61,7 @@ return [
         'stale' => 'Mogelijk verouderd',
         'awaiting_metrics' => 'Er zijn nog geen statistieken verzameld.',
         'estimated' => 'Geschat',
-        'back_to_analytics' => 'Terug naar statistieken',
+        'back_to_insights' => 'Terug naar Insights',
         'details' => 'Details',
         'published_via_trypost' => 'Gepubliceerd via TryPost',
         'published_on' => 'Gepubliceerd op :platform',

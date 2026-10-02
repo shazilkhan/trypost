@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Plan\Slug;
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -42,7 +41,7 @@ $withWorkspace = function (User $user): Workspace {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     return $workspace;
@@ -54,7 +53,7 @@ test('a non-owner cannot change the plan', function () use ($withWorkspace) {
     subscribeAccount($owner->account);
 
     $member = User::factory()->create(['account_id' => $owner->account_id]);
-    $workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($member->id, membershipPivot('member'));
     $member->update(['current_workspace_id' => $workspace->id]);
 
     $this->actingAs($member->fresh())

@@ -56,9 +56,9 @@ const BRAND_TOKENS = [
 ];
 
 const FALLBACK_COLORS = [
-    '#b0ec9c',
-    '#4e975b',
-    '#c5eeb8',
+    '#ddd6fe',
+    '#6d28d9',
+    '#a78bfa',
     '#2563eb',
     '#d97706',
     '#ff8575',

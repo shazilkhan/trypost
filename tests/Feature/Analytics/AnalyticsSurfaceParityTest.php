@@ -69,10 +69,10 @@ test('web API and MCP expose the same workspace analytics report and date bounds
     $selected = ['start' => '2026-09-01', 'end' => '2026-09-30'];
 
     $this->actingAs($access['user'])
-        ->get(route('app.analytics', $selected))
+        ->get(route('app.insights', $selected))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('analytics/Index')
+            ->component('insights/Index')
             ->where('report.range.start', '2026-09-20')
             ->where('report.range.end', '2026-09-20')
             ->where('report.summary.followers.value', 123)
@@ -179,7 +179,7 @@ test('web API and MCP expose imported publication metrics and isolate workspaces
     Http::fake();
 
     $this->actingAs($access['user'])
-        ->get(route('app.analytics.publications.show', $publication))
+        ->get(route('app.insights.publications.show', $publication))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('detail.publication.id', $publication->id)

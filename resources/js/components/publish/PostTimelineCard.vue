@@ -1,24 +1,34 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
+    IconArrowsMaximize,
+    IconCircleDashedPlus,
+    IconEdit,
     IconExternalLink,
     IconGripVertical,
     IconListNumbers,
     IconPencil,
+    IconPlayerPlayFilled,
+    IconRepeat,
     IconSend,
+    IconVideo,
+    IconX,
 } from '@tabler/icons-vue';
-import { computed, inject, ref, watch } from 'vue';
+import { type Component, computed, inject, ref, watch } from 'vue';
 
-import {
-    edit as editPostRoute,
-    show as showPost,
-} from '@/actions/App/Http/Controllers/App/PostController';
+import { reject as rejectPostRoute } from '@/actions/App/Http/Controllers/App/PostApprovalController';
+import { edit as editPostRoute } from '@/actions/App/Http/Controllers/App/PostController';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
+import MediaLightbox from '@/components/media/MediaLightbox.vue';
 import PostNotesPopover from '@/components/posts/PostNotesPopover.vue';
 import PostScheduleModeBadge from '@/components/posts/PostScheduleModeBadge.vue';
+import ApprovePostButton from '@/components/publish/ApprovePostButton.vue';
 import PostCardLabels from '@/components/publish/PostCardLabels.vue';
 import PostCardMenu from '@/components/publish/PostCardMenu.vue';
 import PostDetailsDialog from '@/components/publish/PostDetailsDialog.vue';
 import PostMetricsBand from '@/components/publish/PostMetricsBand.vue';
+import PostRecurrenceDialog from '@/components/publish/PostRecurrenceDialog.vue';
+import PostRecurrenceSummary from '@/components/publish/PostRecurrenceSummary.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,12 +48,16 @@ import {
     duplicatePostCard,
     editPostCardUrlKey,
     schedulePostCard,
+    toastFirstError,
 } from '@/composables/usePostCardActions';
 import { getPostStatusConfig } from '@/composables/usePostStatus';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
-import { isImage } from '@/lib/mediaType';
+import dayjs from '@/dayjs';
+import { isImage, isVideo } from '@/lib/mediaType';
 import { compactPublicationMetrics } from '@/lib/publicationMetrics';
+import { recurrenceRuleOf } from '@/lib/recurrence';
+import { videoFrameUrl } from '@/lib/videoFrame';
 import { PostStatus, ScheduleMode } from '@/types/post';
 import type {
     PostCard,
@@ -70,7 +84,8 @@ const emit = defineEmits<{ move: [direction: PostCardMove] }>();
 const MAX_THUMBNAILS = 4;
 
 const page = usePage();
-const { canCreatePost } = useWorkspaceRole();
+const { canApprove, canCreatePost, canPublishDirectly, requiresApproval } =
+    useWorkspaceAbilities();
 const deletePost = inject(deletePostCardKey, () => {});
 const editUrl = inject(editPostCardUrlKey, (post: PostCard) =>
     editPostRoute.url(post.id),
@@ -106,24 +121,58 @@ const time = computed(() =>
         : props.post.scheduled_at,
 );
 
+const isPending = computed(
+    () => props.post.status === PostStatus.PendingApproval,
+);
+
 const isEditable = computed(
     () =>
         props.post.status === PostStatus.Draft ||
-        props.post.status === PostStatus.Scheduled,
+        props.post.status === PostStatus.Scheduled ||
+        isPending.value,
 );
 
-const postUrl = computed(() =>
-    isEditable.value ? editUrl(props.post) : showPost.url(props.post.id),
+const timePassed = computed(
+    () =>
+        isPending.value &&
+        props.post.schedule_mode !== ScheduleMode.Queue &&
+        props.post.scheduled_at !== null &&
+        dayjs(props.post.scheduled_at).isBefore(dayjs()),
+);
+
+const openPostDetailsId = computed(
+    () => (page.props.openPostDetailsId as string | null | undefined) ?? null,
 );
 
 const preview = computed(() => props.post.content?.trim() ?? '');
 
-const images = computed(() => (props.post.media ?? []).filter(isImage));
+const visuals = computed(() =>
+    (props.post.media ?? []).filter((item) => isImage(item) || isVideo(item)),
+);
 
-const thumbnails = computed(() => images.value.slice(0, MAX_THUMBNAILS));
+const thumbnails = computed(() => visuals.value.slice(0, MAX_THUMBNAILS));
 
-const hiddenImages = computed(() =>
-    Math.max(0, images.value.length - MAX_THUMBNAILS),
+const hiddenVisuals = computed(() =>
+    Math.max(0, visuals.value.length - MAX_THUMBNAILS),
+);
+
+const lightboxOpen = ref(false);
+const lightboxIndex = ref(0);
+
+const openLightbox = (index: number): void => {
+    lightboxIndex.value = index;
+    lightboxOpen.value = true;
+};
+
+const CONTENT_TYPE_ICONS: Record<string, Component> = {
+    instagram_story: IconCircleDashedPlus,
+    facebook_story: IconCircleDashedPlus,
+    instagram_reel: IconVideo,
+    facebook_reel: IconVideo,
+};
+
+const contentTypeIcon = computed(() =>
+    CONTENT_TYPE_ICONS[primaryTarget.value?.content_type ?? ''] ?? null,
 );
 
 const contentTypeKey = computed(() =>
@@ -151,27 +200,77 @@ const metricsDetail = computed(() => {
 
 const hasMetrics = computed(() =>
     metricsDetail.value
-        ? compactPublicationMetrics(metricsDetail.value.metrics).length > 0
+        ? compactPublicationMetrics(metricsDetail.value).length > 0
         : false,
 );
 
 const showStatus = computed(
     () =>
         props.post.status !== PostStatus.Scheduled &&
-        props.post.status !== PostStatus.Published,
+        props.post.status !== PostStatus.Published &&
+        !isPending.value,
 );
 
-const detailsOpen = ref(false);
+const APPROVAL_RELOAD = { only: ['posts', 'counts'], reset: ['posts'] };
 
-const edit = (): void => {
-    router.visit(editUrl(props.post));
+const rejectPost = (): void => {
+    router.put(
+        rejectPostRoute.url(props.post.id),
+        {},
+        { ...APPROVAL_RELOAD, preserveScroll: true, onError: toastFirstError },
+    );
+};
+
+const revertRequest = (): void => {
+    schedulePostCard(props.post.id, 'draft', APPROVAL_RELOAD);
+};
+
+const addToQueue = (): void => {
+    schedulePostCard(props.post.id, 'queue_next', {
+        requestsApproval: requiresApproval.value,
+    });
+};
+
+const recurrence = computed(() =>
+    props.post.status === PostStatus.Scheduled && props.post.scheduled_at
+        ? recurrenceRuleOf(props.post)
+        : null,
+);
+
+const detailsOpen = ref(openPostDetailsId.value === props.post.id);
+const recurrenceOpen = ref(false);
+const recurrencePost = ref<PostCard>(props.post);
+
+const edit = (post: PostCard = props.post): void => {
+    router.visit(editUrl(post));
+};
+
+const runPostAction = (action: PostCardMenuAction, post: PostCard): void => {
+    switch (action) {
+        case 'publish_now':
+            schedulePostCard(post.id, 'publish_now');
+            break;
+        case 'duplicate':
+            duplicatePostCard(post);
+            break;
+        case 'recurrence':
+            recurrencePost.value = post;
+            recurrenceOpen.value = true;
+            break;
+        case 'move_drafts':
+            schedulePostCard(post.id, 'draft');
+            break;
+        case 'details':
+            detailsOpen.value = true;
+            break;
+        case 'delete':
+            deletePost(post);
+            break;
+    }
 };
 
 const onMenuSelect = (action: PostCardMenuAction): void => {
     switch (action) {
-        case 'publish_now':
-            schedulePostCard(props.post.id, 'publish_now');
-            break;
         case 'move_top':
             emit('move', 'top');
             break;
@@ -181,18 +280,8 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
         case 'move_down':
             emit('move', 'down');
             break;
-        case 'duplicate':
-            duplicatePostCard(props.post);
-            break;
-        case 'move_drafts':
-            schedulePostCard(props.post.id, 'draft');
-            break;
-        case 'details':
-            detailsOpen.value = true;
-            break;
-        case 'delete':
-            deletePost(props.post);
-            break;
+        default:
+            runPostAction(action, props.post);
     }
 };
 </script>
@@ -225,8 +314,32 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                     {{ $t('posts.publish.no_time') }}
                 </span>
             </span>
+            <Badge
+                v-if="isPending"
+                variant="warning"
+                class="h-6 gap-1 px-2 [&>svg]:size-4"
+                :data-testid="`post-approval-badge-${testKey}`"
+            >
+                <IconEdit />
+                {{ $t('posts.approvals.badge') }}
+            </Badge>
+            <span
+                v-if="timePassed"
+                class="text-xs text-destructive-text"
+                :data-testid="`post-time-passed-${testKey}`"
+            >
+                {{ $t('posts.approvals.time_passed') }}
+            </span>
+            <span
+                v-if="recurrence"
+                class="inline-flex items-center gap-0.5 text-xs text-muted-foreground"
+                :data-testid="`post-recurring-${testKey}`"
+            >
+                <IconRepeat class="size-3" />
+                {{ $t('posts.recurrence.marker') }}
+            </span>
             <PostScheduleModeBadge
-                v-if="
+                v-else-if="
                     post.schedule_mode &&
                     (tab === 'sent' ||
                         (post.status === PostStatus.Scheduled &&
@@ -249,37 +362,40 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
         <article
             class="min-w-0 overflow-hidden rounded-xl border border-border-strong bg-card"
         >
-            <Link
-                :href="postUrl"
-                :draggable="draggable ? 'false' : undefined"
-                class="flex gap-4 p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring md:gap-6"
+            <p
+                v-if="recurrence && post.scheduled_at"
+                class="flex items-start gap-2 border-b border-border-strong bg-secondary px-4 py-2.5 text-sm text-foreground"
+                :data-testid="`post-recurrence-banner-${testKey}`"
             >
-                <div class="flex min-w-0 flex-1 flex-col gap-4">
+                <IconRepeat class="mt-0.5 size-4 shrink-0" />
+                <PostRecurrenceSummary
+                    :scheduled-at="post.scheduled_at"
+                    :timezone="timezone"
+                    :rule="recurrence"
+                    :remaining="recurrence.times"
+                    :origin-at="post.recurrence_origin_at"
+                />
+            </p>
+            <div class="relative flex gap-4 p-4 md:gap-6">
+                <component
+                    :is="isEditable ? Link : 'div'"
+                    :href="isEditable ? editUrl(post) : undefined"
+                    :draggable="draggable ? 'false' : undefined"
+                    class="flex min-w-0 flex-1 flex-col gap-4 outline-none after:absolute after:inset-0 focus-visible:after:outline-2 focus-visible:after:outline-offset-[-2px] focus-visible:after:outline-ring"
+                    :data-testid="`post-open-${testKey}`"
+                >
                     <div class="flex items-center gap-3">
-                        <span
+                        <ChannelAvatar
                             v-if="primaryTarget"
-                            class="relative inline-flex size-8 shrink-0"
-                        >
-                            <img
-                                :draggable="draggable ? 'false' : undefined"
-                                :src="
-                                    account?.avatar_url ??
-                                    getPlatformLogo(primaryTarget.platform)
-                                "
-                                :alt="
-                                    account?.display_label ??
-                                    getPlatformLabel(primaryTarget.platform)
-                                "
-                                class="size-full rounded-lg object-cover"
-                            />
-                            <img
-                                v-if="account?.avatar_url"
-                                :draggable="draggable ? 'false' : undefined"
-                                :src="getPlatformLogo(primaryTarget.platform)"
-                                :alt="getPlatformLabel(primaryTarget.platform)"
-                                class="absolute -right-1.5 -bottom-1 size-4.5 rounded-md border border-card bg-card"
-                            />
-                        </span>
+                            :platform="primaryTarget.platform"
+                            :src="account?.avatar_url"
+                            :name="
+                                account?.display_label ??
+                                getPlatformLabel(primaryTarget.platform)
+                            "
+                            ring="card"
+                            @dragstart="draggable ? $event.preventDefault() : undefined"
+                        />
                         <p
                             class="min-w-0 truncate text-sm leading-tight font-emphasis text-foreground"
                         >
@@ -296,9 +412,17 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         <Badge
                             v-if="contentTypeKey"
                             variant="secondary"
-                            class="ms-auto h-6 px-2"
-                            >{{ $t(contentTypeKey) }}</Badge
+                            class="ms-auto h-6 gap-1 px-2"
+                            :data-testid="`post-content-type-${testKey}`"
                         >
+                            <component
+                                :is="contentTypeIcon"
+                                v-if="contentTypeIcon"
+                                class="size-3.5"
+                                aria-hidden="true"
+                            />
+                            {{ $t(contentTypeKey) }}
+                        </Badge>
                     </div>
                     <p
                         class="line-clamp-4 text-sm whitespace-pre-line text-foreground"
@@ -306,35 +430,71 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                     >
                         {{ preview || $t('calendar.no_content') }}
                     </p>
-                </div>
+                </component>
                 <div
                     v-if="thumbnails.length"
-                    class="grid w-24 shrink-0 content-start gap-2 md:w-[180px]"
+                    class="relative z-10 grid w-24 shrink-0 content-start gap-2 md:w-[180px]"
                     :class="thumbnails.length > 1 ? 'grid-cols-2' : ''"
                 >
-                    <span
+                    <button
                         v-for="(thumbnail, index) in thumbnails"
                         :key="thumbnail.url"
-                        class="relative block aspect-square overflow-hidden rounded-md border border-border-strong bg-secondary"
+                        type="button"
+                        :aria-label="$t('common.media_lightbox.open')"
+                        :draggable="draggable ? 'false' : undefined"
+                        class="group/thumbnail relative block aspect-square cursor-zoom-in overflow-hidden rounded-md border border-border-strong bg-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                        :data-testid="`post-thumbnail-${testKey}-${index}`"
+                        @click="openLightbox(index)"
                     >
                         <img
+                            v-if="isImage(thumbnail)"
                             :draggable="draggable ? 'false' : undefined"
                             :src="thumbnail.url"
                             alt=""
                             class="size-full object-cover"
                             loading="lazy"
                         />
+                        <template v-else>
+                            <video
+                                :src="videoFrameUrl(thumbnail)"
+                                class="size-full object-cover"
+                                muted
+                                playsinline
+                                preload="metadata"
+                                :data-testid="`post-thumbnail-video-${testKey}-${index}`"
+                            />
+                            <IconPlayerPlayFilled
+                                aria-hidden="true"
+                                class="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition-opacity group-hover/thumbnail:opacity-0"
+                            />
+                        </template>
                         <span
-                            v-if="
-                                hiddenImages > 0 &&
-                                index === thumbnails.length - 1
-                            "
-                            class="absolute right-1.5 bottom-1.5 inline-flex size-6 items-center justify-center rounded-full bg-foreground/60 text-xs font-medium text-background"
-                            >+{{ hiddenImages }}</span
+                            aria-hidden="true"
+                            class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/thumbnail:bg-black/30"
                         >
-                    </span>
+                            <IconArrowsMaximize
+                                class="size-6 text-white opacity-0 drop-shadow transition-opacity group-hover/thumbnail:opacity-100"
+                                :data-testid="`post-thumbnail-expand-${testKey}-${index}`"
+                            />
+                        </span>
+                    </button>
+                    <button
+                        v-if="hiddenVisuals > 0"
+                        type="button"
+                        :aria-label="$t('common.media_lightbox.open')"
+                        class="absolute right-1.5 bottom-1.5 inline-flex size-6 cursor-zoom-in items-center justify-center rounded-full bg-foreground/60 text-xs font-medium text-background transition-colors hover:bg-foreground/80 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                        :data-testid="`post-thumbnail-more-${testKey}`"
+                        @click="openLightbox(MAX_THUMBNAILS)"
+                    >
+                        +{{ hiddenVisuals }}
+                    </button>
                 </div>
-            </Link>
+                <MediaLightbox
+                    v-model:open="lightboxOpen"
+                    :items="visuals"
+                    :start-index="lightboxIndex"
+                />
+            </div>
 
             <PostCardLabels
                 class="-mt-1 px-4 pb-4"
@@ -346,7 +506,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             <PostMetricsBand
                 v-if="tab === 'sent' && metricsDetail && hasMetrics"
                 :detail="metricsDetail"
-                :limit="5"
+                :channel-id="account?.id ?? null"
                 :metrics-test-id="`post-metrics-${testKey}`"
                 :insights-test-id="`post-insights-${testKey}`"
             />
@@ -358,6 +518,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                     <span
                         v-if="tab === 'sent' && primaryTarget"
                         class="inline-flex items-center gap-0.5"
+                        :data-testid="`post-published-via-${testKey}`"
                     >
                         {{ $t('posts.publish.published_via') }}
                         <img
@@ -374,13 +535,37 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         })
                     }}</span>
                 </p>
-                <div class="flex shrink-0 items-center gap-1">
+                <div
+                    class="flex max-w-full shrink-0 flex-wrap items-center gap-1"
+                    :data-testid="`post-actions-${testKey}`"
+                >
+                    <template v-if="isPending && canApprove">
+                        <ApprovePostButton :post="post" :test-key="testKey" />
+                        <Button
+                            variant="outline"
+                            class="text-destructive-text"
+                            :data-testid="`post-reject-${testKey}`"
+                            @click="rejectPost"
+                        >
+                            <IconX class="size-4" />
+                            {{ $t('posts.approvals.reject') }}
+                        </Button>
+                    </template>
+                    <Button
+                        v-else-if="isPending"
+                        variant="outline"
+                        :data-testid="`post-revert-${testKey}`"
+                        @click="revertRequest"
+                    >
+                        <IconX class="size-4" />
+                        {{ $t('posts.approvals.revert') }}
+                    </Button>
                     <template v-if="canCreatePost && tab === 'drafts'">
                         <Button
                             v-if="canQueue"
                             variant="outline"
                             :data-testid="`post-add-to-queue-${testKey}`"
-                            @click="schedulePostCard(post.id, 'queue_next')"
+                            @click="addToQueue"
                         >
                             <IconListNumbers class="size-4" />
                             {{ $t('posts.publish.actions.add_to_queue') }}
@@ -426,7 +611,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         {{ $t('posts.publish.actions.view_post') }}
                     </Button>
                     <Button
-                        v-if="canCreatePost && post.status === PostStatus.Scheduled"
+                        v-if="canPublishDirectly && post.status === PostStatus.Scheduled"
                         variant="outline"
                         :data-testid="`post-publish-now-${testKey}`"
                         @click="schedulePostCard(post.id, 'publish_now')"
@@ -440,7 +625,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         size="icon"
                         :aria-label="$t('posts.publish.actions.edit')"
                         :data-testid="`post-edit-${testKey}`"
-                        @click="edit"
+                        @click="edit()"
                     >
                         <IconPencil class="size-4" />
                     </Button>
@@ -457,6 +642,17 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         v-if="canCreatePost"
                         v-model:open="detailsOpen"
                         :post="post"
+                        :test-key="testKey"
+                        :timezone="timezone"
+                        @select="runPostAction"
+                        @edit="edit"
+                    />
+                    <PostRecurrenceDialog
+                        v-if="canCreatePost"
+                        v-model:open="recurrenceOpen"
+                        :post="
+                            recurrencePost.id === post.id ? post : recurrencePost
+                        "
                         :test-key="testKey"
                         :timezone="timezone"
                     />

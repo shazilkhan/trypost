@@ -12,7 +12,6 @@ use App\Enums\User\Goal;
 use App\Enums\User\Locale;
 use App\Enums\User\Persona;
 use App\Enums\User\ReferralSource;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\PostHog\SendEvent;
 use App\Models\Account;
 use App\Models\Plan;
@@ -756,7 +755,7 @@ function attachCurrentWorkspace(User $user): Workspace
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     return $workspace;

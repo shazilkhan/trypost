@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Events\TelegramChannelConnected;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -33,7 +32,7 @@ function channelDefaultsWorkspace(string $ownerTimezone = 'Europe/Warsaw'): arra
 {
     $owner = User::factory()->create(['timezone' => $ownerTimezone]);
     $workspace = Workspace::factory()->create(['account_id' => $owner->account_id, 'user_id' => $owner->id]);
-    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($owner->id, membershipPivot('admin'));
     $owner->update(['current_workspace_id' => $workspace->id]);
 
     return [$owner->fresh(), $workspace];

@@ -37,10 +37,10 @@ class BuildFollowerAnalyticsReport
             ->when($channelKeys !== null, fn (EloquentBuilder $accounts): EloquentBuilder => $accounts->whereKey(array_keys($channelKeys)))
             ->connected()
             ->includedInAnalytics()
-            ->where('created_at', '<=', $current->end->endOfDay())
+            ->where('created_at', '<=', $current->observedThrough->endOfDay())
             ->get(['platform', 'platform_user_id', 'created_at']);
-        $currentTotal = $this->total($latestCurrent, $current->end, $connectedAccounts);
-        $previousTotal = $this->total($this->latest($workspace, $previous, $accountKeys), $previous->end, $connectedAccounts);
+        $currentTotal = $this->total($latestCurrent, $current->observedThrough, $connectedAccounts);
+        $previousTotal = $this->total($this->latest($workspace, $previous, $accountKeys), $previous->observedThrough, $connectedAccounts);
 
         return [
             'current_total' => $currentTotal,
@@ -83,7 +83,7 @@ class BuildFollowerAnalyticsReport
             ->where('analytics_account_daily_snapshots.workspace_id', $workspace->id)
             ->whereIn('analytics_account_daily_snapshots.platform', Platform::analyticsValues())
             ->when($accountKeys !== null, fn (Builder $query): Builder => $query->whereIn('analytics_account_daily_snapshots.social_account_key', $accountKeys))
-            ->whereBetween('analytics_account_daily_snapshots.date', [$range->start->toDateString(), $range->end->toDateString()]);
+            ->whereBetween('analytics_account_daily_snapshots.date', [$range->start->toDateString(), $range->observedThrough->toDateString()]);
     }
 
     private function total(Collection $latest, CarbonImmutable $date, Collection $connectedAccounts): ?int
@@ -130,7 +130,7 @@ class BuildFollowerAnalyticsReport
         usort($accounts, fn (array $a, array $b): int => [data_get($a, 'platform'), data_get($a, 'username'), data_get($a, 'social_account_key')]
             <=> [data_get($b, 'platform'), data_get($b, 'username'), data_get($b, 'social_account_key')]);
         $series = [];
-        $byDate = $current->groupBy(fn (object $row): string => substr((string) $row->date, 0, 10));
+        $byDate = $current->groupBy(fn (object $row): string => min(substr((string) $row->date, 0, 10), $range->end->toDateString()));
 
         for ($day = $range->start; $day->lessThanOrEqualTo($range->end); $day = $day->addDay()) {
             $date = $day->toDateString();

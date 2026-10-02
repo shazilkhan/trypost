@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => '分析',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform 分析',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => '文字',
             'image' => '图片',
@@ -61,7 +61,7 @@ return [
         'stale' => '数据可能已过时',
         'awaiting_metrics' => '尚未采集到指标。',
         'estimated' => '估算值',
-        'back_to_analytics' => '返回分析',
+        'back_to_insights' => '返回 Insights',
         'details' => '详情',
         'published_via_trypost' => '通过TryPost发布',
         'published_on' => '发布于:platform',

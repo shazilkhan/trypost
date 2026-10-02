@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Plan\Slug;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\AccessToken;
@@ -113,9 +112,7 @@ function createApiTestToken(array $overrides = []): array
             'account_id' => $user->account_id,
             'user_id' => $user->id,
         ]);
-        $workspace->members()->attach($user->id, [
-            'role' => Role::Admin->value,
-        ]);
+        $workspace->members()->attach($user->id, membershipPivot('admin'));
         $user->update(['current_workspace_id' => $workspace->id]);
     } else {
         $user = $workspace->owner ?? User::factory()->create([
@@ -132,6 +129,48 @@ function createApiTestToken(array $overrides = []): array
         'workspace' => $workspace,
         'user' => $user,
     ];
+}
+
+/**
+ * Pivot columns for a workspace membership: an admin, a member who publishes
+ * directly, or a member whose posts need approval.
+ *
+ * @return array{is_admin: bool, requires_approval: bool}
+ */
+function membershipPivot(string $access): array
+{
+    return match ($access) {
+        'admin' => ['is_admin' => true, 'requires_approval' => false],
+        'member' => ['is_admin' => false, 'requires_approval' => false],
+        'approval' => ['is_admin' => false, 'requires_approval' => true],
+    };
+}
+
+/**
+ * A user on the workspace's account, attached with the given access and
+ * switched to that workspace.
+ *
+ * @param  array<string, mixed>  $attributes
+ */
+function workspaceMember(Workspace $workspace, string $access = 'member', array $attributes = []): User
+{
+    $user = User::factory()->create(['account_id' => $workspace->account_id, ...$attributes]);
+    $workspace->members()->attach($user->id, membershipPivot($access));
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    return $user->fresh();
+}
+
+/**
+ * A user on the workspace's account whose current workspace is this one but
+ * who is not a member of it.
+ */
+function workspaceOutsider(Workspace $workspace): User
+{
+    $user = User::factory()->create(['account_id' => $workspace->account_id]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    return $user->fresh();
 }
 
 /**
@@ -320,13 +359,11 @@ function strandedMemberOnSharedAccount(
         ]);
 
         $workspace->members()->syncWithoutDetaching([
-            $owner->id => ['role' => Role::Admin->value],
+            $owner->id => membershipPivot('admin'),
         ]);
 
         if ($attachMember && ($attachMemberToAll || $i === 0)) {
-            $workspace->members()->attach($member->id, [
-                'role' => Role::Member->value,
-            ]);
+            $workspace->members()->attach($member->id, membershipPivot('member'));
         }
 
         $shared[] = $workspace;

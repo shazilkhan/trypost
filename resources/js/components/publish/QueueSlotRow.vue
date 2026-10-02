@@ -8,7 +8,7 @@ import {
     getPlatformLabel,
     getPlatformLogo,
 } from '@/composables/usePlatformLogo';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import dayjs from '@/dayjs';
 import type { PublishSocialAccount, QueueItem } from '@/types/publish';
 
@@ -18,7 +18,7 @@ const props = defineProps<{
     displayTimezone: string;
 }>();
 
-const { canCreatePost } = useWorkspaceRole();
+const { canCreatePost } = useWorkspaceAbilities();
 const { timezone, formatTime } = useDisplayTimezone(props.displayTimezone, []);
 
 watch(

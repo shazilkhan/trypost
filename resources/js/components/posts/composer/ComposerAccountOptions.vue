@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { IconCheck, IconSearch } from '@tabler/icons-vue';
 
-import PlatformLogo from '@/components/PlatformLogo.vue';
-import { getPlatformLogo } from '@/composables/usePlatformLogo';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import type { ComposerAccount } from '@/composables/usePostComposition';
 
 const props = defineProps<{
@@ -70,22 +69,12 @@ const allSelected = (): boolean => props.accounts.every(isSelected);
                     class="flex h-12 w-full items-center gap-3 rounded-lg p-2 text-left text-sm transition-control hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                     @click="emit('toggle', account)"
                 >
-                    <span class="relative shrink-0">
-                        <img
-                            :src="
-                                account.avatar_url ||
-                                getPlatformLogo(account.platform)
-                            "
-                            alt=""
-                            class="size-8 rounded-lg object-cover"
-                        />
-                        <PlatformLogo
-                            :platform="account.platform"
-                            :size="16"
-                            ring="popover"
-                            class="absolute -right-1 -bottom-1"
-                        />
-                    </span>
+                    <ChannelAvatar
+                        :platform="account.platform"
+                        :src="account.avatar_url"
+                        :name="account.display_name || account.username"
+                        ring="popover"
+                    />
                     <span class="min-w-0 flex-1 truncate">{{
                         account.display_name || account.username
                     }}</span>

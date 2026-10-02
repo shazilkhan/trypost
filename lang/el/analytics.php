@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => 'Στατιστικά',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Αναλυτικά στοιχεία :platform',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Κείμενο',
             'image' => 'Εικόνα',
@@ -61,7 +61,7 @@ return [
         'stale' => 'Τα δεδομένα μπορεί να μην είναι ενημερωμένα',
         'awaiting_metrics' => 'Δεν έχουν συλλεχθεί ακόμη μετρήσεις.',
         'estimated' => 'Εκτίμηση',
-        'back_to_analytics' => 'Πίσω στα αναλυτικά στοιχεία',
+        'back_to_insights' => 'Πίσω στα Insights',
         'details' => 'Λεπτομέρειες',
         'published_via_trypost' => 'Δημοσιεύτηκε μέσω TryPost',
         'published_on' => 'Δημοσιεύτηκε στο :platform',

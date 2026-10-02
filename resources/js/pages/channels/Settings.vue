@@ -11,10 +11,9 @@ import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import PostingScheduleGrid from '@/components/channels/PostingScheduleGrid.vue';
-import PlatformLogo from '@/components/PlatformLogo.vue';
 import TimezoneSelect from '@/components/TimezoneSelect.vue';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -296,20 +295,12 @@ const addSlot = (): void => {
                 </Button>
 
                 <div class="flex min-w-0 items-center gap-4">
-                    <span class="relative shrink-0">
-                        <Avatar
-                            :src="channel.avatar_url"
-                            :name="channel.display_name || channel.username"
-                            class="size-11 rounded-xl"
-                            fallback-class="bg-secondary text-xs font-bold"
-                        />
-                        <PlatformLogo
-                            :platform="channel.platform"
-                            size="xs"
-                           
-                            class="absolute -right-2 -bottom-1"
-                        />
-                    </span>
+                    <ChannelAvatar
+                        :platform="channel.platform"
+                        :src="channel.avatar_url"
+                        :name="channel.display_name || channel.username"
+                        :size="44"
+                    />
                     <div class="min-w-0">
                         <h1
                             class="truncate font-heading text-xl leading-tight font-medium text-foreground"
@@ -523,25 +514,15 @@ const addSlot = (): void => {
                                                         }
                                                     "
                                                 >
-                                                    <span
-                                                        class="relative shrink-0"
-                                                    >
-                                                        <Avatar
-                                                            :src="other.avatar_url"
-                                                            :name="
-                                                                other.display_name ||
-                                                                other.username
-                                                            "
-                                                            class="size-8 rounded-lg"
-                                                            fallback-class="bg-secondary text-[10px] font-bold"
-                                                        />
-                                                        <PlatformLogo
-                                                            :platform="other.platform"
-                                                            :size="18"
-                                                            ring="popover"
-                                                            class="absolute -end-1.5 -bottom-1"
-                                                        />
-                                                    </span>
+                                                    <ChannelAvatar
+                                                        :platform="other.platform"
+                                                        :src="other.avatar_url"
+                                                        :name="
+                                                            other.display_name ||
+                                                            other.username
+                                                        "
+                                                        ring="popover"
+                                                    />
                                                     <span
                                                         class="truncate leading-[21px]"
                                                     >

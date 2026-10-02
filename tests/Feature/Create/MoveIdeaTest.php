@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\User;
@@ -16,7 +15,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -118,12 +117,10 @@ test('a foreign stage is rejected and a foreign idea is forbidden', function () 
     ])->assertForbidden();
 });
 
-test('a viewer cannot move an idea', function () {
-    $viewer = User::factory()->create(['account_id' => $this->workspace->account_id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+test('a user outside the workspace cannot move an idea', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())->putJson(route('app.create.ideas.move', $this->a1), [
+    $this->actingAs($outsider->fresh())->putJson(route('app.create.ideas.move', $this->a1), [
         'idea_stage_id' => $this->stageA->id,
         'idea_ids' => [$this->a3->id, $this->a1->id, $this->a2->id],
     ])->assertForbidden();

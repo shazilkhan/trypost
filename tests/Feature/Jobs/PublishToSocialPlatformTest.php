@@ -11,7 +11,6 @@ use App\Enums\PostPlatform\Status as PlatformStatus;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\SocialAccount\Status as AccountStatus;
 use App\Enums\TikTok\PrivacyLevel;
-use App\Enums\UserWorkspace\Role;
 use App\Events\PostPlatformStatusUpdated;
 use App\Exceptions\PlatformUnavailableException;
 use App\Exceptions\Social\ErrorCategory;
@@ -1415,7 +1414,7 @@ test('publish to social platform dispatches success notification when all platfo
 
     $this->app->instance(LinkedInPublisher::class, $publisher);
 
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
 
     (new PublishToSocialPlatform($this->postPlatform))->handle();
 
@@ -1433,7 +1432,7 @@ test('publish to social platform dispatches failure notification when platform f
 
     $this->app->instance(LinkedInPublisher::class, $publisher);
 
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
 
     (new PublishToSocialPlatform($this->postPlatform))->handle();
 

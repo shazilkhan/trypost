@@ -9,7 +9,7 @@ defineProps<{
     hrefFor: (tab: PublishTab) => string;
 }>();
 
-const tabs: PublishTab[] = ['queue', 'drafts', 'sent'];
+const tabs: PublishTab[] = ['queue', 'approvals', 'drafts', 'sent'];
 </script>
 
 <template>

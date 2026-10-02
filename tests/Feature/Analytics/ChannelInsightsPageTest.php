@@ -6,7 +6,6 @@ use App\Actions\Analytics\ListChannelPublicationPerformance;
 use App\Actions\Analytics\ResolveAnalyticsAccountKey;
 use App\Dto\Analytics\DateRange;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\AnalyticsPublication;
@@ -31,7 +30,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->instagram = SocialAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
@@ -97,7 +96,7 @@ test('the insights page renders the channel report and its publications', functi
             ->where('publications.data.0.rank', 1)
             ->where('publications.data.0.thumbnail_url', 'https://cdn.example.com/a.jpg')
             ->where('publications.data.0.metrics.reactions', 8)
-            ->where('publications.data.0.url', route('app.analytics.publications.show', $publication->id))
+            ->where('publications.data.0.url', route('app.insights.publications.show', $publication->id))
             ->where('publications.data.1.id', $insecure->id)
             ->where('publications.data.1.rank', 2)
             ->where('publications.data.1.thumbnail_url', null)
@@ -268,12 +267,12 @@ test('a channel of another workspace is not found, even with an invalid sort', f
         ->assertNotFound();
 });
 
-test('a viewer can open the insights page', function () {
-    $viewer = User::factory()->create(['account_id' => $this->user->account_id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+test('a member who needs approval can open the insights page', function () {
+    $requester = User::factory()->create(['account_id' => $this->user->account_id]);
+    $this->workspace->members()->attach($requester->id, membershipPivot('approval'));
+    $requester->update(['current_workspace_id' => $this->workspace->id]);
 
-    $this->actingAs($viewer)
+    $this->actingAs($requester)
         ->get(route('app.channels.insights', $this->instagram))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page

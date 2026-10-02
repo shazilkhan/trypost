@@ -6,7 +6,6 @@ use App\Enums\Repurpose\PauseReason;
 use App\Enums\Repurpose\Status;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\TikTok\PrivacyLevel;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Repurpose;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -32,7 +31,7 @@ test('a repurpose whose source was deleted explains itself instead of rendering 
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $destination = SocialAccount::factory()->for($workspace)->create(['platform' => Platform::TikTok]);

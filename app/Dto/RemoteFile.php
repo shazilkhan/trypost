@@ -27,6 +27,11 @@ final readonly class RemoteFile
         public array $sourceMeta = [],
     ) {}
 
+    public static function fromUrl(string $url): self
+    {
+        return new self($url, basename((string) parse_url($url, PHP_URL_PATH)));
+    }
+
     /**
      * @param  array<string, string>  $headers
      */

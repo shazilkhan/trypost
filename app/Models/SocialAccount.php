@@ -341,6 +341,39 @@ class SocialAccount extends Model
     }
 
     /**
+     * The channel identity a new PostPlatform keeps, so the post still shows
+     * who it went to after the account is renamed or disconnected.
+     *
+     * @return array{platform_name: string, platform_username: ?string, platform_avatar: ?string}
+     */
+    public function channelSnapshot(): array
+    {
+        return [
+            'platform_name' => $this->accountDisplayName(),
+            'platform_username' => $this->username,
+            'platform_avatar' => $this->getRawOriginal('avatar_url'),
+        ];
+    }
+
+    /**
+     * Base URL of the Mastodon instance this account lives on, without a
+     * trailing slash.
+     */
+    public function mastodonInstance(): string
+    {
+        return rtrim((string) data_get($this->meta, 'instance', config('trypost.platforms.mastodon.default_instance')), '/');
+    }
+
+    /**
+     * Whether the token may read the account's statuses, private ones
+     * included; without it only public statuses are readable, unauthenticated.
+     */
+    public function canReadMastodonStatuses(): bool
+    {
+        return count(array_intersect(['read', 'read:statuses'], $this->scopes ?? [])) > 0;
+    }
+
+    /**
      * Frontend-facing mirror of accountDisplayName() — appended to JSON so
      * Vue components stop re-implementing this fallback.
      */

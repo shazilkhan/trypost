@@ -27,6 +27,7 @@ import {
     useTemplateDialogForm,
     type TemplateDialogMode,
 } from '@/composables/useTemplateDialogForm';
+import { templateVisibilityIcons } from '@/lib/templateVisibility';
 import { store, update } from '@/routes/app/create/templates';
 import type { PostTemplate, TemplateVisibility } from '@/types/template';
 
@@ -202,9 +203,18 @@ const save = async (): Promise<void> => {
                         :aria-label="$t('create.templates.editor.visibility')"
                         data-testid="template-editor-visibility"
                     >
-                        <SelectValue>{{
-                            $t(`create.templates.visibility.${form.visibility}`)
-                        }}</SelectValue>
+                        <SelectValue class="flex items-center gap-2">
+                            <component
+                                :is="templateVisibilityIcons[form.visibility]"
+                                class="size-4 shrink-0 text-muted-foreground"
+                                :data-testid="`template-editor-visibility-icon-${form.visibility}`"
+                            />
+                            {{
+                                $t(
+                                    `create.templates.visibility.${form.visibility}`,
+                                )
+                            }}
+                        </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem
@@ -213,6 +223,10 @@ const save = async (): Promise<void> => {
                             :value="option"
                             :data-testid="`template-editor-visibility-${option}`"
                         >
+                            <component
+                                :is="templateVisibilityIcons[option]"
+                                class="size-4 shrink-0 text-muted-foreground"
+                            />
                             {{ $t(`create.templates.visibility.${option}`) }}
                         </SelectItem>
                     </SelectContent>

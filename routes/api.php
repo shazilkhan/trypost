@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\PlatformController;
+use App\Http\Controllers\Api\PostApprovalController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\RepurposeController;
 use App\Http\Controllers\Api\SignatureController;
@@ -42,6 +43,8 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::post('/posts/{post}/media/from-url', [PostController::class, 'attachMediaFromUrl'])->name('api.posts.attach-media-from-url');
     Route::get('/posts/{post}/metrics', [PostController::class, 'metrics'])->name('api.posts.metrics');
     Route::get('/posts/{post}/preview', [PostController::class, 'preview'])->name('api.posts.preview');
+    Route::post('/posts/{post}/approve', [PostApprovalController::class, 'approve'])->name('api.posts.approve');
+    Route::post('/posts/{post}/reject', [PostApprovalController::class, 'reject'])->name('api.posts.reject');
 
     // Platforms (read-only metadata)
     Route::get('/content-types', [PlatformController::class, 'contentTypes'])->name('api.content-types');

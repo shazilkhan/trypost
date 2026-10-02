@@ -5,42 +5,18 @@ import { ref } from 'vue';
 
 import UsersTab from '@/components/settings/UsersTab.vue';
 import { Button } from '@/components/ui/button';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
-
-interface Workspace {
-    id: string;
-    name: string;
-}
-
-interface Member {
-    id: string;
-    name: string;
-    email: string;
-    photo_url: string | null;
-    role: string;
-}
-
-interface Invite {
-    id: string;
-    email: string;
-    role: string;
-}
-
-interface Role {
-    value: string;
-    label: string;
-}
+import type { WorkspaceInvitation, WorkspaceMember } from '@/types/members';
 
 defineProps<{
-    workspace: Workspace;
-    owner: Member;
-    members: Member[];
-    invites: Invite[];
-    roles: Role[];
+    workspace: { id: string; name: string };
+    owner: { id: string | null; name: string | null; email: string | null };
+    members: WorkspaceMember[];
+    invites: WorkspaceInvitation[];
 }>();
 
-const { canManageTeam } = useWorkspaceRole();
+const { canManageTeam } = useWorkspaceAbilities();
 const inviteOpen = ref(false);
 </script>
 
@@ -62,7 +38,7 @@ const inviteOpen = ref(false);
             v-model:invite-open="inviteOpen"
             :members="members"
             :invitations="invites"
-            :roles="roles"
+            :owner-id="owner.id"
         />
     </SettingsLayout>
 </template>

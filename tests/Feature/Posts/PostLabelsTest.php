@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Post\Status as PostStatus;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Workspace;
@@ -12,7 +11,7 @@ use App\Models\WorkspaceLabel;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['account_id' => $this->user->account_id, 'user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->campaign = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id, 'name' => 'Campaign']);
@@ -119,13 +118,11 @@ test('returns 404 for a post in another workspace', function () {
         ->assertNotFound();
 });
 
-test('forbids a viewer from changing labels', function () {
+test('forbids a user outside the workspace from changing labels', function () {
     $post = labelledPost($this->workspace, $this->user);
-    $viewer = User::factory()->create();
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer)
+    $this->actingAs($outsider)
         ->patch(route('app.posts.labels.update', $post), ['labels' => [$this->campaign->id]])
         ->assertForbidden();
 

@@ -6,7 +6,6 @@ use App\Actions\Post\Queue\ReflowChannelQueue;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -56,7 +55,7 @@ function publishQueueSetup(): array
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -129,6 +128,24 @@ test('empty posting times show as slots and a slot opens the composer in queue m
 
     expect($page->script('document.querySelector(\'[data-testid="composer-submit"]\').dataset.scheduleMode'))->toBe('next');
     $page->assertNoJavaScriptErrors();
+});
+
+test('a member whose posts need approval can still open the composer from an empty slot', function () {
+    [, $workspace, $channel] = publishQueueSetup();
+    $requester = workspaceMember($workspace, 'approval', ['timezone' => 'UTC']);
+    $slot = $channel->posting_schedule->nextSlots(now()->addMinute(), $channel->timezone, 1)[0];
+    $slotKey = publishQueueSlotKey($channel, $slot);
+    $this->actingAs($requester);
+
+    $page = visit(route('app.posts.index'));
+    waitForPublishQueueTestId($page, "queue-slot-new-{$slotKey}");
+
+    $page->assertSeeIn("@queue-slot-new-{$slotKey}", 'New')
+        ->click("@queue-slot-new-{$slotKey}");
+
+    waitForPublishQueueTestId($page, "composer-caption-{$channel->id}");
+    $page->assertVisible("@composer-caption-{$channel->id}")
+        ->assertNoJavaScriptErrors();
 });
 
 test('scheduled posts replace the slots with a list of only those posts', function () {

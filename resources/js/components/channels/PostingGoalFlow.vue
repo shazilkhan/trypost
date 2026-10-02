@@ -15,8 +15,7 @@ import { trans, transChoice } from 'laravel-vue-i18n';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
-import PlatformLogo from '@/components/PlatformLogo.vue';
-import { Avatar } from '@/components/ui/avatar';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import { Button } from '@/components/ui/button';
 import { DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -234,23 +233,19 @@ const rows = computed(() =>
     <div v-else class="flex flex-col sm:min-h-[660px]">
         <div class="flex flex-1 flex-col px-6 pt-12 pb-10 sm:px-10 sm:pt-20">
             <div class="mx-auto flex w-full max-w-[640px] flex-col items-center">
-                <div ref="avatar" class="relative shrink-0" data-testid="goal-avatar">
-                    <Avatar
+                <div ref="avatar" class="shrink-0" data-testid="goal-avatar">
+                    <ChannelAvatar
+                        :platform="channel.platform"
                         :src="channel.avatar_url"
                         :name="channel.display_name || channel.username"
-                        class="size-16 rounded-lg"
-                        fallback-class="bg-secondary text-sm font-bold"
-                    />
-                    <PlatformLogo
-                        :platform="channel.platform"
-                        :size="26"
-                        ring="background"
-                        class="absolute -end-2.5 -bottom-2.5"
-                    />
-                    <IconCircleCheckFilled
-                        v-if="step === 'goal'"
-                        class="absolute -start-2.5 -top-2.5 size-7 rounded-full bg-background text-success"
-                    />
+                        :size="64"
+                        :reserve-space="false"
+                    >
+                        <IconCircleCheckFilled
+                            v-if="step === 'goal'"
+                            class="absolute -start-2.5 -top-2.5 size-7 rounded-full bg-background text-success"
+                        />
+                    </ChannelAvatar>
                 </div>
 
                 <template v-if="step === 'goal'">

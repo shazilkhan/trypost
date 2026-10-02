@@ -34,7 +34,7 @@ trait RendersPublishPage
             $this->authorize('update', $composerPost);
 
             if (PostStatusRules::blocksEditing($composerPost) || ! $this->canOpenComposer($composerPost)) {
-                return redirect()->route('app.posts.show', $composerPost);
+                return redirect()->route('app.posts.index', ['post' => $composerPost->id]);
             }
         }
 
@@ -65,7 +65,7 @@ trait RendersPublishPage
         parse_str(data_get($previous, 'query', ''), $query);
 
         $query = [
-            ...Arr::except($query, ['edit', 'notes', 'note', 'compose', 'date', 'ai', 'assistant']),
+            ...Arr::except($query, ['edit', 'notes', 'note', 'post', 'compose', 'date', 'ai', 'assistant']),
             ...$extraQuery,
         ];
 

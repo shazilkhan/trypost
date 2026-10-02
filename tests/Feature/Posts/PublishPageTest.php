@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Actions\Post\BuildPublishPageProps;
+use App\Enums\Post\Origin;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\Status as PlatformStatus;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -27,7 +27,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create(['timezone' => 'America/Sao_Paulo']);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->channel = SocialAccount::factory()->linkedin()->create([
@@ -75,6 +75,11 @@ function publishPageQueryCount(object $test, string $tab, int $postsPerStatus): 
                 'scheduled_at' => now()->addDays(2)->addMinutes($index + ($test->queryCountBatch * 100)),
             ]);
             publishPagePost($channel, PostStatus::Draft);
+            publishPagePost($channel, PostStatus::PendingApproval, [
+                'schedule_mode' => ScheduleMode::Custom,
+                'scheduled_at' => now()->addDays(3)->addMinutes($index + ($test->queryCountBatch * 100)),
+                'approval_requested_at' => now(),
+            ]);
             publishPagePost($channel, PostStatus::Published, ['published_at' => now()->subDay()], [
                 'status' => PlatformStatus::Published,
                 'published_at' => now()->subDay(),
@@ -243,15 +248,15 @@ test('counts follow the page scope', function () {
     $this->actingAs($this->user)
         ->get(route('app.posts.index'))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('counts', ['queue' => 1, 'drafts' => 2, 'sent' => 3]));
+            ->where('counts', ['queue' => 1, 'drafts' => 2, 'sent' => 3, 'approvals' => 0]));
 
     $this->get(route('app.channels.publish', $this->channel))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('counts', ['queue' => 1, 'drafts' => 1, 'sent' => 1]));
+            ->where('counts', ['queue' => 1, 'drafts' => 1, 'sent' => 1, 'approvals' => 0]));
 
     $this->get(route('app.posts.index', ['channels' => [$other->id]]))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('counts', ['queue' => 0, 'drafts' => 1, 'sent' => 2])
+            ->where('counts', ['queue' => 0, 'drafts' => 1, 'sent' => 2, 'approvals' => 0])
             ->where('filters.channels', [$other->id]));
 });
 
@@ -351,7 +356,7 @@ test('the page runs no n+1 queries as posts grow', function (string $tab) {
     $large = publishPageQueryCount($this, $tab, 4);
 
     expect($large)->toBe($small);
-})->with(['queue', 'drafts', 'sent']);
+})->with(['queue', 'drafts', 'sent', 'approvals']);
 
 test('the label filter narrows lists, queue cards and needs attention', function () {
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
@@ -377,7 +382,7 @@ test('the label filter narrows lists, queue cards and needs attention', function
             ->has('posts.data', 1)
             ->where('posts.data.0.id', $tagged->id)
             ->where('filters.labels', [$label->id])
-            ->where('counts', ['queue' => 2, 'drafts' => 2, 'sent' => 2]));
+            ->where('counts', ['queue' => 2, 'drafts' => 2, 'sent' => 2, 'approvals' => 0]));
 
     $this->get(route('app.posts.index', ['labels' => [$label->id]]))
         ->assertInertia(fn (AssertableInertia $page) => $page
@@ -438,7 +443,7 @@ test('a channel filter from another workspace yields no posts and zero counts', 
         ->get(route('app.posts.index', ['channels' => [$foreign->id]]))
         ->assertOk()
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0])
+            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0, 'approvals' => 0])
             ->where('queue.days', [])
             ->has('posts.data', 0)
             ->where('queue.needsAttention', []));
@@ -599,4 +604,42 @@ test('a label filter without matching scheduled posts shows neither posts nor sl
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('posts.data', 0)
             ->where('queue.days', []));
+});
+
+test('the sent tab lists imported posts by publish time and counts them', function () {
+    $tryPost = publishPagePost($this->channel, PostStatus::Published, ['published_at' => now()->subHours(2)], [
+        'status' => PlatformStatus::Published,
+        'published_at' => now()->subHours(2),
+    ]);
+    $imported = publishPagePost($this->channel, PostStatus::Published, [
+        'origin' => Origin::Network,
+        'user_id' => null,
+        'published_at' => now()->subHour(),
+    ], [
+        'status' => PlatformStatus::Published,
+        'published_at' => now()->subHour(),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', [$this->channel, 'tab' => 'sent']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('counts.sent', 2)
+            ->where('posts.data.0.id', $imported->id)
+            ->where('posts.data.0.origin', Origin::Network->value)
+            ->where('posts.data.0.can_delete', false)
+            ->where('posts.data.1.id', $tryPost->id)
+            ->where('posts.data.1.origin', Origin::TryPost->value));
+});
+
+test('imported posts count toward the weekly posting goal', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-09-30 12:00:00', 'UTC'));
+
+    publishPagePost($this->channel, PostStatus::Published, ['origin' => Origin::Network, 'user_id' => null], [
+        'status' => PlatformStatus::Published,
+        'published_at' => CarbonImmutable::parse('2026-09-29 10:00:00', 'UTC'),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('channel.sent_this_week', 1));
 });

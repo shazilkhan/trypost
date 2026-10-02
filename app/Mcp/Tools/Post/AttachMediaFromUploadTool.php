@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\Post;
 
 use App\Actions\Media\ResolveWorkspaceMedia;
+use App\Actions\Post\AppendPostMedia;
 use App\Dto\MediaItem;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
@@ -54,7 +55,7 @@ class AttachMediaFromUploadTool extends Tool
             return Response::error('No enabled platform on this post accepts this media type.');
         }
 
-        $post->appendMedia([MediaItem::fromMedia($media, data_get($validated, 'alt'))->toArray()]);
+        AppendPostMedia::execute($post, [MediaItem::fromMedia($media, data_get($validated, 'alt'))->toArray()], $request->user());
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);
 

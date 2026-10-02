@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Actions\Post\CreatePosts;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\PublishPost;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -67,7 +66,7 @@ function cardActionsSetup(): array
         'user_id' => $user->id,
         'account_id' => $user->account_id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -144,6 +143,7 @@ test('a queued card shows publish now, edit and the menu in order', function () 
     expect(cardActionsMenuItems($page, $queued->id))->toBe([
         'post-move-drafts',
         'post-duplicate',
+        'post-recurrence-open',
         'post-details-open',
         '---',
         'post-move-top',
@@ -158,7 +158,7 @@ test('a queued card shows publish now, edit and the menu in order', function () 
         ->assertSeeIn("@post-details-open-{$queued->id}", __('posts.show.title'))
         ->assertSeeIn("@post-delete-{$queued->id}", __('posts.publish.actions.delete'))
         ->assertMissing("@post-copy-id-{$queued->id}")
-        ->assertDontSee('Recurring')
+        ->assertSeeIn("@post-recurrence-open-{$queued->id}", __('posts.recurrence.make'))
         ->assertNoJavaScriptErrors();
 });
 
@@ -233,8 +233,8 @@ test('post details opens a read-only preview of the post', function () {
 
     $page->assertSeeIn("@post-details-{$queued->id}", __('posts.show.title'))
         ->assertSeeIn("@post-details-status-{$queued->id}", __('posts.status.scheduled'))
-        ->assertSeeIn("@post-details-target-{$target->id}", 'Card actions post')
-        ->assertSeeIn('@preview-author', $channel->display_label)
+        ->assertSeeIn("@post-details-text-{$queued->id}", 'Card actions post')
+        ->assertSeeIn("@post-details-target-{$target->id}", $channel->display_label)
         ->assertNoJavaScriptErrors();
     expect($page->script("document.querySelector('[data-testid=\"post-details-time-{$queued->id}\"]').textContent.trim()"))
         ->not->toBe(__('posts.publish.unscheduled'));

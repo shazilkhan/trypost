@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\User;
@@ -17,20 +16,11 @@ beforeEach(function () {
         'user_id' => $this->user->id,
     ]);
     $this->workspace->ideaStages()->delete();
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
 });
-
-function ideaStageTestViewer(Workspace $workspace): User
-{
-    $viewer = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $workspace->id]);
-
-    return $viewer->fresh();
-}
 
 test('store appends a stage at the end and validates the name', function () {
     IdeaStage::factory()->create(['workspace_id' => $this->workspace->id, 'position' => 0]);
@@ -151,12 +141,12 @@ test('another workspace stage cannot be updated or deleted', function () {
     expect($foreign->fresh()->name)->not->toBe('Nope');
 });
 
-test('viewers are forbidden on every endpoint', function () {
+test('a user outside the workspace is forbidden on every endpoint', function () {
     $stage = IdeaStage::factory()->create(['workspace_id' => $this->workspace->id]);
-    $viewer = ideaStageTestViewer($this->workspace);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer)->post(route('app.create.idea-stages.store'), ['name' => 'X'])->assertForbidden();
-    $this->actingAs($viewer)->put(route('app.create.idea-stages.reorder'), ['stage_ids' => [$stage->id]])->assertForbidden();
-    $this->actingAs($viewer)->put(route('app.create.idea-stages.update', $stage), ['name' => 'X'])->assertForbidden();
-    $this->actingAs($viewer)->delete(route('app.create.idea-stages.destroy', $stage))->assertForbidden();
+    $this->actingAs($outsider)->post(route('app.create.idea-stages.store'), ['name' => 'X'])->assertForbidden();
+    $this->actingAs($outsider)->put(route('app.create.idea-stages.reorder'), ['stage_ids' => [$stage->id]])->assertForbidden();
+    $this->actingAs($outsider)->put(route('app.create.idea-stages.update', $stage), ['name' => 'X'])->assertForbidden();
+    $this->actingAs($outsider)->delete(route('app.create.idea-stages.destroy', $stage))->assertForbidden();
 });

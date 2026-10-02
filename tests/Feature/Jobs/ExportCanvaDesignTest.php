@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Dto\ImportedFile;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ExportCanvaDesign;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Models\Account;
@@ -31,7 +30,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 
@@ -232,7 +231,7 @@ test('a revoked refresh token deletes the connection and fails the import', func
 test('a connection of another user or a lost workspace access fails without calling Canva', function (string $case) {
     Http::fake();
     $member = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
     MediaImportStatus::pending($this->importId, $member->id, $this->workspace->id);
 
     if ($case === 'other user') {

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Models\Account;
 use App\Models\Media;
@@ -24,7 +23,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 
@@ -71,12 +70,10 @@ test('a files array is rejected', function () {
         ->assertJsonValidationErrors('files');
 });
 
-test('a viewer cannot start an import', function () {
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+test('a user outside the workspace cannot start an import', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->postJson(route('app.media.imports.store'), ['source' => 'google_drive'])
         ->assertForbidden();
 });

@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Publicar posts',
         'destination_issues' => '{1} :count problema para corrigir|[0,*] :count problemas para corrigir',
         'create_another' => 'Criar outro',
+        'request_approval' => 'Salvar e pedir aprovação',
         'templates' => 'Modelos',
         'expand' => 'Expandir diálogo',
         'post_previews' => 'Pré-visualizações',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'Pendente',
         'draft' => 'Rascunho',
+        'pending_approval' => 'Aguardando aprovação',
         'scheduled' => 'Agendado',
         'publishing' => 'Publicando',
         'retrying' => 'Tentando novamente',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Detalhes do Post',
-        'back' => 'Voltar',
-        'no_platforms' => 'Nenhuma plataforma selecionada.',
-        'view_on_platform' => 'Ver na plataforma',
         'published_on' => 'Publicado em :date',
         'scheduled_for' => 'Agendado para :date',
-        'draft' => 'Rascunho',
-        'metrics' => 'Métricas',
-        'pending_review' => 'O Google está revisando este post. Atualizamos quando a revisão terminar.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'Todos os canais',
         'tabs' => [
             'queue' => 'Fila',
+            'approvals' => 'Aprovações',
             'drafts' => 'Rascunhos',
             'sent' => 'Enviados',
         ],
         'view' => [
             'list' => 'Lista',
             'calendar' => 'Calendário',
+        ],
+        'metrics' => [
+            'refreshed' => 'Atualizado :time',
+            'previous' => 'Métricas anteriores',
+            'next' => 'Próximas métricas',
         ],
         'new_post' => 'Novo post',
         'today' => 'Hoje',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => 'Criado por :name :when',
         'empty' => [
-            'queue' => 'Sua fila está vazia. Adicione horários de postagem ou crie um post.',
-            'drafts' => 'Nenhum rascunho ainda.',
-            'sent' => 'Nada publicado ainda.',
+            'queue' => [
+                'title' => 'Nenhum post agendado',
+                'description' => 'Sua fila está vazia. Agende um post e ele aparecerá aqui.',
+            ],
+            'approvals' => [
+                'title' => 'Nenhum post aguardando aprovação',
+                'description' => 'Os posts que precisam de aprovação aparecerão aqui.',
+            ],
+            'drafts' => [
+                'title' => 'Nenhum rascunho',
+                'description' => 'Você ainda não salvou nenhum rascunho. Quando salvar, ele aparecerá aqui.',
+            ],
+            'sent' => [
+                'title' => 'Nenhum post enviado',
+                'description' => 'Os posts que você publicar aparecerão aqui.',
+            ],
         ],
         'reordered' => 'Fila atualizada',
+    ],
+    'group' => [
+        'channels' => 'Canais (:count)',
+        'collapse' => 'Ocultar canais',
+        'expand' => 'Mostrar canais',
+    ],
+    'approvals' => [
+        'badge' => 'Aprovação',
+        'time_passed' => 'O horário já passou',
+        'approve' => 'Aprovar',
+        'schedule' => 'Agendar',
+        'reject' => 'Rejeitar',
+        'revert' => 'Desfazer pedido de aprovação',
+        'requested' => 'Aprovação solicitada',
+        'errors' => [
+            'not_pending' => 'Este post não está mais aguardando aprovação.',
+            'time_passed' => 'O horário pedido já passou. Escolha um novo horário.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Recorrente',
+        'make' => 'Tornar recorrente',
+        'edit' => 'Editar recorrência',
+        'title' => 'Post recorrente',
+        'description' => 'Vamos agendar as próximas ocorrências com base na data e no horário deste post.',
+        'repeat_every' => 'Repetir a cada',
+        'for' => 'por',
+        'times' => '{1} vez|[0,*] vezes',
+        'interval_label' => 'Intervalo de repetição',
+        'frequency_label' => 'Unidade de repetição',
+        'times_label' => 'Número de vezes',
+        'frequency' => [
+            'day' => '{1} Dia|[0,*] Dias',
+            'week' => '{1} Semana|[0,*] Semanas',
+            'month' => '{1} Mês|[0,*] Meses',
+            'year' => '{1} Ano|[0,*] Anos',
+        ],
+        'rule' => [
+            'day' => '{1} todos os dias às :time|[0,*] a cada :count dias às :time',
+            'week' => '{1} toda :weekday às :time|[0,*] a cada :count semanas, na :weekday, às :time',
+            'month' => '{1} todo mês no dia :day às :time|[0,*] a cada :count meses no dia :day às :time',
+            'year' => '{1} todo ano em :date às :time|[0,*] a cada :count anos em :date às :time',
+        ],
+        'summary' => 'Este post será compartilhado :rule, até :until.',
+        'banner' => '{1} Este post será compartilhado :rule, até :until (:count post restante).|[0,*] Este post será compartilhado :rule, até :until (:count posts restantes).',
+        'save' => 'Salvar',
+        'stop' => 'Parar recorrência',
+        'cancel' => 'Cancelar',
+        'errors' => [
+            'not_scheduled' => 'Só posts agendados podem se repetir.',
+            'too_far' => 'A última ocorrência precisa ser antes de 2038.',
+        ],
     ],
 ];

@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\RssFeed\Format;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\RssFeed\FetchRssFeed;
 use App\Models\Idea;
 use App\Models\RssFeed;
@@ -19,15 +18,6 @@ function rssFeedManagementFixture(string $name): string
     return (string) file_get_contents(base_path("tests/fixtures/feeds/{$name}"));
 }
 
-function rssFeedManagementViewer(Workspace $workspace): User
-{
-    $viewer = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $workspace->id]);
-
-    return $viewer->fresh();
-}
-
 beforeEach(function () {
     config(['trypost.self_hosted' => false]);
     Http::preventStrayRequests();
@@ -37,7 +27,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -338,22 +328,22 @@ test('another workspace resources are forbidden', function () {
         ->and(Idea::query()->count())->toBe(0);
 });
 
-test('viewers cannot change feeds', function () {
+test('a user outside the workspace cannot change feeds', function () {
     Http::fake();
-    $viewer = rssFeedManagementViewer($this->workspace);
+    $outsider = workspaceOutsider($this->workspace);
     $feed = RssFeed::factory()->create(['workspace_id' => $this->workspace->id]);
     $collection = RssFeedCollection::factory()->create(['workspace_id' => $this->workspace->id]);
     $item = RssFeedItem::factory()->for($feed, 'feed')->create();
 
-    $this->actingAs($viewer)->post(route('app.create.feeds.store'), ['url' => 'http://93.184.216.34/feed.xml'])->assertForbidden();
-    $this->actingAs($viewer)->post(route('app.create.feeds.refresh'))->assertForbidden();
-    $this->actingAs($viewer)->put(route('app.create.feeds.update', $feed), ['custom_title' => 'x'])->assertForbidden();
-    $this->actingAs($viewer)->delete(route('app.create.feeds.destroy', $feed))->assertForbidden();
-    $this->actingAs($viewer)->post(route('app.create.feed-collections.store'), ['name' => 'x'])->assertForbidden();
-    $this->actingAs($viewer)->put(route('app.create.feed-collections.update', $collection), ['name' => 'x'])->assertForbidden();
-    $this->actingAs($viewer)->delete(route('app.create.feed-collections.destroy', $collection))->assertForbidden();
-    $this->actingAs($viewer)->post(route('app.create.feed-items.idea', $item))->assertForbidden();
-    $this->actingAs($viewer)->post(route('app.create.feed-items.import-image', $item))->assertForbidden();
+    $this->actingAs($outsider)->post(route('app.create.feeds.store'), ['url' => 'http://93.184.216.34/feed.xml'])->assertForbidden();
+    $this->actingAs($outsider)->post(route('app.create.feeds.refresh'))->assertForbidden();
+    $this->actingAs($outsider)->put(route('app.create.feeds.update', $feed), ['custom_title' => 'x'])->assertForbidden();
+    $this->actingAs($outsider)->delete(route('app.create.feeds.destroy', $feed))->assertForbidden();
+    $this->actingAs($outsider)->post(route('app.create.feed-collections.store'), ['name' => 'x'])->assertForbidden();
+    $this->actingAs($outsider)->put(route('app.create.feed-collections.update', $collection), ['name' => 'x'])->assertForbidden();
+    $this->actingAs($outsider)->delete(route('app.create.feed-collections.destroy', $collection))->assertForbidden();
+    $this->actingAs($outsider)->post(route('app.create.feed-items.idea', $item))->assertForbidden();
+    $this->actingAs($outsider)->post(route('app.create.feed-items.import-image', $item))->assertForbidden();
 
     Http::assertNothingSent();
 });

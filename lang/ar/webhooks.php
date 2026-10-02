@@ -120,7 +120,6 @@ return [
         'endpoint_http_status' => 'أعاد الـ endpoint رمز HTTP :status.',
     ],
     'flash' => [
-        'created' => 'تم إنشاء الويب هوك.',
         'updated' => 'تم تحديث الويب هوك.',
         'deleted' => 'تم حذف الويب هوك.',
         'secret_rotated' => 'تم تدوير سر التوقيع.',

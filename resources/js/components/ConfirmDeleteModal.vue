@@ -186,12 +186,9 @@ defineExpose({
         <DialogContent class="sm:max-w-md" data-testid="confirm-delete-modal">
             <DialogHeader>
                 <DialogTitle>{{ title }}</DialogTitle>
-                <DialogDescription class="space-y-1">
-                    <span class="block">{{ description }}</span>
-                    <span class="block font-medium text-destructive-text">
-                        {{ trans('common.confirm_modal.cannot_be_undone') }}
-                    </span>
-                </DialogDescription>
+                <DialogDescription data-testid="confirm-delete-description">{{
+                    description
+                }}</DialogDescription>
             </DialogHeader>
 
             <div v-if="requiresConfirmation" class="space-y-2">

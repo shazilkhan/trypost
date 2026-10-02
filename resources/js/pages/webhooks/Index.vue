@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
 import { IconEye, IconPlus, IconTrash, IconWebhook } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
 import { ref } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
@@ -9,7 +8,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import SettingsListRow from '@/components/settings/SettingsListRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import CreateWebhookSheet from '@/components/webhook/CreateWebhookSheet.vue';
+import CreateWebhookDialog from '@/components/webhook/CreateWebhookDialog.vue';
 import date from '@/date';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
 import { destroy, show } from '@/routes/app/webhooks';
@@ -20,7 +19,7 @@ defineProps<{
     webhooks: Webhook[];
 }>();
 
-const createSheetOpen = ref(false);
+const createDialogOpen = ref(false);
 const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
     null,
 );
@@ -32,7 +31,6 @@ const openWebhook = (webhook: Webhook) => {
 const handleDelete = (webhook: Webhook) => {
     confirmDeleteModal.value?.open({
         url: destroy.url(webhook),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 </script>
@@ -47,7 +45,7 @@ const handleDelete = (webhook: Webhook) => {
         <template #actions>
             <Button
                 data-testid="create-webhook-button"
-                @click="createSheetOpen = true"
+                @click="createDialogOpen = true"
             >
                 <IconPlus class="size-4" />
                 {{ $t('webhooks.new') }}
@@ -140,7 +138,7 @@ const handleDelete = (webhook: Webhook) => {
         </ul>
     </SettingsLayout>
 
-    <CreateWebhookSheet v-model:open="createSheetOpen" />
+    <CreateWebhookDialog v-model:open="createDialogOpen" />
     <ConfirmDeleteModal
         ref="confirmDeleteModal"
         :title="$t('webhooks.delete.title')"

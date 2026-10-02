@@ -6,9 +6,11 @@ namespace App\Jobs\Analytics;
 
 use App\Actions\Analytics\AdvanceAnalyticsSyncState;
 use App\Actions\Analytics\QueuePublicationMetricsForPage;
+use App\Actions\Post\ImportExternalPosts;
 use App\Enums\Analytics\SyncCollector;
 use App\Enums\Analytics\SyncStatus;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
+use App\Jobs\Post\ImportExternalPostMedia;
 use App\Models\AnalyticsSyncState;
 use App\Models\SocialAccount;
 use App\Services\Analytics\Collectors\Publications\PublicationHistoryCollectorFactory;
@@ -114,6 +116,9 @@ abstract class AbstractPublicationSync implements ShouldQueue
         }
 
         $log->record($account, $collector, $cursorLabel, $this->attempts(), $result['terminal'] ? 'completed' : 'page_advanced');
+        foreach (rescue(fn (): array => ImportExternalPosts::execute($account), []) as $postId) {
+            ImportExternalPostMedia::dispatch($postId);
+        }
         $metrics->handle($account, $page);
 
         if ($result['advanced'] && ! $result['terminal']) {

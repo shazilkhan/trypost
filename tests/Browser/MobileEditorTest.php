@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostNote;
 use App\Models\User;
@@ -16,7 +15,7 @@ function seedMobileEditorPost(array $postAttributes = []): Post
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $post = Post::factory()->create(array_merge([

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Ai\Agents\IdeaGenerator;
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\User;
@@ -23,7 +22,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -143,13 +142,11 @@ test('the prompt uses the requesters language and only their answers', function 
     expect($parameters->contains(Workspace::class))->toBeFalse();
 });
 
-test('a viewer cannot generate ideas', function () {
+test('a user outside the workspace cannot generate ideas', function () {
     IdeaGenerator::fake();
-    $viewer = User::factory()->create(['account_id' => $this->workspace->account_id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())->postJson(route('app.create.ideas.generate'), generateIdeasPayload())->assertForbidden();
+    $this->actingAs($outsider->fresh())->postJson(route('app.create.ideas.generate'), generateIdeasPayload())->assertForbidden();
     IdeaGenerator::assertNeverPrompted();
 });
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Media\CanvaPreset;
 use App\Enums\Media\Source;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ExportCanvaDesign;
 use App\Models\Account;
 use App\Models\MediaSourceConnection;
@@ -39,7 +38,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 
@@ -216,12 +215,10 @@ test('every Canva route is a 404 while Canva is not configured', function (array
     'no client secret' => [['services.canva.client_secret' => null]],
 ]);
 
-test('a viewer cannot open Canva', function () {
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+test('a user outside the workspace cannot open Canva', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->get(route('app.integrations.canva.designs.create', ['preset' => 'square', 'nonce' => CANVA_TEST_NONCE]))
         ->assertForbidden();
 });
@@ -379,7 +376,7 @@ test('a connected user goes straight to a new design; the connection is per user
     Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '/oauth/token'));
 
     $teammate = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($teammate->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($teammate->id, membershipPivot('member'));
     $teammate->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->actingAs($teammate->fresh())
@@ -523,7 +520,7 @@ test('the return fallback answers only its own user and workspace, once the retu
     ], 3600);
 
     $teammate = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($teammate->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($teammate->id, membershipPivot('member'));
     $teammate->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->actingAs($teammate->fresh())
@@ -604,7 +601,7 @@ test('a return in another workspace than the design was opened in is refused', f
     canvaControllerCorrelation($this->user, $this->workspace, $connection);
 
     $otherWorkspace = Workspace::factory()->create(['account_id' => $this->account->id, 'user_id' => $this->user->id]);
-    $otherWorkspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $otherWorkspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $otherWorkspace->id]);
 
     $jwt = canvaControllerJwt($this->signingKey['pem']);

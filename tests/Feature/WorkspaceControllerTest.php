@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\User;
 use App\Models\Workspace;
@@ -12,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 beforeEach(function () {
     $this->user = User::factory()->create([]);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 });
 
@@ -26,7 +25,7 @@ test('workspaces index requires authentication', function () {
 test('workspaces index shows all workspaces for user', function () {
     $workspaces = Workspace::factory()->count(2)->create(['user_id' => $this->user->id]);
     foreach ($workspaces as $workspace) {
-        $workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+        $workspace->members()->attach($this->user->id, membershipPivot('member'));
     }
 
     $response = $this->actingAs($this->user)->get(route('app.workspaces.index'));
@@ -143,7 +142,7 @@ test('switch workspace requires authentication', function () {
 
 test('switch workspace changes current workspace', function () {
     $otherWorkspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $otherWorkspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $otherWorkspace->members()->attach($this->user->id, membershipPivot('member'));
 
     $response = $this->actingAs($this->user)->post(route('app.workspaces.switch', $otherWorkspace));
 
@@ -171,13 +170,13 @@ test('switch workspace returns 403 for personal workspace after joining another 
         'account_id' => $personalAccountId,
         'user_id' => $invitee->id,
     ]);
-    $personalWorkspace->members()->attach($invitee->id, ['role' => Role::Admin->value]);
+    $personalWorkspace->members()->attach($invitee->id, membershipPivot('admin'));
 
     $sharedWorkspace = Workspace::factory()->create([
         'account_id' => $sharedOwner->account_id,
         'user_id' => $sharedOwner->id,
     ]);
-    $sharedWorkspace->members()->attach($invitee->id, ['role' => Role::Member->value]);
+    $sharedWorkspace->members()->attach($invitee->id, membershipPivot('member'));
     $invitee->update([
         'account_id' => $sharedOwner->account_id,
         'current_workspace_id' => $sharedWorkspace->id,
@@ -198,13 +197,13 @@ test('workspace index only lists workspaces on the current account', function ()
         'account_id' => $personalAccountId,
         'user_id' => $invitee->id,
     ]);
-    $personalWorkspace->members()->attach($invitee->id, ['role' => Role::Admin->value]);
+    $personalWorkspace->members()->attach($invitee->id, membershipPivot('admin'));
 
     $sharedWorkspace = Workspace::factory()->create([
         'account_id' => $sharedOwner->account_id,
         'user_id' => $sharedOwner->id,
     ]);
-    $sharedWorkspace->members()->attach($invitee->id, ['role' => Role::Member->value]);
+    $sharedWorkspace->members()->attach($invitee->id, membershipPivot('member'));
     $invitee->update([
         'account_id' => $sharedOwner->account_id,
         'current_workspace_id' => $sharedWorkspace->id,
@@ -289,9 +288,9 @@ test('workspace settings otherMemberCount only includes members without another 
         'user_id' => $this->user->id,
     ]);
 
-    $this->workspace->members()->attach($stranded->id, ['role' => Role::Member->value]);
-    $this->workspace->members()->attach($alsoOnOther->id, ['role' => Role::Member->value]);
-    $otherWorkspace->members()->attach($alsoOnOther->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($stranded->id, membershipPivot('member'));
+    $this->workspace->members()->attach($alsoOnOther->id, membershipPivot('member'));
+    $otherWorkspace->members()->attach($alsoOnOther->id, membershipPivot('member'));
 
     $response = $this->actingAs($this->user)->get(route('app.workspace.settings'));
 
@@ -391,7 +390,7 @@ test('upload workspace logo validates max size', function () {
 test('upload workspace logo requires authorization', function () {
     $otherUser = User::factory()->create([]);
     $otherWorkspace = Workspace::factory()->create(['user_id' => $otherUser->id]);
-    $otherWorkspace->members()->attach($otherUser->id, ['role' => Role::Member->value]);
+    $otherWorkspace->members()->attach($otherUser->id, membershipPivot('member'));
     $otherUser->update(['current_workspace_id' => $otherWorkspace->id]);
     $otherUser->account->subscriptions()->create([
         'type' => Account::SUBSCRIPTION_NAME,
@@ -438,7 +437,7 @@ test('delete workspace logo succeeds', function () {
 test('delete workspace logo requires authorization', function () {
     $otherUser = User::factory()->create([]);
     $otherWorkspace = Workspace::factory()->create(['user_id' => $otherUser->id]);
-    $otherWorkspace->members()->attach($otherUser->id, ['role' => Role::Member->value]);
+    $otherWorkspace->members()->attach($otherUser->id, membershipPivot('member'));
     $otherUser->update(['current_workspace_id' => $otherWorkspace->id]);
     $otherUser->account->subscriptions()->create([
         'type' => Account::SUBSCRIPTION_NAME,
@@ -490,7 +489,7 @@ test('destroy workspace falls back to another account workspace when deleting cu
 
 test('destroy workspace reassigns current to another joined workspace', function () {
     $other = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $other->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $other->members()->attach($this->user->id, membershipPivot('member'));
 
     $this->actingAs($this->user)->delete(route('app.workspaces.destroy', $this->workspace));
 
@@ -529,7 +528,7 @@ test('destroy workspace allows deleting the only workspace in self-hosted mode',
 test('destroy workspace returns 403 for non-owner', function () {
     $otherUser = User::factory()->create([]);
     $otherWorkspace = Workspace::factory()->create(['user_id' => $otherUser->id]);
-    $otherWorkspace->members()->attach($otherUser->id, ['role' => Role::Member->value]);
+    $otherWorkspace->members()->attach($otherUser->id, membershipPivot('member'));
     $otherUser->update(['current_workspace_id' => $otherWorkspace->id]);
     $otherUser->account->subscriptions()->create([
         'type' => Account::SUBSCRIPTION_NAME,
@@ -553,7 +552,7 @@ test('destroy workspace returns 403 for workspace admin', function () {
         'account_id' => $this->user->account_id,
         'current_workspace_id' => $this->workspace->id,
     ]);
-    $this->workspace->members()->attach($admin->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($admin->id, membershipPivot('admin'));
 
     $response = $this->actingAs($admin)->delete(route('app.workspaces.destroy', $this->workspace));
 
@@ -571,7 +570,7 @@ test('destroy workspace returns 403 for workspace member', function () {
         'account_id' => $this->user->account_id,
         'current_workspace_id' => $this->workspace->id,
     ]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     $response = $this->actingAs($member)->delete(route('app.workspaces.destroy', $this->workspace));
 
@@ -632,7 +631,7 @@ test('store redirects additional workspace to /accounts', function () {
 
     // First workspace already exists
     $existing = Workspace::factory()->create(['account_id' => $account->id, 'user_id' => $user->id]);
-    $existing->members()->attach($user->id, ['role' => Role::Member->value]);
+    $existing->members()->attach($user->id, membershipPivot('member'));
 
     $response = $this->actingAs($user)->post(route('app.workspaces.store'), [
         'name' => 'Second Workspace',
@@ -652,7 +651,7 @@ test('store blocks a second workspace without an active subscription', function 
     // The account already owns one workspace and has no subscription, so a
     // direct POST must not bootstrap a second (billable) workspace.
     $existing = Workspace::factory()->create(['account_id' => $account->id, 'user_id' => $user->id]);
-    $existing->members()->attach($user->id, ['role' => Role::Member->value]);
+    $existing->members()->attach($user->id, membershipPivot('member'));
 
     $response = $this->actingAs($user)->post(route('app.workspaces.store'), [
         'name' => 'Second Workspace',

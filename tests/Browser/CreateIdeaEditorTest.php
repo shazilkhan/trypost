@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Ai\Agents\IdeaGenerator;
 use App\Ai\Agents\PostWritingAssistant;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\Media;
@@ -77,7 +76,7 @@ function createIdeaEditorSetup(): array
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 

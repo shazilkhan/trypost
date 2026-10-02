@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Enums\Media\Source;
 use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Account;
 use App\Models\Media;
 use App\Models\Post;
@@ -34,7 +33,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 });
@@ -141,22 +140,20 @@ test('a chunked upload with an unsupported extension is rejected', function () {
     expect(Media::query()->count())->toBe(0);
 });
 
-test('a user who cannot create posts cannot upload', function () {
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+test('a user outside the workspace cannot upload', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    mediaUploadChunked($viewer->fresh(), file_get_contents(base_path('tests/fixtures/1x1.png')), 'photo.png')
+    mediaUploadChunked($outsider->fresh(), file_get_contents(base_path('tests/fixtures/1x1.png')), 'photo.png')
         ->assertForbidden();
 
-    test()->actingAs($viewer->fresh())
+    test()->actingAs($outsider->fresh())
         ->postJson(route('app.media.store-from-url'), [
             'url' => 'https://images.unsplash.com/photo-test',
             'filename' => 'unsplash-test.jpg',
         ])
         ->assertForbidden();
 
-    test()->actingAs($viewer->fresh())
+    test()->actingAs($outsider->fresh())
         ->getJson(route('app.media.unsplash.search', ['query' => 'nature']))
         ->assertForbidden();
 
@@ -482,16 +479,14 @@ test('an assembled file over the cap of the type its bytes are is rejected and d
     'more bytes than the declared size' => ['photo.png', 'small'],
 ]);
 
-test('a viewer gets 403 before validation runs', function () {
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
+test('a user outside the workspace gets 403 before validation runs', function () {
+    $outsider = workspaceOutsider($this->workspace);
 
-    test()->actingAs($viewer->fresh())
+    test()->actingAs($outsider->fresh())
         ->call('POST', route('app.media.store-chunked'), [], [], [], ['HTTP_CONTENT_RANGE' => 'invalid', 'HTTP_ACCEPT' => 'application/json'], 'x')
         ->assertForbidden();
 
-    test()->actingAs($viewer->fresh())
+    test()->actingAs($outsider->fresh())
         ->postJson(route('app.media.store-from-url'), ['url' => 'not a url'])
         ->assertForbidden();
 });

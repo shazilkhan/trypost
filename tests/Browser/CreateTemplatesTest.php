@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\PostTemplate\Visibility;
-use App\Enums\UserWorkspace\Role;
 use App\Models\PostTemplate;
 use App\Models\User;
 use App\Models\Workspace;
@@ -64,14 +63,14 @@ function createTemplatesCardCount(mixed $page, string $scopeTestId): int
 /**
  * @return array{0: User, 1: Workspace}
  */
-function createTemplatesSetup(Role $role = Role::Admin): array
+function createTemplatesSetup(string $role = 'admin'): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => $role->value]);
+    $workspace->members()->attach($user->id, membershipPivot($role));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -202,7 +201,7 @@ test('duplicating a library template into the team scope adds the copy suffix', 
         ->and($copy->user_id)->toBe($user->id);
 });
 
-test('deleting a template needs the DELETE keyword', function () {
+test('deleting a template asks for confirmation without typing a keyword', function () {
     [$user, $workspace] = createTemplatesSetup();
     $template = PostTemplate::factory()->team()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id, 'title' => 'Doomed']);
     $this->actingAs($user);
@@ -213,7 +212,7 @@ test('deleting a template needs the DELETE keyword', function () {
     waitForCreateTemplatesTestId($page, "template-delete-{$template->id}");
     $page->click("@template-delete-{$template->id}");
     waitForCreateTemplatesDialog($page, 'confirm-delete-modal');
-    $page->fill('@confirm-delete-input', 'DELETE')
+    $page->assertMissing('@confirm-delete-input')
         ->click('@template-delete-confirm');
 
     waitForCreateTemplatesDatabase($page, fn () => PostTemplate::query()->whereKey($template->id)->doesntExist());
@@ -325,7 +324,7 @@ test('a card opens with Enter and Space from its own button', function () {
 test('only the creator can change the visibility of a team template', function () {
     [$alice, $workspace] = createTemplatesSetup();
     $bob = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($bob->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($bob->id, membershipPivot('member'));
     $bob->update(['current_workspace_id' => $workspace->id]);
     $template = PostTemplate::factory()->team()->create(['workspace_id' => $workspace->id, 'user_id' => $alice->id]);
 
@@ -429,4 +428,82 @@ test('the detail and the editor close with the close button, escape and an outsi
 
     $page->assertMissing('@template-editor')->assertNoJavaScriptErrors();
     expect($page->script('window.location.pathname + window.location.search'))->toBe($path);
+});
+
+test('the visibility select shows a user icon for personal and the channels grid icon for team', function () {
+    [$user] = createTemplatesSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.templates.index'));
+    waitForCreateTemplatesTestId($page, 'templates-scope-personal');
+    $page->click('@templates-scope-personal');
+    waitForCreateTemplatesTestId($page, 'templates-empty');
+    $page->click('@templates-new');
+    waitForCreateTemplatesDialog($page, 'template-editor');
+
+    $page->assertVisible('@template-editor-visibility-icon-personal');
+
+    $page->click('@template-editor-visibility');
+    waitForCreateTemplatesTestId($page, 'template-editor-visibility-team');
+
+    expect($page->script("document.querySelectorAll('[data-testid^=\"template-editor-visibility-\"] svg').length"))->toBeGreaterThanOrEqual(2);
+
+    $page->click('@template-editor-visibility-team');
+    waitForCreateTemplatesTestId($page, 'template-editor-visibility-icon-team');
+
+    expect($page->script("document.querySelector('[data-testid=\"template-editor-visibility-icon-team\"]').classList.contains('tabler-icon-layout-grid')"))->toBeTrue();
+
+    $page->assertVisible('@template-editor-visibility-icon-team')
+        ->assertMissing('@template-editor-visibility-icon-personal')
+        ->assertNoJavaScriptErrors();
+});
+
+test('clicking the active scope again does not duplicate its templates', function (string $scope) {
+    [$user, $workspace] = createTemplatesSetup();
+    $factory = $scope === 'team' ? PostTemplate::factory()->team() : PostTemplate::factory()->personal($user);
+    $factory->create(['workspace_id' => $workspace->id, 'user_id' => $user->id, 'title' => 'Only one']);
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.templates.index', ['view' => $scope]));
+    waitForCreateTemplatesCondition($page, "document.querySelectorAll('article[data-testid^=\"template-card-\"]').length === 1");
+
+    foreach (range(1, 3) as $attempt) {
+        $page->click("@templates-scope-{$scope}");
+        $page->script('new Promise((resolve) => setTimeout(resolve, 600))');
+    }
+
+    expect($page->script("document.querySelectorAll('article[data-testid^=\"template-card-\"]').length"))->toBe(1);
+
+    $page->click('@templates-scope-discover');
+    waitForCreateTemplatesTestId($page, 'templates-featured');
+    $page->click("@templates-scope-{$scope}");
+    waitForCreateTemplatesCondition($page, "document.querySelectorAll('article[data-testid^=\"template-card-\"]').length >= 1");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 600))');
+
+    expect($page->script("document.querySelectorAll('article[data-testid^=\"template-card-\"]').length"))->toBe(1);
+
+    $page->assertNoJavaScriptErrors();
+})->with(['personal', 'team']);
+
+test('scope chips are links to their scope', function () {
+    [$user] = createTemplatesSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.templates.index', ['view' => 'team']));
+    waitForCreateTemplatesTestId($page, 'templates-scope-personal');
+
+    $links = $page->script(<<<'JS'
+        ['discover', 'team', 'personal'].map((scope) => {
+            const chip = document.querySelector(`[data-testid="templates-scope-${scope}"]`);
+
+            return [chip.tagName, chip.getAttribute('href'), chip.getAttribute('aria-current')];
+        })
+    JS);
+
+    expect($links)->toBe([
+        ['A', parse_url(route('app.create.templates.index'), PHP_URL_PATH), null],
+        ['A', parse_url(route('app.create.templates.index'), PHP_URL_PATH).'?view=team', 'page'],
+        ['A', parse_url(route('app.create.templates.index'), PHP_URL_PATH).'?view=personal', null],
+    ]);
+    $page->assertNoJavaScriptErrors();
 });

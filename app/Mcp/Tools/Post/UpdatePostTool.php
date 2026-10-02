@@ -96,7 +96,7 @@ class UpdatePostTool extends Tool
         $payload = collect($validated)->except('post_id')->all();
 
         try {
-            $result = UpdatePost::execute($workspace, $post, $payload);
+            $result = UpdatePost::execute($workspace, $post, $payload, $request->user());
         } catch (QueueBusyException) {
             return Response::error(__('posts.errors.queue_busy'));
         }

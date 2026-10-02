@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -41,7 +40,6 @@ const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
 const openDelete = () => {
     confirmDeleteModal.value?.open({
         url: destroy.url(props.webhook),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 </script>

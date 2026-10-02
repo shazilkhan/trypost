@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Publier les publications',
         'destination_issues' => '{1} :count problème à corriger|[0,*] :count problèmes à corriger',
         'create_another' => 'En créer un autre',
+        'request_approval' => 'Enregistrer et demander l\'approbation',
         'templates' => 'Modèles',
         'expand' => 'Agrandir la fenêtre',
         'post_previews' => 'Aperçus des publications',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'En attente',
         'draft' => 'Brouillon',
+        'pending_approval' => 'En attente d\'approbation',
         'scheduled' => 'Programmée',
         'publishing' => 'Publication en cours',
         'retrying' => 'Nouvelle tentative',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Détails de la publication',
-        'back' => 'Retour',
-        'no_platforms' => 'Aucune plateforme sélectionnée.',
-        'view_on_platform' => 'Voir sur la plateforme',
         'published_on' => 'Publiée le :date',
         'scheduled_for' => 'Programmée pour le :date',
-        'draft' => 'Brouillon',
-        'metrics' => 'Métriques',
-        'pending_review' => 'Google examine cette publication. Nous la mettrons à jour à la fin de la révision.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'Tous les canaux',
         'tabs' => [
             'queue' => 'File d\'attente',
+            'approvals' => 'Approbations',
             'drafts' => 'Brouillons',
             'sent' => 'Envoyés',
         ],
         'view' => [
             'list' => 'Liste',
             'calendar' => 'Calendrier',
+        ],
+        'metrics' => [
+            'refreshed' => 'Actualisé :time',
+            'previous' => 'Métriques précédentes',
+            'next' => 'Métriques suivantes',
         ],
         'new_post' => 'Nouveau post',
         'today' => 'Aujourd\'hui',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => 'Créé par :name :when',
         'empty' => [
-            'queue' => 'Votre file d\'attente est vide. Ajoutez des horaires de publication ou créez un post.',
-            'drafts' => 'Aucun brouillon pour le moment.',
-            'sent' => 'Rien n\'a encore été publié.',
+            'queue' => [
+                'title' => 'Aucune publication programmée',
+                'description' => 'Votre file d\'attente est vide. Programmez une publication et elle apparaîtra ici.',
+            ],
+            'approvals' => [
+                'title' => 'Aucune publication en attente',
+                'description' => 'Les publications à approuver apparaîtront ici.',
+            ],
+            'drafts' => [
+                'title' => 'Aucun brouillon',
+                'description' => 'Vous n\'avez encore enregistré aucun brouillon. Ils apparaîtront ici.',
+            ],
+            'sent' => [
+                'title' => 'Aucune publication envoyée',
+                'description' => 'Les publications que vous publiez apparaîtront ici.',
+            ],
         ],
         'reordered' => 'File d\'attente mise à jour',
+    ],
+    'group' => [
+        'channels' => 'Canaux (:count)',
+        'collapse' => 'Masquer les canaux',
+        'expand' => 'Afficher les canaux',
+    ],
+    'approvals' => [
+        'badge' => 'Approbation',
+        'time_passed' => 'Heure dépassée',
+        'approve' => 'Approuver',
+        'schedule' => 'Programmer',
+        'reject' => 'Refuser',
+        'revert' => 'Annuler la demande d\'approbation',
+        'requested' => 'Approbation demandée',
+        'errors' => [
+            'not_pending' => 'Cette publication n\'attend plus d\'approbation.',
+            'time_passed' => 'L\'heure demandée est passée. Choisissez une nouvelle heure.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Récurrent',
+        'make' => 'Rendre récurrent',
+        'edit' => 'Modifier la récurrence',
+        'title' => 'Publication récurrente',
+        'description' => 'Nous programmerons les prochaines occurrences à partir de la date et de l’heure de cette publication.',
+        'repeat_every' => 'Répéter tous les',
+        'for' => 'pendant',
+        'times' => '{1} fois|[0,*] fois',
+        'interval_label' => 'Intervalle de répétition',
+        'frequency_label' => 'Unité de répétition',
+        'times_label' => 'Nombre de fois',
+        'frequency' => [
+            'day' => '{1} Jour|[0,*] Jours',
+            'week' => '{1} Semaine|[0,*] Semaines',
+            'month' => '{1} Mois|[0,*] Mois',
+            'year' => '{1} An|[0,*] Ans',
+        ],
+        'rule' => [
+            'day' => '{1} tous les jours à :time|[0,*] tous les :count jours à :time',
+            'week' => '{1} chaque :weekday à :time|[0,*] toutes les :count semaines le :weekday à :time',
+            'month' => '{1} chaque mois le :day à :time|[0,*] tous les :count mois le :day à :time',
+            'year' => '{1} chaque année le :date à :time|[0,*] tous les :count ans le :date à :time',
+        ],
+        'summary' => 'Cette publication sera partagée :rule, jusqu’au :until.',
+        'banner' => '{1} Cette publication sera partagée :rule, jusqu’au :until (:count publication restante).|[0,*] Cette publication sera partagée :rule, jusqu’au :until (:count publications restantes).',
+        'save' => 'Enregistrer',
+        'stop' => 'Arrêter la récurrence',
+        'cancel' => 'Annuler',
+        'errors' => [
+            'not_scheduled' => 'Seules les publications programmées peuvent se répéter.',
+            'too_far' => 'La dernière occurrence doit avoir lieu avant 2038.',
+        ],
     ],
 ];

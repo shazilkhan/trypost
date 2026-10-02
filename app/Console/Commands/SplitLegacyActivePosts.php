@@ -11,9 +11,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 #[Signature('posts:split-legacy-active')]
-#[Description('Split editable multi-target posts into one post per enabled target')]
+#[Description('Split editable multi-target posts into one post per enabled target and group every multi-target post')]
 class SplitLegacyActivePosts extends Command
 {
     public function handle(): int
@@ -38,6 +39,25 @@ class SplitLegacyActivePosts extends Command
 
         $this->info("Split {$splitPosts} original posts and created {$createdPosts} independent posts.");
 
+        $groupedPosts = 0;
+
+        Post::query()
+            ->whereNull('post_group_id')
+            ->has('postPlatforms', '>', 1)
+            ->select('id')
+            ->orderBy('id')
+            ->chunkById(100, function ($posts) use (&$groupedPosts): void {
+                foreach ($posts as $post) {
+                    $groupedPosts += Post::query()
+                        ->whereKey($post->id)
+                        ->whereNull('post_group_id')
+                        ->toBase()
+                        ->update(['post_group_id' => (string) Str::uuid7()]);
+                }
+            });
+
+        $this->info("Grouped {$groupedPosts} multi-target posts.");
+
         return self::SUCCESS;
     }
 
@@ -51,6 +71,12 @@ class SplitLegacyActivePosts extends Command
         $targets = $post->postPlatforms()->enabled()->orderBy('id')->lockForUpdate()->get();
         if ($targets->count() <= 1) {
             return 0;
+        }
+
+        if ($post->post_group_id === null) {
+            $groupId = (string) Str::uuid7();
+            Post::query()->whereKey($post->id)->toBase()->update(['post_group_id' => $groupId]);
+            $post->forceFill(['post_group_id' => $groupId])->syncOriginal();
         }
 
         $labelIds = $post->labels()->pluck('workspace_labels.id')->all();

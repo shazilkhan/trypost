@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Dto\RemoteFile;
 use App\Enums\Media\Source;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Models\Account;
 use App\Models\Media;
@@ -39,7 +38,7 @@ beforeEach(function () {
         'account_id' => $this->account->id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     subscribeAccount($this->account);
 
@@ -169,7 +168,7 @@ test('another user cannot poll or import a session', function () {
     startGooglePhotosSession($this->user);
 
     $other = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($other->id, membershipPivot('member'));
     $other->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->actingAs($other)
@@ -506,14 +505,12 @@ test('the shipped config leaves google photos off and allows only the photos dow
         ->toBe('lh3.googleusercontent.com,lh4.googleusercontent.com,lh5.googleusercontent.com,lh6.googleusercontent.com,video-downloads.googleusercontent.com');
 });
 
-test('a viewer cannot open, poll or discard a session', function (string $method, string $route) {
+test('a user outside the workspace cannot open, poll or discard a session', function (string $method, string $route) {
     fakeGooglePhotos();
-    $viewer = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
-    GooglePhotosPicker::rememberToken($viewer->id, GOOGLE_PHOTOS_TEST_SESSION, GOOGLE_PHOTOS_TEST_TOKEN, 3599);
+    $outsider = workspaceOutsider($this->workspace);
+    GooglePhotosPicker::rememberToken($outsider->id, GOOGLE_PHOTOS_TEST_SESSION, GOOGLE_PHOTOS_TEST_TOKEN, 3599);
 
-    $this->actingAs($viewer->fresh())
+    $this->actingAs($outsider->fresh())
         ->json($method, $route === 'start'
             ? route('app.integrations.google.start', ['source' => 'google_photos', 'nonce' => 'composer-nonce-0123456789'])
             : route("app.media.google-photos.sessions.{$route}", GOOGLE_PHOTOS_TEST_SESSION))
@@ -532,7 +529,7 @@ test('a cancelled session is deleted at google and forgotten, and only by its ow
     $key = GooglePhotosPicker::cacheKey($this->user->id, GOOGLE_PHOTOS_TEST_SESSION);
 
     $other = User::factory()->create(['account_id' => $this->account->id]);
-    $this->workspace->members()->attach($other->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($other->id, membershipPivot('member'));
     $other->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->actingAs($other)

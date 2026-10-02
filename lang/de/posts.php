@@ -108,6 +108,7 @@ return [
         'publish_posts' => 'Beiträge veröffentlichen',
         'destination_issues' => '{1} :count Problem zu beheben|[0,*] :count Probleme zu beheben',
         'create_another' => 'Weiteren erstellen',
+        'request_approval' => 'Speichern und Freigabe anfragen',
         'templates' => 'Vorlagen',
         'expand' => 'Dialog vergrößern',
         'post_previews' => 'Beitragsvorschauen',
@@ -447,6 +448,7 @@ return [
     'status' => [
         'pending' => 'Ausstehend',
         'draft' => 'Entwurf',
+        'pending_approval' => 'Wartet auf Freigabe',
         'scheduled' => 'Geplant',
         'publishing' => 'Wird veröffentlicht',
         'retrying' => 'Erneuter Versuch',
@@ -463,14 +465,8 @@ return [
 
     'show' => [
         'title' => 'Beitragsdetails',
-        'back' => 'Zurück',
-        'no_platforms' => 'Keine Plattformen ausgewählt.',
-        'view_on_platform' => 'Auf der Plattform ansehen',
         'published_on' => 'Veröffentlicht am :date',
         'scheduled_for' => 'Geplant für :date',
-        'draft' => 'Entwurf',
-        'metrics' => 'Kennzahlen',
-        'pending_review' => 'Google prüft diesen Beitrag. Wir aktualisieren ihn, sobald die Prüfung fertig ist.',
     ],
 
     'edit' => [
@@ -808,12 +804,18 @@ return [
         'all_channels' => 'Alle Kanäle',
         'tabs' => [
             'queue' => 'Warteschlange',
+            'approvals' => 'Freigaben',
             'drafts' => 'Entwürfe',
             'sent' => 'Gesendet',
         ],
         'view' => [
             'list' => 'Liste',
             'calendar' => 'Kalender',
+        ],
+        'metrics' => [
+            'refreshed' => 'Aktualisiert :time',
+            'previous' => 'Vorherige Kennzahlen',
+            'next' => 'Weitere Kennzahlen',
         ],
         'new_post' => 'Neuer Beitrag',
         'today' => 'Heute',
@@ -854,10 +856,75 @@ return [
         ],
         'created_by' => 'Erstellt von :name :when',
         'empty' => [
-            'queue' => 'Deine Warteschlange ist leer. Füge Veröffentlichungszeiten hinzu oder erstelle einen Beitrag.',
-            'drafts' => 'Noch keine Entwürfe.',
-            'sent' => 'Noch nichts veröffentlicht.',
+            'queue' => [
+                'title' => 'Keine geplanten Beiträge',
+                'description' => 'Deine Warteschlange ist leer. Plane einen Beitrag, dann erscheint er hier.',
+            ],
+            'approvals' => [
+                'title' => 'Keine Beiträge zur Freigabe',
+                'description' => 'Beiträge, die eine Freigabe brauchen, erscheinen hier.',
+            ],
+            'drafts' => [
+                'title' => 'Keine Entwürfe',
+                'description' => 'Du hast noch keine Entwürfe gespeichert. Sobald du es tust, erscheinen sie hier.',
+            ],
+            'sent' => [
+                'title' => 'Keine gesendeten Beiträge',
+                'description' => 'Beiträge, die du veröffentlichst, erscheinen hier.',
+            ],
         ],
         'reordered' => 'Warteschlange aktualisiert',
+    ],
+    'group' => [
+        'channels' => 'Kanäle (:count)',
+        'collapse' => 'Kanäle ausblenden',
+        'expand' => 'Kanäle anzeigen',
+    ],
+    'approvals' => [
+        'badge' => 'Freigabe',
+        'time_passed' => 'Zeitpunkt verstrichen',
+        'approve' => 'Freigeben',
+        'schedule' => 'Planen',
+        'reject' => 'Ablehnen',
+        'revert' => 'Freigabeanfrage zurückziehen',
+        'requested' => 'Freigabe angefragt',
+        'errors' => [
+            'not_pending' => 'Dieser Beitrag wartet nicht mehr auf Freigabe.',
+            'time_passed' => 'Der gewünschte Zeitpunkt ist vorbei. Wähle einen neuen.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Wiederkehrend',
+        'make' => 'Wiederkehrend machen',
+        'edit' => 'Wiederholung bearbeiten',
+        'title' => 'Wiederkehrender Beitrag',
+        'description' => 'Wir planen die nächsten Wiederholungen anhand von Datum und Uhrzeit dieses Beitrags.',
+        'repeat_every' => 'Wiederholen alle',
+        'for' => 'für',
+        'times' => '{1} Mal|[0,*] Mal',
+        'interval_label' => 'Wiederholungsintervall',
+        'frequency_label' => 'Wiederholungseinheit',
+        'times_label' => 'Anzahl der Wiederholungen',
+        'frequency' => [
+            'day' => '{1} Tag|[0,*] Tage',
+            'week' => '{1} Woche|[0,*] Wochen',
+            'month' => '{1} Monat|[0,*] Monate',
+            'year' => '{1} Jahr|[0,*] Jahre',
+        ],
+        'rule' => [
+            'day' => '{1} jeden Tag um :time|[0,*] alle :count Tage um :time',
+            'week' => '{1} jeden :weekday um :time|[0,*] alle :count Wochen am :weekday um :time',
+            'month' => '{1} jeden Monat am :day um :time|[0,*] alle :count Monate am :day um :time',
+            'year' => '{1} jedes Jahr am :date um :time|[0,*] alle :count Jahre am :date um :time',
+        ],
+        'summary' => 'Dieser Beitrag wird :rule geteilt, bis zum :until.',
+        'banner' => '{1} Dieser Beitrag wird :rule geteilt, bis zum :until (noch :count Beitrag).|[0,*] Dieser Beitrag wird :rule geteilt, bis zum :until (noch :count Beiträge).',
+        'save' => 'Speichern',
+        'stop' => 'Wiederholung beenden',
+        'cancel' => 'Abbrechen',
+        'errors' => [
+            'not_scheduled' => 'Nur geplante Beiträge können wiederholt werden.',
+            'too_far' => 'Die letzte Wiederholung muss vor 2038 liegen.',
+        ],
     ],
 ];

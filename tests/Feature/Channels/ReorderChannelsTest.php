@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -20,14 +19,14 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 });
 
-function reorderChannelsMember(Workspace $workspace, Role $role): User
+function reorderChannelsMember(Workspace $workspace, string $role): User
 {
     $member = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
+    $workspace->members()->attach($member->id, membershipPivot($role));
     $member->update(['current_workspace_id' => $workspace->id]);
 
     return $member->fresh();
@@ -114,7 +113,7 @@ test('reorder requires a list of ids', function () {
         ->assertJsonValidationErrors('social_account_ids');
 });
 
-test('only members who manage channels can reorder them', function (Role $role) {
+test('only members who manage channels can reorder them', function (string $role) {
     [$a, $b] = reorderChannelsAccounts($this->workspace, 2);
 
     $this->actingAs(reorderChannelsMember($this->workspace, $role))
@@ -122,7 +121,7 @@ test('only members who manage channels can reorder them', function (Role $role) 
         ->assertForbidden();
 
     expect($this->workspace->socialAccounts()->pluck('id')->all())->toBe([$a->id, $b->id]);
-})->with([Role::Member, Role::Viewer]);
+})->with(['member', 'approval']);
 
 test('a new channel is appended after the workspace channels', function () {
     [$a, $b] = reorderChannelsAccounts($this->workspace, 2);

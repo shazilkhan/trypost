@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Events\TelegramChannelConnected;
 use App\Events\TelegramConnectFailed;
 use App\Exceptions\PlatformUnavailableException;
@@ -32,7 +31,7 @@ beforeEach(function () {
         'current_workspace_id' => $this->workspace->id,
         'account_id' => $this->workspace->account_id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->refresh();
 });
 

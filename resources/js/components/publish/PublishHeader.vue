@@ -2,12 +2,11 @@
 import { Link } from '@inertiajs/vue3';
 import { IconLayoutList, IconSettings } from '@tabler/icons-vue';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
-import PlatformLogo from '@/components/PlatformLogo.vue';
 import GoalProgress from '@/components/publish/GoalProgress.vue';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { settings } from '@/routes/app/channels';
 import { channelName } from '@/types/channel';
 import type { PublishChannel } from '@/types/publish';
@@ -16,25 +15,17 @@ defineProps<{
     channel: PublishChannel | null;
 }>();
 
-const { canManageAccounts } = useWorkspaceRole();
+const { canManageAccounts } = useWorkspaceAbilities();
 </script>
 
 <template>
     <div v-if="channel" class="flex min-w-0 items-center gap-4">
-        <span class="relative shrink-0">
-            <Avatar
-                :src="channel.avatar_url"
-                :name="channelName(channel)"
-                class="size-11 rounded-xl"
-                fallback-class="bg-secondary text-xs font-bold"
-            />
-            <PlatformLogo
-                :platform="channel.platform"
-                size="xs"
-               
-                class="absolute -right-2 -bottom-1"
-            />
-        </span>
+        <ChannelAvatar
+            :platform="channel.platform"
+            :src="channel.avatar_url"
+            :name="channelName(channel)"
+            :size="44"
+        />
         <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
                 <h1

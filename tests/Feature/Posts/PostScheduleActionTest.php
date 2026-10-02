@@ -7,7 +7,6 @@ use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\PublishPost;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -24,7 +23,7 @@ beforeEach(function () {
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['account_id' => $this->user->account_id, 'user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->channel = SocialAccount::factory()->create([
@@ -168,15 +167,11 @@ test('publish now on a post without enabled platforms is rejected', function () 
     Queue::assertNotPushed(PublishPost::class);
 });
 
-test('a viewer cannot change a post schedule', function () {
-    $viewer = User::factory()->create([
-        'account_id' => $this->user->account_id,
-        'current_workspace_id' => $this->workspace->id,
-    ]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
+test('a user outside the workspace cannot change a post schedule', function () {
+    $outsider = workspaceOutsider($this->workspace);
     $draft = scheduleActionPost($this->channel, $this->user);
 
-    $this->actingAs($viewer)
+    $this->actingAs($outsider)
         ->putJson(route('app.posts.schedule.update', $draft), ['action' => 'queue_next'])
         ->assertForbidden();
 

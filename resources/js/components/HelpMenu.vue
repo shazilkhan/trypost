@@ -77,7 +77,7 @@ const openChat = (): void => {
                 <Button
                     type="button"
                     size="icon"
-                    class="group size-12 rounded-full border border-border shadow-md"
+                    class="group size-12 rounded-full bg-primary-strong text-primary-strong-foreground shadow-md hover:bg-primary-text-hover data-[state=open]:bg-primary-text-hover"
                     data-testid="help-menu-trigger"
                     :aria-label="$t('sidebar.help')"
                 >

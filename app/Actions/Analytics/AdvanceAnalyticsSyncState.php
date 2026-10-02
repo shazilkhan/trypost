@@ -64,13 +64,16 @@ class AdvanceAnalyticsSyncState
                     ...(! $restartTerminal && data_get($checkpoint, 'invalid_cursor_resets')
                         ? ['invalid_cursor_resets' => (int) data_get($checkpoint, 'invalid_cursor_resets')]
                         : []),
+                    ...(! ($restartTerminal && $state->isTerminal()) && data_get($checkpoint, 'run_high_watermark_at')
+                        ? ['run_high_watermark_at' => data_get($checkpoint, 'run_high_watermark_at')]
+                        : []),
                 ],
                 'last_error_category' => null,
             ]);
 
             $cutoff = $state->collector === SyncCollector::PublicationBackfill
                 ? ($state->target_since ?? CarbonImmutable::now('UTC')->subDays(365))
-                : ($state->high_watermark_at ?? CarbonImmutable::now('UTC'))->subDays(3);
+                : ($state->high_watermark_at ?? CarbonImmutable::now('UTC'))->subHours(max(0, (int) config('trypost.analytics.discovery_overlap_hours')));
 
             return [
                 'cursor' => is_string($cursor) && $cursor !== '' ? $cursor : null,
@@ -118,7 +121,11 @@ class AdvanceAnalyticsSyncState
             $pageOldest = $publishedAt->min();
             $pageNewest = $publishedAt->max();
             $oldest = $this->earlier($state->oldest_reached_at, $pageOldest);
-            $highWatermark = $this->later($state->high_watermark_at, $pageNewest);
+            $isDiscovery = $state->collector === SyncCollector::PublicationDiscovery;
+            $runHighWatermark = $this->later(
+                $isDiscovery ? $this->later(null, data_get($checkpoint, 'run_high_watermark_at')) : $state->high_watermark_at,
+                $pageNewest,
+            );
             $reachedTarget = $state->collector === SyncCollector::PublicationBackfill
                 && $page->canStopAtTarget
                 && $oldest
@@ -144,6 +151,10 @@ class AdvanceAnalyticsSyncState
                 default => SyncStatus::Running,
             };
 
+            $highWatermark = $isDiscovery && $status === SyncStatus::Running
+                ? $state->high_watermark_at
+                : $this->later($state->high_watermark_at, $runHighWatermark);
+
             $state->update([
                 'status' => $status,
                 'checkpoint' => [
@@ -153,6 +164,9 @@ class AdvanceAnalyticsSyncState
                     ...($hadProviderLimit && $status === SyncStatus::Running ? ['had_provider_limit' => true] : []),
                     ...($status === SyncStatus::Running && data_get($checkpoint, 'invalid_cursor_resets')
                         ? ['invalid_cursor_resets' => (int) data_get($checkpoint, 'invalid_cursor_resets')]
+                        : []),
+                    ...($isDiscovery && $status === SyncStatus::Running && $runHighWatermark
+                        ? ['run_high_watermark_at' => $runHighWatermark->toIso8601String()]
                         : []),
                 ],
                 'oldest_reached_at' => $oldest,

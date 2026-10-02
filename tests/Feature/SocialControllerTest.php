@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Enums\Post\Status;
 use App\Enums\PostPlatform\Status as PlatformStatus;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\SendNotification;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -19,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 beforeEach(function () {
     $this->user = User::factory()->create([]);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 });
 
@@ -142,7 +141,7 @@ test('disconnect removes social account', function () {
     expect(SocialAccount::find($account->id))->toBeNull();
 });
 
-test('disconnect deletes pending platform rows from drafts and keeps published history', function () {
+test('disconnect deletes the channel drafts and published history', function () {
     $account = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id]);
 
     $draftPost = Post::factory()->create([
@@ -156,30 +155,23 @@ test('disconnect deletes pending platform rows from drafts and keeps published h
         'status' => Status::Published,
     ]);
 
-    $pendingPlatform = PostPlatform::factory()->create([
+    PostPlatform::factory()->create([
         'post_id' => $draftPost->id,
         'social_account_id' => $account->id,
         'status' => PlatformStatus::Pending,
     ]);
-    $publishedPlatform = PostPlatform::factory()->create([
+    PostPlatform::factory()->create([
         'post_id' => $publishedPost->id,
         'social_account_id' => $account->id,
         'status' => PlatformStatus::Published,
-        'platform_name' => 'Snapshot Name',
-        'platform_avatar' => 'avatars/snapshot.jpg',
     ]);
 
     $this->actingAs($this->user)->delete(route('app.channels.disconnect', $account));
 
-    expect(PostPlatform::find($pendingPlatform->id))->toBeNull();
-
-    $publishedPlatform->refresh();
-    expect($publishedPlatform->social_account_id)->toBeNull();
-    expect($publishedPlatform->platform_name)->toBe('Snapshot Name');
-    expect($publishedPlatform->display_avatar)->toContain('avatars/snapshot.jpg');
+    expect(Post::query()->whereKey([$draftPost->id, $publishedPost->id])->exists())->toBeFalse();
 });
 
-test('disconnect settles a google business review still waiting on the account', function () {
+test('disconnect deletes a google business post still waiting on the account and prunes its image', function () {
     Queue::fake([SendNotification::class]);
     Storage::fake();
 
@@ -200,10 +192,9 @@ test('disconnect settles a google business review still waiting on the account',
     $this->actingAs($this->user)->delete(route('app.channels.disconnect', $account));
 
     expect(SocialAccount::find($account->id))->toBeNull()
-        ->and($target->fresh()->status)->toBe(PlatformStatus::Rejected)
-        ->and($target->fresh()->error_message)->toBe(__('posts.errors.account_disconnected'))
-        ->and($post->fresh()->status)->toBe(Status::Failed);
+        ->and(Post::query()->whereKey($post->id)->exists())->toBeFalse();
     Storage::assertMissing($path);
+    Queue::assertNotPushed(SendNotification::class);
 });
 
 test('disconnect returns 403 for other workspace account', function () {
@@ -218,7 +209,7 @@ test('disconnect returns 403 for other workspace account', function () {
 // Member authorization tests
 test('member cannot disconnect social account', function () {
     $member = User::factory()->create([]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
     $member->update(['current_workspace_id' => $this->workspace->id]);
 
     $account = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id]);

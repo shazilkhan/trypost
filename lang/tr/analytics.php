@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 return [
-    'title' => 'Analitik',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform analizleri',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Metin',
             'image' => 'Görsel',
@@ -63,7 +63,7 @@ return [
         'stale' => 'Veriler güncel olmayabilir',
         'awaiting_metrics' => 'Metrikler henüz toplanmadı.',
         'estimated' => 'Tahmini',
-        'back_to_analytics' => 'Analizlere dön',
+        'back_to_insights' => 'Insights\'a dön',
         'details' => 'Ayrıntılar',
         'published_via_trypost' => 'TryPost aracılığıyla yayınlandı',
         'published_on' => ':platform üzerinde yayınlandı',

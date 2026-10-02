@@ -16,7 +16,7 @@ withDefaults(defineProps<Props>(), {
 </script>
 
 <template>
-    <AppSidebarLayout :full-width="fullWidth" always-expanded>
+    <AppSidebarLayout :full-width="fullWidth">
         <template #sidebar>
             <SettingsSidebar />
         </template>

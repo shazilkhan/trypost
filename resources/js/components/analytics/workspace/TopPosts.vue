@@ -9,8 +9,8 @@ import {
 } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import { formatNumberCompact } from '@/lib/utils';
-import { show as analyticsShow } from '@/routes/app/analytics';
-import { show as publicationShow } from '@/routes/app/analytics/publications';
+import { show as insightsShow } from '@/routes/app/insights';
+import { show as publicationShow } from '@/routes/app/insights/publications';
 import type { TopPost, WorkspaceAnalyticsReport } from '@/types/analytics';
 
 import AnalyticsModeToggle from './AnalyticsModeToggle.vue';
@@ -154,7 +154,7 @@ const thumbnailFor = (post: TopPost): string | null => {
                             v-if="post.availability === 'available'"
                             :href="
                                 post.post_id
-                                    ? analyticsShow.url(post.post_id, {
+                                    ? insightsShow.url(post.post_id, {
                                           query: { publication: post.id },
                                       })
                                     : publicationShow.url(post.id)

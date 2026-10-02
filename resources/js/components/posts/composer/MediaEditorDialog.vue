@@ -693,7 +693,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
                             class="rounded-md px-2 py-1.5 text-sm whitespace-nowrap transition-colors"
                             :class="
                                 tab === option
-                                    ? 'bg-primary-selected font-medium text-success-text'
+                                    ? 'bg-primary-selected font-medium text-primary-text'
                                     : 'text-muted-foreground hover:text-foreground'
                             "
                             @click="tab = option"

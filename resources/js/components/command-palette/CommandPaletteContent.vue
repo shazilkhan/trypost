@@ -32,9 +32,9 @@ import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { useSettingsNavigation } from '@/composables/useSettingsNavigation';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { toUrl } from '@/lib/utils';
-import { analytics } from '@/routes/app';
+import { insights as insightsIndex } from '@/routes/app';
 import { insights, publish } from '@/routes/app/channels';
 import { index as feedsIndex } from '@/routes/app/create/feeds';
 import { create as createIdea, index as ideasIndex } from '@/routes/app/create/ideas';
@@ -71,7 +71,7 @@ const {
     canManageRepurposes,
     canManageAccounts,
     canManageTeam,
-} = useWorkspaceRole();
+} = useWorkspaceAbilities();
 
 const hasWorkspace = computed(() => Boolean(page.props.auth?.currentWorkspace));
 const searching = computed(() => filterState.search.trim() !== '');
@@ -175,11 +175,11 @@ const navigation = computed<CommandPaletteEntry[]>(() => {
                     ]
                   : []),
               {
-                  id: 'nav-analytics',
+                  id: 'nav-insights',
                   group: 'navigation',
-                  title: { key: 'sidebar.analytics' },
+                  title: { key: 'channels.insights' },
                   icon: IconChartBar,
-                  run: visit(analytics.url()),
+                  run: visit(insightsIndex.url()),
               },
               ...(canManageRepurposes.value
                   ? [

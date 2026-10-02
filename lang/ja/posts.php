@@ -106,6 +106,7 @@ return [
         'publish_posts' => '投稿を公開',
         'destination_issues' => '修正が必要な問題: :count件',
         'create_another' => '続けて作成',
+        'request_approval' => '保存して承認を依頼',
         'templates' => 'テンプレート',
         'expand' => 'ダイアログを拡大',
         'post_previews' => '投稿プレビュー',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => '保留中',
         'draft' => '下書き',
+        'pending_approval' => '承認待ち',
         'scheduled' => '予約済み',
         'publishing' => '公開中',
         'retrying' => '再試行中',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => '投稿の詳細',
-        'back' => '戻る',
-        'no_platforms' => 'プラットフォームが選択されていません。',
-        'view_on_platform' => 'プラットフォームで表示',
         'published_on' => ':date に公開',
         'scheduled_for' => ':date に予約',
-        'draft' => '下書き',
-        'metrics' => 'メトリクス',
-        'pending_review' => 'Googleがこの投稿を審査しています。審査が終わると更新します。',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'すべてのチャンネル',
         'tabs' => [
             'queue' => 'キュー',
+            'approvals' => '承認',
             'drafts' => '下書き',
             'sent' => '送信済み',
         ],
         'view' => [
             'list' => 'リスト',
             'calendar' => 'カレンダー',
+        ],
+        'metrics' => [
+            'refreshed' => ':timeに更新',
+            'previous' => '前の指標',
+            'next' => '次の指標',
         ],
         'new_post' => '新規投稿',
         'today' => '今日',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => '作成者: :name :when',
         'empty' => [
-            'queue' => 'キューは空です。投稿時間を追加するか、投稿を作成してください。',
-            'drafts' => '下書きはまだありません。',
-            'sent' => 'まだ何も公開されていません。',
+            'queue' => [
+                'title' => '予約済みの投稿はありません',
+                'description' => 'キューは空です。投稿を予約するとここに表示されます。',
+            ],
+            'approvals' => [
+                'title' => '承認待ちの投稿はありません',
+                'description' => '承認が必要な投稿はここに表示されます。',
+            ],
+            'drafts' => [
+                'title' => '下書きはありません',
+                'description' => 'まだ下書きを保存していません。保存するとここに表示されます。',
+            ],
+            'sent' => [
+                'title' => '送信済みの投稿はありません',
+                'description' => '公開した投稿はここに表示されます。',
+            ],
         ],
         'reordered' => 'キューを更新しました',
+    ],
+    'group' => [
+        'channels' => 'チャンネル (:count)',
+        'collapse' => 'チャンネルを隠す',
+        'expand' => 'チャンネルを表示',
+    ],
+    'approvals' => [
+        'badge' => '承認',
+        'time_passed' => '時刻を過ぎています',
+        'approve' => '承認する',
+        'schedule' => '予約',
+        'reject' => '却下',
+        'revert' => '承認リクエストを取り消す',
+        'requested' => '承認をリクエストしました',
+        'errors' => [
+            'not_pending' => 'この投稿はすでに承認待ちではありません。',
+            'time_passed' => '希望時刻を過ぎています。新しい時刻を選択してください。',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => '繰り返し',
+        'make' => '繰り返しにする',
+        'edit' => '繰り返しを編集',
+        'title' => '繰り返し投稿',
+        'description' => 'この投稿の日時をもとに、次回以降の投稿を予約します。',
+        'repeat_every' => '繰り返し間隔',
+        'for' => '回数',
+        'times' => '{1} 回|[0,*] 回',
+        'interval_label' => '繰り返し間隔',
+        'frequency_label' => '繰り返しの単位',
+        'times_label' => '回数',
+        'frequency' => [
+            'day' => '{1} 日|[0,*] 日',
+            'week' => '{1} 週|[0,*] 週',
+            'month' => '{1} か月|[0,*] か月',
+            'year' => '{1} 年|[0,*] 年',
+        ],
+        'rule' => [
+            'day' => '{1} 毎日 :time に|[0,*] :count 日ごとに :time に',
+            'week' => '{1} 毎週:weekday :time に|[0,*] :count 週ごとの:weekday :time に',
+            'month' => '{1} 毎月 :day の :time に|[0,*] :count か月ごとの :day の :time に',
+            'year' => '{1} 毎年 :date の :time に|[0,*] :count 年ごとの :date の :time に',
+        ],
+        'summary' => 'この投稿は :until まで、:rule共有されます。',
+        'banner' => '{1} この投稿は :until まで、:rule共有されます（残り :count 件）。|[0,*] この投稿は :until まで、:rule共有されます（残り :count 件）。',
+        'save' => '保存',
+        'stop' => '繰り返しを停止',
+        'cancel' => 'キャンセル',
+        'errors' => [
+            'not_scheduled' => '繰り返しにできるのは予約済みの投稿だけです。',
+            'too_far' => '最後の投稿は2038年より前にしてください。',
+        ],
     ],
 ];

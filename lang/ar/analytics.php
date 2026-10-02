@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title' => 'التحليلات',
+    'title' => 'Insights',
     'detail' => [
-        'page_title' => 'تحليلات :platform',
+        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'نص',
             'image' => 'صورة',
@@ -61,7 +61,7 @@ return [
         'stale' => 'قد تكون البيانات قديمة',
         'awaiting_metrics' => 'لم تُجمع المقاييس بعد.',
         'estimated' => 'تقديري',
-        'back_to_analytics' => 'العودة إلى التحليلات',
+        'back_to_insights' => 'العودة إلى Insights',
         'details' => 'التفاصيل',
         'published_via_trypost' => 'نُشر عبر TryPost',
         'published_on' => 'نُشر على :platform',

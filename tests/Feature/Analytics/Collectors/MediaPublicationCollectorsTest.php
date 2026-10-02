@@ -54,7 +54,8 @@ test('x reads one owned timeline page with only discovery fields', function () {
         ->and($page->providerExhausted)->toBeFalse();
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), "/users/{$account->platform_user_id}/tweets")
         && $request['pagination_token'] === 'x-cursor'
-        && $request['tweet.fields'] === 'created_at,attachments'
+        && $request['tweet.fields'] === 'created_at,attachments,note_tweet'
+        && $request['media.fields'] === 'media_key,type,preview_image_url,url,variants'
         && ! str_contains((string) $request['tweet.fields'], 'public_metrics'));
 });
 
@@ -89,6 +90,26 @@ test('pinterest reads one pin page and records lifetime metric semantics', funct
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/v5/pins')
         && $request['bookmark'] === 'pin-cursor'
         && $request['page_size'] === 250);
+});
+
+test('pinterest takes the pin thumbnail from the documented sizes before the originals', function () {
+    Http::fake(['*' => Http::response([
+        'items' => [
+            ['id' => 'pin-large', 'created_at' => '2026-09-20T12:00:00Z', 'media' => ['media_type' => 'image', 'images' => [
+                '1200x' => ['url' => 'https://cdn.example/large.jpg'],
+                'originals' => ['url' => 'https://cdn.example/original.jpg'],
+            ]]],
+            ['id' => 'pin-original', 'created_at' => '2026-09-20T11:00:00Z', 'media' => ['media_type' => 'image', 'images' => [
+                'originals' => ['url' => 'https://cdn.example/original.jpg'],
+            ]]],
+        ],
+    ])]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::Pinterest]);
+
+    $page = app(PinterestPublicationCollector::class)->page($account, null, CarbonImmutable::parse('2026-01-01', 'UTC'));
+
+    expect(collect($page->publications)->map(fn ($publication): ?string => data_get($publication->previewMetadata, 'thumbnail_url'))->all())
+        ->toBe(['https://cdn.example/large.jpg', 'https://cdn.example/original.jpg']);
 });
 
 test('pinterest keeps paging when an older pin precedes an eligible pin', function () {
@@ -308,3 +329,35 @@ test('publication collector factory supports media networks', function (Platform
     [Platform::YouTube, YouTubePublicationCollector::class],
     [Platform::TikTok, TikTokPublicationCollector::class],
 ]);
+
+test('x keeps the full text of long posts and the attached media for the import', function () {
+    Http::fake(['*' => Http::response([
+        'data' => [[
+            'id' => 'tweet-2',
+            'text' => 'Short version…',
+            'note_tweet' => ['text' => 'The whole long post'],
+            'created_at' => '2026-09-20T12:00:00.000Z',
+            'attachments' => ['media_keys' => ['m-1', 'm-2']],
+        ]],
+        'includes' => ['media' => [
+            ['media_key' => 'm-1', 'type' => 'photo', 'url' => 'https://pbs.example.test/1.jpg'],
+            ['media_key' => 'm-2', 'type' => 'video', 'preview_image_url' => 'https://pbs.example.test/2.jpg', 'variants' => [
+                ['bit_rate' => 256000, 'content_type' => 'video/mp4', 'url' => 'https://video.example.test/low.mp4'],
+                ['content_type' => 'application/x-mpegURL', 'url' => 'https://video.example.test/pl.m3u8'],
+            ]],
+        ]],
+        'meta' => [],
+    ])]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::X, 'username' => 'example']);
+
+    $publication = app(XPublicationCollector::class)->page($account, null, CarbonImmutable::parse('2026-01-01', 'UTC'))->publications[0];
+
+    expect($publication->excerpt)->toBe('The whole long post')
+        ->and($publication->providerMetadata)->toEqual(['media' => [
+            ['type' => 'photo', 'url' => 'https://pbs.example.test/1.jpg'],
+            ['type' => 'video', 'variants' => [
+                ['bit_rate' => 256000, 'content_type' => 'video/mp4', 'url' => 'https://video.example.test/low.mp4'],
+                ['content_type' => 'application/x-mpegURL', 'url' => 'https://video.example.test/pl.m3u8'],
+            ]],
+        ]]);
+});

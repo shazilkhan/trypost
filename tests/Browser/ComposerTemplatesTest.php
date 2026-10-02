@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\PostTemplate\Visibility;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Models\PostTemplate;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -75,7 +74,7 @@ function composerTemplatesSetup(): array
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -170,7 +169,7 @@ test('in the per-network view a template goes to the expanded account override o
 test('the personal tab lists only the actor templates with their badge and search narrows it', function () {
     [$user, $workspace] = composerTemplatesSetup();
     $teammate = User::factory()->create(['account_id' => $workspace->account_id]);
-    $workspace->members()->attach($teammate->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($teammate->id, membershipPivot('member'));
     $mine = PostTemplate::factory()->personal($user)->create(['workspace_id' => $workspace->id, 'title' => 'Monday recap']);
     $other = PostTemplate::factory()->personal($user)->create(['workspace_id' => $workspace->id, 'title' => 'Friday wins']);
     $theirs = PostTemplate::factory()->personal($teammate)->create(['workspace_id' => $workspace->id, 'title' => 'Secret draft']);
@@ -289,9 +288,7 @@ test('edit, duplicate and delete from the panel never touch the draft', function
     waitForComposerTemplatesTestId($page, "template-delete-{$copy->id}");
     $page->click("@template-delete-{$copy->id}");
     waitForComposerTemplatesDialog($page, 'confirm-delete-modal');
-    $page->fill('@confirm-delete-input', 'delete')
-        ->assertDisabled('@template-delete-confirm')
-        ->fill('@confirm-delete-input', 'DELETE')
+    $page->assertMissing('@confirm-delete-input')
         ->click('@template-delete-confirm');
     waitForComposerTemplatesDatabase($page, fn () => PostTemplate::query()->whereKey($copy->id)->doesntExist());
     waitForComposerTemplatesCondition($page, "!document.querySelector('[data-testid=\"composer-template-{$copy->id}\"]')");

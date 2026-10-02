@@ -8,14 +8,14 @@ import InviteMemberDialog from '@/components/members/InviteMemberDialog.vue';
 import { CommandDialog } from '@/components/ui/command';
 import { useCommandPalette } from '@/composables/useCommandPalette';
 import { postComposerRequest } from '@/composables/useGlobalPostComposer';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import type { CommandPaletteEntry } from '@/types/command-palette';
 
 const RECENT_LIMIT = 3;
 
 const page = usePage();
 const { isOpen, close, toggle } = useCommandPalette();
-const { canManageTeam } = useWorkspaceRole();
+const { canManageTeam } = useWorkspaceAbilities();
 
 const inviteMemberDialogOpen = ref(false);
 

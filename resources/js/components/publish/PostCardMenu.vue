@@ -7,6 +7,7 @@ import {
     IconCopyPlus,
     IconDotsVertical,
     IconFileArrowLeft,
+    IconRepeat,
     IconSend,
     IconTrash,
 } from '@tabler/icons-vue';
@@ -20,25 +21,37 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
+import { isRecurring } from '@/lib/recurrence';
 import { PostStatus, ScheduleMode } from '@/types/post';
 import type { PostCard, PostCardMenuAction } from '@/types/publish';
 
-const props = defineProps<{
-    post: PostCard;
-    testKey: string;
-    canMoveUp?: boolean;
-    canMoveDown?: boolean;
-    movable?: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        post: PostCard;
+        testKey: string;
+        canMoveUp?: boolean;
+        canMoveDown?: boolean;
+        movable?: boolean;
+        details?: boolean;
+    }>(),
+    { canMoveUp: false, canMoveDown: false, movable: true, details: true },
+);
 
 const emit = defineEmits<{ select: [action: PostCardMenuAction] }>();
+
+const { canPublishDirectly } = useWorkspaceAbilities();
 
 const isScheduled = computed(
     () => props.post.status === PostStatus.Scheduled,
 );
 const isDraft = computed(() => props.post.status === PostStatus.Draft);
+const canRecur = computed(
+    () => isScheduled.value && props.post.scheduled_at !== null,
+);
 const isQueued = computed(
     () =>
+        canPublishDirectly.value &&
         isScheduled.value &&
         props.post.schedule_mode === ScheduleMode.Queue &&
         props.movable !== false,
@@ -63,7 +76,7 @@ const isQueued = computed(
             :data-testid="`post-card-menu-content-${testKey}`"
         >
             <DropdownMenuItem
-                v-if="isDraft"
+                v-if="isDraft && canPublishDirectly"
                 :data-testid="`post-publish-now-${testKey}`"
                 @click="emit('select', 'publish_now')"
             >
@@ -86,6 +99,19 @@ const isQueued = computed(
                 {{ $t('posts.publish.actions.duplicate') }}
             </DropdownMenuItem>
             <DropdownMenuItem
+                v-if="canRecur && canPublishDirectly"
+                :data-testid="`post-recurrence-open-${testKey}`"
+                @click="emit('select', 'recurrence')"
+            >
+                <IconRepeat class="size-4" />
+                {{
+                    isRecurring(post)
+                        ? $t('posts.recurrence.edit')
+                        : $t('posts.recurrence.make')
+                }}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+                v-if="details"
                 :data-testid="`post-details-open-${testKey}`"
                 @click="emit('select', 'details')"
             >

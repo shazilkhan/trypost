@@ -106,3 +106,87 @@ test('the original post remains editable after a split with a disabled target', 
     ]))->toThrow(ValidationException::class);
     expect($disabled->fresh()->enabled)->toBeFalse();
 });
+
+function legacyAggregatePost(Workspace $workspace, User $user, Status $status, int $targets, array $attributes = []): Post
+{
+    $post = Post::factory()->create(array_merge([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'status' => $status,
+        'scheduled_at' => $status === Status::Scheduled ? now()->addDay() : null,
+    ], $attributes));
+
+    foreach (SocialAccount::factory()->count($targets)->create(['workspace_id' => $workspace->id]) as $account) {
+        PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $account->id]);
+    }
+
+    return $post;
+}
+
+test('split posts share one group and a re-run changes nothing', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $post = legacyAggregatePost($workspace, $user, Status::Scheduled, 3);
+    $updatedAt = $post->fresh()->updated_at;
+
+    $this->artisan('posts:split-legacy-active')
+        ->expectsOutputToContain('Split 1 original posts and created 2 independent posts.')
+        ->assertSuccessful();
+
+    $groups = Post::query()->pluck('post_group_id', 'id');
+    $groupId = $groups->get($post->id);
+
+    expect($groups)->toHaveCount(3)
+        ->and($groupId)->not->toBeNull()
+        ->and($groups->unique()->values()->all())->toBe([$groupId])
+        ->and($post->fresh()->updated_at->equalTo($updatedAt))->toBeTrue();
+
+    $this->artisan('posts:split-legacy-active')
+        ->expectsOutputToContain('Split 0 original posts and created 0 independent posts.')
+        ->expectsOutputToContain('Grouped 0 multi-target posts.')
+        ->assertSuccessful();
+
+    expect(Post::count())->toBe(3)
+        ->and(Post::query()->pluck('post_group_id', 'id')->all())->toEqual($groups->all());
+});
+
+test('split reuses a group the original already has', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $groupId = '0190a3b2-0000-7000-8000-0000000000aa';
+    legacyAggregatePost($workspace, $user, Status::Draft, 2, ['post_group_id' => $groupId]);
+
+    $this->artisan('posts:split-legacy-active')->assertSuccessful();
+
+    expect(Post::query()->pluck('post_group_id')->unique()->all())->toBe([$groupId]);
+});
+
+test('unsplit multi-target history gets its own group and single-target posts stay ungrouped', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $published = legacyAggregatePost($workspace, $user, Status::Published, 2);
+    $failed = legacyAggregatePost($workspace, $user, Status::Failed, 3);
+    $partial = legacyAggregatePost($workspace, $user, Status::PartiallyPublished, 2);
+    $single = legacyAggregatePost($workspace, $user, Status::Published, 1);
+    $otherWorkspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $alreadyGrouped = legacyAggregatePost($otherWorkspace, $user, Status::Published, 2, ['post_group_id' => '0190a3b2-0000-7000-8000-0000000000bb']);
+    $otherSingle = legacyAggregatePost($otherWorkspace, $user, Status::Draft, 1);
+
+    $this->artisan('posts:split-legacy-active')
+        ->expectsOutputToContain('Grouped 3 multi-target posts.')
+        ->assertSuccessful();
+
+    $groups = collect([$published, $failed, $partial])->map(fn (Post $post) => $post->fresh()->post_group_id);
+
+    expect($groups->filter()->unique())->toHaveCount(3)
+        ->and(Post::count())->toBe(6)
+        ->and($single->fresh()->post_group_id)->toBeNull()
+        ->and($otherSingle->fresh()->post_group_id)->toBeNull()
+        ->and($alreadyGrouped->fresh()->post_group_id)->toBe('0190a3b2-0000-7000-8000-0000000000bb');
+
+    $this->artisan('posts:split-legacy-active')
+        ->expectsOutputToContain('Grouped 0 multi-target posts.')
+        ->assertSuccessful();
+
+    expect(collect([$published, $failed, $partial])->map(fn (Post $post) => $post->fresh()->post_group_id)->all())->toBe($groups->all());
+});

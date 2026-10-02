@@ -106,6 +106,7 @@ return [
         'publish_posts' => '게시물 게시',
         'destination_issues' => '수정할 문제 :count개',
         'create_another' => '하나 더 만들기',
+        'request_approval' => '저장하고 승인 요청',
         'templates' => '템플릿',
         'expand' => '대화 상자 확장',
         'post_previews' => '게시물 미리보기',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => '대기 중',
         'draft' => '초안',
+        'pending_approval' => '승인 대기 중',
         'scheduled' => '예약됨',
         'publishing' => '게시 중',
         'retrying' => '재시도 중',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => '게시물 세부정보',
-        'back' => '뒤로',
-        'no_platforms' => '선택된 플랫폼이 없습니다.',
-        'view_on_platform' => '플랫폼에서 보기',
         'published_on' => ':date에 게시됨',
         'scheduled_for' => ':date로 예약됨',
-        'draft' => '초안',
-        'metrics' => '지표',
-        'pending_review' => 'Google이 이 게시물을 검토 중입니다. 검토가 끝나면 업데이트합니다.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => '모든 채널',
         'tabs' => [
             'queue' => '대기열',
+            'approvals' => '승인',
             'drafts' => '임시 저장',
             'sent' => '전송됨',
         ],
         'view' => [
             'list' => '목록',
             'calendar' => '캘린더',
+        ],
+        'metrics' => [
+            'refreshed' => ':time 새로고침됨',
+            'previous' => '이전 지표',
+            'next' => '다음 지표',
         ],
         'new_post' => '새 게시물',
         'today' => '오늘',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => '작성자: :name :when',
         'empty' => [
-            'queue' => '대기열이 비어 있습니다. 게시 시간을 추가하거나 게시물을 만드세요.',
-            'drafts' => '아직 임시 저장된 게시물이 없습니다.',
-            'sent' => '아직 게시된 항목이 없습니다.',
+            'queue' => [
+                'title' => '예약된 게시물이 없습니다',
+                'description' => '대기열이 비어 있습니다. 게시물을 예약하면 여기에 표시됩니다.',
+            ],
+            'approvals' => [
+                'title' => '승인 대기 중인 게시물이 없습니다',
+                'description' => '승인이 필요한 게시물이 여기에 표시됩니다.',
+            ],
+            'drafts' => [
+                'title' => '임시 저장 글이 없습니다',
+                'description' => '아직 저장한 임시 글이 없습니다. 저장하면 여기에 표시됩니다.',
+            ],
+            'sent' => [
+                'title' => '보낸 게시물이 없습니다',
+                'description' => '게시한 게시물이 여기에 표시됩니다.',
+            ],
         ],
         'reordered' => '대기열이 업데이트되었습니다',
+    ],
+    'group' => [
+        'channels' => '채널 (:count)',
+        'collapse' => '채널 숨기기',
+        'expand' => '채널 보기',
+    ],
+    'approvals' => [
+        'badge' => '승인',
+        'time_passed' => '시간이 지났습니다',
+        'approve' => '승인하기',
+        'schedule' => '예약',
+        'reject' => '거절',
+        'revert' => '승인 요청 취소',
+        'requested' => '승인을 요청했습니다',
+        'errors' => [
+            'not_pending' => '이 게시물은 더 이상 승인 대기 중이 아닙니다.',
+            'time_passed' => '요청한 시간이 지났습니다. 새 시간을 선택하세요.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => '반복',
+        'make' => '반복 설정',
+        'edit' => '반복 수정',
+        'title' => '반복 게시물',
+        'description' => '이 게시물의 날짜와 시간을 기준으로 다음 게시를 예약합니다.',
+        'repeat_every' => '반복 간격',
+        'for' => '횟수',
+        'times' => '{1} 회|[0,*] 회',
+        'interval_label' => '반복 간격',
+        'frequency_label' => '반복 단위',
+        'times_label' => '횟수',
+        'frequency' => [
+            'day' => '{1} 일|[0,*] 일',
+            'week' => '{1} 주|[0,*] 주',
+            'month' => '{1} 개월|[0,*] 개월',
+            'year' => '{1} 년|[0,*] 년',
+        ],
+        'rule' => [
+            'day' => '{1} 매일 :time에|[0,*] :count일마다 :time에',
+            'week' => '{1} 매주 :weekday :time에|[0,*] :count주마다 :weekday :time에',
+            'month' => '{1} 매월 :day :time에|[0,*] :count개월마다 :day :time에',
+            'year' => '{1} 매년 :date :time에|[0,*] :count년마다 :date :time에',
+        ],
+        'summary' => '이 게시물은 :until까지 :rule 공유됩니다.',
+        'banner' => '{1} 이 게시물은 :until까지 :rule 공유됩니다(:count개 남음).|[0,*] 이 게시물은 :until까지 :rule 공유됩니다(:count개 남음).',
+        'save' => '저장',
+        'stop' => '반복 중지',
+        'cancel' => '취소',
+        'errors' => [
+            'not_scheduled' => '예약된 게시물만 반복할 수 있습니다.',
+            'too_far' => '마지막 게시는 2038년 이전이어야 합니다.',
+        ],
     ],
 ];

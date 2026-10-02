@@ -363,7 +363,6 @@ const bulkDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
 const deleteStage = (stage: IdeaStage): void => {
     stageDeleteModal.value?.open({
         url: destroyStage.url(stage.id),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
     });
 };
 
@@ -384,7 +383,6 @@ const onIdeaDeleted = (): void => {
 const openBulkDelete = (): void => {
     bulkDeleteModal.value?.open({
         url: bulkDestroy.url(),
-        confirmText: trans('common.confirm_modal.delete_keyword'),
         data: { idea_ids: [...selectedIds.value] },
     });
 };
@@ -442,7 +440,6 @@ provide(ideaCardActionsKey, {
         pendingDeleteId.value = card.id;
         ideaDeleteModal.value?.open({
             url: destroy.url(card.id),
-            confirmText: trans('common.confirm_modal.delete_keyword'),
         });
     },
 });

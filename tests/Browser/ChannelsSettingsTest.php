@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -28,7 +27,7 @@ function channelsSettingsAdmin(): User
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     return $user->fresh();
@@ -49,6 +48,34 @@ test('channels are listed one per row with settings and actions', function () {
     $page->assertMissing("@channel-toggle-{$channel->id}")
         ->assertVisible("@channel-disconnect-{$channel->id}")
         ->assertNoJavaScriptErrors();
+});
+
+test('disconnecting a channel asks for the translated disconnect keyword, not the handle', function () {
+    $user = channelsSettingsAdmin();
+    $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $keyword = __('channels.disconnect_modal.keyword');
+
+    $page = visit(route('app.workspace.channels'));
+    waitForChannelsSettingsTestId($page, "channel-row-{$channel->id}");
+
+    $page->click("@channel-menu-{$channel->id}");
+    waitForChannelsSettingsTestId($page, "channel-disconnect-{$channel->id}");
+
+    $page->click("@channel-disconnect-{$channel->id}")
+        ->assertVisible('@confirm-delete-modal')
+        ->assertSeeIn('@confirm-delete-description', __('channels.disconnect_modal.description'))
+        ->fill('@confirm-delete-input', $channel->username)
+        ->assertAttribute('@confirm-delete-action', 'disabled', '')
+        ->fill('@confirm-delete-input', mb_strtolower($keyword))
+        ->assertAttribute('@confirm-delete-action', 'disabled', '')
+        ->fill('@confirm-delete-input', $keyword)
+        ->click('@confirm-delete-action')
+        ->assertMissing('@confirm-delete-modal')
+        ->assertNoJavaScriptErrors();
+
+    expect(SocialAccount::find($channel->id))->toBeNull();
 });
 
 test('a lost connection offers reconnect on the row', function () {

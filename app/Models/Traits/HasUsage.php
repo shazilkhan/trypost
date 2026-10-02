@@ -56,7 +56,7 @@ trait HasUsage
         return (int) Cache::remember(
             Account::postsCountCacheKey((string) $this->id),
             self::POST_COUNT_CACHE_TTL,
-            fn () => Post::whereIn('workspace_id', $workspaceIds)->count(),
+            fn () => Post::query()->createdInTryPost()->whereIn('workspace_id', $workspaceIds)->count(),
         );
     }
 }

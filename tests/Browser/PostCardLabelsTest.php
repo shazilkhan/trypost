@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Actions\Post\CreatePosts;
 use App\Enums\PostPlatform\ContentType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -54,22 +53,22 @@ function waitForCardLabelsStored(mixed $page, Post $post, array $expected): void
 /**
  * @return array{0: User, 1: Workspace, 2: SocialAccount}
  */
-function cardLabelsSetup(Role $role = Role::Admin): array
+function cardLabelsSetup(string $role = 'admin'): array
 {
     $owner = User::factory()->create(['timezone' => 'UTC']);
     $workspace = Workspace::factory()->create([
         'user_id' => $owner->id,
         'account_id' => $owner->account_id,
     ]);
-    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($owner->id, membershipPivot('admin'));
     $owner->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($owner->account);
 
     $user = $owner;
 
-    if ($role !== Role::Admin) {
+    if ($role !== 'admin') {
         $user = User::factory()->create(['timezone' => 'UTC', 'account_id' => $owner->account_id]);
-        $workspace->members()->attach($user->id, ['role' => $role->value]);
+        $workspace->members()->attach($user->id, membershipPivot($role));
         $user->update(['current_workspace_id' => $workspace->id]);
     }
 
@@ -233,21 +232,18 @@ test('the label filter drops a card once its label is removed', function () {
         ->assertNoJavaScriptErrors();
 });
 
-test('a viewer sees the labels on a card but cannot edit them', function () {
-    [$viewer, $workspace, $channel] = cardLabelsSetup(Role::Viewer);
+test('a member who needs approval can edit the labels on a card', function () {
+    [$requester, $workspace, $channel] = cardLabelsSetup('approval');
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id, 'name' => 'Campaign']);
     $owner = User::query()->findOrFail($workspace->user_id);
     $tagged = cardLabelsPost($owner, $workspace, $channel, ['label_ids' => [$label->id]]);
-    $bare = cardLabelsPost($owner, $workspace, $channel, ['content' => 'Bare post']);
-    $this->actingAs($viewer);
+    $this->actingAs($requester);
 
     $page = visit(route('app.posts.index'));
     waitForCardLabelsTestId($page, "post-label-chip-{$tagged->id}-{$label->id}");
 
     $page->assertVisible("@post-label-chip-{$tagged->id}-{$label->id}")
-        ->assertMissing("@post-labels-{$tagged->id}-trigger")
-        ->assertMissing("@post-labels-{$bare->id}")
-        ->assertVisible("@post-card-{$bare->id}")
+        ->assertVisible("@post-labels-{$tagged->id}-trigger")
         ->assertNoJavaScriptErrors();
 });
 

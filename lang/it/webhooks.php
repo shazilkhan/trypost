@@ -120,7 +120,6 @@ return [
         'endpoint_http_status' => 'L\'endpoint ha restituito HTTP :status.',
     ],
     'flash' => [
-        'created' => 'Webhook creato.',
         'updated' => 'Webhook aggiornato.',
         'deleted' => 'Webhook eliminato.',
         'secret_rotated' => 'Secret di firma ruotato.',

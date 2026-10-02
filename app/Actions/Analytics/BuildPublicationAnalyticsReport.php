@@ -46,7 +46,7 @@ class BuildPublicationAnalyticsReport
             }
         }
 
-        foreach ($this->publications($workspace, $previous->start, $current->end, $accountKeys, $labelIds, $untagged) as $row) {
+        foreach ($this->publications($workspace, $previous->start, $current->observedThrough, $accountKeys, $labelIds, $untagged) as $row) {
             $key = $row->social_account_key;
 
             if (! $this->inRange($row->provider_published_at, $current)) {
@@ -66,7 +66,7 @@ class BuildPublicationAnalyticsReport
             $this->retainTopPublication($topReactions, $row, 'reactions_count');
             $this->retainTopPublication($topComments, $row, 'comments_count');
 
-            $date = substr((string) $row->provider_published_at, 0, 10);
+            $date = min(substr((string) $row->provider_published_at, 0, 10), $current->end->toDateString());
             $index = data_get($bucketIndexByDate, $date);
 
             if ($index !== null) {
@@ -325,6 +325,6 @@ class BuildPublicationAnalyticsReport
     {
         $day = substr($date, 0, 10);
 
-        return $day >= $range->start->toDateString() && $day <= $range->end->toDateString();
+        return $day >= $range->start->toDateString() && $day <= $range->observedThrough->toDateString();
     }
 }

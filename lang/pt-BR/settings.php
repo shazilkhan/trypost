@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'Receber um e-mail quando uma conta social for desconectada',
         'post_note_added' => 'Nova nota em uma publicação',
         'post_note_added_description' => 'Receber um e-mail quando um membro da equipe adicionar uma nota a uma publicação',
+        'collaboration' => 'Colaboração',
+        'collaboration_description' => 'Receba e-mails sobre pedidos de aprovação e posts aprovados ou rejeitados',
         'save' => 'Salvar preferências',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'Cancelar',
         'remove' => 'Remover',
-        'make_role' => 'Tornar :role',
 
         'invite' => [
             'title' => 'Convidar Membro',
             'description' => 'Envie um convite por e-mail para adicionar colaboradores',
             'email' => 'E-mail',
             'email_placeholder' => 'colaborador@email.com',
-            'role' => 'Função',
-            'role_placeholder' => 'Selecione uma função',
             'submit' => 'Enviar Convite',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'Proprietário',
             'admin' => 'Administrador',
             'member' => 'Membro',
-            'viewer' => 'Visualizador',
+        ],
+        'access' => [
+            'admin_description' => 'Gerencia membros e configurações',
+            'publishing' => 'Publicação',
+            'publishes_directly' => 'Publica direto',
+            'needs_approval' => 'Precisa de aprovação',
+            'publishing_help' => 'Posts de membros que precisam de aprovação aguardam um administrador ou um membro que publica direto.',
+        ],
+        'edit' => [
+            'title' => 'Editar membro',
+            'description' => 'Escolha o que este membro pode fazer neste workspace.',
+            'submit' => 'Salvar',
+            'action' => 'Editar acesso',
         ],
 
         'errors' => [
             'invite_exists' => 'Já existe um convite para este e-mail.',
             'email_belongs_to_account' => 'Este e-mail já pertence a outra conta TryPost. Peça um e-mail de trabalho dedicado.',
+            'cannot_remove_self' => 'Você não pode remover a si mesmo.',
+            'cannot_remove_owner' => 'Você não pode remover o dono da conta.',
+            'cannot_change_own_access' => 'Você não pode alterar seu próprio acesso.',
+            'cannot_change_owner_access' => 'Você não pode alterar o acesso do dono da conta.',
         ],
 
         'flash' => [
             'invite_sent' => 'Convite enviado com sucesso!',
             'invite_deleted' => 'Convite excluído.',
             'member_removed' => 'Membro removido com sucesso.',
-            'role_updated' => 'Função do membro atualizada.',
             'wrong_email' => 'Este convite é para um endereço de e-mail diferente.',
             'already_member' => 'Você já é membro deste workspace.',
             'invite_accepted' => 'Bem-vindo! Você agora é membro do workspace.',

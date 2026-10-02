@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -22,7 +21,7 @@ function seedChannelMediaIssuePost(): PostPlatform
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $account = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
@@ -112,7 +111,7 @@ function seedInstagramFeedImagePost(array $platformMeta = [], array $imageMeta =
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);

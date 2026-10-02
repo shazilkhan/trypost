@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Events\PostNoteChanged;
 use App\Jobs\SendNotification;
 use App\Mail\PostNoteAdded;
@@ -17,7 +16,7 @@ use Illuminate\Support\Facades\Queue;
 beforeEach(function () {
     $this->user = User::factory()->create([]);
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
 
     $this->post = Post::factory()->create([
@@ -111,11 +110,11 @@ test('store emails every workspace member except the author', function () {
 
     $admin = User::factory()->create();
     $member = User::factory()->create();
-    $this->workspace->members()->attach($admin->id, ['role' => Role::Admin->value]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($admin->id, membershipPivot('admin'));
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     $outsider = User::factory()->create();
-    Workspace::factory()->create(['user_id' => $outsider->id])->members()->attach($outsider->id, ['role' => Role::Admin->value]);
+    Workspace::factory()->create(['user_id' => $outsider->id])->members()->attach($outsider->id, membershipPivot('admin'));
 
     $this->actingAs($this->user)
         ->postJson(route('app.posts.notes.store', $this->post), ['body' => "Can someone review?\nThanks"])
@@ -136,7 +135,7 @@ test('store emails the workspace owner when a member adds a note', function () {
     Mail::fake();
 
     $member = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     $this->actingAs($member)
         ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Looks good'])
@@ -150,7 +149,7 @@ test('store emails members about a reply too', function () {
     Mail::fake();
 
     $member = User::factory()->create();
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     $parent = PostNote::factory()->create([
         'post_id' => $this->post->id,
@@ -168,7 +167,7 @@ test('store respects a member who turned note emails off', function () {
     Mail::fake();
 
     $member = User::factory()->create();
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
     $member->notificationPreference()->create(['post_note_added' => false]);
 
     $this->actingAs($this->user)
@@ -192,7 +191,7 @@ test('update, delete and react send no email', function () {
     Queue::fake();
 
     $member = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     $note = PostNote::factory()->create([
         'post_id' => $this->post->id,
@@ -256,7 +255,7 @@ test('update own comment', function () {
 
 test('cannot update other user comment', function () {
     $otherUser = User::factory()->create([]);
-    $this->workspace->members()->attach($otherUser->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($otherUser->id, membershipPivot('member'));
     $otherUser->update(['current_workspace_id' => $this->workspace->id]);
 
     $comment = PostNote::factory()->create([
@@ -291,7 +290,7 @@ test('delete own comment', function () {
 
 test('cannot delete other user comment', function () {
     $otherUser = User::factory()->create([]);
-    $this->workspace->members()->attach($otherUser->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($otherUser->id, membershipPivot('member'));
     $otherUser->update(['current_workspace_id' => $this->workspace->id]);
 
     $comment = PostNote::factory()->create([
@@ -341,7 +340,7 @@ test('react toggles emoji', function () {
 test('cannot comment on post from other workspace', function () {
     $otherUser = User::factory()->create([]);
     $otherWorkspace = Workspace::factory()->create(['user_id' => $otherUser->id]);
-    $otherWorkspace->members()->attach($otherUser->id, ['role' => Role::Member->value]);
+    $otherWorkspace->members()->attach($otherUser->id, membershipPivot('member'));
     $otherUser->update(['current_workspace_id' => $otherWorkspace->id]);
 
     $response = $this->actingAs($otherUser)

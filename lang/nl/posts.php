@@ -106,6 +106,7 @@ return [
         'publish_posts' => 'Berichten publiceren',
         'destination_issues' => '{1} :count probleem om op te lossen|[0,*] :count problemen om op te lossen',
         'create_another' => 'Nog een maken',
+        'request_approval' => 'Opslaan en goedkeuring vragen',
         'templates' => 'Sjablonen',
         'expand' => 'Venster vergroten',
         'post_previews' => 'Berichtvoorbeelden',
@@ -445,6 +446,7 @@ return [
     'status' => [
         'pending' => 'In afwachting',
         'draft' => 'Concept',
+        'pending_approval' => 'Wacht op goedkeuring',
         'scheduled' => 'Gepland',
         'publishing' => 'Publiceren',
         'retrying' => 'Opnieuw proberen',
@@ -461,14 +463,8 @@ return [
 
     'show' => [
         'title' => 'Postdetails',
-        'back' => 'Terug',
-        'no_platforms' => 'Geen platforms geselecteerd.',
-        'view_on_platform' => 'Bekijken op platform',
         'published_on' => 'Gepubliceerd op :date',
         'scheduled_for' => 'Gepland voor :date',
-        'draft' => 'Concept',
-        'metrics' => 'Statistieken',
-        'pending_review' => 'Google beoordeelt dit bericht. We werken het bij wanneer de review klaar is.',
     ],
 
     'edit' => [
@@ -806,12 +802,18 @@ return [
         'all_channels' => 'Alle kanalen',
         'tabs' => [
             'queue' => 'Wachtrij',
+            'approvals' => 'Goedkeuringen',
             'drafts' => 'Concepten',
             'sent' => 'Verzonden',
         ],
         'view' => [
             'list' => 'Lijst',
             'calendar' => 'Kalender',
+        ],
+        'metrics' => [
+            'refreshed' => 'Bijgewerkt :time',
+            'previous' => 'Vorige statistieken',
+            'next' => 'Volgende statistieken',
         ],
         'new_post' => 'Nieuw bericht',
         'today' => 'Vandaag',
@@ -852,10 +854,75 @@ return [
         ],
         'created_by' => 'Gemaakt door :name :when',
         'empty' => [
-            'queue' => 'Je wachtrij is leeg. Voeg publicatietijden toe of maak een bericht.',
-            'drafts' => 'Nog geen concepten.',
-            'sent' => 'Nog niets gepubliceerd.',
+            'queue' => [
+                'title' => 'Geen geplande berichten',
+                'description' => 'Je wachtrij is leeg. Plan een bericht in en het verschijnt hier.',
+            ],
+            'approvals' => [
+                'title' => 'Geen berichten ter goedkeuring',
+                'description' => 'Berichten die goedkeuring nodig hebben, verschijnen hier.',
+            ],
+            'drafts' => [
+                'title' => 'Geen concepten',
+                'description' => 'Je hebt nog geen concepten opgeslagen. Zodra je dat doet, verschijnen ze hier.',
+            ],
+            'sent' => [
+                'title' => 'Geen verzonden berichten',
+                'description' => 'Berichten die je publiceert, verschijnen hier.',
+            ],
         ],
         'reordered' => 'Wachtrij bijgewerkt',
+    ],
+    'group' => [
+        'channels' => 'Kanalen (:count)',
+        'collapse' => 'Kanalen verbergen',
+        'expand' => 'Kanalen tonen',
+    ],
+    'approvals' => [
+        'badge' => 'Goedkeuring',
+        'time_passed' => 'Tijdstip verstreken',
+        'approve' => 'Goedkeuren',
+        'schedule' => 'Inplannen',
+        'reject' => 'Afwijzen',
+        'revert' => 'Goedkeuringsverzoek intrekken',
+        'requested' => 'Goedkeuring aangevraagd',
+        'errors' => [
+            'not_pending' => 'Dit bericht wacht niet meer op goedkeuring.',
+            'time_passed' => 'Het gevraagde tijdstip is voorbij. Kies een nieuw tijdstip.',
+        ],
+    ],
+    'recurrence' => [
+        'marker' => 'Terugkerend',
+        'make' => 'Terugkerend maken',
+        'edit' => 'Herhaling bewerken',
+        'title' => 'Terugkerend bericht',
+        'description' => 'We plannen de volgende herhalingen op basis van de datum en tijd van dit bericht.',
+        'repeat_every' => 'Herhaal elke',
+        'for' => 'voor',
+        'times' => '{1} keer|[0,*] keer',
+        'interval_label' => 'Herhalingsinterval',
+        'frequency_label' => 'Herhalingseenheid',
+        'times_label' => 'Aantal keren',
+        'frequency' => [
+            'day' => '{1} Dag|[0,*] Dagen',
+            'week' => '{1} Week|[0,*] Weken',
+            'month' => '{1} Maand|[0,*] Maanden',
+            'year' => '{1} Jaar|[0,*] Jaar',
+        ],
+        'rule' => [
+            'day' => '{1} elke dag om :time|[0,*] elke :count dagen om :time',
+            'week' => '{1} elke :weekday om :time|[0,*] elke :count weken op :weekday om :time',
+            'month' => '{1} elke maand op de :day om :time|[0,*] elke :count maanden op de :day om :time',
+            'year' => '{1} elk jaar op :date om :time|[0,*] elke :count jaar op :date om :time',
+        ],
+        'summary' => 'Dit bericht wordt :rule gedeeld, tot :until.',
+        'banner' => '{1} Dit bericht wordt :rule gedeeld, tot :until (nog :count bericht).|[0,*] Dit bericht wordt :rule gedeeld, tot :until (nog :count berichten).',
+        'save' => 'Opslaan',
+        'stop' => 'Herhaling stoppen',
+        'cancel' => 'Annuleren',
+        'errors' => [
+            'not_scheduled' => 'Alleen geplande berichten kunnen herhalen.',
+            'too_far' => 'De laatste herhaling moet vóór 2038 vallen.',
+        ],
     ],
 ];

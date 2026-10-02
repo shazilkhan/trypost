@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Dto\MediaItem;
 use App\Enums\Post\Status;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -21,7 +20,7 @@ function seedYouTubeDescriptionEditor(): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Member->value]);
+    $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $asset = Media::factory()->video()->temporaryUpload($workspace)->create([
         'size' => filesize(base_path('tests/fixtures/sample.mp4')),

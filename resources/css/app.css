@@ -17,13 +17,13 @@
     --popover-foreground: #292928;
     --tooltip: #292928;
     --tooltip-foreground: #ffffff;
-    --primary: #b0ec9c;
+    --primary: #ddd6fe;
     --primary-foreground: #292928;
-    --primary-hover: #90d788;
-    --primary-strong: #4e975b;
+    --primary-hover: #c4b5fd;
+    --primary-strong: #6d28d9;
     --primary-strong-foreground: #ffffff;
-    --primary-subtle: #d9f1d1;
-    --primary-selected: #95cd8f52;
+    --primary-subtle: #ede9fe;
+    --primary-selected: #8b5cf633;
     --secondary: #eae8e5;
     --secondary-foreground: #292928;
     --muted: #f7f6f3;
@@ -48,23 +48,23 @@
     --border: #eae8e5;
     --border-strong: #dedcd9;
     --input: #8c8b88;
-    --ring: #4e975b;
-    --primary-text: #337046;
-    --primary-text-hover: #29493c;
-    --chart-1: #29493c;
-    --chart-2: #337046;
-    --chart-3: #4e975b;
-    --chart-4: #90d788;
-    --chart-5: #c5eeb8;
+    --ring: #7c3aed;
+    --primary-text: #6d28d9;
+    --primary-text-hover: #5b21b6;
+    --chart-1: #4c1d95;
+    --chart-2: #6d28d9;
+    --chart-3: #7c3aed;
+    --chart-4: #a78bfa;
+    --chart-5: #ddd6fe;
     --sidebar: #f7f6f3;
     --sidebar-foreground: #292928;
-    --sidebar-primary: #b0ec9c;
+    --sidebar-primary: #ddd6fe;
     --sidebar-primary-foreground: #292928;
     --sidebar-accent: #eae8e5;
     --sidebar-accent-foreground: #292928;
     --sidebar-action-hover: rgb(51 34 0 / 0.06);
     --sidebar-border: #eae8e5;
-    --sidebar-ring: #4e975b;
+    --sidebar-ring: #7c3aed;
     --font-sans:
         'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
         'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
@@ -108,13 +108,13 @@
     --popover-foreground: #f7f6f3;
     --tooltip: #3a3a39;
     --tooltip-foreground: #ffffff;
-    --primary: #b0ec9c;
+    --primary: #c4b5fd;
     --primary-foreground: #292928;
-    --primary-hover: #c5eeb8;
-    --primary-strong: #74c079;
-    --primary-strong-foreground: #213130;
-    --primary-subtle: #29493c;
-    --primary-selected: #95cd8f33;
+    --primary-hover: #ddd6fe;
+    --primary-strong: #a78bfa;
+    --primary-strong-foreground: #1e1530;
+    --primary-subtle: #2e1065;
+    --primary-selected: #8b5cf633;
     --secondary: #2a2a2a;
     --secondary-foreground: #f7f6f3;
     --muted: #1a1a1a;
@@ -139,23 +139,23 @@
     --border: #2a2a2a;
     --border-strong: #383838;
     --input: #5a5a59;
-    --ring: #74c079;
-    --primary-text: #90d788;
-    --primary-text-hover: #c5eeb8;
-    --chart-1: #c5eeb8;
-    --chart-2: #90d788;
-    --chart-3: #74c079;
-    --chart-4: #4e975b;
-    --chart-5: #337046;
+    --ring: #a78bfa;
+    --primary-text: #c4b5fd;
+    --primary-text-hover: #ddd6fe;
+    --chart-1: #ddd6fe;
+    --chart-2: #c4b5fd;
+    --chart-3: #a78bfa;
+    --chart-4: #7c3aed;
+    --chart-5: #5b21b6;
     --sidebar: #0a0a0a;
     --sidebar-foreground: #f7f6f3;
-    --sidebar-primary: #b0ec9c;
+    --sidebar-primary: #c4b5fd;
     --sidebar-primary-foreground: #292928;
     --sidebar-accent: #232323;
     --sidebar-accent-foreground: #f7f6f3;
     --sidebar-action-hover: rgb(255 255 255 / 0.08);
     --sidebar-border: #2a2a2a;
-    --sidebar-ring: #74c079;
+    --sidebar-ring: #a78bfa;
     --font-sans:
         'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
         'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,

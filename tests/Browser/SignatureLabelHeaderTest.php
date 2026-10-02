@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
@@ -21,7 +20,7 @@ test('signature and label pages keep the title and create action in the settings
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
@@ -52,7 +51,7 @@ test('signature edit uses a centered dialog and resets canceled changes', functi
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $signature = WorkspaceSignature::factory()->create([
         'workspace_id' => $workspace->id,
@@ -108,7 +107,7 @@ test('label edit uses a centered dialog and resets canceled changes', function (
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $label = WorkspaceLabel::factory()->create([
         'workspace_id' => $workspace->id,
@@ -154,13 +153,13 @@ test('label edit uses a centered dialog and resets canceled changes', function (
     expect($label->fresh()->name)->toBe('Updated label');
 });
 
-test('label and signature deletion require the translated delete keyword, not the name', function () {
+test('label and signature deletion use a plain confirmation without typing', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     $label = WorkspaceLabel::factory()->create([
         'workspace_id' => $workspace->id,
@@ -172,16 +171,10 @@ test('label and signature deletion require the translated delete keyword, not th
     ]);
     $this->actingAs($user);
 
-    $keyword = __('common.confirm_modal.delete_keyword');
-
     visit(route('app.labels.index'))
         ->click("@delete-label-{$label->id}")
         ->assertVisible('@confirm-delete-modal')
-        ->fill('@confirm-delete-input', 'Keyword label')
-        ->assertAttribute('@confirm-delete-action', 'disabled', '')
-        ->fill('@confirm-delete-input', mb_strtolower($keyword))
-        ->assertAttribute('@confirm-delete-action', 'disabled', '')
-        ->fill('@confirm-delete-input', $keyword)
+        ->assertMissing('@confirm-delete-input')
         ->click('@confirm-delete-action')
         ->assertMissing('@confirm-delete-modal')
         ->assertNoJavaScriptErrors();
@@ -189,11 +182,7 @@ test('label and signature deletion require the translated delete keyword, not th
     visit(route('app.signatures.index'))
         ->click("@delete-signature-{$signature->id}")
         ->assertVisible('@confirm-delete-modal')
-        ->fill('@confirm-delete-input', 'Keyword signature')
-        ->assertAttribute('@confirm-delete-action', 'disabled', '')
-        ->fill('@confirm-delete-input', mb_strtolower($keyword))
-        ->assertAttribute('@confirm-delete-action', 'disabled', '')
-        ->fill('@confirm-delete-input', $keyword)
+        ->assertMissing('@confirm-delete-input')
         ->click('@confirm-delete-action')
         ->assertMissing('@confirm-delete-modal')
         ->assertNoJavaScriptErrors();
@@ -208,7 +197,7 @@ test('signature and label rows do not show the creation date', function () {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $signature = WorkspaceSignature::factory()->create([
@@ -239,7 +228,7 @@ test('hovering a label row keeps the card background', function () {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
@@ -261,7 +250,7 @@ test('hovering a signature row keeps the card background', function () {
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
     $signature = WorkspaceSignature::factory()->create(['workspace_id' => $workspace->id]);

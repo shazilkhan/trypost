@@ -40,6 +40,7 @@ class PinterestPublicationCollector extends AbstractPublicationHistoryCollector
             $postId = (string) data_get($row, 'id');
             $providerType = strtolower((string) data_get($row, 'media.media_type'));
             $thumbnail = data_get($row, 'media.images.600x.url')
+                ?: data_get($row, 'media.images.1200x.url')
                 ?: data_get($row, 'media.images.originals.url');
 
             $publications[] = new DiscoveredPublication(

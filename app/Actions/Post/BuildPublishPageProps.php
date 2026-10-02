@@ -32,6 +32,8 @@ class BuildPublishPageProps
 
     public const TAB_SENT = 'sent';
 
+    public const TAB_APPROVALS = 'approvals';
+
     public const MIN_QUEUE_DAYS = 14;
 
     public const MAX_QUEUE_DAYS = 90;
@@ -53,6 +55,7 @@ class BuildPublishPageProps
     public static function handle(Request $request, Workspace $workspace, ?SocialAccount $channel, ?Post $editPost = null): array
     {
         $user = $request->user();
+        $requester = self::pendingApprovalsRequester($user, $workspace);
         $userTimezone = Timezone::normalize($user->timezone);
         $displayTimezone = self::displayTimezone($request->query('tz'), $userTimezone);
 
@@ -78,10 +81,11 @@ class BuildPublishPageProps
             fn (Builder $platforms) => $platforms->enabled()->whereIn('social_account_id', $scopedChannelIds),
         ));
 
-        $openPostNotesId = $request->query('notes');
-        $openPostNotesId = is_string($openPostNotesId) && Str::isUuid($openPostNotesId) ? $openPostNotesId : null;
+        $openPostNotesId = self::uuidQuery($request, 'notes');
+        $openPostDetailsId = self::uuidQuery($request, 'post');
+        $focusedPostId = $openPostNotesId ?? $openPostDetailsId;
 
-        $tab = self::tab($request->query('tab'), $openPostNotesId ? (clone $basePosts)->whereKey($openPostNotesId)->value('status') : null);
+        $tab = self::tab($request->query('tab'), $focusedPostId ? (clone $basePosts)->whereKey($focusedPostId)->value('status') : null);
 
         $cards = fn (): Builder => self::cardQuery(clone $basePosts, $scopedChannelIds, $labelIds, $untagged);
 
@@ -90,7 +94,10 @@ class BuildPublishPageProps
             'scope' => $channel ? 'channel' : 'all',
             'channel' => fn (): ?array => $channel ? self::channelHeader($channel) : null,
             'tab' => $tab,
-            'counts' => fn (): array => self::counts(clone $basePosts),
+            'counts' => fn (): array => [
+                ...self::counts(clone $basePosts),
+                'approvals' => (clone $basePosts)->pendingApproval()->visiblePendingApprovalsFor($requester)->count(),
+            ],
             'displayTimezone' => $displayTimezone,
             'timezones' => fn (): array => Timezone::options(),
             'channelTimezones' => fn (): array => $channels()
@@ -112,7 +119,7 @@ class BuildPublishPageProps
             $props['queue'] = fn (): array => self::queue($workspace, $channels(), $displayTimezone, $request, $labelIds, $untagged, $cards);
         }
 
-        $props['posts'] = Inertia::scroll(fn () => self::paginatedCards($tab, $cards(), $tab === self::TAB_QUEUE ? null : $openPostNotesId));
+        $props['posts'] = Inertia::scroll(fn () => self::paginatedCards($tab, $cards(), $tab === self::TAB_QUEUE ? null : $focusedPostId, $requester));
 
         $composerRequested = $editPost !== null;
 
@@ -122,6 +129,7 @@ class BuildPublishPageProps
             'openComposerAssistant' => $request->boolean('assistant'),
             'initialComposerDate' => $request->query('date'),
             'openPostNotesId' => $openPostNotesId,
+            'openPostDetailsId' => $openPostDetailsId,
             'highlightNoteId' => is_string($request->query('note')) ? $request->query('note') : null,
             'authUserId' => $user->id,
             'editPost' => $editPost,
@@ -138,6 +146,7 @@ class BuildPublishPageProps
             ...SocialAccountResource::make($channel)->resolve(),
             'posting_goal' => $channel->posting_goal,
             'sent_this_week' => CountPostsSentThisWeek::handle($channel),
+            'has_grid' => $channel->platform->hasProfileGrid(),
         ];
     }
 
@@ -152,12 +161,20 @@ class BuildPublishPageProps
         return $normalized === Timezone::DEFAULT && $requested !== Timezone::DEFAULT ? $userTimezone : $normalized;
     }
 
-    private static function tab(mixed $requested, ?PostStatus $notesPostStatus): string
+    private static function uuidQuery(Request $request, string $key): ?string
     {
-        if (blank($requested) && $notesPostStatus !== null) {
+        $value = $request->query($key);
+
+        return is_string($value) && Str::isUuid($value) ? $value : null;
+    }
+
+    private static function tab(mixed $requested, ?PostStatus $focusedPostStatus): string
+    {
+        if (blank($requested) && $focusedPostStatus !== null) {
             return match (true) {
-                $notesPostStatus === PostStatus::Draft => self::TAB_DRAFTS,
-                in_array($notesPostStatus, self::SENT_STATUSES, true) => self::TAB_SENT,
+                $focusedPostStatus === PostStatus::PendingApproval => self::TAB_APPROVALS,
+                $focusedPostStatus === PostStatus::Draft => self::TAB_DRAFTS,
+                in_array($focusedPostStatus, self::SENT_STATUSES, true) => self::TAB_SENT,
                 default => self::TAB_QUEUE,
             };
         }
@@ -165,6 +182,7 @@ class BuildPublishPageProps
         return match ($requested) {
             self::TAB_DRAFTS => self::TAB_DRAFTS,
             self::TAB_SENT => self::TAB_SENT,
+            self::TAB_APPROVALS => self::TAB_APPROVALS,
             default => self::TAB_QUEUE,
         };
     }
@@ -190,6 +208,15 @@ class BuildPublishPageProps
     }
 
     /**
+     * The user whose own requests are the only pending posts they see; null for
+     * an approver, who sees every one (see Post::scopeVisiblePendingApprovalsFor()).
+     */
+    public static function pendingApprovalsRequester(User $user, Workspace $workspace): ?User
+    {
+        return $user->can('approvePosts', $workspace) ? null : $user;
+    }
+
+    /**
      * @param  list<string>|null  $channelIds
      * @param  list<string>  $labelIds
      */
@@ -203,7 +230,7 @@ class BuildPublishPageProps
                 'user.avatarMedia',
                 'labels',
             ])
-            ->withCount('notes')
+            ->withCount(['notes', 'groupPosts'])
             ->matchingLabelFilter($labelIds, $untagged);
     }
 
@@ -237,9 +264,9 @@ class BuildPublishPageProps
         ];
     }
 
-    private static function paginatedCards(string $tab, Builder $query, ?string $openPostNotesId): LengthAwarePaginator
+    private static function paginatedCards(string $tab, Builder $query, ?string $focusedPostId, ?User $requester): LengthAwarePaginator
     {
-        $query->when($openPostNotesId, fn (Builder $query) => $query->whereKey($openPostNotesId));
+        $query->when($focusedPostId, fn (Builder $query) => $query->whereKey($focusedPostId));
 
         match ($tab) {
             self::TAB_QUEUE => $query->where('status', PostStatus::Scheduled)
@@ -248,6 +275,11 @@ class BuildPublishPageProps
                 ->orderByRaw('CASE WHEN posts.scheduled_at IS NULL THEN 0 ELSE 1 END')
                 ->orderBy('posts.scheduled_at')
                 ->latest('posts.created_at'),
+            self::TAB_APPROVALS => $query->pendingApproval()
+                ->visiblePendingApprovalsFor($requester)
+                ->orderByRaw('CASE WHEN posts.scheduled_at IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('posts.scheduled_at')
+                ->orderBy('posts.approval_requested_at'),
             default => $query->whereIn('status', self::SENT_STATUSES)
                 ->orderByRaw('COALESCE(posts.published_at, posts.updated_at) DESC'),
         };
@@ -266,7 +298,7 @@ class BuildPublishPageProps
     /**
      * @param  Collection<int, Post>  $posts
      */
-    private static function decorate(Collection $posts): void
+    public static function decorate(Collection $posts): void
     {
         $hasSchedule = [];
         $posts->pluck('user')->filter()->each(fn (User $user) => $user->makeHidden('avatarMedia'));
@@ -290,8 +322,9 @@ class BuildPublishPageProps
     /**
      * @param  Collection<int, Post>  $posts
      */
-    private static function attachMetrics(Collection $posts): void
+    public static function attachMetrics(Collection $posts): void
     {
+        $posts = $posts->filter(fn (Post $post): bool => in_array($post->status, self::SENT_STATUSES, true));
         $first = $posts->first();
 
         if ($first === null) {

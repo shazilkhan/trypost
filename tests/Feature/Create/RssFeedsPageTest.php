@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\RssFeed;
 use App\Models\RssFeedCollection;
 use App\Models\RssFeedItem;
@@ -22,7 +21,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -241,13 +240,11 @@ test('another workspace feed or collection is forbidden', function () {
     $this->actingAs($this->user)->get(route('app.create.feeds.collections.show', RssFeedCollection::factory()->create()))->assertForbidden();
 });
 
-test('viewers cannot open feeds', function () {
-    $viewer = User::factory()->create(['account_id' => $this->workspace->account_id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
-    $viewer->update(['current_workspace_id' => $this->workspace->id]);
-    $viewer = $viewer->fresh();
+test('a user outside the workspace cannot open feeds', function () {
+    $outsider = workspaceOutsider($this->workspace);
+    $outsider = $outsider->fresh();
     $feed = RssFeed::factory()->create(['workspace_id' => $this->workspace->id]);
 
-    $this->actingAs($viewer)->get(route('app.create.feeds.index'))->assertForbidden();
-    $this->actingAs($viewer)->get(route('app.create.feeds.show', $feed))->assertForbidden();
+    $this->actingAs($outsider)->get(route('app.create.feeds.index'))->assertForbidden();
+    $this->actingAs($outsider)->get(route('app.create.feeds.show', $feed))->assertForbidden();
 });

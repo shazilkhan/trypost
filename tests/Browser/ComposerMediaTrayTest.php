@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Media\Type as MediaType;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -58,7 +57,7 @@ function openComposerMediaTray(mixed $test, string $mode = 'pass', int $channels
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $accounts = SocialAccount::factory()->{$platform}()->count($channels)->create(['workspace_id' => $workspace->id])->all();

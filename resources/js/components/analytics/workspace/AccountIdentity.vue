@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import {
     getPlatformLabel,
     getPlatformLogo,
@@ -30,22 +31,13 @@ const label = computed(() =>
             class="-mr-0.5 size-2.5 shrink-0 rounded-[3px]"
             :style="{ backgroundColor: color }"
         />
-        <span
+        <ChannelAvatar
             v-if="withAvatar"
-            class="relative inline-flex size-8 shrink-0"
-        >
-            <img
-                :src="account.avatar_url ?? getPlatformLogo(account.platform)"
-                :alt="getPlatformLabel(account.platform)"
-                class="size-full rounded-lg object-cover"
-            />
-            <img
-                v-if="account.avatar_url"
-                :src="getPlatformLogo(account.platform)"
-                alt=""
-                class="absolute -right-1.5 -bottom-1 size-4.5 rounded-md border border-card bg-card"
-            />
-        </span>
+            :platform="account.platform"
+            :src="account.avatar_url"
+            :name="label"
+            ring="card"
+        />
         <img
             v-else
             :src="getPlatformLogo(account.platform)"

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -23,29 +22,29 @@ function waitForSidebarChannelsTestId(mixed $page, string $testId): void
     JS);
 }
 
-function sidebarChannelsUser(Role $role): User
+function sidebarChannelsUser(string $role): User
 {
     $owner = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $owner->account_id,
         'user_id' => $owner->id,
     ]);
-    $workspace->members()->attach($owner->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($owner->id, membershipPivot('admin'));
     $owner->update(['current_workspace_id' => $workspace->id]);
 
-    if ($role === Role::Admin) {
+    if ($role === 'admin') {
         return $owner->fresh();
     }
 
     $member = User::factory()->create(['account_id' => $owner->account_id]);
-    $workspace->members()->attach($member->id, ['role' => $role->value]);
+    $workspace->members()->attach($member->id, membershipPivot($role));
     $member->update(['current_workspace_id' => $workspace->id]);
 
     return $member->fresh();
 }
 
 test('admins see channels with settings and connect controls', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -61,7 +60,7 @@ test('admins see channels with settings and connect controls', function () {
 });
 
 test('a channel publish link leads to that channel publish page', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -77,7 +76,7 @@ test('a channel publish link leads to that channel publish page', function () {
 });
 
 test('members see channels without admin controls', function () {
-    $user = sidebarChannelsUser(Role::Member);
+    $user = sidebarChannelsUser('member');
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -91,7 +90,7 @@ test('members see channels without admin controls', function () {
 });
 
 test('a lost connection is flagged on the channel', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->linkedin()->tokenExpired()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -102,7 +101,7 @@ test('a lost connection is flagged on the channel', function () {
 });
 
 test('an empty workspace offers to connect a channel', function () {
-    $this->actingAs(sidebarChannelsUser(Role::Admin));
+    $this->actingAs(sidebarChannelsUser('admin'));
 
     $page = visit(route('app.posts.index'));
     waitForSidebarChannelsTestId($page, 'sidebar-channels-empty');
@@ -114,7 +113,7 @@ test('an empty workspace offers to connect a channel', function () {
 });
 
 test('the channel new-post shortcut opens the composer with that channel selected', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $other = SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
@@ -142,7 +141,7 @@ function waitForSidebarChannelsScript(mixed $page, string $condition): void
 }
 
 test('the chevron expands and collapses a channel submenu with an animated grid row', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -171,33 +170,29 @@ test('the chevron expands and collapses a channel submenu with an animated grid 
     expect(parse_url((string) $page->script('window.location.href'), PHP_URL_PATH))->toBe(parse_url(route('app.posts.index'), PHP_URL_PATH));
 });
 
-test('the collapse button shrinks the sidebar to the icon rail and back', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+test('the sidebar cannot be collapsed', function () {
+    $user = sidebarChannelsUser('admin');
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
     $page = visit(route('app.posts.index'));
-    waitForSidebarChannelsTestId($page, 'sidebar-collapse');
+    waitForSidebarChannelsTestId($page, 'sidebar-new');
 
     $sidebar = "document.querySelector('[data-slot=\"sidebar\"]')";
 
-    $page->click('@sidebar-collapse');
-    waitForSidebarChannelsScript($page, "{$sidebar}.dataset.state === 'collapsed' && Math.round({$sidebar}.lastElementChild.getBoundingClientRect().width) === 52");
+    $page->assertMissing('@sidebar-collapse');
 
-    expect($page->script("{$sidebar}.dataset.collapsible"))->toBe('icon')
-        ->and($page->script("Math.round({$sidebar}.lastElementChild.getBoundingClientRect().width)"))->toBe(52);
+    $page->script("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', metaKey: true, ctrlKey: true, bubbles: true }))");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
 
-    expect($page->script("Math.round(document.querySelector('[data-testid=\"sidebar-new\"]').getBoundingClientRect().width)"))->toBe(32);
+    expect($page->script("{$sidebar}.dataset.state"))->toBe('expanded')
+        ->and($page->script("Math.round({$sidebar}.lastElementChild.getBoundingClientRect().width)"))->toBe(240);
 
-    $page->click('@sidebar-collapse');
-    waitForSidebarChannelsScript($page, "{$sidebar}.dataset.state === 'expanded' && {$sidebar}.lastElementChild.getBoundingClientRect().width === 240");
-
-    expect($page->script("Math.round({$sidebar}.lastElementChild.getBoundingClientRect().width)"))->toBe(240);
     $page->assertNoJavaScriptErrors();
 });
 
 test('an expanded channel shows its scheduled count on the Publish item', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->threads()->create(['workspace_id' => $user->current_workspace_id]);
     $empty = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
 
@@ -230,7 +225,7 @@ test('an expanded channel shows its scheduled count on the Publish item', functi
 });
 
 test('the channel chevron gets a hover background and buttons use the pointer cursor', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -241,8 +236,7 @@ test('the channel chevron gets a hover background and buttons use the pointer cu
 
     expect($page->script("getComputedStyle({$toggle}).backgroundColor"))->toBe('rgba(0, 0, 0, 0)')
         ->and($page->script("{$toggle}.tagName"))->toBe('BUTTON')
-        ->and($page->script("getComputedStyle({$toggle}).cursor"))->toBe('pointer')
-        ->and($page->script("getComputedStyle(document.querySelector('[data-testid=\"sidebar-collapse\"]')).cursor"))->toBe('pointer');
+        ->and($page->script("getComputedStyle({$toggle}).cursor"))->toBe('pointer');
 
     $page->hover("@sidebar-channel-{$channel->id}");
     $page->hover("@sidebar-channel-{$channel->id}-toggle");
@@ -253,7 +247,7 @@ test('the channel chevron gets a hover background and buttons use the pointer cu
 });
 
 test('the channels header shows the channel count and reveals sized actions on hover', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channels = SocialAccount::factory()->linkedin()->count(3)->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -289,7 +283,7 @@ test('the channels header shows the channel count and reveals sized actions on h
 });
 
 test('keyboard focus reveals the channels header actions', function () {
-    $user = sidebarChannelsUser(Role::Member);
+    $user = sidebarChannelsUser('member');
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -307,7 +301,7 @@ test('keyboard focus reveals the channels header actions', function () {
 });
 
 test('the channels search button shows its shortcut and opens the command palette', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 
@@ -328,7 +322,7 @@ test('the channels search button shows its shortcut and opens the command palett
 });
 
 test('only the channel list scrolls while the main nav and the footer stay fixed', function () {
-    $user = sidebarChannelsUser(Role::Admin);
+    $user = sidebarChannelsUser('admin');
     $channels = SocialAccount::factory()->linkedin()->count(20)->create(['workspace_id' => $user->current_workspace_id]);
     $this->actingAs($user);
 

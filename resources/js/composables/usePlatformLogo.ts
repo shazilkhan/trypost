@@ -80,9 +80,10 @@ export const hasMultipleContentTypes = (platform: string): boolean =>
     getContentTypeOptions(platform).length > 1;
 
 /**
- * Translation key for the badge that names a published format, or null when
- * the format was never a choice: tagging "Post" on X would just repeat the
- * platform name.
+ * Translation key for the badge that names a published format, or null for a
+ * platform's default format: tagging a regular post would just add noise.
  */
 export const getContentTypeBadgeKey = (platform: string, contentType: string | null): string | null =>
-    contentType && hasMultipleContentTypes(platform) ? translationKeyFor(contentType) : null;
+    contentType && hasMultipleContentTypes(platform) && contentType !== PLATFORM_CONTENT_TYPES[platform]?.[0]
+        ? translationKeyFor(contentType)
+        : null;

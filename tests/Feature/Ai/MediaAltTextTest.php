@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Ai\Agents\MediaAltTextGenerator;
 use App\Enums\User\Locale;
-use App\Enums\UserWorkspace\Role;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\User;
@@ -16,7 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->asset = Media::factory()->temporaryUpload($this->workspace)->create();
 });

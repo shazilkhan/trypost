@@ -14,6 +14,7 @@ interface Preferences {
     post_failed: boolean;
     account_disconnected: boolean;
     post_note_added: boolean;
+    collaboration: boolean;
 }
 
 interface Props {
@@ -26,6 +27,7 @@ const postPublished = ref(props.preferences.post_published);
 const postFailed = ref(props.preferences.post_failed);
 const accountDisconnected = ref(props.preferences.account_disconnected);
 const postNoteAdded = ref(props.preferences.post_note_added);
+const collaboration = ref(props.preferences.collaboration);
 const processing = ref(false);
 
 const options = [
@@ -33,6 +35,7 @@ const options = [
     { id: 'post_failed', model: postFailed },
     { id: 'account_disconnected', model: accountDisconnected },
     { id: 'post_note_added', model: postNoteAdded },
+    { id: 'collaboration', model: collaboration },
 ] as const;
 
 const submit = () => {
@@ -45,6 +48,7 @@ const submit = () => {
             post_failed: postFailed.value,
             account_disconnected: accountDisconnected.value,
             post_note_added: postNoteAdded.value,
+            collaboration: collaboration.value,
         },
         {
             preserveScroll: true,

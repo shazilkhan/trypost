@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => '断开频道连接',
-        'description' => '确定要断开此频道的连接吗？你可以随时重新连接。',
+        'description' => '这会删除此频道在 TryPost 中的所有帖子，包括草稿、已排期的帖子和已发布历史。已在社交网络上的帖子会保留。',
         'confirm' => '断开连接',
+        'keyword' => '断开连接',
         'cancel' => '取消',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => '浏览器检测到的时区',
         'placeholder' => '搜索城市或时区',
         'empty' => '未找到时区',
+    ],
+    'grid' => [
+        'title' => '网格',
+        'info' => '这是你的帖子网格的近似效果。在其他设备上可能有所不同，直接在 Instagram 上发布的帖子会在同步后更新。',
+        'sent_at' => '此帖子发送于 :date :time',
+        'empty_title' => '还没有已发布的帖子',
+        'empty_description' => '此频道发布的动态帖子和 Reels 会显示在这里。',
+        'reel' => 'Reels',
+        'carousel' => '轮播',
     ],
 ];

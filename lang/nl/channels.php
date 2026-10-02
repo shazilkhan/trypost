@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Kanaal loskoppelen',
-        'description' => 'Weet je zeker dat je dit kanaal wilt loskoppelen? Je kunt het op elk moment opnieuw koppelen.',
+        'description' => 'Hiermee worden alle berichten van dit kanaal in TryPost verwijderd, inclusief concepten, ingeplande berichten en de publicatiegeschiedenis. Berichten die al op het netwerk staan, blijven daar.',
         'confirm' => 'Loskoppelen',
+        'keyword' => 'LOSKOPPELEN',
         'cancel' => 'Annuleren',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Door de browser gedetecteerde tijdzone',
         'placeholder' => 'Zoek steden of tijdzones',
         'empty' => 'Geen tijdzone gevonden',
+    ],
+    'grid' => [
+        'title' => 'Raster',
+        'info' => 'Dit is een benadering van je berichtenraster. Op andere apparaten kan het afwijken, en berichten die direct op Instagram zijn geplaatst verschijnen zodra we synchroniseren.',
+        'sent_at' => 'Dit bericht is verzonden op :date om :time',
+        'empty_title' => 'Nog geen gepubliceerde berichten',
+        'empty_description' => 'Feedberichten en reels die op dit kanaal zijn gepubliceerd, verschijnen hier.',
+        'reel' => 'Reel',
+        'carousel' => 'Carrousel',
     ],
 ];

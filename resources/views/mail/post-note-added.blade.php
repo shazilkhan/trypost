@@ -81,9 +81,7 @@
                     <p style="margin: 0; font-size: 14px; font-weight: 600; color: #18181b">
                       {{ __('mail.post_note_added.post_title') }}
                     </p>
-                    <p style="margin: 8px 0 0; font-size: 14px; line-height: 24px">
-                      {{ $postExcerpt !== '' ? $postExcerpt : __('mail.post_note_added.post_without_text') }}
-                    </p>
+                    <p style="white-space: pre-line; margin: 8px 0 0; font-size: 14px; line-height: 24px">{{ $postExcerpt !== '' ? $postExcerpt : __('mail.post_note_added.post_without_text') }}</p>
                     @if(count($channels) > 0)
                     <ul style="margin: 8px 0 0; padding-left: 20px; font-size: 14px; line-height: 24px">
                       @foreach($channels as $channel)

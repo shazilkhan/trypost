@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
@@ -37,7 +36,7 @@ function waitForLabelPopoverUrl(mixed $page, string $condition): void
 test('the label filter offers untagged, clears the selection and links to the labels page', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id, 'name' => 'Campaign']);

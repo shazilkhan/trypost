@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\RssFeed\FetchRssFeed;
 use App\Models\Idea;
 use App\Models\Media;
@@ -78,7 +77,7 @@ function createFeedsSetup(): array
         'account_id' => $user->account_id,
         'user_id' => $user->id,
     ]);
-    $workspace->members()->attach($user->id, ['role' => Role::Admin->value]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
@@ -304,11 +303,7 @@ test('the scope menu renames in a dialog, moves into a collection and back, and 
     $page->click('@feeds-delete');
     waitForCreateFeedsDialog($page, 'confirm-delete-modal');
 
-    $page->assertDisabled('@confirm-delete-action')
-        ->type('@confirm-delete-input', 'delete')
-        ->assertDisabled('@confirm-delete-action')
-        ->clear('@confirm-delete-input')
-        ->type('@confirm-delete-input', 'DELETE')
+    $page->assertMissing('@confirm-delete-input')
         ->click('@confirm-delete-action');
     waitForCreateFeedsCondition($page, "window.location.pathname === '".route('app.create.feeds.index', [], false)."'");
 
@@ -561,7 +556,7 @@ test('explore switches categories, adds a directory feed and offers the trash fo
 
     $page->click('@feeds-explore-remove-1');
     waitForCreateFeedsDialog($page, 'confirm-delete-modal');
-    $page->type('@confirm-delete-input', 'DELETE')->click('@confirm-delete-action');
+    $page->assertMissing('@confirm-delete-input')->click('@confirm-delete-action');
     waitForCreateFeedsDatabase($page, fn (): bool => ! RssFeed::query()->whereKey($verge->id)->exists());
     waitForCreateFeedsTestId($page, 'feeds-explore-add-1');
 

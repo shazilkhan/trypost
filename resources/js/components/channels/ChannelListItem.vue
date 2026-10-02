@@ -11,8 +11,7 @@ import {
 } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
-import PlatformLogo from '@/components/PlatformLogo.vue';
-import { Avatar } from '@/components/ui/avatar';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -63,20 +62,13 @@ const accountTypeKey = computed((): string | null =>
     >
         <slot name="handle" />
 
-        <span class="relative me-1 shrink-0">
-            <Avatar
-                :src="channel.avatar_url"
-                :name="channel.display_name || channel.username"
-                class="size-10 rounded-xl"
-                fallback-class="bg-secondary text-xs font-bold"
-            />
-            <PlatformLogo
-                :platform="channel.platform"
-                :size="22"
-                ring="card"
-                class="absolute -end-2 -bottom-px"
-            />
-        </span>
+        <ChannelAvatar
+            :platform="channel.platform"
+            :src="channel.avatar_url"
+            :name="channel.display_name || channel.username"
+            :size="40"
+            ring="card"
+        />
 
         <div class="min-w-0 flex-1">
             <p

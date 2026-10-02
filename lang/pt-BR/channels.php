@@ -161,8 +161,9 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Desconectar canal',
-        'description' => 'Tem certeza que deseja desconectar este canal? Você pode reconectá-lo a qualquer momento.',
+        'description' => 'Isso apaga todos os posts deste canal no TryPost, incluindo rascunhos, agendados e o histórico de publicados. Os posts que já estão na rede continuam lá.',
         'confirm' => 'Desconectar',
+        'keyword' => 'DESCONECTAR',
         'cancel' => 'Cancelar',
     ],
 
@@ -241,5 +242,14 @@ return [
         'detected' => 'Fuso detectado pelo navegador',
         'placeholder' => 'Buscar cidades ou fusos horários',
         'empty' => 'Nenhum fuso horário encontrado',
+    ],
+    'grid' => [
+        'title' => 'Grade',
+        'info' => 'Esta é uma aproximação da sua grade de posts. Ela pode mudar em outros dispositivos, e os posts publicados direto no Instagram aparecem quando sincronizamos.',
+        'sent_at' => 'Este post foi enviado em :date às :time',
+        'empty_title' => 'Nenhum post publicado ainda',
+        'empty_description' => 'Posts do feed e reels publicados neste canal vão aparecer aqui.',
+        'reel' => 'Reel',
+        'carousel' => 'Carrossel',
     ],
 ];

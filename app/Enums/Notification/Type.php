@@ -11,4 +11,5 @@ enum Type: string
     case AccountDisconnected = 'account_disconnected';
     case PostAtRisk = 'post_at_risk';
     case PostNoteAdded = 'post_note_added';
+    case Collaboration = 'collaboration';
 }

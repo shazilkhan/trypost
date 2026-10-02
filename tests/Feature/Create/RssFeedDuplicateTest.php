@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\RssFeed;
 use App\Models\User;
 use App\Models\Workspace;
@@ -25,7 +24,7 @@ beforeEach(function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user = $this->user->fresh();
     subscribeAccount($this->user->account);
@@ -122,7 +121,7 @@ test('the same feed can be added to another workspace', function () {
         'account_id' => $this->user->account_id,
         'user_id' => $this->user->id,
     ]);
-    $other->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $other->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $other->id]);
 
     $this->actingAs($this->user->fresh())

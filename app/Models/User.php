@@ -175,6 +175,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             NotificationType::PostFailed => $preference->post_failed,
             NotificationType::AccountDisconnected, NotificationType::PostAtRisk => $preference->account_disconnected,
             NotificationType::PostNoteAdded => $preference->post_note_added ?? true,
+            NotificationType::Collaboration => $preference->collaboration ?? true,
         };
     }
 

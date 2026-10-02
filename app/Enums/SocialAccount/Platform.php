@@ -34,6 +34,12 @@ enum Platform: string
         };
     }
 
+    /** Whether the network lays published posts out as a profile grid TryPost can approximate. */
+    public function hasProfileGrid(): bool
+    {
+        return $this->network() === self::Instagram->network();
+    }
+
     public function isIncludedInAnalytics(): bool
     {
         return match ($this) {

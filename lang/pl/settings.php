@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'Otrzymuj e-mail, gdy konto społecznościowe zostanie rozłączone',
         'post_note_added' => 'Nowa notatka do posta',
         'post_note_added_description' => 'Otrzymuj e-mail, gdy członek zespołu doda notatkę do posta',
+        'collaboration' => 'Współpraca',
+        'collaboration_description' => 'Otrzymuj e-maile o prośbach o zatwierdzenie oraz zatwierdzonych lub odrzuconych postach',
         'save' => 'Zapisz preferencje',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'Anuluj',
         'remove' => 'Usuń',
-        'make_role' => 'Ustaw jako :role',
 
         'invite' => [
             'title' => 'Zaproś członka',
             'description' => 'Wyślij zaproszenie e-mail, aby dodać współpracowników',
             'email' => 'E-mail',
             'email_placeholder' => 'wspolpracownik@email.com',
-            'role' => 'Rola',
-            'role_placeholder' => 'Wybierz rolę',
             'submit' => 'Wyślij zaproszenie',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'Właściciel',
             'admin' => 'Administrator',
             'member' => 'Członek',
-            'viewer' => 'Przeglądający',
+        ],
+        'access' => [
+            'admin_description' => 'Zarządza członkami i ustawieniami',
+            'publishing' => 'Publikowanie',
+            'publishes_directly' => 'Publikuje bezpośrednio',
+            'needs_approval' => 'Wymaga zatwierdzenia',
+            'publishing_help' => 'Posty członków wymagających zatwierdzenia czekają na administratora lub członka, który publikuje bezpośrednio.',
+        ],
+        'edit' => [
+            'title' => 'Edytuj członka',
+            'description' => 'Wybierz, co ten członek może robić w tej przestrzeni roboczej.',
+            'submit' => 'Zapisz',
+            'action' => 'Edytuj dostęp',
         ],
 
         'errors' => [
             'invite_exists' => 'Zaproszenie dla tego adresu e-mail już istnieje.',
             'email_belongs_to_account' => 'Ten adres e-mail należy już do innego konta TryPost. Poproś o dedykowany służbowy adres e-mail.',
+            'cannot_remove_self' => 'Nie możesz usunąć samego siebie.',
+            'cannot_remove_owner' => 'Nie możesz usunąć właściciela konta.',
+            'cannot_change_own_access' => 'Nie możesz zmienić własnego dostępu.',
+            'cannot_change_owner_access' => 'Nie możesz zmienić dostępu właściciela konta.',
         ],
 
         'flash' => [
             'invite_sent' => 'Zaproszenie zostało pomyślnie wysłane!',
             'invite_deleted' => 'Zaproszenie usunięte.',
             'member_removed' => 'Członek został pomyślnie usunięty.',
-            'role_updated' => 'Rola członka została zaktualizowana.',
             'wrong_email' => 'To zaproszenie dotyczy innego adresu e-mail.',
             'already_member' => 'Jesteś już członkiem tej przestrzeni roboczej.',
             'invite_accepted' => 'Witamy! Jesteś teraz członkiem przestrzeni roboczej.',

@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Enums\UserWorkspace\Role;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -12,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['account_id' => $this->user->account_id, 'user_id' => $this->user->id]);
-    $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
+    $this->workspace->members()->attach($this->user->id, membershipPivot('admin'));
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->user->refresh();
 
@@ -129,16 +128,15 @@ test('rejects a social account that is not pinterest', function () {
     Http::assertNothingSent();
 });
 
-test('forbids a viewer from managing boards', function () {
+test('forbids a user outside the workspace from managing boards', function () {
     Http::fake();
-    $viewer = User::factory()->create(['account_id' => $this->user->account_id, 'current_workspace_id' => $this->workspace->id]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
+    $outsider = workspaceOutsider($this->workspace);
 
-    $this->actingAs($viewer)
+    $this->actingAs($outsider)
         ->postJson(route('app.pinterest.boards.store', $this->account), ['name' => 'Ideas'])
         ->assertForbidden();
 
-    $this->actingAs($viewer)
+    $this->actingAs($outsider)
         ->getJson(route('app.pinterest.boards.index', $this->account))
         ->assertForbidden();
 
@@ -150,7 +148,7 @@ test('a member can create boards', function () {
         "{$this->api}/boards" => Http::response(['id' => '1', 'name' => 'Ideas'], 201),
     ]);
     $member = User::factory()->create(['account_id' => $this->user->account_id, 'current_workspace_id' => $this->workspace->id]);
-    $this->workspace->members()->attach($member->id, ['role' => Role::Member->value]);
+    $this->workspace->members()->attach($member->id, membershipPivot('member'));
 
     $this->actingAs($member)
         ->postJson(route('app.pinterest.boards.store', $this->account), ['name' => 'Ideas'])

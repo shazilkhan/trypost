@@ -381,3 +381,20 @@ test('polling the same video twice queues it only once', function () {
     Bus::assertDispatchedTimes(ProcessRepurposeItem::class, 1);
     expect(RepurposeItem::query()->count())->toBe(1);
 });
+
+test('a post imported from the network does not count as published through trypost', function () {
+    Bus::fake();
+    fakeInstagramMedia([mediaRow('imported-1')]);
+
+    $account = instagramAccount();
+    $repurpose = activeRepurposeOn($account);
+
+    $post = Post::factory()->imported()->create(['workspace_id' => $account->workspace_id]);
+    PostPlatform::factory()->for($post)->create(['platform_post_id' => 'imported-1']);
+
+    poll($account);
+
+    expect($repurpose->items()->sole()->reason)->toBeNull();
+
+    Bus::assertDispatched(ProcessRepurposeItem::class);
+});

@@ -32,7 +32,7 @@ import {
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import { useShowPostingSlots } from '@/composables/useShowPostingSlots';
-import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import { activeLocale } from '@/language';
@@ -41,6 +41,7 @@ import { calendarItems, type CalendarItem } from '@/lib/calendarItems';
 import { calendar } from '@/routes/app';
 import {
     calendar as channelCalendar,
+    grid,
     publish,
     settings,
 } from '@/routes/app/channels';
@@ -83,7 +84,7 @@ interface Props {
 
 const props = defineProps<Props>();
 const page = usePage();
-const { canCreatePost, canManageAccounts } = useWorkspaceRole();
+const { canCreatePost, canManageAccounts } = useWorkspaceAbilities();
 const { showSlots, setShowSlots } = useShowPostingSlots();
 
 const VIEWS: readonly CalendarView[] = ['week', 'month'];
@@ -405,6 +406,9 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                     active-view="calendar"
                     :list-href="listHref"
                     :calendar-href="calendarUrl('month')"
+                    :grid-href="
+                        channel?.has_grid ? grid.url(channel.id) : undefined
+                    "
                 />
                 <Button
                     v-if="canCreatePost"

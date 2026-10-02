@@ -43,6 +43,8 @@ return [
         'account_disconnected_description' => 'Receive an email when a social account is disconnected',
         'post_note_added' => 'New note on a post',
         'post_note_added_description' => 'Receive an email when a team member adds a note to a post',
+        'collaboration' => 'Collaboration',
+        'collaboration_description' => 'Get emails about approval requests and approved or rejected posts',
         'save' => 'Save preferences',
     ],
 
@@ -195,15 +197,12 @@ return [
 
         'cancel' => 'Cancel',
         'remove' => 'Remove',
-        'make_role' => 'Make :role',
 
         'invite' => [
             'title' => 'Invite Member',
             'description' => 'Send an email invite to add collaborators',
             'email' => 'Email',
             'email_placeholder' => 'collaborator@email.com',
-            'role' => 'Role',
-            'role_placeholder' => 'Select a role',
             'submit' => 'Send Invite',
         ],
 
@@ -235,19 +234,34 @@ return [
             'owner' => 'Owner',
             'admin' => 'Admin',
             'member' => 'Member',
-            'viewer' => 'Viewer',
+        ],
+        'access' => [
+            'admin_description' => 'Can manage members and workspace settings',
+            'publishing' => 'Publishing',
+            'publishes_directly' => 'Publishes directly',
+            'needs_approval' => 'Needs approval',
+            'publishing_help' => 'Posts from members who need approval wait for an admin or a member who publishes directly.',
+        ],
+        'edit' => [
+            'title' => 'Edit member',
+            'description' => 'Choose what this member can do in this workspace.',
+            'submit' => 'Save',
+            'action' => 'Edit access',
         ],
 
         'errors' => [
             'invite_exists' => 'An invite already exists for this email.',
             'email_belongs_to_account' => 'This email already belongs to another TryPost account. Ask for a dedicated work email instead.',
+            'cannot_remove_self' => 'You cannot remove yourself.',
+            'cannot_remove_owner' => 'You cannot remove the account owner.',
+            'cannot_change_own_access' => 'You cannot change your own access.',
+            'cannot_change_owner_access' => 'You cannot change the account owner\'s access.',
         ],
 
         'flash' => [
             'invite_sent' => 'Invite sent successfully!',
             'invite_deleted' => 'Invite deleted.',
             'member_removed' => 'Member removed successfully.',
-            'role_updated' => 'Member role updated.',
             'wrong_email' => 'This invite is for a different email address.',
             'already_member' => 'You are already a member of this workspace.',
             'invite_accepted' => 'Welcome! You are now a member of the workspace.',

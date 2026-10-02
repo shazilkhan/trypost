@@ -8,7 +8,6 @@ return [
     'back' => 'Geri',
 
     'confirm_modal' => [
-        'cannot_be_undone' => 'Bu işlem geri alınamaz.',
         'type' => 'Yazın:',
         'to_confirm' => 'onaylamak için.',
         'copy_to_clipboard' => 'Panoya kopyala',
@@ -65,5 +64,16 @@ return [
         'copy' => 'Kopyala',
         'copied' => 'Kopyalandı',
         'copy_failed' => 'Panoya kopyalanamadı',
+    ],
+
+    'media_lightbox' => [
+        'title' => 'Medya önizlemesi',
+        'previous' => 'Önceki',
+        'next' => 'Sonraki',
+        'zoom_in' => 'Yakınlaştır',
+        'zoom_out' => 'Uzaklaştır',
+        'counter' => ':current / :total',
+        'go_to' => ':number. öğeyi göster',
+        'open' => 'Önizlemeyi aç',
     ],
 ];

@@ -1,5 +1,6 @@
 export const PostStatus = {
     Draft: 'draft',
+    PendingApproval: 'pending_approval',
     Scheduled: 'scheduled',
     Publishing: 'publishing',
     Published: 'published',
@@ -27,5 +28,12 @@ export const ScheduleMode = {
 } as const;
 
 export type ScheduleModeValue = (typeof ScheduleMode)[keyof typeof ScheduleMode];
+
+export const PostOrigin = {
+    TryPost: 'trypost',
+    Network: 'network',
+} as const;
+
+export type PostOriginValue = (typeof PostOrigin)[keyof typeof PostOrigin];
 
 export type QueuePositionValue = 'next' | 'top';

@@ -45,6 +45,8 @@ return [
         'account_disconnected_description' => 'Erhalte eine E-Mail, wenn ein Social-Media-Konto getrennt wird',
         'post_note_added' => 'Neue Notiz zu einem Beitrag',
         'post_note_added_description' => 'Erhalte eine E-Mail, wenn ein Teammitglied eine Notiz zu einem Beitrag hinzufügt',
+        'collaboration' => 'Zusammenarbeit',
+        'collaboration_description' => 'Erhalte E-Mails zu Freigabeanfragen und freigegebenen oder abgelehnten Beiträgen',
         'save' => 'Einstellungen speichern',
     ],
 
@@ -197,15 +199,12 @@ return [
 
         'cancel' => 'Abbrechen',
         'remove' => 'Entfernen',
-        'make_role' => 'Zu :role machen',
 
         'invite' => [
             'title' => 'Mitglied einladen',
             'description' => 'Sende eine E-Mail-Einladung, um Mitarbeiter hinzuzufügen',
             'email' => 'E-Mail',
             'email_placeholder' => 'mitarbeiter@email.com',
-            'role' => 'Rolle',
-            'role_placeholder' => 'Rolle auswählen',
             'submit' => 'Einladung senden',
         ],
 
@@ -237,19 +236,34 @@ return [
             'owner' => 'Inhaber',
             'admin' => 'Admin',
             'member' => 'Mitglied',
-            'viewer' => 'Betrachter',
+        ],
+        'access' => [
+            'admin_description' => 'Verwaltet Mitglieder und Einstellungen',
+            'publishing' => 'Veröffentlichen',
+            'publishes_directly' => 'Veröffentlicht direkt',
+            'needs_approval' => 'Braucht Freigabe',
+            'publishing_help' => 'Beiträge von Mitgliedern, die eine Freigabe brauchen, warten auf einen Admin oder ein Mitglied, das direkt veröffentlicht.',
+        ],
+        'edit' => [
+            'title' => 'Mitglied bearbeiten',
+            'description' => 'Lege fest, was dieses Mitglied in diesem Workspace tun darf.',
+            'submit' => 'Speichern',
+            'action' => 'Zugriff bearbeiten',
         ],
 
         'errors' => [
             'invite_exists' => 'Für diese E-Mail existiert bereits eine Einladung.',
             'email_belongs_to_account' => 'Diese E-Mail gehört bereits zu einem anderen TryPost-Konto. Bitte eine dedizierte Arbeits-E-Mail verwenden.',
+            'cannot_remove_self' => 'Du kannst dich nicht selbst entfernen.',
+            'cannot_remove_owner' => 'Du kannst den Kontoinhaber nicht entfernen.',
+            'cannot_change_own_access' => 'Du kannst deinen eigenen Zugriff nicht ändern.',
+            'cannot_change_owner_access' => 'Du kannst den Zugriff des Kontoinhabers nicht ändern.',
         ],
 
         'flash' => [
             'invite_sent' => 'Einladung erfolgreich gesendet!',
             'invite_deleted' => 'Einladung gelöscht.',
             'member_removed' => 'Mitglied erfolgreich entfernt.',
-            'role_updated' => 'Rolle des Mitglieds aktualisiert.',
             'wrong_email' => 'Diese Einladung gilt für eine andere E-Mail-Adresse.',
             'already_member' => 'Du bist bereits Mitglied dieses Workspace.',
             'invite_accepted' => 'Willkommen! Du bist jetzt Mitglied des Workspace.',

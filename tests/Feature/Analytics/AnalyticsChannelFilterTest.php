@@ -87,7 +87,7 @@ beforeEach(function () {
 
 function analyticsChannelFilterRoute(array $channels = [], array $labels = [], bool $untagged = false): string
 {
-    return route('app.analytics', array_filter([
+    return route('app.insights', array_filter([
         'range' => 'custom',
         'start' => '2026-09-01',
         'end' => '2026-09-30',
@@ -102,10 +102,11 @@ test('without a channel filter every channel is reported and offered as an optio
         ->get(analyticsChannelFilterRoute())
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('analytics/Index')
-            ->has('channels', 3)
-            ->where('channels.0.analytics_key', fn (string $key): bool => in_array($key, [$this->instagram->id, $this->facebook->id, $this->threads->id], true))
+            ->component('insights/Index')
+            ->has('channelOptions', 3)
+            ->where('channelOptions.0.analytics_key', fn (string $key): bool => in_array($key, [$this->instagram->id, $this->facebook->id, $this->threads->id], true))
             ->where('report.filters.channels', [])
+            ->where('channels.0.scheduled_posts_count', fn ($count): bool => is_int($count))
             ->where('availableMetrics', null)
             ->where('report.summary.posts.value', 3)
             ->where('report.summary.reactions.value', 70)
@@ -162,7 +163,7 @@ test('invalid and foreign channel ids are ignored', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('report.filters.channels', [])
-            ->has('channels', 3)
+            ->has('channelOptions', 3)
             ->where('report.summary.posts.value', 3)
             ->where('report.summary.reactions.value', 70)
             ->etc());
@@ -211,7 +212,7 @@ test('a reconnected channel matches the rows stored under its previous analytics
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('report.filters.channels', [$reconnected->id])
-            ->where('channels', fn ($channels) => collect($channels)->firstWhere('id', $reconnected->id)['analytics_key'] === $previousKey)
+            ->where('channelOptions', fn ($channels) => collect($channels)->firstWhere('id', $reconnected->id)['analytics_key'] === $previousKey)
             ->where('report.summary.posts.value', 1)
             ->where('report.summary.reactions.value', 10)
             ->where('report.followers.accounts.0.value', 100)

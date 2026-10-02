@@ -79,7 +79,6 @@ class HandleInertiaRequests extends Middleware
             ],
             'usage' => $account && ! $isSelfHosted ? $account->usage() : null,
             'features' => $account && ! $isSelfHosted ? $account->featureLimits() : null,
-            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => $request->session()->get('flash', []),
             'applicationUrl' => config('app.url'),
             'env' => config('app.env'),

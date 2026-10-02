@@ -9,7 +9,6 @@ use App\Enums\Repurpose\SourceFormat;
 use App\Enums\Repurpose\Status;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\TikTok\PrivacyLevel;
-use App\Enums\UserWorkspace\Role;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -171,14 +170,14 @@ test('deleting removes the repurpose', function () {
     expect(Repurpose::count())->toBe(0);
 });
 
-test('a viewer cannot create a repurpose', function () {
-    $viewer = User::factory()->create([
+test('a member who needs approval cannot create a repurpose', function () {
+    $requester = User::factory()->create([
         'account_id' => $this->user->account_id,
         'current_workspace_id' => $this->workspace->id,
     ]);
-    $this->workspace->members()->attach($viewer->id, ['role' => Role::Viewer->value]);
+    $this->workspace->members()->attach($requester->id, membershipPivot('approval'));
 
-    $this->actingAs($viewer)
+    $this->actingAs($requester)
         ->post(route('app.repurposes.store'), ['source_social_account_id' => $this->source->id])
         ->assertForbidden();
 });

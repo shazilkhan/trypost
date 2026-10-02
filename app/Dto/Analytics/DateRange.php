@@ -13,10 +13,19 @@ final readonly class DateRange
 
     public CarbonImmutable $end;
 
-    public function __construct(CarbonImmutable $start, CarbonImmutable $end)
+    /**
+     * The last observation date that belongs to this range. Observations are dated by UTC day, so when the
+     * range ends on the viewer's today and the UTC day has already rolled over, today's observations carry
+     * the next UTC date and still belong to the range's last day.
+     */
+    public CarbonImmutable $observedThrough;
+
+    public function __construct(CarbonImmutable $start, CarbonImmutable $end, ?CarbonImmutable $observedThrough = null)
     {
         $this->start = $start->utc()->startOfDay();
         $this->end = $end->utc()->startOfDay();
+        $observedThrough = $observedThrough?->utc()->startOfDay();
+        $this->observedThrough = $observedThrough?->greaterThan($this->end) ? $observedThrough : $this->end;
 
         if ($this->start->greaterThan($this->end)) {
             throw new InvalidArgumentException('The analytics date range must start before it ends.');
