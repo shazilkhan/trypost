@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => 'Otrzymuj e-mail, gdy członek zespołu doda notatkę do posta',
         'collaboration' => 'Współpraca',
         'collaboration_description' => 'Otrzymuj e-maile o prośbach o zatwierdzenie oraz zatwierdzonych lub odrzuconych postach',
-        'save' => 'Zapisz preferencje',
+        'save_failed' => 'Nie udało się zapisać preferencji powiadomień. Spróbuj ponownie.',
     ],
 
     'preferences' => [
         'title' => 'Preferencje',
-        'saved' => 'Zapisano preferencje',
         'theme' => [
             'heading' => 'Wygląd',
             'description' => 'Wybierz, jak wygląda TryPost.',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'Strefa czasowa',
-            'description' => 'Używana jako domyślna strefa czasowa dla podłączanych kanałów.',
+            'description' => 'Służy do wyświetlania godzin, w Insights i e-mailach oraz jako domyślna dla nowych kanałów.',
         ],
         'time_format' => [
             'heading' => 'Format godziny',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => 'Nie udało się anulować subskrypcji u dostawcy płatności. Nic nie zostało usunięte. Spróbuj ponownie lub skontaktuj się z pomocą.',
         'logo_updated' => 'Logo zostało pomyślnie przesłane!',
         'logo_deleted' => 'Logo zostało pomyślnie usunięte!',
-        'notifications_updated' => 'Preferencje powiadomień zostały zaktualizowane!',
     ],
 
     'api_keys' => [

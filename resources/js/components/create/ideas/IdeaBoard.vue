@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { IconPlus } from '@tabler/icons-vue';
-import { nextTick, ref } from 'vue';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    type ComponentPublicInstance,
+} from 'vue';
 
+import IdeaCardView from '@/components/create/ideas/IdeaCard.vue';
 import IdeaColumn from '@/components/create/ideas/IdeaColumn.vue';
 import { useIdeaBoard } from '@/composables/useIdeaBoard';
 import {
@@ -12,7 +20,7 @@ import {
     type IdeaLabel,
 } from '@/types/idea';
 
-defineProps<{
+const props = defineProps<{
     stages: IdeaStage[];
     columns: Record<string, IdeaCard[]>;
     counts: Record<string, number>;
@@ -31,11 +39,13 @@ const emit = defineEmits<{
 }>();
 
 const {
+    registerBoard,
     registerCard,
     registerColumn,
     registerColumnHandle,
-    cardIndicator,
-    columnIndicator,
+    moveStage,
+    cardPreview,
+    stagePreview,
 } = useIdeaBoard({
     onMoveIdea: (ideaId, toStageId, orderedIdeaIds) =>
         emit('moveIdea', ideaId, toStageId, orderedIdeaIds),
@@ -43,9 +53,67 @@ const {
         emit('reorderStages', orderedStageIds),
 });
 
+const boardGroup = ref<ComponentPublicInstance | null>(null);
+let stopBoard: (() => void) | null = null;
+
+onMounted(() => {
+    const board = boardGroup.value?.$el;
+
+    if (board instanceof HTMLElement) {
+        stopBoard = registerBoard(board);
+    }
+});
+
+onBeforeUnmount(() => stopBoard?.());
+
+const draggedCard = computed<IdeaCard | null>(() => {
+    const ideaId = cardPreview.value?.ideaId;
+
+    return ideaId
+        ? (Object.values(props.columns)
+              .flat()
+              .find((card) => card.id === ideaId) ?? null)
+        : null;
+});
+
+const draggedStage = computed<IdeaStage | null>(
+    () =>
+        props.stages.find(
+            (stage) => stage.id === stagePreview.value?.stageId,
+        ) ?? null,
+);
+
+type StageEntry =
+    | { key: string; stage: IdeaStage }
+    | { key: 'stage-placeholder'; stage: null };
+
+const stageEntries = computed<StageEntry[]>(() => {
+    const entries: StageEntry[] = props.stages.map((stage) => ({
+        key: stage.id,
+        stage,
+    }));
+    const preview = stagePreview.value;
+
+    if (!preview) {
+        return entries;
+    }
+
+    const anchor = entries.filter(
+        (entry) => entry.stage?.id !== preview.stageId,
+    )[preview.index];
+
+    entries.splice(anchor ? entries.indexOf(anchor) : entries.length, 0, {
+        key: 'stage-placeholder',
+        stage: null,
+    });
+
+    return entries;
+});
+
 const addingStage = ref(false);
 const newStageName = ref('');
 const newStageInput = ref<HTMLInputElement | null>(null);
+const newStageButton = ref<HTMLButtonElement | null>(null);
 
 const startAddingStage = async (): Promise<void> => {
     newStageName.value = '';
@@ -57,6 +125,12 @@ const startAddingStage = async (): Promise<void> => {
 const cancelAddingStage = (): void => {
     addingStage.value = false;
     newStageName.value = '';
+};
+
+const cancelWithKeyboard = async (): Promise<void> => {
+    cancelAddingStage();
+    await nextTick();
+    newStageButton.value?.focus();
 };
 
 const submitStage = (): void => {
@@ -74,11 +148,15 @@ const submitStage = (): void => {
 </script>
 
 <template>
-    <div
-        class="flex min-h-0 flex-1 gap-4 overflow-x-auto overscroll-x-contain px-4 pt-4 pb-4 md:px-8"
+    <TransitionGroup
+        ref="boardGroup"
+        tag="div"
+        move-class="transition-transform duration-200 ease-out motion-reduce:transition-none"
+        class="relative flex min-h-0 flex-1 gap-4 overflow-x-auto overscroll-x-contain px-4 pt-4 pb-4 md:px-8"
         data-testid="ideas-board"
     >
         <IdeaColumn
+            key="unassigned"
             :stage="null"
             :count="counts[UNASSIGNED] ?? 0"
             :cards="columns[UNASSIGNED] ?? []"
@@ -87,37 +165,89 @@ const submitStage = (): void => {
             :selected-ids="selectedIds"
             :movable="movable"
             :new-idea-href="newIdeaHref(null)"
-            :card-indicator="cardIndicator"
-            :column-indicator="columnIndicator"
+            :card-preview="cardPreview"
+            :dragged-card="draggedCard"
             :register-card="registerCard"
             :register-column="registerColumn"
             :register-column-handle="registerColumnHandle"
         />
-        <IdeaColumn
-            v-for="stage in stages"
-            :key="stage.id"
-            :stage="stage"
-            :count="counts[columnKey(stage.id)] ?? 0"
-            :cards="columns[columnKey(stage.id)] ?? []"
-            :stages="stages"
-            :labels="labels"
-            :selected-ids="selectedIds"
-            :movable="movable"
-            :new-idea-href="newIdeaHref(stage.id)"
-            :card-indicator="cardIndicator"
-            :column-indicator="columnIndicator"
-            :register-card="registerCard"
-            :register-column="registerColumn"
-            :register-column-handle="registerColumnHandle"
-            @rename="(name) => emit('renameStage', stage, name)"
-            @delete="emit('deleteStage', stage)"
-        />
+        <template v-for="entry in stageEntries" :key="entry.key">
+            <div
+                v-if="entry.stage === null"
+                aria-hidden="true"
+                class="shrink-0 cursor-grabbing rounded-lg"
+                :style="{
+                    width: `${stagePreview?.width ?? 0}px`,
+                    height: `${stagePreview?.height ?? 0}px`,
+                }"
+                data-testid="idea-stage-placeholder"
+            >
+                <div
+                    v-if="draggedStage"
+                    class="pointer-events-none flex h-full flex-col overflow-hidden rounded-lg bg-muted shadow-lg ring-1 ring-border"
+                    data-testid="idea-stage-placeholder-preview"
+                >
+                    <div class="flex h-12 shrink-0 items-center gap-1 ps-3 pe-2 pt-2">
+                        <span
+                            class="truncate text-sm leading-5 font-emphasis text-foreground"
+                            >{{ draggedStage.name }}</span
+                        >
+                        <span
+                            class="inline-flex h-4.5 min-w-4.5 shrink-0 items-center justify-center rounded-full bg-secondary px-1 text-xs leading-[18px] font-medium text-muted-foreground"
+                            >{{ counts[columnKey(draggedStage.id)] ?? 0 }}</span
+                        >
+                    </div>
+                    <div class="flex flex-col gap-2 px-[9px] pt-1 pb-2">
+                        <IdeaCardView
+                            v-for="card in columns[columnKey(draggedStage.id)] ?? []"
+                            :key="card.id"
+                            :card="card"
+                            view="board"
+                            :stages="stages"
+                            :labels="labels"
+                            :selected="false"
+                            :selecting="false"
+                            preview
+                        />
+                    </div>
+                </div>
+            </div>
+            <IdeaColumn
+                v-else
+                :class="{ 'hidden!': stagePreview?.stageId === entry.stage.id }"
+                :stage="entry.stage"
+                :count="counts[columnKey(entry.stage.id)] ?? 0"
+                :cards="columns[columnKey(entry.stage.id)] ?? []"
+                :stages="stages"
+                :labels="labels"
+                :selected-ids="selectedIds"
+                :movable="movable"
+                :new-idea-href="newIdeaHref(entry.stage.id)"
+                :card-preview="cardPreview"
+                :dragged-card="draggedCard"
+                :register-card="registerCard"
+                :register-column="registerColumn"
+                :register-column-handle="registerColumnHandle"
+                @rename="(name) => emit('renameStage', entry.stage, name)"
+                @delete="emit('deleteStage', entry.stage)"
+                @move-stage="(offset) => moveStage(entry.stage.id, offset)"
+            />
+        </template>
 
         <div
-            v-if="addingStage"
-            class="flex h-full w-60 shrink-0 flex-col rounded-lg bg-muted"
+            key="new-stage"
+            class="w-60 shrink-0"
+            :class="
+                addingStage
+                    ? 'flex h-full flex-col rounded-lg bg-muted'
+                    : 'self-start'
+            "
+            data-testid="idea-stage-new-slot"
         >
-            <div class="flex h-12 items-center ps-3 pe-2 pt-2">
+            <div
+                v-if="addingStage"
+                class="flex h-12 shrink-0 items-center ps-3 pe-2 pt-2"
+            >
                 <input
                     ref="newStageInput"
                     v-model="newStageName"
@@ -127,15 +257,15 @@ const submitStage = (): void => {
                     :aria-label="$t('create.ideas.new_stage')"
                     data-testid="idea-stage-new-input"
                     @keydown.enter.prevent="submitStage"
-                    @keydown.esc.prevent="cancelAddingStage"
+                    @keydown.esc.prevent="cancelWithKeyboard"
                     @blur="submitStage"
                 />
             </div>
-        </div>
-        <div v-else class="shrink-0 pt-2">
             <button
+                v-else
+                ref="newStageButton"
                 type="button"
-                class="inline-flex h-8 items-center gap-1 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                class="inline-flex min-h-12 w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-transparent px-4 py-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-control hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                 data-testid="idea-stage-new"
                 @click="startAddingStage"
             >
@@ -143,5 +273,5 @@ const submitStage = (): void => {
                 {{ $t('create.ideas.new_stage') }}
             </button>
         </div>
-    </div>
+    </TransitionGroup>
 </template>

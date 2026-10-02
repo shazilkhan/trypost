@@ -86,13 +86,6 @@ const scheduledPostsCount = computed(() =>
 );
 
 const mainNavItems = computed<NavItem[]>(() => [
-    {
-        title: trans('sidebar.groups.posts'),
-        href: postsIndex.url(),
-        icon: IconCalendarEvent,
-        count: scheduledPostsCount.value,
-        countTestId: 'sidebar-publish-count',
-    },
     ...(canCreatePost.value
         ? [
               {
@@ -103,6 +96,13 @@ const mainNavItems = computed<NavItem[]>(() => [
               },
           ]
         : []),
+    {
+        title: trans('sidebar.groups.posts'),
+        href: postsIndex.url(),
+        icon: IconCalendarEvent,
+        count: scheduledPostsCount.value,
+        countTestId: 'sidebar-publish-count',
+    },
     {
         title: trans('channels.insights'),
         href: insights.url(),

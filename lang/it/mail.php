@@ -48,7 +48,7 @@ return [
         'title' => 'I post potrebbero non essere pubblicati',
         'heading' => 'I post potrebbero non essere pubblicati',
         'intro' => 'I seguenti account nello spazio di lavoro :workspace devono essere ricollegati prima che questi post pianificati possano essere pubblicati:',
-        'posts_label' => '{1} :count post pianificato: :times UTC|[0,*] :count post pianificati: :times UTC',
+        'posts_label' => '{1} :count post pianificato: :times (:timezone)|[0,*] :count post pianificati: :times (:timezone)',
         'reconnect_cta' => 'Ricollega subito questi account per non perdere i post pianificati.',
         'button' => 'Ricollega account',
     ],

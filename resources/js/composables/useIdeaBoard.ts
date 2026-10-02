@@ -1,14 +1,17 @@
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import {
     draggable,
     dropTargetForElements,
     monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { disableNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview';
 import { reorder } from '@atlaskit/pragmatic-drag-and-drop/reorder';
-import { attachClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge/attach-closest-edge';
-import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge/extract-closest-edge';
-import { getReorderDestinationIndex } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index';
 import { onBeforeUnmount, ref, type Ref } from 'vue';
+
+import {
+    cancelDragOnEscape,
+    createDragAutoScroller,
+    placeholderIndexAt,
+} from '@/lib/dragPlaceholder';
 
 export interface IdeaBoardCardItem {
     ideaId: string;
@@ -19,21 +22,33 @@ export interface IdeaBoardColumnItem {
     stageId: string | null;
 }
 
-export interface IdeaCardIndicator {
+/**
+ * The card being dragged and the slot it would land in: `index` within the
+ * cards of `stageId`, not counting the dragged card. `over` is false while
+ * the pointer is outside every column, when the slot falls back to where the
+ * card came from and a drop changes nothing.
+ */
+export interface IdeaCardPreview {
     ideaId: string;
-    edge: 'top' | 'bottom';
+    stageId: string | null;
+    index: number;
+    height: number;
+    over: boolean;
 }
 
-export interface IdeaColumnIndicator {
+export interface IdeaStagePreview {
     stageId: string;
-    edge: 'left' | 'right';
+    index: number;
+    width: number;
+    height: number;
 }
 
 type DragData = Record<string | symbol, unknown>;
+type Pointer = { clientX: number; clientY: number };
 
 const CARD_KEY = 'ideaBoardCard';
 const COLUMN_KEY = 'ideaBoardColumn';
-const CARD_OVER_ATTRIBUTE = 'data-card-over';
+const BOARD_KEY = 'ideaBoard';
 
 const isCard = (data: DragData): data is DragData & IdeaBoardCardItem =>
     data[CARD_KEY] === true && typeof data.ideaId === 'string';
@@ -49,6 +64,12 @@ const isStageColumn = (
 const byDocumentOrder = <T>([a]: [HTMLElement, T], [b]: [HTMLElement, T]): number =>
     a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
 
+/**
+ * Drag-and-drop for the ideas board, in the same placeholder style as the
+ * sidebar channels: no native drag image, the dragged card (or stage column)
+ * collapses, and `cardPreview` / `stagePreview` hold the slot it would land
+ * in, which the board renders as a lifted copy of the item.
+ */
 export const useIdeaBoard = (options: {
     onMoveIdea: (
         ideaId: string,
@@ -57,20 +78,31 @@ export const useIdeaBoard = (options: {
     ) => void;
     onReorderStages: (orderedStageIds: string[]) => void;
 }): {
+    registerBoard: (el: HTMLElement) => () => void;
     registerCard: (el: HTMLElement, item: IdeaBoardCardItem) => () => void;
-    registerColumn: (el: HTMLElement, column: IdeaBoardColumnItem) => () => void;
+    registerColumn: (
+        el: HTMLElement,
+        list: HTMLElement,
+        column: IdeaBoardColumnItem,
+    ) => () => void;
     registerColumnHandle: (
         handle: HTMLElement,
         column: HTMLElement,
         item: { stageId: string },
     ) => () => void;
-    cardIndicator: Ref<IdeaCardIndicator | null>;
-    columnIndicator: Ref<IdeaColumnIndicator | null>;
+    moveStage: (stageId: string, offset: -1 | 1) => void;
+    cardPreview: Ref<IdeaCardPreview | null>;
+    stagePreview: Ref<IdeaStagePreview | null>;
 } => {
-    const cardIndicator = ref<IdeaCardIndicator | null>(null);
-    const columnIndicator = ref<IdeaColumnIndicator | null>(null);
+    const cardPreview = ref<IdeaCardPreview | null>(null);
+    const stagePreview = ref<IdeaStagePreview | null>(null);
     const cards = new Map<HTMLElement, IdeaBoardCardItem>();
     const columns = new Map<HTMLElement, IdeaBoardColumnItem>();
+    const lists = new Map<HTMLElement, HTMLElement>();
+    let board: HTMLElement | null = null;
+    let origin: { stageId: string | null; index: number } | null = null;
+    let pointer: Pointer | null = null;
+    let stopEscape: (() => void) | null = null;
 
     const columnIdeas = (stageId: string | null): string[] =>
         [...cards]
@@ -84,103 +116,157 @@ export const useIdeaBoard = (options: {
             .sort(byDocumentOrder)
             .map(([, column]) => column.stageId as string);
 
-    const clearIndicators = (): void => {
-        cardIndicator.value = null;
-        columnIndicator.value = null;
+    const columnUnder = (
+        targets: { element: Element; data: DragData }[],
+    ): HTMLElement | null => {
+        const target = targets.find((candidate) => isColumn(candidate.data));
+
+        return target?.element instanceof HTMLElement ? target.element : null;
     };
 
-    const dropCardOnCard = (
-        source: IdeaBoardCardItem,
-        target: DragData & IdeaBoardCardItem,
-    ): void => {
-        const edge = extractClosestEdge(target);
+    const placeCard = (at: Pointer, column: HTMLElement | null): void => {
+        const preview = cardPreview.value;
+        const item = column ? columns.get(column) : undefined;
+        const list = column ? lists.get(column) : undefined;
 
-        if (source.stageId === target.stageId) {
-            const order = columnIdeas(source.stageId);
-            const startIndex = order.indexOf(source.ideaId);
-            const targetIndex = order.indexOf(target.ideaId);
+        if (!preview || !origin) {
+            return;
+        }
 
-            if (startIndex === -1 || targetIndex === -1) {
-                return;
-            }
+        if (!item || !list) {
+            cardPreview.value = { ...preview, ...origin, over: false };
 
-            const finishIndex = getReorderDestinationIndex({
-                startIndex,
-                indexOfTarget: targetIndex,
-                closestEdgeOfTarget: edge,
+            return;
+        }
+
+        cardPreview.value = {
+            ...preview,
+            stageId: item.stageId,
+            index: placeholderIndexAt(list, at, {
+                attribute: 'sortableIdea',
+                draggedId: preview.ideaId,
                 axis: 'vertical',
-            });
-
-            if (finishIndex !== startIndex) {
-                options.onMoveIdea(
-                    source.ideaId,
-                    source.stageId,
-                    reorder({ list: order, startIndex, finishIndex }),
-                );
-            }
-
-            return;
-        }
-
-        const order = columnIdeas(target.stageId);
-        const targetIndex = order.indexOf(target.ideaId);
-
-        if (targetIndex === -1) {
-            return;
-        }
-
-        order.splice(
-            edge === 'bottom' ? targetIndex + 1 : targetIndex,
-            0,
-            source.ideaId,
-        );
-        options.onMoveIdea(source.ideaId, target.stageId, order);
+            }),
+            over: true,
+        };
     };
 
-    const dropCardOnColumn = (
-        source: IdeaBoardCardItem,
-        column: IdeaBoardColumnItem,
-    ): void => {
-        const order = columnIdeas(column.stageId).filter(
-            (id) => id !== source.ideaId,
-        );
+    const placeStage = (at: Pointer | null): void => {
+        const preview = stagePreview.value;
+
+        if (!preview || !origin) {
+            return;
+        }
+
+        stagePreview.value = {
+            ...preview,
+            index:
+                board && at
+                    ? placeholderIndexAt(board, at, {
+                          attribute: 'sortableStage',
+                          draggedId: preview.stageId,
+                          axis: 'horizontal',
+                      })
+                    : origin.index,
+        };
+    };
+
+    let hoveredColumn: HTMLElement | null = null;
+
+    const followPointer = (): void => {
+        if (!pointer) {
+            return;
+        }
+
+        if (cardPreview.value) {
+            placeCard(pointer, hoveredColumn);
+        } else if (stagePreview.value) {
+            placeStage(pointer);
+        }
+    };
+
+    const boardScroller = createDragAutoScroller('horizontal', followPointer);
+    const listScroller = createDragAutoScroller('vertical', followPointer);
+
+    const endPreview = (): void => {
+        boardScroller.stop();
+        listScroller.stop();
+        pointer = null;
+        origin = null;
+        hoveredColumn = null;
+        cardPreview.value = null;
+        stagePreview.value = null;
+        stopEscape?.();
+        stopEscape = null;
+    };
+
+    const startCardPreview = (item: IdeaBoardCardItem): void => {
+        const element = [...cards].find(
+            ([, candidate]) => candidate.ideaId === item.ideaId,
+        )?.[0];
+        const index = columnIdeas(item.stageId).indexOf(item.ideaId);
+
+        if (!element || index === -1) {
+            return;
+        }
+
+        origin = { stageId: item.stageId, index };
+        cardPreview.value = {
+            ideaId: item.ideaId,
+            stageId: item.stageId,
+            index,
+            height: element.offsetHeight,
+            over: false,
+        };
+        stopEscape = cancelDragOnEscape(endPreview);
+    };
+
+    const startStagePreview = (stageId: string): void => {
+        const element = [...columns].find(
+            ([, column]) => column.stageId === stageId,
+        )?.[0];
+        const index = stageOrder().indexOf(stageId);
+
+        if (!element || index === -1) {
+            return;
+        }
+
+        origin = { stageId, index };
+        stagePreview.value = {
+            stageId,
+            index,
+            width: element.offsetWidth,
+            height: element.offsetHeight,
+        };
+        stopEscape = cancelDragOnEscape(endPreview);
+    };
+
+    const dropCard = (preview: IdeaCardPreview): void => {
+        if (!preview.over) {
+            return;
+        }
+
+        const current = columnIdeas(preview.stageId);
+        const next = current.filter((id) => id !== preview.ideaId);
+        next.splice(preview.index, 0, preview.ideaId);
 
         if (
-            source.stageId === column.stageId &&
-            columnIdeas(column.stageId).at(-1) === source.ideaId
+            current.length === next.length &&
+            current.every((id, position) => id === next[position])
         ) {
             return;
         }
 
-        options.onMoveIdea(source.ideaId, column.stageId, [
-            ...order,
-            source.ideaId,
-        ]);
+        options.onMoveIdea(preview.ideaId, preview.stageId, next);
     };
 
-    const dropColumnOnColumn = (
-        sourceStageId: string,
-        target: DragData & { stageId: string },
-    ): void => {
+    const dropStage = (preview: IdeaStagePreview): void => {
         const order = stageOrder();
-        const startIndex = order.indexOf(sourceStageId);
-        const targetIndex = order.indexOf(target.stageId);
+        const startIndex = order.indexOf(preview.stageId);
 
-        if (startIndex === -1 || targetIndex === -1) {
-            return;
-        }
-
-        const edge = extractClosestEdge(target);
-        const finishIndex = getReorderDestinationIndex({
-            startIndex,
-            indexOfTarget: targetIndex,
-            closestEdgeOfTarget: edge,
-            axis: 'horizontal',
-        });
-
-        if (finishIndex !== startIndex) {
+        if (startIndex !== -1 && startIndex !== preview.index) {
             options.onReorderStages(
-                reorder({ list: order, startIndex, finishIndex }),
+                reorder({ list: order, startIndex, finishIndex: preview.index }),
             );
         }
     };
@@ -188,143 +274,134 @@ export const useIdeaBoard = (options: {
     const stopMonitor = monitorForElements({
         canMonitor: ({ source }) =>
             isCard(source.data) || isStageColumn(source.data),
-        onDrop: ({ source, location }) => {
-            clearIndicators();
-
-            const target = location.current.dropTargets[0];
-
-            if (!target) {
-                return;
-            }
-
+        onDragStart: ({ source }) => {
             if (isCard(source.data)) {
-                const item = {
+                startCardPreview({
                     ideaId: source.data.ideaId,
                     stageId: source.data.stageId,
-                };
-
-                if (isCard(target.data)) {
-                    dropCardOnCard(item, target.data);
-                } else if (isColumn(target.data)) {
-                    dropCardOnColumn(item, target.data);
-                }
-
+                });
+            } else if (isStageColumn(source.data)) {
+                startStagePreview(source.data.stageId);
+            }
+        },
+        onDrag: ({ location }) => {
+            if (!cardPreview.value && !stagePreview.value) {
                 return;
             }
 
-            if (isStageColumn(source.data) && isStageColumn(target.data)) {
-                dropColumnOnColumn(source.data.stageId, target.data);
+            pointer = location.current.input;
+            hoveredColumn = columnUnder(location.current.dropTargets);
+
+            const overBoard = location.current.dropTargets.some(
+                (target) => target.data[BOARD_KEY] === true,
+            );
+
+            if (cardPreview.value) {
+                placeCard(pointer, hoveredColumn);
+                listScroller.update(
+                    hoveredColumn ? (lists.get(hoveredColumn) ?? null) : null,
+                    pointer,
+                );
+            } else {
+                placeStage(overBoard ? pointer : null);
+            }
+
+            boardScroller.update(overBoard ? board : null, pointer);
+        },
+        onDrop: ({ location }) => {
+            const overBoard = location.current.dropTargets.some(
+                (target) => target.data[BOARD_KEY] === true,
+            );
+
+            if (cardPreview.value) {
+                placeCard(
+                    location.current.input,
+                    columnUnder(location.current.dropTargets),
+                );
+            } else if (overBoard) {
+                placeStage(location.current.input);
+            }
+
+            const card = cardPreview.value;
+            const stage = stagePreview.value;
+
+            endPreview();
+
+            if (card) {
+                dropCard(card);
+            } else if (stage && overBoard) {
+                dropStage(stage);
             }
         },
     });
 
-    onBeforeUnmount(stopMonitor);
+    onBeforeUnmount(() => {
+        stopMonitor();
+        endPreview();
+    });
+
+    const registerBoard = (el: HTMLElement): (() => void) => {
+        board = el;
+
+        const cleanup = dropTargetForElements({
+            element: el,
+            canDrop: ({ source }) =>
+                isCard(source.data) || isStageColumn(source.data),
+            getData: () => ({ [BOARD_KEY]: true }),
+        });
+
+        return () => {
+            cleanup();
+
+            if (board === el) {
+                board = null;
+            }
+        };
+    };
 
     const registerCard = (
         el: HTMLElement,
         item: IdeaBoardCardItem,
     ): (() => void) => {
         cards.set(el, item);
+        el.dataset.sortableIdea = item.ideaId;
 
-        const data = (): DragData => ({ [CARD_KEY]: true, ...item });
-
-        const cleanup = combine(
-            draggable({
-                element: el,
-                getInitialData: data,
-                onDragStart: () => el.setAttribute('data-dragging', ''),
-                onDrop: () => el.removeAttribute('data-dragging'),
-            }),
-            dropTargetForElements({
-                element: el,
-                canDrop: ({ source }) => isCard(source.data),
-                getData: ({ input }) =>
-                    attachClosestEdge(data(), {
-                        element: el,
-                        input,
-                        allowedEdges: ['top', 'bottom'],
-                    }),
-                onDrag: ({ self, source }) => {
-                    const edge = extractClosestEdge(self.data);
-
-                    cardIndicator.value =
-                        edge && isCard(source.data) && source.data.ideaId !== item.ideaId
-                            ? {
-                                  ideaId: item.ideaId,
-                                  edge: edge === 'bottom' ? 'bottom' : 'top',
-                              }
-                            : null;
-                },
-                onDragLeave: () => {
-                    if (cardIndicator.value?.ideaId === item.ideaId) {
-                        cardIndicator.value = null;
-                    }
-                },
-            }),
-        );
+        const cleanup = draggable({
+            element: el,
+            getInitialData: () => ({ [CARD_KEY]: true, ...item }),
+            onGenerateDragPreview: ({ nativeSetDragImage }) =>
+                disableNativeDragPreview({ nativeSetDragImage }),
+        });
 
         return () => {
             cards.delete(el);
+            delete el.dataset.sortableIdea;
             cleanup();
         };
     };
 
     const registerColumn = (
         el: HTMLElement,
+        list: HTMLElement,
         column: IdeaBoardColumnItem,
     ): (() => void) => {
         columns.set(el, column);
+        lists.set(el, list);
 
-        const data = (): DragData => ({ [COLUMN_KEY]: true, ...column });
+        if (column.stageId !== null) {
+            el.dataset.sortableStage = column.stageId;
+        }
 
         const cleanup = dropTargetForElements({
             element: el,
-            canDrop: ({ source }) =>
-                isCard(source.data) ||
-                (column.stageId !== null && isStageColumn(source.data)),
-            getData: ({ input }) =>
-                attachClosestEdge(data(), {
-                    element: el,
-                    input,
-                    allowedEdges: ['left', 'right'],
-                }),
-            onDrag: ({ self, source, location }) => {
-                if (isCard(source.data)) {
-                    if (location.current.dropTargets[0]?.element === el) {
-                        el.setAttribute(CARD_OVER_ATTRIBUTE, '');
-                        cardIndicator.value = null;
-                    } else {
-                        el.removeAttribute(CARD_OVER_ATTRIBUTE);
-                    }
-
-                    return;
-                }
-
-                const edge = extractClosestEdge(self.data);
-
-                columnIndicator.value =
-                    edge &&
-                    column.stageId !== null &&
-                    isStageColumn(source.data) &&
-                    source.data.stageId !== column.stageId
-                        ? {
-                              stageId: column.stageId,
-                              edge: edge === 'right' ? 'right' : 'left',
-                          }
-                        : null;
-            },
-            onDragLeave: () => {
-                el.removeAttribute(CARD_OVER_ATTRIBUTE);
-
-                if (columnIndicator.value?.stageId === column.stageId) {
-                    columnIndicator.value = null;
-                }
-            },
-            onDrop: () => el.removeAttribute(CARD_OVER_ATTRIBUTE),
+            canDrop: ({ source }) => isCard(source.data),
+            getData: () => ({ [COLUMN_KEY]: true, ...column }),
         });
 
         return () => {
             columns.delete(el);
+            lists.delete(el);
+            delete el.dataset.sortableStage;
             cleanup();
         };
     };
@@ -338,15 +415,29 @@ export const useIdeaBoard = (options: {
             element: column,
             dragHandle: handle,
             getInitialData: () => ({ [COLUMN_KEY]: true, ...item }),
-            onDragStart: () => column.setAttribute('data-dragging', ''),
-            onDrop: () => column.removeAttribute('data-dragging'),
+            onGenerateDragPreview: ({ nativeSetDragImage }) =>
+                disableNativeDragPreview({ nativeSetDragImage }),
         });
 
+    const moveStage = (stageId: string, offset: -1 | 1): void => {
+        const order = stageOrder();
+        const startIndex = order.indexOf(stageId);
+        const finishIndex = startIndex + offset;
+
+        if (startIndex === -1 || finishIndex < 0 || finishIndex >= order.length) {
+            return;
+        }
+
+        options.onReorderStages(reorder({ list: order, startIndex, finishIndex }));
+    };
+
     return {
+        registerBoard,
         registerCard,
         registerColumn,
         registerColumnHandle,
-        cardIndicator,
-        columnIndicator,
+        moveStage,
+        cardPreview,
+        stagePreview,
     };
 };

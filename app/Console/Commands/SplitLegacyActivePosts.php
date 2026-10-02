@@ -92,27 +92,15 @@ class SplitLegacyActivePosts extends Command
                 return $clone;
             });
             $clone->labels()->sync($labelIds);
-            $noteIds = [];
 
             foreach ($notes as $note) {
-                $copy = PostNote::withoutEvents(function () use ($note, $clone): PostNote {
+                PostNote::withoutEvents(function () use ($note, $clone): void {
                     $copy = $note->replicate();
                     $copy->post_id = $clone->id;
-                    $copy->parent_id = null;
                     $copy->created_at = $note->created_at;
                     $copy->updated_at = $note->updated_at;
                     $copy->saveQuietly();
-
-                    return $copy;
                 });
-                $noteIds[$note->id] = $copy->id;
-            }
-
-            foreach ($notes as $note) {
-                if ($note->parent_id !== null) {
-                    DB::table('post_notes')->where('id', $noteIds[$note->id])
-                        ->update(['parent_id' => $noteIds[$note->parent_id]]);
-                }
             }
 
             $target->updateQuietly(['post_id' => $clone->id]);

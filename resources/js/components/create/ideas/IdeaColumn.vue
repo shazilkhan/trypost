@@ -7,7 +7,15 @@ import {
     IconPlus,
     IconTrash,
 } from '@tabler/icons-vue';
-import { nextTick, onBeforeUnmount, onMounted, ref, type Directive } from 'vue';
+import {
+    computed,
+    nextTick,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    type ComponentPublicInstance,
+    type Directive,
+} from 'vue';
 
 import IdeaCard from '@/components/create/ideas/IdeaCard.vue';
 import { Button } from '@/components/ui/button';
@@ -21,8 +29,7 @@ import {
 import type {
     IdeaBoardCardItem,
     IdeaBoardColumnItem,
-    IdeaCardIndicator,
-    IdeaColumnIndicator,
+    IdeaCardPreview,
 } from '@/composables/useIdeaBoard';
 import {
     columnKey,
@@ -40,10 +47,14 @@ const props = defineProps<{
     selectedIds: Set<string>;
     movable: boolean;
     newIdeaHref: string;
-    cardIndicator: IdeaCardIndicator | null;
-    columnIndicator: IdeaColumnIndicator | null;
+    cardPreview: IdeaCardPreview | null;
+    draggedCard: IdeaCardData | null;
     registerCard: (el: HTMLElement, item: IdeaBoardCardItem) => () => void;
-    registerColumn: (el: HTMLElement, column: IdeaBoardColumnItem) => () => void;
+    registerColumn: (
+        el: HTMLElement,
+        list: HTMLElement,
+        column: IdeaBoardColumnItem,
+    ) => () => void;
     registerColumnHandle: (
         handle: HTMLElement,
         column: HTMLElement,
@@ -54,10 +65,12 @@ const props = defineProps<{
 const emit = defineEmits<{
     rename: [name: string];
     delete: [];
+    moveStage: [offset: -1 | 1];
 }>();
 
 const key = columnKey(props.stage?.id ?? null);
 const columnEl = ref<HTMLElement | null>(null);
+const listGroup = ref<ComponentPublicInstance | null>(null);
 const handleEl = ref<HTMLElement | null>(null);
 const renameInput = ref<HTMLInputElement | null>(null);
 const renaming = ref(false);
@@ -65,12 +78,14 @@ const draftName = ref('');
 const cleanups: (() => void)[] = [];
 
 onMounted(() => {
-    if (!columnEl.value) {
+    const list = listGroup.value?.$el;
+
+    if (!columnEl.value || !(list instanceof HTMLElement)) {
         return;
     }
 
     cleanups.push(
-        props.registerColumn(columnEl.value, {
+        props.registerColumn(columnEl.value, list, {
             stageId: props.stage?.id ?? null,
         }),
     );
@@ -118,6 +133,52 @@ const vIdeaCard: Directive<HTMLElement, IdeaBoardCardItem | null> = {
 const sortableItem = (card: IdeaCardData): IdeaBoardCardItem | null =>
     props.movable ? { ideaId: card.id, stageId: card.idea_stage_id } : null;
 
+type CardEntry =
+    | { key: string; card: IdeaCardData }
+    | { key: 'placeholder'; card: null };
+
+const isDropTarget = computed(
+    () =>
+        props.cardPreview?.over === true &&
+        props.cardPreview.stageId === (props.stage?.id ?? null),
+);
+
+const entries = computed<CardEntry[]>(() => {
+    const list: CardEntry[] = props.cards.map((card) => ({
+        key: card.id,
+        card,
+    }));
+    const preview = props.cardPreview;
+
+    if (!preview || preview.stageId !== (props.stage?.id ?? null)) {
+        return list;
+    }
+
+    const anchor = list.filter((entry) => entry.card?.id !== preview.ideaId)[
+        preview.index
+    ];
+
+    list.splice(anchor ? list.indexOf(anchor) : list.length, 0, {
+        key: 'placeholder',
+        card: null,
+    });
+
+    return list;
+});
+
+const onHandleKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
+        return;
+    }
+
+    event.preventDefault();
+
+    const rtl = getComputedStyle(event.currentTarget as HTMLElement).direction === 'rtl';
+    const forward = (event.key === 'ArrowRight') !== rtl;
+
+    emit('moveStage', forward ? 1 : -1);
+};
+
 const startRename = async (): Promise<void> => {
     draftName.value = props.stage?.name ?? '';
     renaming.value = true;
@@ -143,19 +204,12 @@ const finishRename = (save: boolean): void => {
 <template>
     <section
         ref="columnEl"
-        class="group/column relative flex h-full w-60 shrink-0 flex-col rounded-lg bg-muted transition-[opacity,background-color] duration-150 data-card-over:bg-secondary data-dragging:opacity-40"
+        class="group/column relative flex h-full w-60 shrink-0 flex-col rounded-lg bg-muted transition-[background-color,box-shadow] duration-150 motion-reduce:transition-none"
+        :class="isDropTarget ? 'bg-secondary ring-2 ring-primary-strong/40' : null"
+        :data-drop-target="isDropTarget ? '' : undefined"
         :aria-label="stage ? stage.name : $t('create.ideas.unassigned')"
         :data-testid="`idea-column-${key}`"
     >
-        <div
-            v-if="columnIndicator && stage && columnIndicator.stageId === stage.id"
-            class="pointer-events-none absolute inset-y-0 w-0.5 rounded-full bg-primary-strong"
-            :class="
-                columnIndicator.edge === 'left' ? '-left-[9px]' : '-right-[9px]'
-            "
-            :data-testid="`idea-column-drop-indicator-${key}`"
-        />
-
         <button
             v-if="stage"
             ref="handleEl"
@@ -163,6 +217,7 @@ const finishRename = (save: boolean): void => {
             class="absolute top-0 left-1/2 flex h-4 w-8 -translate-x-1/2 cursor-grab items-center justify-center rounded-b-md text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
             :aria-label="$t('create.ideas.reorder_stage', { stage: stage.name })"
             :data-testid="`idea-stage-handle-${stage.id}`"
+            @keydown="onHandleKeydown"
         >
             <IconGripHorizontal class="size-4" />
         </button>
@@ -255,46 +310,70 @@ const finishRename = (save: boolean): void => {
             </DropdownMenu>
         </header>
 
-        <div
-            class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-[9px] pt-1 pb-2"
+        <TransitionGroup
+            ref="listGroup"
+            tag="div"
+            move-class="transition-transform duration-200 ease-out motion-reduce:transition-none"
+            class="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-[9px] pt-1 pb-2"
+            :data-testid="`idea-column-list-${key}`"
         >
-            <div
-                v-for="card in cards"
-                :key="card.id"
-                v-idea-card="sortableItem(card)"
-                class="relative transition-opacity duration-150 data-dragging:opacity-40"
-            >
+            <template v-for="entry in entries" :key="entry.key">
                 <div
-                    v-if="cardIndicator?.ideaId === card.id"
-                    class="pointer-events-none absolute inset-x-0 h-0.5 rounded-full bg-primary-strong"
+                    v-if="entry.card === null"
+                    aria-hidden="true"
+                    class="shrink-0 cursor-grabbing rounded-lg"
                     :class="
-                        cardIndicator.edge === 'top'
-                            ? '-top-[5px]'
-                            : '-bottom-[5px]'
+                        draggedCard
+                            ? null
+                            : 'border border-dashed border-border bg-secondary'
                     "
-                    :data-testid="`idea-card-drop-indicator-${card.id}`"
-                />
-                <IdeaCard
-                    :card="card"
-                    view="board"
-                    :stages="stages"
-                    :labels="labels"
-                    :selected="selectedIds.has(card.id)"
-                    :selecting="selectedIds.size > 0"
-                />
-            </div>
+                    :style="{ height: `${cardPreview?.height ?? 0}px` }"
+                    data-testid="idea-card-placeholder"
+                >
+                    <div
+                        v-if="draggedCard"
+                        class="pointer-events-none rounded-lg shadow-md ring-1 ring-border"
+                    >
+                        <IdeaCard
+                            :card="draggedCard"
+                            view="board"
+                            :stages="stages"
+                            :labels="labels"
+                            :selected="false"
+                            :selecting="false"
+                            preview
+                        />
+                    </div>
+                </div>
+                <div
+                    v-else
+                    v-idea-card="sortableItem(entry.card)"
+                    class="relative"
+                    :class="{ hidden: cardPreview?.ideaId === entry.card.id }"
+                >
+                    <IdeaCard
+                        :card="entry.card"
+                        view="board"
+                        :stages="stages"
+                        :labels="labels"
+                        :selected="selectedIds.has(entry.card.id)"
+                        :selecting="selectedIds.size > 0"
+                    />
+                </div>
+            </template>
 
             <Link
+                key="new"
                 :href="newIdeaHref"
                 preserve-state
                 preserve-scroll
                 :only="['editor']"
-                class="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-control hover:bg-secondary hover:text-foreground"
+                class="flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-control hover:bg-secondary hover:text-foreground"
                 :data-testid="`idea-column-new-${key}`"
             >
                 <IconPlus class="size-4" />
                 {{ $t('create.ideas.new') }}
             </Link>
-        </div>
+        </TransitionGroup>
     </section>
 </template>

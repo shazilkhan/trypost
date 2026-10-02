@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
     VisAxis,
+    VisAxisSelectors,
     VisStackedBar,
     VisStackedBarSelectors,
     VisXYContainer,
@@ -13,7 +14,10 @@ import {
     ChartTooltipContent,
     componentToString,
 } from '@/components/ui/chart';
-import { getPlatformLabel } from '@/composables/usePlatformLogo';
+import {
+    getPlatformLabel,
+    getPlatformLogo,
+} from '@/composables/usePlatformLogo';
 import { accountColor } from '@/lib/analyticsColors';
 import type { AccountIdentityData } from '@/types/analytics';
 
@@ -79,6 +83,40 @@ const tooltipTriggers = computed(() => ({
         });
     },
 }));
+const tickAttributes = {
+    [VisAxisSelectors.tick]: {
+        'data-account-tick': (tick: number): string => String(Math.round(tick)),
+    },
+};
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+const LOGO_SIZE = 12;
+const decorateTicks = (svg: SVGSVGElement): void => {
+    svg.querySelectorAll('[data-account-logo]').forEach((logo) =>
+        logo.remove(),
+    );
+    svg.querySelectorAll<SVGGElement>('g[data-account-tick]').forEach(
+        (tick) => {
+            const account =
+                props.rows[Number(tick.getAttribute('data-account-tick'))]
+                    ?.account;
+
+            if (!account) {
+                return;
+            }
+
+            const logo = document.createElementNS(SVG_NAMESPACE, 'image');
+            logo.setAttribute('href', getPlatformLogo(account.platform));
+            logo.setAttribute('x', String(-LOGO_SIZE - 6));
+            logo.setAttribute('y', String(-LOGO_SIZE / 2));
+            logo.setAttribute('width', String(LOGO_SIZE));
+            logo.setAttribute('height', String(LOGO_SIZE));
+            logo.setAttribute('data-account-logo', '');
+            logo.setAttribute('data-testid', 'analytics-axis-logo');
+            logo.setAttribute('aria-label', getPlatformLabel(account.platform));
+            tick.appendChild(logo);
+        },
+    );
+};
 const barAttributes = {
     [VisStackedBarSelectors.bar]: { 'data-testid': 'analytics-account-bar' },
 };
@@ -95,6 +133,7 @@ const barAttributes = {
             :data="chartData"
             y-direction="south"
             :padding="{ top: 12, right: 16, bottom: 0, left: 0 }"
+            :on-render-complete="decorateTicks"
         >
             <VisStackedBar
                 :x="indexAccessor"
@@ -121,6 +160,8 @@ const barAttributes = {
                 type="y"
                 :tick-format="formatAccount"
                 :tick-values="categoryTicks"
+                :tick-padding="LOGO_SIZE + 12"
+                :attributes="tickAttributes"
                 :grid-line="false"
                 :domain-line="false"
                 :tick-line="false"

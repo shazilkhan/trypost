@@ -3,7 +3,6 @@
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'テキスト',
             'image' => '画像',
@@ -15,12 +14,6 @@ return [
             'link' => 'リンク',
             'poll' => 'アンケート',
             'unknown' => '不明',
-        ],
-        'time_basis' => [
-            'lifetime' => '公開後の累計',
-            'range' => '選択期間',
-            'rolling_90_days' => '過去90日間',
-            'snapshot' => '時点の値',
         ],
         'labels' => [
             'watch_time_milliseconds' => '視聴時間',
@@ -54,17 +47,8 @@ return [
             'story_exits' => 'ストーリーズからの離脱',
             'unique_viewers' => 'ユニーク視聴者',
         ],
-        'engagement' => 'エンゲージメント',
-        'exposure' => 'リーチ',
-        'video' => '動画と視聴維持',
-        'last_collected' => '最終取得日時',
-        'stale' => '最新ではない可能性があります',
         'awaiting_metrics' => '指標はまだ収集されていません。',
-        'estimated' => '推定値',
-        'back_to_insights' => 'Insights に戻る',
         'details' => '詳細',
-        'published_via_trypost' => 'TryPostから公開',
-        'published_on' => ':platformで公開',
     ],
     'dashboard' => [
         'summary' => '概要',
@@ -77,7 +61,6 @@ return [
         'performance' => 'パフォーマンス',
         'top_posts' => '上位5件の投稿',
         'channel' => 'チャンネル',
-        'workspace_description' => '接続済みチャンネルをまとめて表示し、各アカウントは個別に区別します。',
         'latest_snapshot_hint' => 'この期間の投稿指標には、保存済みの最新の測定値を使用します。',
         'followers_chart_mode' => 'フォロワーグラフの表示方法',
         'posts_chart_mode' => '投稿グラフの表示方法',
@@ -189,6 +172,18 @@ return [
                 'label' => '平均視聴時間（秒）',
                 'about' => '1回の表示あたりの平均視聴秒数。',
             ],
+            'reposts' => [
+                'label' => 'リポスト',
+                'about' => '期間中に公開した投稿のリポスト数。',
+            ],
+            'impressions' => [
+                'label' => 'インプレッション',
+                'about' => '期間中に公開した投稿が表示された回数。',
+            ],
+            'clicks' => [
+                'label' => 'クリック',
+                'about' => '期間中に公開した投稿のクリック数。',
+            ],
         ],
     ],
 
@@ -248,5 +243,44 @@ return [
         'bookings' => '予約',
         'food_orders' => 'フード注文',
         'food_menu_clicks' => 'メニューのクリック',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => 'エクスポート',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => '期間',
+            'compared_to' => '比較期間',
+            'generated_at' => '作成日時',
+            'metric' => '指標',
+            'value' => '値',
+            'previous' => '前の期間',
+            'change' => '変化',
+            'published_at' => '公開日時',
+            'network' => 'ネットワーク',
+            'content_type' => '種類',
+            'text' => 'テキスト',
+            'link' => 'リンク',
+        ],
+        'sync' => [
+            'button' => '同期状況',
+            'title' => 'Insights の更新タイミング',
+            'new_posts' => '新しい投稿は各チャンネルで:interval、X では:x_interval取得します。',
+            'every_hours' => '{1} 1時間ごと|[2,*] :count時間ごと',
+            'metrics' => '新しい投稿は各チャンネルで:interval、X では:x_interval取得します。',
+            'followers' => '{1} 1時間ごとに|[2,*] :count時間ごとに',
+            'last_sync' => '最終同期 :time',
+            'never' => 'まだ同期されていません',
+        ],
+        'about' => [
+            'top_posts' => '期間中にリアクションまたはコメントが最も多かった投稿5件。',
+            'performance' => '期間中に公開した投稿のチャンネル別合計と前の期間との比較。',
+            'followers' => '期間末時点のチャンネル別フォロワー数とその変化。',
+            'posts' => '各チャンネルが期間中に公開した投稿数。',
+            'channel_posts' => 'このチャンネルが期間中に公開したすべての投稿を、選んだ列で並べ替えて表示します。',
+        ],
+        'columns' => '列',
+        'channels_shown' => ':range · :total チャンネル中 :shown 件を表示中。別のチャンネルを見るにはチャンネルで絞り込んでください。',
     ],
 ];

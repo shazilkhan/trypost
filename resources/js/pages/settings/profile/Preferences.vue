@@ -5,9 +5,7 @@ import {
     IconMoon,
     IconSun,
 } from '@tabler/icons-vue';
-import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
-import { toast } from 'vue-sonner';
 
 import PreferencesController from '@/actions/App/Http/Controllers/App/Settings/PreferencesController';
 import { updateLanguage } from '@/actions/App/Http/Controllers/App/Settings/ProfileController';
@@ -70,7 +68,6 @@ const themeOptions: SettingsSelectOption[] = [
     },
 ];
 
-const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const languages = computed<Language[]>(
     () => (page.props.languages as Language[] | undefined) ?? [],
@@ -104,11 +101,6 @@ const defaultPostActionOptions: SettingsSelectOption[] = [
     { value: 'top', labelKey: 'posts.composer.queue.top' },
 ];
 
-const confirmSaved = (field: PreferenceField): void => {
-    savedField.value = field;
-    toast.success(trans('settings.preferences.saved'));
-};
-
 const save = (field: Exclude<PreferenceField, 'locale'>, value: string): void => {
     savedField.value = null;
 
@@ -118,7 +110,9 @@ const save = (field: Exclude<PreferenceField, 'locale'>, value: string): void =>
         {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => confirmSaved(field),
+            onSuccess: () => {
+                savedField.value = field;
+            },
         },
     );
 };
@@ -139,7 +133,9 @@ const changeLanguage = (value: string): void => {
         {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => confirmSaved('locale'),
+            onSuccess: () => {
+                savedField.value = 'locale';
+            },
         },
     );
 };
@@ -208,7 +204,6 @@ const changeDefaultPostAction = (value: string): void => {
                     :model-value="timezone"
                     :options="timezones"
                     testid="preferences-timezone"
-                    :suggested="browserTimezone"
                     compact
                     @update:model-value="changeTimezone"
                 />

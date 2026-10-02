@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Mail;
 
 use App\Models\PostPlatform;
+use App\Models\User;
 use App\Models\Workspace;
+use App\Support\Mail\RecipientTime;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
@@ -24,9 +26,11 @@ class PostAtRisk extends Mailable implements ShouldQueue
      */
     private ?Collection $atRiskGroups = null;
 
+    public ?User $recipient = null;
+
     /**
-     * Only the workspace (a real Eloquent model, reduced to a lightweight
-     * identifier by SerializesModels), the post_platform IDs, and the count
+     * Only the workspace and the recipient (real Eloquent models, reduced to
+     * lightweight identifiers by SerializesModels), the post_platform IDs, and the count
      * observed at dispatch time are carried on the queue payload. The rows
      * themselves are rehydrated in atRiskGroups() so the queued job's
      * serialized size stays small and the account/post details reflect
@@ -42,8 +46,11 @@ class PostAtRisk extends Mailable implements ShouldQueue
     public function __construct(
         public Workspace $workspace,
         public array $postPlatformIds,
-        public int $count
-    ) {}
+        public int $count,
+        ?User $recipient = null,
+    ) {
+        $this->recipient = $recipient;
+    }
 
     public function envelope(): Envelope
     {
@@ -66,6 +73,7 @@ class PostAtRisk extends Mailable implements ShouldQueue
                     'workspace' => $this->workspace->name,
                 ]),
                 'workspaceName' => $this->workspace->name,
+                'timezone' => RecipientTime::timezone($this->recipient()),
                 'atRiskGroups' => $this->atRiskGroups(),
                 'url' => route('app.workspace.channels'),
             ],
@@ -97,10 +105,15 @@ class PostAtRisk extends Mailable implements ShouldQueue
                     'postPlatforms' => $group,
                     'postCount' => $group->count(),
                     'times' => $group->sortBy(fn ($pp) => $pp->post->scheduled_at)
-                        ->map(fn ($pp) => $pp->post->scheduled_at->format('H:i'))
+                        ->map(fn ($pp) => RecipientTime::clock($pp->post->scheduled_at, $this->recipient()))
                         ->implode(', '),
                 ];
             })->values();
+    }
+
+    private function recipient(): User
+    {
+        return $this->recipient ?? $this->workspace->owner;
     }
 
     public function attachments(): array

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { IconX } from '@tabler/icons-vue';
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
+import ImageCropStage from '@/components/media/ImageCropStage.vue';
 import MediaEditorAltTextPanel from '@/components/posts/composer/MediaEditorAltTextPanel.vue';
 import MediaEditorAppearancePanel from '@/components/posts/composer/MediaEditorAppearancePanel.vue';
 import MediaEditorCropPanel from '@/components/posts/composer/MediaEditorCropPanel.vue';
@@ -15,32 +16,22 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { type ImageSize, useImageCrop } from '@/composables/useImageCrop';
 import { defaultCropPresets } from '@/lib/contentTypeMediaRules';
-import {
-    containScale,
-    type Corner,
-    resizeSelection,
-    clampSelection,
-    type SourceRect,
-} from '@/lib/imageCrop';
 import {
     createMediaEdit,
     cropPresetsFor,
-    cropSelection,
-    cssFilter,
     editorTabsFor,
     type EditorTab,
     hasMetaChanges,
     hasPixelChanges,
-    imageTransform,
+    type CropPresetValue,
     type MediaEdit,
-    presetRatio,
     presetValuesFor,
+    renderImageEdit,
     renderMediaEdit,
     rulesFor,
     USER_TAGS_MAX,
-    warmthOverlay,
-    workingSize,
 } from '@/lib/mediaEditor';
 import { isVideo } from '@/lib/mediaType';
 import type { MediaItem, MediaUserTag } from '@/types/media';
@@ -56,8 +47,6 @@ export type MediaEditChange = {
     coverOffsetMs: number | null;
 };
 
-type Size = { width: number; height: number };
-
 const props = withDefaults(
     defineProps<{
         open: boolean;
@@ -66,11 +55,15 @@ const props = withDefaults(
         initialTab?: EditorTab;
         contentTypes: string[];
         aspectBounds?: { min?: number; max?: number };
+        mode?: 'media' | 'photo';
+        outputSize?: number;
     }>(),
     {
         initialIndex: 0,
         initialTab: 'edit',
         aspectBounds: () => ({}),
+        mode: 'media',
+        outputSize: 512,
     },
 );
 
@@ -79,45 +72,30 @@ const emit = defineEmits<{
     (e: 'apply', changes: MediaEditChange[]): void;
 }>();
 
-const STAGE_PADDING = 48;
-const MIN_SELECTION_RATIO = 0.1;
-const HANDLES: Array<{ corner: Corner; class: string }> = [
-    { corner: 'nw', class: 'top-0 left-0 cursor-nwse-resize' },
-    { corner: 'ne', class: 'top-0 right-0 cursor-nesw-resize' },
-    { corner: 'sw', class: 'bottom-0 left-0 cursor-nesw-resize' },
-    { corner: 'se', class: 'right-0 bottom-0 cursor-nwse-resize' },
-];
-
 const editingItems = ref<MediaItem[]>([]);
 const edits = ref<MediaEdit[]>([]);
-const naturals = ref<Record<number, Size>>({});
+const naturals = ref<Record<number, ImageSize>>({});
 const activeIndex = ref(0);
 const tab = ref<EditorTab>('edit');
 const section = ref<'crop' | 'appearance'>('crop');
 const pendingPoint = ref<{ x: number; y: number } | null>(null);
 const tagging = ref(false);
-const stageEl = ref<HTMLElement | null>(null);
-const boxEl = ref<HTMLElement | null>(null);
-const stageSize = ref<Size>({ width: 0, height: 0 });
 const applying = ref(false);
 const failed = ref(false);
 const imageErrors = ref<Record<number, boolean>>({});
 
-let resizeObserver: ResizeObserver | null = null;
-let drag: {
-    mode: 'move' | Corner;
-    pointerId: number;
-    clientX: number;
-    clientY: number;
-    selection: SourceRect;
-} | null = null;
-
+const isPhoto = computed(() => props.mode === 'photo');
+const basePreset = computed<CropPresetValue>(() =>
+    isPhoto.value ? '1:1' : 'original',
+);
 const rules = computed(() => rulesFor(props.contentTypes));
 const presets = computed(() =>
-    cropPresetsFor(
-        presetValuesFor(rules.value, defaultCropPresets()),
-        props.aspectBounds,
-    ),
+    isPhoto.value
+        ? []
+        : cropPresetsFor(
+              presetValuesFor(rules.value, defaultCropPresets()),
+              props.aspectBounds,
+          ),
 );
 const activeItem = computed(() => editingItems.value[activeIndex.value]);
 const activeIsVideo = computed(() =>
@@ -159,81 +137,17 @@ const natural = computed(() => naturals.value[activeIndex.value] ?? null);
 const cropMode = computed(
     () => tab.value === 'edit' && section.value === 'crop',
 );
-const size = computed(() =>
-    natural.value && edit.value
-        ? workingSize(natural.value, edit.value)
-        : { width: 0, height: 0 },
+const { isCentered, centerSelection, resetGeometry } = useImageCrop(
+    edit,
+    natural,
 );
-const crop = computed<SourceRect>(() =>
-    natural.value && edit.value
-        ? cropSelection(natural.value, edit.value)
-        : { sx: 0, sy: 0, sw: 0, sh: 0 },
-);
-const frame = computed<SourceRect>(() =>
-    cropMode.value
-        ? { sx: 0, sy: 0, sw: size.value.width, sh: size.value.height }
-        : crop.value,
-);
-const ready = computed(
-    () =>
-        natural.value !== null &&
-        frame.value.sw > 0 &&
-        stageSize.value.width > 0,
-);
-const scale = computed(() =>
-    containScale(
-        frame.value.sw,
-        frame.value.sh,
-        stageSize.value.width,
-        stageSize.value.height,
-    ),
-);
-const px = (value: number): string => `${value * scale.value}px`;
-
-const boxStyle = computed(() => ({
-    width: px(frame.value.sw),
-    height: px(frame.value.sh),
-}));
-const layerStyle = computed(() => ({
-    left: px(-frame.value.sx),
-    top: px(-frame.value.sy),
-    width: px(size.value.width),
-    height: px(size.value.height),
-}));
-const imageStyle = computed(() => {
-    if (!natural.value || !edit.value) return {};
-    const transform = imageTransform(natural.value, edit.value);
-
-    return {
-        width: px(natural.value.width),
-        height: px(natural.value.height),
-        transform: `translate(-50%, -50%) rotate(${transform.rotation}rad) scale(${transform.scaleX}, ${transform.scaleY})`,
-        filter: cssFilter(edit.value),
-    };
-});
-const overlayColor = computed(() =>
-    edit.value ? warmthOverlay(edit.value) : null,
-);
-const selectionStyle = computed(() => ({
-    left: px(crop.value.sx),
-    top: px(crop.value.sy),
-    width: px(crop.value.sw),
-    height: px(crop.value.sh),
-    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-}));
-const ratio = computed(() =>
-    edit.value ? presetRatio(edit.value.preset, size.value) : null,
-);
-const isCentered = (selection: SourceRect, frameSize: Size): boolean =>
-    Math.abs(selection.sx - (frameSize.width - selection.sw) / 2) < 0.5 &&
-    Math.abs(selection.sy - (frameSize.height - selection.sh) / 2) < 0.5;
 const centerDisabled = computed(
-    () => !edit.value?.selection || isCentered(crop.value, size.value),
+    () => !edit.value?.selection || isCentered.value,
 );
 const resetDisabled = computed(
     () =>
         !edit.value ||
-        (edit.value.preset === 'original' &&
+        (edit.value.preset === basePreset.value &&
             !edit.value.selection &&
             edit.value.quarterTurns % 4 === 0 &&
             !edit.value.flipX &&
@@ -255,25 +169,8 @@ const changedIndexes = computed(() =>
     editingItems.value.map((_, index) => index).filter(isChanged),
 );
 
-const measure = (): void => {
-    const el = stageEl.value;
-    if (!el) return;
-    stageSize.value = {
-        width: Math.max(0, el.clientWidth - STAGE_PADDING),
-        height: Math.max(0, el.clientHeight - STAGE_PADDING),
-    };
-};
-
-const onImageLoad = (event: Event): void => {
-    const image = event.target as HTMLImageElement;
-    if (image.naturalWidth === 0 || image.naturalHeight === 0) {
-        imageErrors.value[activeIndex.value] = true;
-        return;
-    }
-    naturals.value[activeIndex.value] = {
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-    };
+const onImageLoad = (size: ImageSize): void => {
+    naturals.value[activeIndex.value] = size;
 };
 
 const onImageError = (): void => {
@@ -287,100 +184,19 @@ const selectItem = (index: number): void => {
     tab.value = tabFor(tab.value);
 };
 
-const beginDrag = (mode: 'move' | Corner, event: PointerEvent): void => {
-    if (!ready.value || drag) return;
-    drag = {
-        mode,
-        pointerId: event.pointerId,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        selection: { ...crop.value },
-    };
-    boxEl.value?.setPointerCapture(event.pointerId);
-};
-
-const onPointerMove = (event: PointerEvent): void => {
-    if (!drag || event.pointerId !== drag.pointerId || !edit.value) return;
-    const minSize =
-        Math.min(size.value.width, size.value.height) * MIN_SELECTION_RATIO;
-
-    if (drag.mode === 'move') {
-        edit.value.selection = clampSelection(
-            {
-                ...drag.selection,
-                sx:
-                    drag.selection.sx +
-                    (event.clientX - drag.clientX) / scale.value,
-                sy:
-                    drag.selection.sy +
-                    (event.clientY - drag.clientY) / scale.value,
-            },
-            size.value.width,
-            size.value.height,
-            minSize,
-            ratio.value,
-        );
-        return;
-    }
-
-    const box = boxEl.value!.getBoundingClientRect();
-    edit.value.selection = resizeSelection(
-        drag.selection,
-        drag.mode,
-        (event.clientX - box.left) / scale.value,
-        (event.clientY - box.top) / scale.value,
-        size.value.width,
-        size.value.height,
-        minSize,
-        ratio.value,
-    );
-};
-
-const onPointerUp = (event: PointerEvent): void => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    if (boxEl.value?.hasPointerCapture(event.pointerId)) {
-        boxEl.value.releasePointerCapture(event.pointerId);
-    }
-    drag = null;
-};
-
-const onStageClick = (event: MouseEvent): void => {
+const onStagePress = (point: { x: number; y: number }): void => {
     if (
         tab.value !== 'tags' ||
         !tagging.value ||
-        !boxEl.value ||
         edit.value.userTags.length >= USER_TAGS_MAX
     )
         return;
-    const box = boxEl.value.getBoundingClientRect();
     const round = (value: number): number =>
         Math.round(Math.min(1, Math.max(0, value)) * 10000) / 10000;
-    pendingPoint.value = {
-        x: round((event.clientX - box.left) / box.width),
-        y: round((event.clientY - box.top) / box.height),
-    };
+    pendingPoint.value = { x: round(point.x), y: round(point.y) };
 };
 
-const centerSelection = (): void => {
-    if (!edit.value) return;
-    edit.value.selection = {
-        ...crop.value,
-        sx: (size.value.width - crop.value.sw) / 2,
-        sy: (size.value.height - crop.value.sh) / 2,
-    };
-};
-
-const resetGeometry = (): void => {
-    if (!edit.value) return;
-    Object.assign(edit.value, {
-        preset: 'original',
-        selection: null,
-        quarterTurns: 0,
-        flipX: false,
-        flipY: false,
-        straighten: 0,
-    });
-};
+const resetCrop = (): void => resetGeometry(basePreset.value);
 
 const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
@@ -399,13 +215,19 @@ const apply = async (): Promise<void> => {
                 async (index): Promise<MediaEditChange> => {
                     const media = editingItems.value[index];
                     const itemEdit = edits.value[index];
-                    const rendered = hasPixelChanges(itemEdit)
-                        ? await renderMediaEdit(
-                              await loadImage(media.url),
-                              media,
-                              itemEdit,
-                          )
+                    const image = hasPixelChanges(itemEdit)
+                        ? await loadImage(media.url)
                         : null;
+                    const rendered = !image
+                        ? null
+                        : isPhoto.value
+                          ? await renderImageEdit(image, itemEdit, {
+                                fileName:
+                                    media.original_filename ?? 'image.png',
+                                mimeType: media.mime_type ?? 'image/png',
+                                outputSide: props.outputSize,
+                            })
+                          : await renderMediaEdit(image, media, itemEdit);
 
                     return {
                         index,
@@ -431,16 +253,14 @@ const apply = async (): Promise<void> => {
 
 watch(
     () => props.open,
-    async (isOpen) => {
-        if (!isOpen) {
-            resizeObserver?.disconnect();
-            resizeObserver = null;
-            drag = null;
-            return;
-        }
+    (isOpen) => {
+        if (!isOpen) return;
 
         editingItems.value = [...props.items];
-        edits.value = editingItems.value.map(createMediaEdit);
+        edits.value = editingItems.value.map((item) => ({
+            ...createMediaEdit(item),
+            preset: basePreset.value,
+        }));
         naturals.value = {};
         stageVideoDurations.value = {};
         imageErrors.value = {};
@@ -453,12 +273,6 @@ watch(
         pendingPoint.value = null;
         tagging.value = false;
         failed.value = false;
-        await nextTick();
-        measure();
-        if (stageEl.value && !resizeObserver) {
-            resizeObserver = new ResizeObserver(measure);
-            resizeObserver.observe(stageEl.value);
-        }
     },
 );
 
@@ -474,8 +288,6 @@ watch(tagging, (isTagging) => {
         pendingPoint.value = null;
     }
 });
-
-onBeforeUnmount(() => resizeObserver?.disconnect());
 </script>
 
 <template>
@@ -487,7 +299,11 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
         >
             <header class="flex items-center justify-between px-4 pt-3 pb-2">
                 <DialogTitle class="text-lg font-medium">{{
-                    $t('posts.composer.media_editor.title')
+                    $t(
+                        isPhoto
+                            ? 'common.photo_upload.crop_title'
+                            : 'posts.composer.media_editor.title',
+                    )
                 }}</DialogTitle>
                 <DialogDescription class="sr-only">{{
                     $t('posts.composer.media_editor.description')
@@ -506,7 +322,6 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
             >
                 <div class="flex min-h-0 flex-1 flex-col gap-3">
                     <div
-                        ref="stageEl"
                         class="relative flex min-h-[45vh] flex-1 items-center justify-center overflow-hidden rounded-xl bg-muted select-none dark:bg-accent lg:min-h-0"
                     >
                         <video
@@ -527,78 +342,22 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
                         >
                             {{ $t('common.photo_upload.crop_error') }}
                         </p>
-                        <div
+                        <ImageCropStage
                             v-else-if="activeItem && edit"
-                            ref="boxEl"
-                            data-testid="media-editor-stage"
-                            class="relative touch-none"
-                            :class="[
-                                ready ? '' : 'invisible',
+                            v-model:edit="edit"
+                            :src="activeItem.url"
+                            :natural="natural"
+                            :crop-mode="cropMode"
+                            test-id-prefix="media-editor"
+                            :box-class="
                                 tab === 'tags' && tagging
                                     ? 'cursor-crosshair'
-                                    : '',
-                            ]"
-                            :style="boxStyle"
-                            @pointermove="onPointerMove"
-                            @pointerup="onPointerUp"
-                            @pointercancel="onPointerUp"
-                            @click="onStageClick"
+                                    : ''
+                            "
+                            @load="onImageLoad"
+                            @error="onImageError"
+                            @press="onStagePress"
                         >
-                            <div
-                                class="absolute overflow-hidden"
-                                :class="cropMode ? '' : 'pointer-events-none'"
-                                :style="layerStyle"
-                            >
-                                <img
-                                    :key="activeItem.url"
-                                    :src="activeItem.url"
-                                    alt=""
-                                    draggable="false"
-                                    class="pointer-events-none absolute top-1/2 left-1/2 max-w-none"
-                                    :style="imageStyle"
-                                    @load="onImageLoad"
-                                    @error="onImageError"
-                                />
-                            </div>
-                            <div
-                                v-if="overlayColor"
-                                class="pointer-events-none absolute inset-0"
-                                :style="{ backgroundColor: overlayColor }"
-                            />
-                            <div
-                                v-if="cropMode && ready"
-                                class="absolute cursor-move"
-                                data-testid="media-editor-selection"
-                                :style="selectionStyle"
-                                @pointerdown="beginDrag('move', $event)"
-                            >
-                                <div
-                                    class="pointer-events-none absolute inset-0 border border-white"
-                                >
-                                    <span
-                                        class="absolute inset-y-0 left-1/3 w-px bg-white/40"
-                                    />
-                                    <span
-                                        class="absolute inset-y-0 left-2/3 w-px bg-white/40"
-                                    />
-                                    <span
-                                        class="absolute inset-x-0 top-1/3 h-px bg-white/40"
-                                    />
-                                    <span
-                                        class="absolute inset-x-0 top-2/3 h-px bg-white/40"
-                                    />
-                                </div>
-                                <span
-                                    v-for="handle in HANDLES"
-                                    :key="handle.corner"
-                                    :data-testid="`media-editor-handle-${handle.corner}`"
-                                    class="absolute size-3 rounded-full border border-foreground bg-white"
-                                    :class="handle.class"
-                                    @pointerdown.stop="
-                                        beginDrag(handle.corner, $event)
-                                    "
-                                />
-                            </div>
                             <template v-if="tab === 'tags'">
                                 <span
                                     v-for="(tag, tagIndex) in edit.userTags"
@@ -620,10 +379,11 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
                                     }"
                                 />
                             </template>
-                        </div>
+                        </ImageCropStage>
                     </div>
 
                     <div
+                        v-if="!isPhoto"
                         class="flex justify-center gap-2 overflow-x-auto pb-1"
                     >
                         <button
@@ -737,7 +497,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
                             :center-disabled="centerDisabled"
                             :reset-disabled="resetDisabled"
                             @center="centerSelection"
-                            @reset="resetGeometry"
+                            @reset="resetCrop"
                         />
                         <MediaEditorAppearancePanel
                             v-else
@@ -789,7 +549,9 @@ onBeforeUnmount(() => resizeObserver?.disconnect());
                     @click="apply"
                 >
                     {{
-                        changedIndexes.length > 0
+                        isPhoto
+                            ? $t('common.photo_upload.crop_save')
+                            : changedIndexes.length > 0
                             ? $tChoice(
                                   'posts.composer.media_editor.apply_count',
                                   changedIndexes.length,

@@ -7,7 +7,9 @@ namespace App\Actions\Post;
 use App\Actions\Analytics\ReadPublicationAnalytics;
 use App\Actions\Post\Queue\BuildQueueTimeline;
 use App\Actions\SocialAccount\CountPostsSentThisWeek;
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
+use App\Enums\User\WeekStart;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -92,7 +94,7 @@ class BuildPublishPageProps
         $props = [
             'workspace' => $workspace,
             'scope' => $channel ? 'channel' : 'all',
-            'channel' => fn (): ?array => $channel ? self::channelHeader($channel) : null,
+            'channel' => fn (): ?array => $channel ? self::channelHeader($channel, $user->week_starts_on) : null,
             'tab' => $tab,
             'counts' => fn (): array => [
                 ...self::counts(clone $basePosts),
@@ -116,7 +118,7 @@ class BuildPublishPageProps
         ];
 
         if ($tab === self::TAB_QUEUE) {
-            $props['queue'] = fn (): array => self::queue($workspace, $channels(), $displayTimezone, $request, $labelIds, $untagged, $cards);
+            $props['queue'] = fn (): array => self::queue($workspace, $channels(), $displayTimezone, $request, $labelIds, $untagged, $cards, $channel !== null, $requester);
         }
 
         $props['posts'] = Inertia::scroll(fn () => self::paginatedCards($tab, $cards(), $tab === self::TAB_QUEUE ? null : $focusedPostId, $requester));
@@ -140,12 +142,12 @@ class BuildPublishPageProps
     /**
      * @return array<string, mixed>
      */
-    public static function channelHeader(SocialAccount $channel): array
+    public static function channelHeader(SocialAccount $channel, WeekStart $weekStart): array
     {
         return [
             ...SocialAccountResource::make($channel)->resolve(),
             'posting_goal' => $channel->posting_goal,
-            'sent_this_week' => CountPostsSentThisWeek::handle($channel),
+            'sent_this_week' => CountPostsSentThisWeek::handle($channel, $weekStart),
             'has_grid' => $channel->platform->hasProfileGrid(),
         ];
     }
@@ -235,16 +237,20 @@ class BuildPublishPageProps
     }
 
     /**
+     * A channel page always gets its timeline (scheduled posts and free posting times);
+     * the all-channels page only gets one while nothing is scheduled. Pending queue
+     * requests holding a slot come along for the viewer who may see them.
+     *
      * @param  Collection<int, SocialAccount>  $channels
      * @param  list<string>  $labelIds
      * @param  callable(): Builder  $cards
-     * @return array{days: list<array<string, mixed>>, needsAttention: list<Post>, queueDays: int, maxQueueDays: int}
+     * @return array{days: list<array<string, mixed>>, needsAttention: list<Post>, pending: list<Post>, queueDays: int, maxQueueDays: int}
      */
-    private static function queue(Workspace $workspace, Collection $channels, string $displayTimezone, Request $request, array $labelIds, bool $untagged, callable $cards): array
+    private static function queue(Workspace $workspace, Collection $channels, string $displayTimezone, Request $request, array $labelIds, bool $untagged, callable $cards, bool $channelScope, ?User $requester): array
     {
         $queueDays = max(self::MIN_QUEUE_DAYS, min(self::MAX_QUEUE_DAYS, $request->integer('queue_days', self::MIN_QUEUE_DAYS)));
 
-        $days = $cards()->where('status', PostStatus::Scheduled)->exists()
+        $days = ! $channelScope && $cards()->where('status', PostStatus::Scheduled)->exists()
             ? []
             : BuildQueueTimeline::handle($workspace, $channels, $displayTimezone, now()->addDays($queueDays), $labelIds, $untagged);
 
@@ -254,11 +260,23 @@ class BuildPublishPageProps
             ->limit((int) config('app.pagination.default'))
             ->get();
 
+        $pending = $cards()
+            ->pendingApproval()
+            ->where('posts.schedule_mode', ScheduleMode::Queue)
+            ->where('posts.scheduled_at', '>', now())
+            ->visiblePendingApprovalsFor($requester)
+            ->orderBy('posts.scheduled_at')
+            ->orderBy('posts.id')
+            ->limit((int) config('app.pagination.default'))
+            ->get();
+
         self::decorate($needsAttention);
+        self::decorate($pending);
 
         return [
             'days' => $days,
             'needsAttention' => $needsAttention->values()->all(),
+            'pending' => $pending->values()->all(),
             'queueDays' => $queueDays,
             'maxQueueDays' => self::MAX_QUEUE_DAYS,
         ];

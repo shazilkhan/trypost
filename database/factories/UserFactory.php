@@ -56,7 +56,7 @@ class UserFactory extends Factory
             'locale' => Locale::DEFAULT,
             'timezone' => Timezone::DEFAULT,
             'theme' => Theme::DEFAULT,
-            'time_format' => null,
+            'time_format' => TimeFormat::DEFAULT,
             'week_starts_on' => WeekStart::DEFAULT,
             'default_post_action' => DefaultPostAction::DEFAULT,
         ];

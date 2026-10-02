@@ -48,7 +48,7 @@ return [
         'title' => 'Publicações podem falhar',
         'heading' => 'Publicações podem falhar',
         'intro' => 'As contas a seguir na área de trabalho :workspace precisam ser reconectadas antes que estas publicações agendadas possam ir ao ar:',
-        'posts_label' => '{1} :count publicação agendada: :times UTC|[0,*] :count publicações agendadas: :times UTC',
+        'posts_label' => '{1} :count publicação agendada: :times (:timezone)|[0,*] :count publicações agendadas: :times (:timezone)',
         'reconnect_cta' => 'Reconecte estas contas agora para não perder suas publicações agendadas.',
         'button' => 'Reconectar contas',
     ],

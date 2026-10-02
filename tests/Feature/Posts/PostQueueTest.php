@@ -20,6 +20,7 @@ use App\Support\PostingSchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Testing\TestResponse;
 use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
@@ -187,7 +188,7 @@ test('updating only the content of a queued post keeps every slot', function () 
         ->and(postQueueSlot($second))->toBe('Wed 09:00');
 });
 
-test('giving a queued post a custom time pins it and moves the others up', function () {
+test('giving a queued post a custom time pins it and the others keep their slots', function () {
     $first = postQueueStore($this, $this->channel);
     $second = postQueueStore($this, $this->channel);
     $custom = CarbonImmutable::parse('2026-10-10 15:30', 'America/Sao_Paulo');
@@ -204,10 +205,10 @@ test('giving a queued post a custom time pins it and moves the others up', funct
 
     expect($first->schedule_mode)->toBe(ScheduleMode::Custom)
         ->and($first->scheduled_at->equalTo($custom))->toBeTrue()
-        ->and(postQueueSlot($second))->toBe('Mon 09:00');
+        ->and(postQueueSlot($second))->toBe('Wed 09:00');
 });
 
-test('moving a queued post to draft clears its mode and moves the others up', function () {
+test('moving a queued post to draft clears its mode and leaves its slot free', function () {
     $first = postQueueStore($this, $this->channel);
     $second = postQueueStore($this, $this->channel);
 
@@ -219,10 +220,10 @@ test('moving a queued post to draft clears its mode and moves the others up', fu
 
     expect($first->status)->toBe(PostStatus::Draft)
         ->and($first->schedule_mode)->toBeNull()
-        ->and(postQueueSlot($second))->toBe('Mon 09:00');
+        ->and(postQueueSlot($second))->toBe('Wed 09:00');
 });
 
-test('publishing a queued post now moves the others up', function () {
+test('publishing a queued post now leaves the others in their slots', function () {
     $first = postQueueStore($this, $this->channel);
     $second = postQueueStore($this, $this->channel);
 
@@ -231,7 +232,7 @@ test('publishing a queued post now moves the others up', function () {
         ->assertSessionHasNoErrors();
 
     expect($first->refresh()->schedule_mode)->toBeNull()
-        ->and(postQueueSlot($second))->toBe('Mon 09:00');
+        ->and(postQueueSlot($second))->toBe('Wed 09:00');
     Queue::assertPushed(PublishPost::class);
 });
 
@@ -301,7 +302,7 @@ test('queueing a legacy multi-target post is rejected', function () {
         ->and($post->schedule_mode)->toBeNull();
 });
 
-test('deleting a queued post moves the others up', function () {
+test('deleting a queued post leaves its slot free and the others in place', function () {
     $first = postQueueStore($this, $this->channel);
     $second = postQueueStore($this, $this->channel);
     $third = postQueueStore($this, $this->channel);
@@ -309,8 +310,27 @@ test('deleting a queued post moves the others up', function () {
     $this->actingAs($this->user)->delete(route('app.posts.destroy', $first))->assertRedirect();
 
     expect(Post::find($first->id))->toBeNull()
-        ->and(postQueueSlot($second))->toBe('Mon 09:00')
-        ->and(postQueueSlot($third))->toBe('Wed 09:00');
+        ->and(postQueueSlot($second))->toBe('Wed 09:00')
+        ->and(postQueueSlot($third))->toBe('Fri 09:00');
+
+    $next = postQueueStore($this, $this->channel);
+
+    expect(postQueueSlot($next))->toBe('Mon 09:00');
+});
+
+test('queue top shifts only the run of queued posts up to the first gap', function () {
+    $first = postQueueStore($this, $this->channel);
+    $second = postQueueStore($this, $this->channel);
+    $third = postQueueStore($this, $this->channel);
+    $fourth = postQueueStore($this, $this->channel);
+    $this->actingAs($this->user)->delete(route('app.posts.destroy', $third))->assertRedirect();
+
+    $top = postQueueStore($this, $this->channel, 'top');
+
+    expect(postQueueSlot($top))->toBe('Mon 09:00')
+        ->and(postQueueSlot($first))->toBe('Wed 09:00')
+        ->and(postQueueSlot($second))->toBe('Fri 09:00')
+        ->and($fourth->refresh()->scheduled_at->setTimezone('America/Sao_Paulo')->format('Y-m-d H:i'))->toBe('2026-10-12 09:00');
 });
 
 test('changing the posting schedule reassigns the queued posts', function () {
@@ -327,6 +347,175 @@ test('changing the posting schedule reassigns the queued posts', function () {
 
     expect(postQueueSlot($first))->toBe('Tue 11:00')
         ->and(postQueueSlot($second))->toBe('Thu 11:00');
+});
+
+test('a schedule change keeps posts whose slot still exists and re-places only the others', function () {
+    $first = postQueueStore($this, $this->channel);
+    $second = postQueueStore($this, $this->channel);
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'America/Sao_Paulo',
+            'posting_goal' => 2,
+            'posting_schedule' => PostingSchedule::empty()->withTime(3, '09:00')->withTime(4, '11:00')->toArray(),
+        ])
+        ->assertOk();
+
+    expect(postQueueSlot($second))->toBe('Wed 09:00')
+        ->and(postQueueSlot($first))->toBe('Thu 11:00')
+        ->and($first->schedule_mode)->toBe(ScheduleMode::Queue);
+});
+
+test('a time zone change keeps the local clock time of every queued post', function () {
+    $first = postQueueStore($this, $this->channel);
+    $second = postQueueStore($this, $this->channel);
+    $third = postQueueStore($this, $this->channel);
+    $this->actingAs($this->user)->delete(route('app.posts.destroy', $second))->assertRedirect();
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'America/New_York',
+            'posting_goal' => 3,
+            'posting_schedule' => $this->channel->posting_schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect($first->refresh()->scheduled_at->setTimezone('America/New_York')->format('Y-m-d H:i'))->toBe('2026-10-05 09:00')
+        ->and($third->refresh()->scheduled_at->setTimezone('America/New_York')->format('Y-m-d H:i'))->toBe('2026-10-09 09:00');
+});
+
+test('a time zone change keeps each local clock time even when the old instant is another slot', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04 08:00', 'America/Sao_Paulo'));
+    $this->channel->update(['posting_schedule' => PostingSchedule::empty()->withTime(1, '09:00')->withTime(1, '12:00')->withTime(3, '09:00')->withTime(3, '12:00')]);
+
+    $posts = [postQueueStore($this, $this->channel), postQueueStore($this, $this->channel), postQueueStore($this, $this->channel)];
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'UTC',
+            'posting_goal' => 4,
+            'posting_schedule' => $this->channel->posting_schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect(array_map(fn (Post $post): string => postQueueSlot($post, 'UTC'), $posts))->toBe(['Mon 09:00', 'Mon 12:00', 'Wed 09:00']);
+});
+
+test('a time zone change keeps the local clock time of hourly slots', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04 08:00', 'America/Sao_Paulo'));
+    $schedule = PostingSchedule::empty();
+
+    foreach (['09:00', '10:00', '11:00', '12:00'] as $time) {
+        $schedule = $schedule->withTime(1, $time);
+    }
+
+    $this->channel->update(['posting_schedule' => $schedule]);
+    $posts = array_map(fn (): Post => postQueueStore($this, $this->channel), range(1, 4));
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'UTC',
+            'posting_goal' => 4,
+            'posting_schedule' => $schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect(array_map(fn (Post $post): string => postQueueSlot($post, 'UTC'), $posts))->toBe(['Mon 09:00', 'Mon 10:00', 'Mon 11:00', 'Mon 12:00']);
+});
+
+test('a time zone change keeps the local clock time of a pending approval slot holder', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04 08:00', 'America/Sao_Paulo'));
+    $requester = workspaceMember($this->workspace, 'approval');
+
+    postQueueStoreAtSlot($this, $requester, $this->channel, CarbonImmutable::parse('2026-10-05 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasNoErrors();
+    $holder = Post::query()->sole();
+    $queued = postQueueStore($this, $this->channel);
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'UTC',
+            'posting_goal' => 3,
+            'posting_schedule' => $this->channel->posting_schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect($holder->refresh()->status)->toBe(PostStatus::PendingApproval)
+        ->and($holder->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(postQueueSlot($holder, 'UTC'))->toBe('Mon 09:00')
+        ->and(postQueueSlot($queued, 'UTC'))->toBe('Wed 09:00');
+});
+
+test('a time zone change moves a pending holder to the first free slot when its local slot is taken', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-10-04 08:00', 'America/Sao_Paulo'));
+    $requester = workspaceMember($this->workspace, 'approval');
+
+    postQueueStoreAtSlot($this, $requester, $this->channel, CarbonImmutable::parse('2026-10-05 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasNoErrors();
+    $holder = Post::query()->sole();
+    $custom = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => CarbonImmutable::parse('2026-10-05 09:00', 'UTC'), 'schedule_mode' => ScheduleMode::Custom]);
+    PostPlatform::factory()->create(['post_id' => $custom->id, 'social_account_id' => $this->channel->id, 'enabled' => true]);
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'UTC',
+            'posting_goal' => 3,
+            'posting_schedule' => $this->channel->posting_schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect(postQueueSlot($holder, 'UTC'))->toBe('Wed 09:00');
+});
+
+function postQueueStoreAtSlot(object $test, User $user, SocialAccount $channel, CarbonImmutable $slot): TestResponse
+{
+    $at = $slot->utc()->toIso8601String();
+
+    return $test->actingAs($user)
+        ->post(route('app.posts.store'), postQueuePayload([$channel], ['queue' => null, 'scheduled_at' => $at, 'queue_slot' => $at]));
+}
+
+test('storing at a free posting slot places the post in that slot as a queue post', function () {
+    postQueueStoreAtSlot($this, $this->user, $this->channel, CarbonImmutable::parse('2026-10-07 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasNoErrors();
+
+    $post = Post::findOrFail(session('created_post_ids')[0]);
+    $next = postQueueStore($this, $this->channel);
+
+    expect(postQueueSlot($post))->toBe('Wed 09:00')
+        ->and($post->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(postQueueSlot($next))->toBe('Mon 09:00');
+});
+
+test('storing at a posting slot taken meanwhile fails without double booking', function () {
+    postQueueStore($this, $this->channel);
+
+    postQueueStoreAtSlot($this, $this->user, $this->channel, CarbonImmutable::parse('2026-10-05 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasErrors(['queue_slot' => __('posts.errors.queue_order_stale')]);
+
+    expect(Post::query()->count())->toBe(1);
+});
+
+test('storing at an instant that is not a posting slot fails', function () {
+    postQueueStoreAtSlot($this, $this->user, $this->channel, CarbonImmutable::parse('2026-10-06 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasErrors('queue_slot');
+
+    expect(Post::query()->count())->toBe(0);
+});
+
+test('a member who needs approval storing at a posting slot reserves it while pending', function () {
+    $requester = workspaceMember($this->workspace, 'approval');
+
+    postQueueStoreAtSlot($this, $requester, $this->channel, CarbonImmutable::parse('2026-10-05 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasNoErrors();
+
+    $request = Post::query()->sole();
+    $next = postQueueStore($this, $this->channel);
+
+    expect($request->status)->toBe(PostStatus::PendingApproval)
+        ->and($request->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(postQueueSlot($request))->toBe('Mon 09:00')
+        ->and(postQueueSlot($next))->toBe('Wed 09:00');
 });
 
 test('clearing the posting schedule turns queued posts custom at their times', function () {

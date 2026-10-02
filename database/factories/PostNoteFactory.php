@@ -18,15 +18,6 @@ class PostNoteFactory extends Factory
             'post_id' => Post::factory(),
             'user_id' => User::factory(),
             'body' => $this->faker->sentence(),
-            'reactions' => [],
         ];
-    }
-
-    public function reply(PostNote $parent): static
-    {
-        return $this->state(fn () => [
-            'post_id' => $parent->post_id,
-            'parent_id' => $parent->id,
-        ]);
     }
 }

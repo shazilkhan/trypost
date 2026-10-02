@@ -437,3 +437,27 @@ test('no sidebar menu item wraps onto a second line in any language', function (
 
     expect($wrapped)->toBe([]);
 });
+
+test('the main sidebar navigation is ordered create, publish, insights, repurpose', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    waitForSidebarTestId($page, 'sidebar-logo');
+
+    $paths = array_map(
+        fn (string $url): string => (string) parse_url($url, PHP_URL_PATH),
+        [route('app.create.ideas.index'), route('app.posts.index'), route('app.insights'), route('app.repurposes.index')],
+    );
+
+    expect($page->script(<<<'JS'
+        Array.from(document.querySelectorAll('[data-testid^="nav-"]')).map((link) => new URL(link.href).pathname)
+    JS))->toBe($paths);
+});

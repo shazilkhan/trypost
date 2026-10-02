@@ -3,7 +3,6 @@
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Texte',
             'image' => 'Image',
@@ -15,12 +14,6 @@ return [
             'link' => 'Lien',
             'poll' => 'Sondage',
             'unknown' => 'Inconnu',
-        ],
-        'time_basis' => [
-            'lifetime' => 'Depuis la publication',
-            'range' => 'Période sélectionnée',
-            'rolling_90_days' => '90 derniers jours',
-            'snapshot' => 'Mesure ponctuelle',
         ],
         'labels' => [
             'watch_time_milliseconds' => 'Durée de visionnage',
@@ -54,17 +47,8 @@ return [
             'story_exits' => 'Sorties des stories',
             'unique_viewers' => 'Spectateurs uniques',
         ],
-        'engagement' => 'Engagement',
-        'exposure' => 'Portée',
-        'video' => 'Vidéo et rétention',
-        'last_collected' => 'Dernière collecte',
-        'stale' => 'Peut être obsolète',
         'awaiting_metrics' => 'Les métriques ne sont pas encore disponibles.',
-        'estimated' => 'Estimation',
-        'back_to_insights' => 'Retour aux Insights',
         'details' => 'Détails',
-        'published_via_trypost' => 'Publié via TryPost',
-        'published_on' => 'Publié sur :platform',
     ],
     'dashboard' => [
         'summary' => 'Résumé',
@@ -77,7 +61,6 @@ return [
         'performance' => 'Performances',
         'top_posts' => 'Top 5 des publications',
         'channel' => 'Canal',
-        'workspace_description' => 'Tous vos canaux connectés, chaque compte étant identifié séparément.',
         'latest_snapshot_hint' => 'Les métriques des publications utilisent la dernière mesure enregistrée pour les publications de cette période.',
         'followers_chart_mode' => 'Type de graphique des abonnés',
         'posts_chart_mode' => 'Type de graphique des publications',
@@ -189,6 +172,18 @@ return [
                 'label' => 'Temps de visionnage moyen (s)',
                 'about' => 'Nombre moyen de secondes visionnées par vue.',
             ],
+            'reposts' => [
+                'label' => 'Republications',
+                'about' => 'Republications des posts publiés sur la période.',
+            ],
+            'impressions' => [
+                'label' => 'Impressions',
+                'about' => 'Nombre d\'affichages des posts publiés sur la période.',
+            ],
+            'clicks' => [
+                'label' => 'Clics',
+                'about' => 'Clics sur les posts publiés sur la période.',
+            ],
         ],
     ],
 
@@ -248,5 +243,44 @@ return [
         'bookings' => 'Réservations',
         'food_orders' => 'Commandes de repas',
         'food_menu_clicks' => 'Clics sur le menu',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => 'Exporter',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => 'Période',
+            'compared_to' => 'Comparé à',
+            'generated_at' => 'Généré le',
+            'metric' => 'Métrique',
+            'value' => 'Valeur',
+            'previous' => 'Période précédente',
+            'change' => 'Évolution',
+            'published_at' => 'Publié le',
+            'network' => 'Réseau',
+            'content_type' => 'Type',
+            'text' => 'Texte',
+            'link' => 'Lien',
+        ],
+        'sync' => [
+            'button' => 'État de la synchro',
+            'title' => 'Comment les Insights sont mis à jour',
+            'new_posts' => 'Les nouveaux posts sont récupérés :interval sur chaque canal, et :x_interval sur X.',
+            'every_hours' => '{1} toutes les heures|[2,*] toutes les :count heures',
+            'metrics' => 'Les métriques sont actualisées une fois par jour pour les posts des :days derniers jours (:x_days sur X).',
+            'followers' => 'Le nombre d\'abonnés est enregistré une fois par jour.',
+            'last_sync' => 'Dernière synchro :time',
+            'never' => 'Pas encore synchronisé',
+        ],
+        'about' => [
+            'top_posts' => 'Vos cinq posts de la période avec le plus de réactions ou de commentaires.',
+            'performance' => 'Totaux par canal des posts publiés sur la période, comparés à la période précédente.',
+            'followers' => 'Abonnés par canal en fin de période et évolution du nombre.',
+            'posts' => 'Nombre de posts publiés par chaque canal sur la période.',
+            'channel_posts' => 'Tous les posts publiés par ce canal sur la période, classés selon la colonne choisie.',
+        ],
+        'columns' => 'Colonnes',
+        'channels_shown' => ':range · :shown canaux affichés sur :total. Filtrez par canal pour en voir d\'autres.',
     ],
 ];

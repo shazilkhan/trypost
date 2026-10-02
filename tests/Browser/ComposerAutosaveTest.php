@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Enums\User\TimeFormat;
 use App\Models\Idea;
 use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use Carbon\CarbonImmutable;
 
 /**
  * Wait for a data-testid element to mount and lay out. Pest browser `@`
@@ -402,4 +404,38 @@ test('logging out removes every unfinished post from the browser', function () {
 
     expect($page->script("Object.keys(localStorage).filter((key) => key.startsWith('trypost:composer:autosave:')).length"))->toBe(0)
         ->and($page->script("localStorage.getItem('trypost:unrelated')"))->toBe('kept');
+});
+
+test('a restored custom time keeps its moment in the channel zone', function () {
+    [$user, $workspace, $account] = composerAutosaveWorkspace();
+    $user->update(['timezone' => 'Asia/Tokyo', 'time_format' => TimeFormat::TwentyFourHour]);
+    $account->update(['timezone' => 'America/Sao_Paulo']);
+    $day = now('America/Sao_Paulo')->addDays(3)->format('Y-m-d');
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    $key = composerAutosaveKeyFor($user, $workspace);
+    seedComposerAutosave($page, $key, [
+        'content' => 'Planned in Sao Paulo',
+        'accountIds' => [$account->id],
+        'scheduleMode' => 'custom',
+        'scheduledAt' => "{$day}T10:00",
+    ]);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, 'composer-submit');
+
+    $local = CarbonImmutable::parse("{$day} 10:00", 'America/Sao_Paulo');
+    expect(trim((string) $page->script('document.querySelector("[data-testid=composer-schedule-trigger]").textContent')))
+        ->toBe($local->format($local->year === now()->year ? 'M j' : 'M j, Y').', 10:00')
+        ->and($page->script('document.querySelector("[data-testid=composer-submit]").dataset.scheduleMode'))->toBe('custom');
+
+    $page->click('@composer-submit');
+    waitForComposerAutosaveCondition($page, '!document.querySelector(\'[data-testid="post-composer-dialog"]\')');
+
+    expect(Post::query()->where('workspace_id', $workspace->id)->sole()->scheduled_at->toIso8601String())
+        ->toBe($local->utc()->toIso8601String());
+    $page->assertNoJavaScriptErrors();
 });

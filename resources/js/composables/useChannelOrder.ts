@@ -14,6 +14,11 @@ import { trans } from 'laravel-vue-i18n';
 import { nextTick, onBeforeUnmount, ref, type Directive, type Ref } from 'vue';
 import { toast } from 'vue-sonner';
 
+import {
+    cancelDragOnEscape,
+    createDragAutoScroller,
+    placeholderIndexAt,
+} from '@/lib/dragPlaceholder';
 import { reorder as reorderChannels } from '@/routes/app/channels';
 
 export interface ChannelDropIndicator {
@@ -29,8 +34,6 @@ export interface ChannelDragPreview {
 
 const ITEM_KEY = 'sortableChannel';
 const LIST_KEY = 'sortableChannelList';
-const AUTO_SCROLL_EDGE = 48;
-const AUTO_SCROLL_MAX_STEP = 14;
 const CHANNEL_ORDER_PROPS = ['channels', 'connectedChannels'];
 
 const optimisticOrder = ref<string[] | null>(null);
@@ -157,97 +160,35 @@ export const useChannelOrder = (options: {
     const dragPreview = ref<ChannelDragPreview | null>(null);
     let listElement: HTMLElement | null = null;
     let startIndex = -1;
-    let pointerY: number | null = null;
-    let scrollFrame = 0;
+    let pointer: { clientX: number; clientY: number } | null = null;
+    let stopEscape: (() => void) | null = null;
 
-    const stopAutoScroll = (): void => {
-        cancelAnimationFrame(scrollFrame);
-        scrollFrame = 0;
-    };
-
-    const placeholderIndexAt = (clientY: number): number => {
-        if (!listElement || !dragPreview.value) {
-            return startIndex;
-        }
-
-        const draggedId = dragPreview.value.channelId;
-        const y =
-            clientY - listElement.getBoundingClientRect().top + listElement.scrollTop;
-
-        return [...listElement.children].filter(
-            (row): row is HTMLElement =>
-                row instanceof HTMLElement &&
-                row.dataset.sortableChannel !== undefined &&
-                row.dataset.sortableChannel !== draggedId &&
-                row.offsetTop + row.offsetHeight / 2 < y,
-        ).length;
-    };
-
-    const placeAt = (clientY: number): void => {
-        if (dragPreview.value) {
+    const placeAt = (at: { clientX: number; clientY: number }): void => {
+        if (listElement && dragPreview.value) {
             dragPreview.value = {
                 ...dragPreview.value,
-                index: placeholderIndexAt(clientY),
+                index: placeholderIndexAt(listElement, at, {
+                    attribute: 'sortableChannel',
+                    draggedId: dragPreview.value.channelId,
+                    axis: 'vertical',
+                }),
             };
         }
     };
 
-    const autoScrollStep = (): number => {
-        if (!listElement || pointerY === null) {
-            return 0;
+    const autoScroller = createDragAutoScroller('vertical', () => {
+        if (pointer) {
+            placeAt(pointer);
         }
-
-        const rect = listElement.getBoundingClientRect();
-        const fromTop = pointerY - rect.top;
-        const fromBottom = rect.bottom - pointerY;
-        const speed = (distance: number): number =>
-            Math.ceil(
-                AUTO_SCROLL_MAX_STEP *
-                    (1 - Math.max(distance, 0) / AUTO_SCROLL_EDGE),
-            );
-
-        if (fromTop < AUTO_SCROLL_EDGE) {
-            return -speed(fromTop);
-        }
-
-        if (fromBottom < AUTO_SCROLL_EDGE) {
-            return speed(fromBottom);
-        }
-
-        return 0;
-    };
-
-    const autoScroll = (): void => {
-        scrollFrame = 0;
-
-        const step = autoScrollStep();
-
-        if (!listElement || pointerY === null || step === 0) {
-            return;
-        }
-
-        const before = listElement.scrollTop;
-        listElement.scrollTop += step;
-
-        if (listElement.scrollTop !== before) {
-            placeAt(pointerY);
-        }
-
-        scrollFrame = requestAnimationFrame(autoScroll);
-    };
+    });
 
     const endPreview = (): void => {
-        stopAutoScroll();
-        pointerY = null;
+        autoScroller.stop();
+        pointer = null;
         startIndex = -1;
         dragPreview.value = null;
-        window.removeEventListener('keydown', onPreviewKeydown, true);
-    };
-
-    const onPreviewKeydown = (event: KeyboardEvent): void => {
-        if (event.key === 'Escape') {
-            endPreview();
-        }
+        stopEscape?.();
+        stopEscape = null;
     };
 
     const startPreview = (channelId: string): void => {
@@ -266,7 +207,7 @@ export const useChannelOrder = (options: {
             index: startIndex,
             height: row.offsetHeight,
         };
-        window.addEventListener('keydown', onPreviewKeydown, true);
+        stopEscape = cancelDragOnEscape(endPreview);
     };
 
     const dropPreview = (
@@ -344,7 +285,7 @@ export const useChannelOrder = (options: {
                 );
 
                 if (overList) {
-                    placeAt(location.current.input.clientY);
+                    placeAt(location.current.input);
                 }
 
                 dropPreview(source.data.channelId, overList);
@@ -468,16 +409,13 @@ export const useChannelOrder = (options: {
                     return;
                 }
 
-                pointerY = location.current.input.clientY;
-                placeAt(pointerY);
-
-                if (!scrollFrame && autoScrollStep() !== 0) {
-                    scrollFrame = requestAnimationFrame(autoScroll);
-                }
+                pointer = location.current.input;
+                placeAt(pointer);
+                autoScroller.update(element, pointer);
             },
             onDragLeave: () => {
-                stopAutoScroll();
-                pointerY = null;
+                autoScroller.stop();
+                pointer = null;
 
                 if (dragPreview.value) {
                     dragPreview.value = { ...dragPreview.value, index: startIndex };

@@ -36,6 +36,7 @@ class BuildIdeasPageProps
                 'stages' => $request->stageIds(),
                 'labels' => $request->labelIds(),
                 'untagged' => $request->untagged(),
+                'unassigned' => $request->unassigned(),
             ],
             'editor' => $editor,
         ];
@@ -43,7 +44,7 @@ class BuildIdeasPageProps
         $query = self::filteredQuery($request, $workspace);
 
         if ($isGallery) {
-            $query->when($request->stageIds() !== [], fn (Builder $builder) => $builder->whereIn('idea_stage_id', $request->stageIds()))
+            self::applyStageFilter($query, $request)
                 ->orderByDesc('created_at')
                 ->orderByDesc('id');
 
@@ -70,6 +71,30 @@ class BuildIdeasPageProps
             Idea::query()->where('workspace_id', $workspace->id)->with('labels:id'),
             $request,
         );
+    }
+
+    /**
+     * Selected stages and "unassigned" combine with OR, like labels and "untagged".
+     *
+     * @param  Builder<Idea>  $query
+     * @return Builder<Idea>
+     */
+    private static function applyStageFilter(Builder $query, ListIdeasRequest $request): Builder
+    {
+        $stageIds = $request->stageIds();
+        $unassigned = $request->unassigned();
+
+        return $query->when($stageIds !== [] || $unassigned, function (Builder $builder) use ($stageIds, $unassigned): void {
+            $builder->where(function (Builder $inner) use ($stageIds, $unassigned): void {
+                if ($stageIds !== []) {
+                    $inner->whereIn('idea_stage_id', $stageIds);
+                }
+
+                if ($unassigned) {
+                    $inner->orWhereNull('idea_stage_id');
+                }
+            });
+        });
     }
 
     /**

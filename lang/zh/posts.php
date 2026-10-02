@@ -871,7 +871,6 @@ return [
                 'description' => '你发布的帖子会显示在这里。',
             ],
         ],
-        'reordered' => '队列已更新',
     ],
     'group' => [
         'channels' => '频道 (:count)',

@@ -50,7 +50,7 @@ test('notification preferences are created with defaults on first visit', functi
 });
 
 test('user can update notification preferences', function () {
-    $response = $this->actingAs($this->user)->put(route('app.notifications.preferences.update'), [
+    $response = $this->actingAs($this->user)->patchJson(route('app.notifications.preferences.update'), [
         'post_published' => false,
         'post_failed' => true,
         'account_disconnected' => false,
@@ -58,7 +58,7 @@ test('user can update notification preferences', function () {
         'collaboration' => false,
     ]);
 
-    $response->assertRedirect();
+    $response->assertNoContent();
 
     $preference = NotificationPreference::where('user_id', $this->user->id)->first();
     expect($preference->post_published)->toBeFalse();
@@ -68,14 +68,14 @@ test('user can update notification preferences', function () {
     expect($preference->collaboration)->toBeFalse();
 });
 
-test('update validates boolean fields', function () {
-    $response = $this->actingAs($this->user)->put(route('app.notifications.preferences.update'), [
+test('update validates only the fields it receives', function () {
+    $response = $this->actingAs($this->user)->patchJson(route('app.notifications.preferences.update'), [
         'post_published' => 'invalid',
         'post_failed' => true,
-        'account_disconnected' => true,
     ]);
 
-    $response->assertSessionHasErrors(['post_published', 'post_note_added', 'collaboration']);
+    $response->assertJsonValidationErrors(['post_published'])
+        ->assertJsonMissingValidationErrors(['post_failed', 'post_note_added', 'collaboration']);
 });
 
 test('wantsEmailFor respects preferences', function () {
@@ -133,7 +133,7 @@ test('send notification respects email preferences', function () {
 });
 
 test('notification preferences update requires authentication', function () {
-    $response = $this->put(route('app.notifications.preferences.update'), [
+    $response = $this->patch(route('app.notifications.preferences.update'), [
         'post_published' => true,
         'post_failed' => true,
         'account_disconnected' => true,
@@ -147,4 +147,34 @@ test('wantsEmailFor respects the collaboration preference', function () {
 
     expect($this->user->fresh()->wantsEmailFor(Type::Collaboration))->toBeFalse()
         ->and($this->user->fresh()->wantsEmailFor(Type::PostPublished))->toBeTrue();
+});
+
+test('patching one preference leaves the others untouched', function () {
+    NotificationPreference::factory()->create([
+        'user_id' => $this->user->id,
+        'post_published' => true,
+        'post_failed' => true,
+        'account_disconnected' => true,
+        'post_note_added' => true,
+        'collaboration' => true,
+    ]);
+
+    $this->actingAs($this->user)
+        ->patchJson(route('app.notifications.preferences.update'), ['post_failed' => false])
+        ->assertNoContent();
+
+    $preference = NotificationPreference::query()->where('user_id', $this->user->id)->sole();
+
+    expect($preference->post_failed)->toBeFalse()
+        ->and($preference->post_published)->toBeTrue()
+        ->and($preference->account_disconnected)->toBeTrue()
+        ->and($preference->post_note_added)->toBeTrue()
+        ->and($preference->collaboration)->toBeTrue();
+});
+
+test('saving a preference shows no success banner', function () {
+    $this->actingAs($this->user)
+        ->patchJson(route('app.notifications.preferences.update'), ['collaboration' => false])
+        ->assertNoContent()
+        ->assertSessionMissing('flash.banner');
 });

@@ -48,7 +48,7 @@ return [
         'title' => '게시물 발행이 실패할 수 있습니다',
         'heading' => '게시물 발행이 실패할 수 있습니다',
         'intro' => '예약한 게시물을 발행하려면 워크스페이스 :workspace의 다음 계정을 다시 연결해야 합니다:',
-        'posts_label' => '{1} 예약 게시물 :count건: :times UTC|[0,*] 예약 게시물 :count건: :times UTC',
+        'posts_label' => '{1} 예약 게시물 :count건: :times (:timezone)|[0,*] 예약 게시물 :count건: :times (:timezone)',
         'reconnect_cta' => '예약한 게시물을 놓치지 않도록 지금 계정을 다시 연결하세요.',
         'button' => '계정 다시 연결',
     ],

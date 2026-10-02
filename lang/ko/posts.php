@@ -871,7 +871,6 @@ return [
                 'description' => '게시한 게시물이 여기에 표시됩니다.',
             ],
         ],
-        'reordered' => '대기열이 업데이트되었습니다',
     ],
     'group' => [
         'channels' => '채널 (:count)',

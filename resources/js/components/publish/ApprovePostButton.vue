@@ -11,6 +11,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useComposerTimezone } from '@/composables/useComposerTimezone';
 import { toastFirstError } from '@/composables/usePostCardActions';
 import date from '@/date';
 import dayjs from '@/dayjs';
@@ -26,6 +27,12 @@ const pickerOpen = ref(false);
 
 const isQueued = computed(
     () => props.post.schedule_mode === ScheduleMode.Queue,
+);
+
+const postTimezone = useComposerTimezone(() =>
+    props.post.post_platforms
+        .filter((platform) => platform.enabled)
+        .map((platform) => platform.social_account ?? {}),
 );
 
 const needsTime = computed(
@@ -47,7 +54,7 @@ const labelKey = computed(() => {
 
 const send = (payload: { scheduled_at?: string; publish_now?: true }): void => {
     router.put(approve.url(props.post.id), payload, {
-        only: ['posts', 'counts'],
+        only: ['posts', 'counts', 'queue'],
         reset: ['posts'],
         preserveScroll: true,
         onSuccess: () => {
@@ -58,11 +65,7 @@ const send = (payload: { scheduled_at?: string; publish_now?: true }): void => {
 };
 
 const confirmTime = (value: string): void => {
-    const scheduledAt = date.formatLocalDateTimeForApi(value);
-
-    if (scheduledAt) {
-        send({ scheduled_at: scheduledAt });
-    }
+    send({ scheduled_at: date.wallClockToUtc(value, postTimezone.value) });
 };
 </script>
 
@@ -86,6 +89,7 @@ const confirmTime = (value: string): void => {
         >
             <ComposerSchedulePicker
                 model-value=""
+                :timezone="postTimezone"
                 @back="pickerOpen = false"
                 @confirm="confirmTime"
             />

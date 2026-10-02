@@ -47,12 +47,11 @@ return [
         'post_note_added_description' => 'Erhalte eine E-Mail, wenn ein Teammitglied eine Notiz zu einem Beitrag hinzufügt',
         'collaboration' => 'Zusammenarbeit',
         'collaboration_description' => 'Erhalte E-Mails zu Freigabeanfragen und freigegebenen oder abgelehnten Beiträgen',
-        'save' => 'Einstellungen speichern',
+        'save_failed' => 'Die Benachrichtigungseinstellungen konnten nicht gespeichert werden. Bitte versuche es erneut.',
     ],
 
     'preferences' => [
         'title' => 'Präferenzen',
-        'saved' => 'Präferenzen gespeichert',
         'theme' => [
             'heading' => 'Darstellung',
             'description' => 'Wähle, wie TryPost für dich aussieht.',
@@ -68,7 +67,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'Zeitzone',
-            'description' => 'Wird als Standardzeitzone für Kanäle verwendet, die du verbindest.',
+            'description' => 'Gilt für angezeigte Uhrzeiten, Insights und E-Mails sowie als Standard für neue Kanäle.',
         ],
         'time_format' => [
             'heading' => 'Zeitformat',
@@ -293,7 +292,6 @@ return [
         'delete_failed_billing' => 'Wir konnten dein Abonnement beim Zahlungsanbieter nicht kündigen. Es wurde nichts gelöscht. Bitte versuche es erneut oder kontaktiere den Support.',
         'logo_updated' => 'Logo erfolgreich hochgeladen!',
         'logo_deleted' => 'Logo erfolgreich entfernt!',
-        'notifications_updated' => 'Benachrichtigungseinstellungen aktualisiert!',
     ],
 
     'api_keys' => [

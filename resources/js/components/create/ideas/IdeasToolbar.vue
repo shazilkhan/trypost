@@ -8,6 +8,7 @@ import { computed } from 'vue';
 
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { IdeaStage, IdeaLabel, IdeasView } from '@/types/idea';
 
 const props = defineProps<{
@@ -21,6 +22,10 @@ const emit = defineEmits<{ changeView: [view: IdeasView] }>();
 const stageIds = defineModel<string[]>('stageIds', { required: true });
 const labelIds = defineModel<string[]>('labelIds', { required: true });
 const untagged = defineModel<boolean>('untagged', { required: true });
+const unassigned = defineModel<boolean>('unassigned', { required: true });
+
+const matches = (text: string, search: string): boolean =>
+    text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
 
 const stageOptions = computed(() =>
     props.stages.map((stage) => ({ id: stage.id, label: stage.name })),
@@ -45,9 +50,36 @@ const views: { key: IdeasView; label: string; icon: typeof IconColumns3 }[] = [
             :deselect-all-label="$t('posts.composer.deselect_all')"
             test-id="ideas-filter-stages"
             checkbox-position="start"
+            :extra-count="unassigned ? 1 : 0"
+            compact
+            @clear="unassigned = false"
         >
             <template #icon>
                 <IconLayoutCards class="size-4" />
+            </template>
+            <template #before-options="{ search }">
+                <label
+                    v-if="matches($t('create.ideas.unassigned'), search)"
+                    class="flex min-h-8 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm leading-5 transition-control hover:bg-accent"
+                    :class="{ 'bg-accent': unassigned }"
+                    data-testid="ideas-filter-stages-unassigned"
+                >
+                    <Checkbox
+                        v-model="unassigned"
+                        data-testid="ideas-filter-stages-unassigned-checkbox"
+                    />
+                    <span
+                        class="flex min-w-0 flex-1 items-center gap-2.5 text-foreground"
+                    >
+                        <span
+                            class="size-2.5 shrink-0 rounded-full border border-dashed border-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <span class="truncate">{{
+                            $t('create.ideas.unassigned')
+                        }}</span>
+                    </span>
+                </label>
             </template>
         </MultiSelectFilter>
 

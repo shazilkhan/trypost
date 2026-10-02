@@ -59,10 +59,11 @@ function scheduleActionQueued(SocialAccount $channel, User $user): Post
     return $post->refresh();
 }
 
-test('draft on a queued post unqueues it and the rest of the queue moves up', function () {
+test('draft on a queued post unqueues it and the rest of the queue keeps its slots', function () {
     $first = scheduleActionQueued($this->channel, $this->user);
     $second = scheduleActionQueued($this->channel, $this->user);
     $freedSlot = $first->scheduled_at->toIso8601String();
+    $secondSlot = $second->scheduled_at->toIso8601String();
 
     $this->actingAs($this->user)
         ->put(route('app.posts.schedule.update', $first), ['action' => 'draft'])
@@ -74,7 +75,7 @@ test('draft on a queued post unqueues it and the rest of the queue moves up', fu
     expect($drafted->status)->toBe(PostStatus::Draft)
         ->and($drafted->schedule_mode)->toBeNull()
         ->and($drafted->scheduled_at?->toIso8601String())->toBe($freedSlot)
-        ->and($second->fresh()->scheduled_at->toIso8601String())->toBe($freedSlot);
+        ->and($second->fresh()->scheduled_at->toIso8601String())->toBe($secondSlot);
 });
 
 test('queue next on a draft adds it to the queue', function () {

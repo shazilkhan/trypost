@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-    getLocalTimeZone,
-    parseDate,
-    today,
-    type DateValue,
-} from '@internationalized/date';
+import { parseDate, today, type DateValue } from '@internationalized/date';
 import {
     IconArrowLeft,
     IconCheck,
@@ -33,9 +28,13 @@ import { useCalendarLocale } from '@/composables/useCalendarLocale';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import { weekStartIndex } from '@/preferences';
+import type { PostingSchedule } from '@/types/posting-schedule';
 
 const props = defineProps<{
     modelValue: string;
+    timezone: string;
+    postingSchedule?: PostingSchedule | null;
+    takenSlots?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -44,19 +43,15 @@ const emit = defineEmits<{
 }>();
 
 const calendarLocale = useCalendarLocale();
-const timezone = date.getUserTimezone().replaceAll('_', ' ');
-const minDate = today(getLocalTimeZone());
+const timezoneLabel = computed(() => props.timezone.replaceAll('_', ' '));
+const minDate = today(props.timezone);
 
-const initial = (() => {
-    const parsed = props.modelValue ? dayjs(props.modelValue) : null;
+const initial = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(props.modelValue)
+    ? props.modelValue
+    : date.nextFullHour(props.timezone);
 
-    return parsed?.isValid()
-        ? parsed
-        : dayjs().add(1, 'hour').startOf('hour');
-})();
-
-const pickedDate = shallowRef<DateValue>(parseDate(initial.format('YYYY-MM-DD')));
-const pickedTime = ref(initial.format('HH:mm'));
+const pickedDate = shallowRef<DateValue>(parseDate(initial.slice(0, 10)));
+const pickedTime = ref(initial.slice(11, 16));
 const timeText = ref(date.formatClockTime(pickedTime.value));
 const timeListOpen = ref(false);
 const highlightedTime = ref<string | null>(null);
@@ -74,10 +69,32 @@ const timeOptions = computed(() =>
 
 const pickedDay = computed(() => pickedDate.value.toString());
 
+const slotTimes = computed<string[]>(() => {
+    const entry = props.postingSchedule?.find(
+        (day) => day.day === dayjs(pickedDay.value).day(),
+    );
+
+    return entry?.enabled ? entry.times : [];
+});
+
 const isPastTime = (time: string): boolean =>
-    dayjs(`${pickedDay.value}T${time}`).isBefore(dayjs());
+    dayjs.tz(`${pickedDay.value}T${time}`, props.timezone).isBefore(dayjs());
 
 const isPast = computed(() => isPastTime(pickedTime.value));
+
+const takenInstants = computed(
+    () => new Set((props.takenSlots ?? []).map((at) => dayjs(at).valueOf())),
+);
+
+const isUnavailableSlot = (time: string): boolean =>
+    isPastTime(time) ||
+    takenInstants.value.has(
+        dayjs.tz(`${pickedDay.value}T${time}`, props.timezone).valueOf(),
+    );
+
+const hasOpenSlot = computed(() =>
+    slotTimes.value.some((time) => !isUnavailableSlot(time)),
+);
 
 /**
  * Read a typed time: the label of a list option, or a loose clock such as
@@ -265,7 +282,12 @@ const done = (): void => {
                                     :day="weekDate"
                                     :month="month.value"
                                     :data-testid="`composer-schedule-day-${weekDate.toString()}`"
-                                    class="font-emphasis [&[data-today]:not([data-selected])]:bg-transparent"
+                                    :data-zone-today="
+                                        weekDate.compare(minDate) === 0
+                                            ? ''
+                                            : undefined
+                                    "
+                                    class="font-emphasis [&[data-today]:not([data-selected])]:bg-transparent [&[data-today]:not([data-selected]):not([data-zone-today])]:font-emphasis! [&[data-zone-today]:not([data-selected])]:font-semibold"
                                 />
                             </CalendarCell>
                         </CalendarGridRow>
@@ -275,6 +297,34 @@ const done = (): void => {
         </div>
 
         <div class="relative mx-4 border-t border-border-strong pt-3 pb-4">
+            <div
+                v-if="hasOpenSlot"
+                class="mb-3"
+                data-testid="composer-schedule-slots"
+            >
+                <p class="mb-1.5 text-xs font-emphasis text-foreground">
+                    {{ $t('channels.settings_page.slots_title') }}
+                </p>
+                <div class="flex flex-wrap gap-1.5">
+                    <button
+                        v-for="time in slotTimes"
+                        :key="time"
+                        type="button"
+                        :disabled="isUnavailableSlot(time)"
+                        :aria-pressed="time === pickedTime"
+                        :data-testid="`composer-schedule-slot-${time.replace(':', '')}`"
+                        class="h-7 rounded-md border border-border-strong px-2 text-xs font-emphasis transition-control outline-none disabled:cursor-not-allowed disabled:opacity-40"
+                        :class="
+                            time === pickedTime
+                                ? 'bg-primary-subtle text-primary-text'
+                                : 'text-foreground enabled:hover:bg-accent'
+                        "
+                        @click="selectTime(time)"
+                    >
+                        {{ date.formatClockTime(time) }}
+                    </button>
+                </div>
+            </div>
             <label
                 for="composer-schedule-time"
                 class="mb-1.5 block text-xs font-emphasis text-foreground"
@@ -342,7 +392,7 @@ const done = (): void => {
                     <span
                         class="shrink-0 truncate text-xs"
                         data-testid="composer-schedule-timezone"
-                        >{{ timezone }}</span
+                        >{{ timezoneLabel }}</span
                     >
                 </div>
             </div>

@@ -8,7 +8,6 @@ use App\Enums\Post\Status as PostStatus;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\User;
-use App\Support\Timezone;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -77,8 +76,9 @@ class ApprovalEmailPosts
             return null;
         }
 
-        $timezone = Timezone::normalize($recipient->timezone);
+        $dateTime = RecipientTime::dateTime($at, $recipient);
+        $timezone = RecipientTime::timezone($recipient);
 
-        return "{$at->copy()->setTimezone($timezone)->locale(app()->getLocale())->isoFormat('LLL')} ({$timezone})";
+        return "{$dateTime} ({$timezone})";
     }
 }

@@ -44,6 +44,7 @@ export interface IdeaFilters {
     stages: string[];
     labels: string[];
     untagged: boolean;
+    unassigned: boolean;
 }
 
 export interface IdeaCardPage {

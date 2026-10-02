@@ -125,7 +125,7 @@ class PostController extends Controller
         }
 
         $composition = [
-            ...$request->only(['status', 'content', 'media', 'scheduled_at', 'queue', 'label_ids', 'destinations']),
+            ...$request->only(['status', 'content', 'media', 'scheduled_at', 'queue', 'queue_slot', 'label_ids', 'destinations']),
             'created_via' => CreatedVia::Web,
         ];
         if ($request->filled('recover_post_id')) {

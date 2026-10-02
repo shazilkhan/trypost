@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { trans } from 'laravel-vue-i18n';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
+import date from '@/date';
 import { activeLocale } from '@/language';
 import { formatNumberCompact, formatPercentChange } from '@/lib/utils';
 import type { WorkspaceAnalyticsReport } from '@/types/analytics';
@@ -17,6 +18,8 @@ const props = defineProps<{
     range: WorkspaceAnalyticsReport['range'];
     colors: Record<string, string>;
     filtered?: boolean;
+    channelFiltered?: boolean;
+    totalChannels?: number;
 }>();
 const mode = ref<'bar' | 'line' | 'growth'>('bar');
 const buttons = [
@@ -67,12 +70,35 @@ const barDetail = (index: number): string | null => {
         },
     );
 };
+const shownChannels = computed(() =>
+    props.channelFiltered &&
+    props.totalChannels &&
+    props.followers.accounts.length < props.totalChannels
+        ? props.followers.accounts.length
+        : null,
+);
+const rangeLabel = computed(
+    () =>
+        `${date.formatDayMonthYear(props.range.start)} – ${date.formatDayMonthYear(props.range.end)}`,
+);
 </script>
 
 <template>
     <AnalyticsSection
         :title="$t('analytics.dashboard.followers')"
-        :range="range"
+        :info="$t('analytics.insights.about.followers')"
+        info-testid="analytics-followers-about"
+        :range="shownChannels === null ? range : undefined"
+        :subtitle="
+            shownChannels === null
+                ? undefined
+                : $t('analytics.insights.channels_shown', {
+                      range: rangeLabel,
+                      shown: String(shownChannels),
+                      total: String(totalChannels),
+                  })
+        "
+        subtitle-testid="analytics-followers-subtitle"
     >
         <template #actions>
             <AnalyticsModeToggle

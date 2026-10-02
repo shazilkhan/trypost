@@ -6,7 +6,7 @@ import {
     IconMoodSmile,
     IconSearch,
     IconSparkles,
-    IconStack2,
+    IconLayoutCards,
     IconTag,
     IconX,
 } from '@tabler/icons-vue';
@@ -395,7 +395,7 @@ const iconButtonClass =
                                 :aria-label="$t('create.ideas.editor.stage')"
                                 data-testid="idea-editor-stage"
                             >
-                                <IconStack2 class="size-4" />
+                                <IconLayoutCards class="size-4" />
                                 <span class="truncate">{{
                                     currentStage?.name ??
                                     $t('create.ideas.unassigned')

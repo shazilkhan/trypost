@@ -74,9 +74,16 @@ const props = withDefaults(
         canMoveUp?: boolean;
         canMoveDown?: boolean;
         draggable?: boolean;
+        gutterHandle?: boolean;
         movable?: boolean;
     }>(),
-    { canMoveUp: false, canMoveDown: false, draggable: false, movable: true },
+    {
+        canMoveUp: false,
+        canMoveDown: false,
+        draggable: false,
+        gutterHandle: false,
+        movable: true,
+    },
 );
 
 const emit = defineEmits<{ move: [direction: PostCardMove] }>();
@@ -211,7 +218,10 @@ const showStatus = computed(
         !isPending.value,
 );
 
-const APPROVAL_RELOAD = { only: ['posts', 'counts'], reset: ['posts'] };
+const APPROVAL_RELOAD = {
+    only: ['posts', 'counts', 'queue'],
+    reset: ['posts'],
+};
 
 const rejectPost = (): void => {
     router.put(
@@ -290,7 +300,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
     <div
         :data-testid="`post-card-${testKey}`"
         :data-post-id="post.id"
-        class="relative grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-3 gap-y-2 md:grid-cols-[71px_minmax(0,1fr)] md:gap-x-8"
+        class="group/post relative grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-3 gap-y-2 md:grid-cols-[71px_minmax(0,1fr)] md:gap-x-8"
     >
         <div
             class="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1 md:flex-col md:flex-nowrap md:items-start"
@@ -298,7 +308,12 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             <span class="inline-flex items-center gap-1">
                 <IconGripVertical
                     v-if="draggable"
-                    class="size-4 cursor-grab text-muted-foreground md:-ms-5"
+                    class="size-4 cursor-grab text-muted-foreground"
+                    :class="
+                        gutterHandle
+                            ? 'shrink-0 transition-opacity active:cursor-grabbing md:absolute md:top-0.5 md:left-[79px] md:opacity-0 md:group-focus-within/post:opacity-100 md:group-hover/post:opacity-100 md:in-data-dragging:opacity-100'
+                            : 'md:-ms-5'
+                    "
                     :data-testid="`post-drag-handle-${testKey}`"
                     aria-hidden="true"
                 />

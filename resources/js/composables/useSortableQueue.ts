@@ -13,6 +13,12 @@ import { onBeforeUnmount, ref, type Ref } from 'vue';
 export interface SortableQueueItem {
     postId: string;
     channelId: string;
+    queued: boolean;
+}
+
+export interface QueueSlotTarget {
+    channelId: string;
+    at: string;
 }
 
 export interface QueueDropIndicator {
@@ -21,6 +27,7 @@ export interface QueueDropIndicator {
 }
 
 const ITEM_KEY = 'publishQueueItem';
+const SLOT_KEY = 'publishQueueSlot';
 
 const isQueueItem = (
     data: Record<string | symbol, unknown>,
@@ -29,18 +36,32 @@ const isQueueItem = (
     typeof data.postId === 'string' &&
     typeof data.channelId === 'string';
 
+const isSlotTarget = (
+    data: Record<string | symbol, unknown>,
+): data is Record<string | symbol, unknown> & QueueSlotTarget =>
+    data[SLOT_KEY] === true &&
+    typeof data.channelId === 'string' &&
+    typeof data.at === 'string';
+
+export const queueSlotKey = (slot: QueueSlotTarget): string =>
+    `${slot.channelId}-${slot.at}`;
+
 export const useSortableQueue = (options: {
     onReorder: (channelId: string, orderedPostIds: string[]) => void;
+    onMoveToSlot: (postId: string, slot: QueueSlotTarget) => void;
 }): {
     register: (el: HTMLElement, item: SortableQueueItem) => () => void;
+    registerSlot: (el: HTMLElement, slot: QueueSlotTarget) => () => void;
     dropIndicator: Ref<QueueDropIndicator | null>;
+    slotDropKey: Ref<string | null>;
 } => {
     const dropIndicator = ref<QueueDropIndicator | null>(null);
+    const slotDropKey = ref<string | null>(null);
     const elements = new Map<HTMLElement, SortableQueueItem>();
 
     const channelOrder = (channelId: string): string[] =>
         [...elements]
-            .filter(([, item]) => item.channelId === channelId)
+            .filter(([, item]) => item.queued && item.channelId === channelId)
             .sort(([a], [b]) =>
                 a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
                     ? -1
@@ -52,10 +73,23 @@ export const useSortableQueue = (options: {
         canMonitor: ({ source }) => isQueueItem(source.data),
         onDrop: ({ source, location }) => {
             dropIndicator.value = null;
+            slotDropKey.value = null;
 
             const target = location.current.dropTargets[0];
 
-            if (!target || !isQueueItem(source.data) || !isQueueItem(target.data)) {
+            if (!target || !isQueueItem(source.data)) {
+                return;
+            }
+
+            if (isSlotTarget(target.data)) {
+                options.onMoveToSlot(source.data.postId, {
+                    channelId: target.data.channelId,
+                    at: target.data.at,
+                });
+                return;
+            }
+
+            if (!isQueueItem(target.data)) {
                 return;
             }
 
@@ -114,7 +148,9 @@ export const useSortableQueue = (options: {
             dropTargetForElements({
                 element: el,
                 canDrop: ({ source }) =>
+                    item.queued &&
                     isQueueItem(source.data) &&
+                    source.data.queued &&
                     source.data.channelId === item.channelId,
                 getData: ({ input }) =>
                     attachClosestEdge(
@@ -140,5 +176,29 @@ export const useSortableQueue = (options: {
         };
     };
 
-    return { register, dropIndicator };
+    const registerSlot = (
+        el: HTMLElement,
+        slot: QueueSlotTarget,
+    ): (() => void) => {
+        const key = queueSlotKey(slot);
+        const clear = (): void => {
+            if (slotDropKey.value === key) {
+                slotDropKey.value = null;
+            }
+        };
+
+        return dropTargetForElements({
+            element: el,
+            canDrop: ({ source }) =>
+                isQueueItem(source.data) &&
+                source.data.channelId === slot.channelId,
+            getData: () => ({ [SLOT_KEY]: true, ...slot }),
+            onDragEnter: () => {
+                slotDropKey.value = key;
+            },
+            onDragLeave: clear,
+        });
+    };
+
+    return { register, registerSlot, dropIndicator, slotDropKey };
 };

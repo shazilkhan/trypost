@@ -21,6 +21,7 @@ const props = defineProps<{
     labels: Map<string, IdeaLabel>;
     selected: boolean;
     selecting: boolean;
+    preview?: boolean;
 }>();
 
 const actions = inject(ideaCardActionsKey)!;
@@ -34,6 +35,10 @@ const cardLabels = computed(() =>
 );
 
 const onClick = (): void => {
+    if (props.preview) {
+        return;
+    }
+
     if (props.selecting) {
         actions.toggle(props.card);
 
@@ -51,11 +56,11 @@ const onClick = (): void => {
             view === 'gallery' ? 'rounded-md' : 'rounded-lg',
             selected ? 'border-primary-strong' : 'border-border',
         ]"
-        :data-testid="`idea-card-${card.id}`"
-        :data-idea-id="card.id"
-        role="button"
-        :aria-pressed="selecting ? selected : undefined"
-        tabindex="0"
+        :data-testid="preview ? 'idea-card-placeholder-preview' : `idea-card-${card.id}`"
+        :data-idea-id="preview ? undefined : card.id"
+        :role="preview ? undefined : 'button'"
+        :aria-pressed="selecting && !preview ? selected : undefined"
+        :tabindex="preview ? undefined : 0"
         @click="onClick"
         @keydown.enter.self="onClick"
         @keydown.space.self.prevent="onClick"
@@ -117,7 +122,7 @@ const onClick = (): void => {
         </div>
 
         <div
-            v-if="selecting"
+            v-if="selecting && !preview"
             class="absolute top-2 left-2 flex rounded-sm bg-card"
             @click.stop
         >
@@ -130,6 +135,7 @@ const onClick = (): void => {
         </div>
 
         <div
+            v-if="!preview"
             class="absolute top-2 right-2 opacity-0 transition-opacity duration-150 group-hover/card:opacity-100 focus-within:opacity-100"
             :class="{ 'opacity-100': menuOpen }"
             @click.stop

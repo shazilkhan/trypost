@@ -96,10 +96,10 @@ test('a queued post replaces the slot it occupies', function () {
         ->and($monday['items'][0]['channel_id'])->toBe($this->channel->id);
 });
 
-test('a custom post never removes a slot and sorts first at a shared instant', function () {
+test('a custom post on a slot instant occupies that slot', function () {
     buildTimelinePost($this->channel, '2026-10-05 12:00:00', ['schedule_mode' => ScheduleMode::Custom]);
 
-    expect(buildTimelineSummary([buildTimeline($this)[0]])[0]['2026-10-05'])->toBe(['post@12:00', 'slot@12:00', 'slot@18:00']);
+    expect(buildTimelineSummary([buildTimeline($this)[0]])[0]['2026-10-05'])->toBe(['post@12:00', 'slot@18:00']);
 });
 
 test('a queued post off the slot grid keeps its own time and both slots remain', function () {

@@ -338,6 +338,45 @@ not reintroduce either. What still holds:
  in the lang files because `NetworkAlreadyConnectedException` still uses the key
  for a reconnect that collides on the unique identity index.
 
+## Queue slots
+
+A queued post keeps its slot. The queue is **not** packed into the first free
+slots any more (user decision 2026-10-02: a post dropped on a slot on the channel
+page must stay there). The rule lives in `ReflowChannelQueue` (`handleLocked()` and
+`isFreeSlot()`) and `Post::scopeOccupyingSlotsOn`:
+
+- A queued post stays while its instant is still a slot of the channel's posting
+  schedule and more than a minute out. Nothing moves it implicitly.
+- Next takes the **first free** slot (gaps first). Top takes the first slot not
+  held by a custom post and shifts the contiguous run of queued posts behind it
+  to the next gap only.
+- Reordering (drag one queued post onto another, Move up/down) swaps the posts
+  among the instants they already hold.
+- Deleting, drafting, publishing now or re-timing a queued post leaves its slot
+  free; there is no pull-forward reflow.
+- A schedule change re-places only posts whose slot vanished, into the first
+  free slots in order. A time zone change first gives every queued post the slot
+  at its same local clock time in the new zone (even when its old instant is
+  another slot there), then the first free slots in order; pending holders follow the same rule. With
+  no slot left a queued post becomes custom at its time.
+- Any scheduled post (custom too) on a slot instant occupies it: no "+ New" there
+  and the queue never double-books it.
+- A queue request pending approval that holds an instant (a queued post edited, or a
+  "+ New" slot post saved, by a member who needs approval) keeps reserving that slot for
+  placement, reflow, move-to-slot, "+ New" and the composer shortcuts
+  (`Post::scopeOccupyingSlotsOn`). Approving keeps it there while the slot still
+  exists and is free (`ReflowChannelQueue::isFreeSlot`), else it takes the first
+  free slot; rejecting or deleting frees it.
+- The Queue timeline shows a reserved pending holder as its post card at that
+  instant (`queue.pending`, visibility per `Post::scopeVisiblePendingApprovalsFor`):
+  approve/reject for approvers, edit for the requester, never draggable. A viewer
+  who may not see the request sees a gap there, never "+ New".
+- "+ New" on a free slot (queue list and calendar chips) opens the composer at that
+  slot's instant; saving it unchanged (same single channel, same instant) sends
+  `queue_slot`, and `CreatePosts` stores it in that slot as a queue post under the
+  channel lock, failing with `queue_slot` when `ReflowChannelQueue::isFreeSlot()`
+  says it is taken. Changing the time or channels falls back to the normal rules.
+
 ## Disconnecting a channel deletes its posts
 
 `SocialController@disconnect` runs `DeleteChannelPosts::forAccount()` before it
@@ -436,31 +475,73 @@ enforces that).
 
 ## User preferences (`/settings/preferences`)
 
-Theme, time format, start of week and the composer's default posting action
-live on `users` (`theme`, `time_format`, `week_starts_on`, `default_post_action`,
-cast to the enums in `App\Enums\User`). Time zone and language are edited on the
-same page; language still goes through `ProfileController@updateLanguage` so
+Theme, time zone, time format, start of week and the composer's default posting
+action live on `users` (`theme`, `timezone`, `time_format`, `week_starts_on`,
+`default_post_action`, cast to the enums in `App\Enums\User`). Language is edited
+on the same page but still goes through `ProfileController@updateLanguage` so
 `SyncUser` keeps firing. Each control saves on its own (`PATCH`
 `app.settings.preferences.update`, every rule `sometimes`).
+`/settings/profile/notifications` follows the same rule: each switch `PATCH`es
+only its field, there is no Save button, no success toast, and a failed save
+rolls the switch back and toasts.
 
-- **Time format:** `users.time_format` is nullable. Null means "follow the
-  language" — `User::resolvedTimeFormat()` gives English a 12-hour clock and
-  every other locale a 24-hour one, and that resolved value is what the shared
-  `auth.user.time_format` carries. Every displayed time goes through `@/date`
-  (`timeToken()`, `formatHourOption()`, …), which reads it from
-  `resources/js/preferences.ts`; never format a clock time with `LT`, `LLL` or
-  a literal `HH:mm` in a component. Hour selects keep `00`–`23` as values and
-  only change the labels.
-- **Start of week:** `preferences.ts` applies it to every loaded dayjs locale,
-  so `startOf('week')` follows it; the Reka calendars default to it; the
-  posting-schedule grid orders its columns with `orderedWeekdays()`; and
-  `BuildCalendarPageProps` passes `WeekStart::firstDay()/lastDay()` to Carbon.
+- **Three zones.** The channel zone (`social_accounts.timezone`) decides when a
+  post publishes: queue slots and recurrence (see "Queue slots"). The user zone
+  (`users.timezone`) is the default display zone, the composer zone for mixed
+  channels, the zone of Insights ranges and of every email, and the default for a
+  newly connected channel. The display zone (`?tz` → `publish.tz` → user zone) is
+  only what the list and calendar show. The browser zone never shows or takes a
+  time; it is only the suggested value at signup.
+- **Frontend zone.** `@/date`'s `getUserTimezone()` returns `auth.user.timezone`
+  (the `userTimezone` ref in `resources/js/preferences.ts`); "now" comes from
+  `userNow()`, never the browser clock. Times shown next to display-zone cards go
+  through `useViewTimezone()`: the page's display zone where a picker exists
+  (publish list and calendar call `provideViewTimezone()`), the user zone
+  elsewhere.
+- **Composer zone** (`useComposerTimezone()`): all selected channels share one
+  zone → that zone; mixed zones or no channel → the user zone. The zone label sits
+  next to the time input. The composer keeps the UTC instant as its state
+  (`scheduledInstant`) and shows it as a wall clock in the composer zone
+  (`utcToWallClock()`), so a selection change never moves the instant; it sends a
+  UTC instant (the backend contract is unchanged). Wall clocks handed to the
+  composer (`initialDate`, edit pre-fill, drafts) are in the user zone, and the
+  custom pre-fill is `date.nextFullHour` of the composer zone. With exactly one
+  channel the picker offers that channel's posting slots for the picked day,
+  disabling those already held by a scheduled post (`taken_slots`, composer
+  props only, like `posting_schedule`).
+  Calendar clicks pass the clicked instant (a day click is 09:00 of the display
+  zone). Approving with a new time uses the post's channel zone.
+- **Time format:** `users.time_format` is NOT NULL and only `12h` or `24h`;
+  `TimeFormat::DEFAULT` is 12h. There is no language-following state: signup
+  stores the browser's hour cycle, else `TimeFormat::forLocale()`. Every
+  displayed time goes through `@/date` (`timeToken()`, `formatHourOption()`, …),
+  which reads it from `resources/js/preferences.ts`; never format a clock time
+  with `LT`, `LLL` or a literal `HH:mm` in a component. Hour selects keep
+  `00`–`23` as values and only change the labels.
+- **Start of week:** only Sunday and Monday exist. `preferences.ts` applies it to
+  every loaded dayjs locale, so `startOf('week')` follows it; the Reka calendars
+  default to it; the posting-schedule grid orders its columns with
+  `orderedWeekdays()`; `BuildCalendarPageProps` passes
+  `WeekStart::firstDay()/lastDay()` to Carbon. The weekly posting goal
+  (`CountPostsSentThisWeek`) and the Insights weekly buckets (`PeriodBuckets`)
+  follow the **viewing** user's `week_starts_on`, never Monday or the UI language.
+- **Signup detection:** email, Google and GitHub signups store the browser zone,
+  the week start (`Intl.Locale` week info, else the Sunday-first zone list in
+  `resources/js/lib/detectPreferences.ts`) and the hour cycle. OAuth sends them as
+  query params on the start route and `PreservesSignupPreferences` keeps them in
+  the session; `CreateUser` validates each one. Fallbacks: UTC, Monday, the
+  language clock.
+- **Emails** render every time with `App\Support\Mail\RecipientTime`: the
+  recipient's zone, their clock, and the zone name.
+- **Channel zone change** on the channel settings page asks for confirmation
+  first (Cancel first, no typing); queued posts reflow into the new zone's slots,
+  custom-time posts keep their instant.
 - **Theme:** the root Blade renders `data-theme` and the `dark` class, and an
   inline script resolves `system` before first paint and follows OS changes.
   Guests always get light.
 - **Default posting action:** a queue default (`next`/`top`) only applies when
   every selected channel has posting times; otherwise the composer falls back
-  as before. `custom` pre-fills the next full hour.
+  as before. `custom` pre-fills the next full hour of the composer zone.
 
 ## PostHog person properties
 

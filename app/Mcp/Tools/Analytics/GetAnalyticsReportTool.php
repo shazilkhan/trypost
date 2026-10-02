@@ -36,7 +36,7 @@ class GetAnalyticsReportTool extends Tool
             'end' => ['sometimes', 'required', 'date_format:Y-m-d', 'after_or_equal:start'],
         ]);
 
-        return Response::structured($this->analytics->forSelection($workspace, $selected));
+        return Response::structured($this->analytics->forSelection($workspace, $selected, weekStart: $request->user()->week_starts_on));
     }
 
     /** @return array<string, mixed> */

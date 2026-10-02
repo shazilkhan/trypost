@@ -24,6 +24,7 @@ class StorePostRequest extends FormRequest
             'media' => ['sometimes', 'array'],
             'scheduled_at' => ['nullable', 'date'],
             'queue' => ['nullable', 'string'],
+            'queue_slot' => ['nullable', 'date'],
             'label_ids' => ['sometimes', 'array'],
             'destinations' => ['required', 'array', 'min:1'],
             'destinations.*.social_account_id' => ['required', 'uuid'],

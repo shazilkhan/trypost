@@ -872,7 +872,6 @@ return [
                 'description' => 'Las publicaciones que publiques aparecerán aquí.',
             ],
         ],
-        'reordered' => 'Cola actualizada',
     ],
     'group' => [
         'channels' => 'Canales (:count)',

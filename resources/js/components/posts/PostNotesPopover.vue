@@ -29,6 +29,14 @@ const props = withDefaults(
 );
 
 const open = ref(props.initialOpen);
+const noteCount = ref(props.count);
+
+watch(
+    () => props.count,
+    (count) => {
+        noteCount.value = count;
+    },
+);
 
 watch(
     () => props.initialOpen,
@@ -51,7 +59,7 @@ watch(
                 :data-testid="`post-notes-trigger-${postId}`"
             >
                 <IconMessageCircleFilled
-                    v-if="count > 0"
+                    v-if="noteCount > 0"
                     class="size-4 text-foreground"
                     :data-testid="`post-notes-filled-icon-${postId}`"
                 />
@@ -62,32 +70,41 @@ watch(
                 />
             </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" class="w-[min(25rem,calc(100vw-2rem))] p-0">
+        <PopoverContent
+            align="end"
+            class="flex w-[min(23.75rem,calc(100vw-2rem))] flex-col p-0"
+            data-testid="post-notes-popover"
+        >
             <div
-                class="flex items-center justify-between border-b border-border px-3 py-2"
+                class="flex items-center gap-2 border-b border-border py-2 ps-4 pe-2"
             >
-                <h3 class="text-sm font-semibold">
+                <h3 class="text-sm font-emphasis text-foreground">
                     {{ $t('notes.title') }}
                 </h3>
+                <span
+                    v-if="noteCount > 0"
+                    class="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-medium text-muted-foreground tabular-nums"
+                    data-testid="post-notes-count"
+                    >{{ noteCount }}</span
+                >
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    class="size-7"
+                    class="ms-auto size-8 text-muted-foreground"
                     :aria-label="$t('common.close')"
                     @click="open = false"
                 >
                     <IconX class="size-4" />
                 </Button>
             </div>
-            <div class="h-80 min-h-0">
-                <PostNotesPanel
-                    v-if="open"
-                    :post-id="postId"
-                    :current-user-id="currentUserId"
-                    :highlight-note-id="highlightNoteId"
-                />
-            </div>
+            <PostNotesPanel
+                v-if="open"
+                :post-id="postId"
+                :current-user-id="currentUserId"
+                :highlight-note-id="highlightNoteId"
+                @count-change="noteCount = Math.max(0, noteCount + $event)"
+            />
         </PopoverContent>
     </Popover>
 </template>

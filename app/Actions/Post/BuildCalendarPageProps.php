@@ -91,7 +91,7 @@ class BuildCalendarPageProps
         $props = [
             'workspace' => $workspace,
             'scope' => $channel ? 'channel' : 'all',
-            'channel' => fn (): ?array => $channel ? BuildPublishPageProps::channelHeader($channel) : null,
+            'channel' => fn (): ?array => $channel ? BuildPublishPageProps::channelHeader($channel, $weekStartsOn) : null,
             'posts' => $posts,
             'currentWeekStart' => $weekStart->format('Y-m-d'),
             'currentMonth' => $monthDate->format('Y-m-d'),

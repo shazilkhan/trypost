@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Analytics\MetricKey;
-use App\Enums\Analytics\MetricTimeBasis;
 use App\Enums\Analytics\PublicationContentType;
 use App\Enums\User\Locale;
 use Illuminate\Support\Arr;
@@ -48,18 +47,15 @@ test('every analytics enum value has a display translation', function (string $l
             ->toBeTrue("{$locale} is missing a label for metric {$metric->value}");
     }
 
-    foreach (MetricTimeBasis::cases() as $timeBasis) {
-        expect(Arr::has($analytics, "detail.time_basis.{$timeBasis->value}"))
-            ->toBeTrue("{$locale} is missing a label for time basis {$timeBasis->value}");
-    }
-
     foreach (PublicationContentType::cases() as $contentType) {
         expect(Arr::has($analytics, "detail.content_types.{$contentType->value}"))
             ->toBeTrue("{$locale} is missing a label for content type {$contentType->value}");
     }
 
     expect(Arr::get($analytics, 'title'))->toBeString()->not->toBeEmpty();
-    expect(Arr::has($analytics, 'detail.page_title'))->toBeTrue("{$locale} is missing the publication page title");
+    foreach (['insights.export.button', 'insights.sync.title', 'insights.sync.every_hours', 'insights.columns', 'insights.channels_shown'] as $key) {
+        expect(Arr::get($analytics, $key))->toBeString()->not->toBeEmpty("{$locale} is missing {$key}");
+    }
 })->with(Locale::values());
 
 test('analytics interface copy does not fall back to English', function (string $locale) {
@@ -69,8 +65,10 @@ test('analytics interface copy does not fall back to English', function (string 
     foreach ([
         'detail.labels.watch_time_milliseconds',
         'detail.awaiting_metrics',
-        'detail.published_on',
-        'dashboard.workspace_description',
+        'insights.sync.title',
+        'insights.sync.new_posts',
+        'insights.channels_shown',
+        'insights.about.performance',
         'dashboard.no_follower_data',
         'dashboard.import_in_progress',
         'dashboard.no_data_body',

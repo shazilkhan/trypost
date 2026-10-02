@@ -34,7 +34,10 @@ const selectPublishing = (value: unknown): void => {
 
 <template>
     <div class="grid gap-4">
-        <div class="flex items-start justify-between gap-4">
+        <div
+            class="flex items-center justify-between gap-4"
+            data-testid="member-access-admin-row"
+        >
             <div class="flex min-w-0 flex-col gap-1">
                 <Label
                     for="member-access-admin"

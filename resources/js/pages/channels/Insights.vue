@@ -5,6 +5,8 @@ import { computed } from 'vue';
 
 import AnalyticsRangePresets from '@/components/analytics/AnalyticsRangePresets.vue';
 import ChannelPublicationTable from '@/components/analytics/channel/ChannelPublicationTable.vue';
+import InsightsExportMenu from '@/components/analytics/InsightsExportMenu.vue';
+import InsightsSyncStatus from '@/components/analytics/InsightsSyncStatus.vue';
 import FollowersChart from '@/components/analytics/workspace/FollowersChart.vue';
 import ImportCoverage from '@/components/analytics/workspace/ImportCoverage.vue';
 import PostsChart from '@/components/analytics/workspace/PostsChart.vue';
@@ -21,6 +23,7 @@ import type {
     AnalyticsReport,
     ChannelInsightsFilters,
     ChannelPublicationRow,
+    InsightsSyncCadence,
     SummaryMetric,
 } from '@/types/analytics';
 import { channelName } from '@/types/channel';
@@ -34,6 +37,7 @@ const props = defineProps<{
     availableMetrics?: SummaryMetric[];
     sortableMetrics?: SummaryMetric[];
     publications?: { data: ChannelPublicationRow[] };
+    sync?: InsightsSyncCadence;
 }>();
 
 useAnalyticsCoveragePoll(() => props.report?.coverage, {
@@ -53,6 +57,19 @@ const keep = computed((): Record<string, string> => {
     const { period, sort } = props.filters;
 
     return { period, sort };
+});
+const exportQuery = computed((): Record<string, string | string[]> => {
+    if (!props.filters) {
+        return { channels: [props.channel.id] };
+    }
+
+    const { range, start, end } = props.filters;
+
+    return {
+        range,
+        ...(range === 'custom' ? { start, end } : {}),
+        channels: [props.channel.id],
+    };
 });
 const accountColors = computed<Record<string, string>>(() => {
     if (!props.report) {
@@ -96,11 +113,23 @@ const accountColors = computed<Record<string, string>>(() => {
                 class="-mb-2 flex min-w-0 flex-col gap-2"
                 data-testid="insights-page-header"
             >
-                <h2
-                    class="font-heading text-xl leading-tight font-medium text-foreground"
-                >
-                    {{ $t('analytics.channel.title') }}
-                </h2>
+                <div class="flex min-w-0 items-center justify-between gap-4">
+                    <h2
+                        class="font-heading text-xl leading-tight font-medium text-foreground"
+                    >
+                        {{ $t('analytics.channel.title') }}
+                    </h2>
+                    <div
+                        v-if="supported && report && sync"
+                        class="flex shrink-0 items-center gap-2"
+                    >
+                        <InsightsSyncStatus
+                            :cadence="sync"
+                            :coverage="report.coverage"
+                        />
+                        <InsightsExportMenu :query="exportQuery" />
+                    </div>
+                </div>
                 <div
                     v-if="report && filters"
                     class="flex min-h-12 min-w-0 items-center pt-2 pb-4"

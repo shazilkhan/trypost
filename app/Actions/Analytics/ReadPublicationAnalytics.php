@@ -11,7 +11,6 @@ use App\Models\AnalyticsPublicationDailySnapshot;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 class ReadPublicationAnalytics
@@ -24,21 +23,6 @@ class ReadPublicationAnalytics
             ->whereBelongsTo($workspace)
             ->whereIn('platform', Platform::analyticsValues())
             ->findOrFail($publicationId);
-
-        return $this->latestForPublication($publication);
-    }
-
-    /** @return array<string, mixed> */
-    public function latestForPostPublication(Post $post, ?string $publicationId = null): array
-    {
-        $publication = AnalyticsPublication::query()
-            ->available()
-            ->where('workspace_id', $post->workspace_id)
-            ->whereIn('platform', Platform::analyticsValues())
-            ->whereHas('postPlatform', fn (Builder $query): Builder => $query->whereBelongsTo($post))
-            ->when($publicationId, fn (Builder $query): Builder => $query->whereKey($publicationId))
-            ->orderByDesc('provider_published_at')
-            ->firstOrFail();
 
         return $this->latestForPublication($publication);
     }

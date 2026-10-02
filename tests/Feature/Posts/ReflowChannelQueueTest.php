@@ -71,7 +71,7 @@ test('a post inserted at the top pushes the others down', function () {
         ->and(localSlot($second))->toBe('Fri 09:00');
 });
 
-test('deleting a post and reflowing moves the others up', function () {
+test('a reflow after a delete keeps every post in its slot and the next post fills the gap', function () {
     $first = makeQueuePost($this->channel);
     ReflowChannelQueue::handle($this->channel, $first);
     $second = makeQueuePost($this->channel);
@@ -82,8 +82,39 @@ test('deleting a post and reflowing moves the others up', function () {
     $first->delete();
     ReflowChannelQueue::handle($this->channel);
 
-    expect(localSlot($second))->toBe('Mon 09:00')
-        ->and(localSlot($third))->toBe('Wed 09:00');
+    expect(localSlot($second))->toBe('Wed 09:00')
+        ->and(localSlot($third))->toBe('Fri 09:00');
+
+    $next = makeQueuePost($this->channel);
+    ReflowChannelQueue::handle($this->channel, $next);
+
+    expect(localSlot($next))->toBe('Mon 09:00');
+});
+
+test('a custom post on a slot instant occupies that slot for the queue', function () {
+    $custom = makeQueuePost($this->channel, [
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => CarbonImmutable::parse('2026-10-05 09:00', 'America/Sao_Paulo')->utc(),
+    ]);
+
+    $queued = makeQueuePost($this->channel);
+    ReflowChannelQueue::handle($this->channel, $queued);
+    $top = makeQueuePost($this->channel);
+    ReflowChannelQueue::handle($this->channel, $top, QueuePosition::Top);
+
+    expect(localSlot($custom))->toBe('Mon 09:00')
+        ->and(localSlot($top))->toBe('Wed 09:00')
+        ->and(localSlot($queued))->toBe('Fri 09:00');
+});
+
+test('two queued posts on one slot keep the first and re-place the second', function () {
+    $at = CarbonImmutable::parse('2026-10-07 09:00', 'America/Sao_Paulo')->utc();
+    $first = makeQueuePost($this->channel, ['scheduled_at' => $at]);
+    $second = makeQueuePost($this->channel, ['scheduled_at' => $at]);
+
+    ReflowChannelQueue::handle($this->channel);
+
+    expect(collect([localSlot($first), localSlot($second)])->sort()->values()->all())->toBe(['Mon 09:00', 'Wed 09:00']);
 });
 
 test('changing the schedule reassigns every queued post in order', function () {

@@ -23,6 +23,7 @@ class ChannelPostingScheduleController extends Controller
         $this->authorizeChannel($request, $account);
 
         $schedule = $request->validated('posting_schedule');
+        $previousTimezone = $account->timezone;
 
         $account->update([
             'timezone' => $request->validated('timezone'),
@@ -30,7 +31,7 @@ class ChannelPostingScheduleController extends Controller
             'posting_schedule' => $schedule === null ? null : PostingSchedule::fromArray($schedule),
         ]);
 
-        ReflowChannelQueue::afterCommit($account->id);
+        ReflowChannelQueue::afterCommit($account->id, $previousTimezone);
 
         return ChannelPostingScheduleResource::make($account);
     }

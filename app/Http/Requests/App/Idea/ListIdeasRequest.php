@@ -27,6 +27,7 @@ class ListIdeasRequest extends FormRequest
             'stages' => ['sometimes', 'nullable', 'array'],
             'labels' => ['sometimes', 'nullable', 'array'],
             'untagged' => ['sometimes', 'nullable'],
+            'unassigned' => ['sometimes', 'nullable'],
         ];
     }
 
@@ -61,6 +62,11 @@ class ListIdeasRequest extends FormRequest
     public function untagged(): bool
     {
         return $this->boolean('untagged');
+    }
+
+    public function unassigned(): bool
+    {
+        return $this->boolean('unassigned');
     }
 
     /**

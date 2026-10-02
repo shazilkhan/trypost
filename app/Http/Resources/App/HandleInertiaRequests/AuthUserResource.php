@@ -22,7 +22,7 @@ class AuthUserResource
             'photo_url' => $user->photo_url,
             'timezone' => $user->timezone,
             'theme' => $user->theme->value,
-            'time_format' => $user->resolvedTimeFormat()->value,
+            'time_format' => $user->time_format->value,
             'week_starts_on' => $user->week_starts_on->value,
             'default_post_action' => $user->default_post_action->value,
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),

@@ -871,7 +871,6 @@ return [
                 'description' => 'Les publications que vous publiez apparaîtront ici.',
             ],
         ],
-        'reordered' => 'File d\'attente mise à jour',
     ],
     'group' => [
         'channels' => 'Canaux (:count)',

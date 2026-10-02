@@ -146,7 +146,7 @@ test('scheduling a single channel saves its post platform with the chosen format
         ->click('@composer-schedule-custom');
     waitForSingleChannelComposerTestId($page, 'composer-schedule-picker');
 
-    $query = '[...document.querySelectorAll("[data-testid^=composer-schedule-day-]")].find((day) => !day.hasAttribute("data-disabled") && !day.hasAttribute("data-outside-view") && !day.hasAttribute("data-today"))?.dataset.testid.replace("composer-schedule-day-", "") ?? null';
+    $query = '[...document.querySelectorAll("[data-testid^=composer-schedule-day-]")].find((day) => !day.hasAttribute("data-disabled") && !day.hasAttribute("data-outside-view") && !day.hasAttribute("data-zone-today"))?.dataset.testid.replace("composer-schedule-day-", "") ?? null';
     $day = $page->script($query);
     if ($day === null) {
         $page->click('@composer-schedule-calendar-next');

@@ -43,16 +43,6 @@ return [
     'date_range_picker' => [
         'placeholder' => 'Выберите диапазон дат',
         'today' => 'Сегодня',
-        'yesterday' => 'Вчера',
-        'last_7_days' => 'Последние 7 дней',
-        'last_30_days' => 'Последние 30 дней',
-        'last_3_months' => 'Последние 3 месяца',
-        'last_6_months' => 'Последние 6 месяцев',
-        'last_12_months' => 'Последние 12 месяцев',
-        'this_month' => 'Этот месяц',
-        'last_month' => 'Прошлый месяц',
-        'year_to_date' => 'С начала года',
-        'last_year' => 'Прошлый год',
     ],
 
     'cancel' => 'Отмена',

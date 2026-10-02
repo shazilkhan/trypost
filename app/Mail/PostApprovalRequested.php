@@ -50,7 +50,7 @@ class PostApprovalRequested extends Mailable implements ShouldQueue
                 'workspaceName' => $workspaceName,
                 'postExcerpt' => ApprovalEmailPosts::excerpt($first),
                 'channels' => ApprovalEmailPosts::channels($posts),
-                'queued' => $first?->schedule_mode === ScheduleMode::Queue,
+                'queued' => $first?->schedule_mode === ScheduleMode::Queue && $first->scheduled_at === null,
                 'requestedTime' => ApprovalEmailPosts::time($first?->scheduled_at, $this->recipient),
                 'url' => route('app.posts.index', ['tab' => 'approvals']),
             ],

@@ -3,7 +3,6 @@
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => ':platform insights',
         'content_types' => [
             'text' => 'Text',
             'image' => 'Image',
@@ -15,12 +14,6 @@ return [
             'link' => 'Link',
             'poll' => 'Poll',
             'unknown' => 'Unknown',
-        ],
-        'time_basis' => [
-            'lifetime' => 'Lifetime',
-            'range' => 'Selected period',
-            'rolling_90_days' => 'Last 90 days',
-            'snapshot' => 'Snapshot',
         ],
         'labels' => [
             'watch_time_milliseconds' => 'Watch time',
@@ -54,17 +47,8 @@ return [
             'story_exits' => 'Story exits',
             'unique_viewers' => 'Unique viewers',
         ],
-        'engagement' => 'Engagement',
-        'exposure' => 'Exposure',
-        'video' => 'Video and retention',
-        'last_collected' => 'Last collected',
-        'stale' => 'May be out of date',
         'awaiting_metrics' => 'Metrics have not been collected yet.',
-        'estimated' => 'Estimated',
-        'back_to_insights' => 'Back to insights',
         'details' => 'Details',
-        'published_via_trypost' => 'Published via TryPost',
-        'published_on' => 'Published on :platform',
     ],
     'dashboard' => [
         'summary' => 'Summary',
@@ -77,7 +61,6 @@ return [
         'performance' => 'Performance',
         'top_posts' => 'Top 5 Posts',
         'channel' => 'Channel',
-        'workspace_description' => 'Your connected channels together, with each account kept distinct.',
         'latest_snapshot_hint' => 'Post metrics use the latest saved observation for posts published in this range.',
         'followers_chart_mode' => 'Follower chart mode',
         'posts_chart_mode' => 'Post chart mode',
@@ -189,6 +172,18 @@ return [
                 'label' => 'Avg. watch time (sec)',
                 'about' => 'Average seconds watched per view.',
             ],
+            'reposts' => [
+                'label' => 'Reposts',
+                'about' => 'Reposts of posts published in the period.',
+            ],
+            'impressions' => [
+                'label' => 'Impressions',
+                'about' => 'Times posts published in the period were shown.',
+            ],
+            'clicks' => [
+                'label' => 'Clicks',
+                'about' => 'Clicks on posts published in the period.',
+            ],
         ],
     ],
 
@@ -248,5 +243,44 @@ return [
         'bookings' => 'Bookings',
         'food_orders' => 'Food orders',
         'food_menu_clicks' => 'Menu clicks',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => 'Export',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => 'Range',
+            'compared_to' => 'Compared to',
+            'generated_at' => 'Generated at',
+            'metric' => 'Metric',
+            'value' => 'Value',
+            'previous' => 'Previous period',
+            'change' => 'Change',
+            'published_at' => 'Published at',
+            'network' => 'Network',
+            'content_type' => 'Type',
+            'text' => 'Text',
+            'link' => 'Link',
+        ],
+        'sync' => [
+            'button' => 'Sync status',
+            'title' => 'How Insights stay updated',
+            'new_posts' => 'New posts are picked up :interval on each channel, and :x_interval on X.',
+            'every_hours' => '{1} every hour|[2,*] every :count hours',
+            'metrics' => 'Post metrics refresh once a day for posts from the last :days days (:x_days on X).',
+            'followers' => 'Follower counts are saved once a day.',
+            'last_sync' => 'Last synced :time',
+            'never' => 'Not synced yet',
+        ],
+        'about' => [
+            'top_posts' => 'Your five posts from this period with the most reactions or comments.',
+            'performance' => 'Totals per channel for posts published in this period, compared with the previous period.',
+            'followers' => 'Followers per channel at the end of the period and how the count changed.',
+            'posts' => 'How many posts each channel published in this period.',
+            'channel_posts' => 'Every post this channel published in the period, ranked by the column you sort by.',
+        ],
+        'columns' => 'Columns',
+        'channels_shown' => ':range · Showing :shown of :total channels. Filter by channel to see a different set.',
     ],
 ];

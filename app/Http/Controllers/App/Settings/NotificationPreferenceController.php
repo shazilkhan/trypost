@@ -7,8 +7,8 @@ namespace App\Http\Controllers\App\Settings;
 use App\Http\Controllers\App\Controller;
 use App\Http\Requests\App\Settings\UpdateNotificationPreferencesRequest;
 use App\Models\NotificationPreference;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,16 +32,13 @@ class NotificationPreferenceController extends Controller
         ]);
     }
 
-    public function update(UpdateNotificationPreferencesRequest $request): RedirectResponse
+    public function update(UpdateNotificationPreferencesRequest $request): HttpResponse
     {
         NotificationPreference::updateOrCreate(
             ['user_id' => $request->user()->id],
             $request->validated(),
         );
 
-        session()->flash('flash.banner', __('settings.flash.notifications_updated'));
-        session()->flash('flash.bannerStyle', 'success');
-
-        return back();
+        return response()->noContent();
     }
 }

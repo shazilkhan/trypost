@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Post\CreatePosts;
+use App\Actions\Post\Queue\BuildQueueTimeline;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
@@ -293,4 +294,73 @@ test('approving from the composer waits for the same approval lock', function ()
         ->assertSessionHasErrors(['queue' => __('posts.errors.queue_busy')]);
 
     expect($request->fresh()->status)->toBe(PostStatus::PendingApproval);
+});
+
+function approvalActionsEditQueued(object $test, Post $post): void
+{
+    $test->actingAs($test->requester)
+        ->put(route('app.posts.update', $post), ['status' => 'scheduled', 'queue' => 'next', 'content' => 'Edited by the member'])
+        ->assertSessionHasNoErrors();
+}
+
+test('a queued post edited by a member who needs approval keeps reserving its slot until approved', function () {
+    $edited = approvalActionsPost($this, $this->owner);
+    approvalActionsEditQueued($this, $edited);
+    $edited->refresh();
+
+    expect($edited->status)->toBe(PostStatus::PendingApproval)
+        ->and($edited->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(approvalActionsSlot($edited))->toBe('Mon 09:00');
+
+    $other = approvalActionsPost($this, $this->owner);
+    $top = approvalActionsPost($this, $this->owner, ['queue' => 'top']);
+    $freeSlots = collect(BuildQueueTimeline::handle($this->workspace, collect([$this->channel->fresh()]), 'America/Sao_Paulo', now()->addDays(7)))
+        ->flatMap(fn (array $day): array => $day['items'])
+        ->where('type', 'slot')
+        ->map(fn (array $item): string => CarbonImmutable::parse($item['at'])->setTimezone('America/Sao_Paulo')->format('D H:i'));
+
+    expect(approvalActionsSlot($other))->toBe('Fri 09:00')
+        ->and(approvalActionsSlot($top))->toBe('Wed 09:00')
+        ->and($freeSlots->all())->not->toContain('Mon 09:00');
+
+    $this->actingAs($this->owner)
+        ->put(route('app.posts.approve', $edited))
+        ->assertSessionHasNoErrors();
+
+    expect($edited->refresh()->status)->toBe(PostStatus::Scheduled)
+        ->and($edited->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(approvalActionsSlot($edited))->toBe('Mon 09:00')
+        ->and(approvalActionsSlot($other))->toBe('Fri 09:00')
+        ->and(approvalActionsSlot($top))->toBe('Wed 09:00');
+});
+
+test('rejecting a pending edit of a queued post frees its slot', function () {
+    $edited = approvalActionsPost($this, $this->owner);
+    approvalActionsEditQueued($this, $edited);
+
+    $this->actingAs($this->owner)
+        ->put(route('app.posts.reject', $edited))
+        ->assertSessionHasNoErrors();
+
+    expect(approvalActionsSlot(approvalActionsPost($this, $this->owner)))->toBe('Mon 09:00');
+});
+
+test('approving a pending edit whose slot vanished places it in the first free slot', function () {
+    $edited = approvalActionsPost($this, $this->owner);
+    approvalActionsEditQueued($this, $edited);
+
+    $this->actingAs($this->owner)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'America/Sao_Paulo',
+            'posting_goal' => 2,
+            'posting_schedule' => PostingSchedule::empty()->withTime(3, '09:00')->withTime(5, '09:00')->toArray(),
+        ])
+        ->assertOk();
+
+    $this->actingAs($this->owner)
+        ->put(route('app.posts.approve', $edited))
+        ->assertSessionHasNoErrors();
+
+    expect(approvalActionsSlot($edited))->toBe('Wed 09:00')
+        ->and($edited->schedule_mode)->toBe(ScheduleMode::Queue);
 });

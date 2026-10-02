@@ -43,16 +43,6 @@ return [
     'date_range_picker' => [
         'placeholder' => 'اختر نطاقًا زمنيًا',
         'today' => 'اليوم',
-        'yesterday' => 'أمس',
-        'last_7_days' => 'آخر 7 أيام',
-        'last_30_days' => 'آخر 30 يومًا',
-        'last_3_months' => 'آخر 3 أشهر',
-        'last_6_months' => 'آخر 6 أشهر',
-        'last_12_months' => 'آخر 12 شهرًا',
-        'this_month' => 'هذا الشهر',
-        'last_month' => 'الشهر الماضي',
-        'year_to_date' => 'منذ بداية العام',
-        'last_year' => 'العام الماضي',
     ],
 
     'cancel' => 'إلغاء',

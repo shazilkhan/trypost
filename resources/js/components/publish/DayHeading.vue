@@ -29,7 +29,10 @@ const detail = computed(() =>
     new Intl.DateTimeFormat(activeLocale.value, {
         month: 'long',
         day: 'numeric',
-        year: day.value.year() === dayjs().year() ? undefined : 'numeric',
+        year:
+            day.value.year() === dayjs().tz(props.timezone).year()
+                ? undefined
+                : 'numeric',
     }).format(day.value.toDate()),
 );
 </script>

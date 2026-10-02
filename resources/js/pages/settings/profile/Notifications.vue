@@ -1,62 +1,65 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, useHttp } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 
+import NotificationPreferenceController from '@/actions/App/Http/Controllers/App/Settings/NotificationPreferenceController';
 import SettingsSection from '@/components/settings/SettingsSection.vue';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
-import { preferences as preferencesRoute } from '@/routes/app/notifications';
 
-interface Preferences {
-    post_published: boolean;
-    post_failed: boolean;
-    account_disconnected: boolean;
-    post_note_added: boolean;
-    collaboration: boolean;
-}
+type PreferenceField =
+    | 'post_published'
+    | 'post_failed'
+    | 'account_disconnected'
+    | 'post_note_added'
+    | 'collaboration';
 
-interface Props {
+type Preferences = Record<PreferenceField, boolean>;
+
+const props = defineProps<{
     preferences: Preferences;
-}
+}>();
 
-const props = defineProps<Props>();
+const fields: PreferenceField[] = [
+    'post_published',
+    'post_failed',
+    'account_disconnected',
+    'post_note_added',
+    'collaboration',
+];
 
-const postPublished = ref(props.preferences.post_published);
-const postFailed = ref(props.preferences.post_failed);
-const accountDisconnected = ref(props.preferences.account_disconnected);
-const postNoteAdded = ref(props.preferences.post_note_added);
-const collaboration = ref(props.preferences.collaboration);
-const processing = ref(false);
+const values = ref<Preferences>(
+    Object.fromEntries(
+        fields.map((field) => [field, Boolean(props.preferences[field])]),
+    ) as Preferences,
+);
+const savedField = ref<PreferenceField | null>(null);
+const http = useHttp<Partial<Preferences>>({});
+let queue: Promise<void> = Promise.resolve();
 
-const options = [
-    { id: 'post_published', model: postPublished },
-    { id: 'post_failed', model: postFailed },
-    { id: 'account_disconnected', model: accountDisconnected },
-    { id: 'post_note_added', model: postNoteAdded },
-    { id: 'collaboration', model: collaboration },
-] as const;
+/**
+ * Each switch saves on its own. Saves run one after another so a quick second
+ * toggle never cancels the first; a failed save puts the switch back.
+ */
+const toggle = (field: PreferenceField, value: boolean): void => {
+    const previous = values.value[field];
+    values.value = { ...values.value, [field]: value };
+    savedField.value = null;
 
-const submit = () => {
-    processing.value = true;
-
-    router.put(
-        preferencesRoute().url,
-        {
-            post_published: postPublished.value,
-            post_failed: postFailed.value,
-            account_disconnected: accountDisconnected.value,
-            post_note_added: postNoteAdded.value,
-            collaboration: collaboration.value,
-        },
-        {
-            preserveScroll: true,
-            onFinish: () => {
-                processing.value = false;
-            },
-        },
-    );
+    queue = queue.then(async () => {
+        try {
+            await http
+                .transform(() => ({ [field]: value }))
+                .patch(NotificationPreferenceController.update.url());
+            savedField.value = field;
+        } catch {
+            values.value = { ...values.value, [field]: previous };
+            toast.error(trans('settings.notifications.save_failed'));
+        }
+    });
 };
 </script>
 
@@ -68,42 +71,38 @@ const submit = () => {
             :title="$t('settings.notifications.heading')"
             :description="$t('settings.notifications.description')"
         >
-            <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-6" data-testid="notifications-page">
                 <div
-                    v-for="option in options"
-                    :key="option.id"
+                    v-for="field in fields"
+                    :key="field"
                     class="flex items-start justify-between gap-4"
                 >
                     <div class="flex max-w-[440px] min-w-0 flex-col gap-2">
                         <Label
-                            :for="option.id"
+                            :for="field"
                             class="text-sm leading-tight font-emphasis"
                         >
-                            {{ $t(`settings.notifications.${option.id}`) }}
+                            {{ $t(`settings.notifications.${field}`) }}
                         </Label>
                         <p class="text-sm text-muted-foreground">
-                            {{
-                                $t(
-                                    `settings.notifications.${option.id}_description`,
-                                )
-                            }}
+                            {{ $t(`settings.notifications.${field}_description`) }}
                         </p>
                     </div>
                     <Switch
-                        :id="option.id"
-                        v-model="option.model.value"
+                        :id="field"
+                        :model-value="values[field]"
+                        :data-testid="`notifications-${field}`"
                         class="shrink-0"
+                        @update:model-value="toggle(field, Boolean($event))"
                     />
                 </div>
             </div>
 
-            <Button
-                :disabled="processing"
-                class="self-start"
-                @click="submit"
-            >
-                {{ $t('settings.notifications.save') }}
-            </Button>
+            <span
+                v-if="savedField"
+                :data-testid="`notifications-saved-${savedField}`"
+                class="sr-only"
+            />
         </SettingsSection>
     </SettingsLayout>
 </template>

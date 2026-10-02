@@ -871,7 +871,6 @@ return [
                 'description' => 'Berichten die je publiceert, verschijnen hier.',
             ],
         ],
-        'reordered' => 'Wachtrij bijgewerkt',
     ],
     'group' => [
         'channels' => 'Kanalen (:count)',

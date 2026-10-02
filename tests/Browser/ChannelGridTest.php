@@ -289,3 +289,20 @@ test('no schedule view label wraps onto a second line in any language', function
 
     expect($wrapped)->toBe([]);
 });
+
+test('the grid tooltip shows the sent time in the user zone, not the browser zone', function () {
+    $this->user->update(['timezone' => 'Asia/Tokyo']);
+    $reel = channelGridBrowserPost($this->instagram, '2026-09-20 10:00:00', ContentType::InstagramReel, [
+        ['id' => (string) str()->uuid(), 'path' => 'media/reel.mp4', 'url' => 'https://cdn.test/reel.mp4', 'type' => 'video', 'mime_type' => 'video/mp4'],
+    ]);
+    $this->actingAs($this->user);
+
+    $page = visit(route('app.channels.grid', $this->instagram));
+    waitForChannelGridTestId($page, "grid-tile-{$reel->post_id}");
+    $page->hover("@grid-tile-{$reel->post_id}");
+    waitForChannelGridTestId($page, "grid-tile-tooltip-{$reel->post_id}");
+
+    expect(trim((string) $page->script("document.querySelector('[data-testid=\"grid-tile-tooltip-{$reel->post_id}\"] [role=\"tooltip\"]').textContent")))
+        ->toBe('This post was sent September 20, 2026 at 7:00 PM');
+    $page->assertNoJavaScriptErrors();
+});

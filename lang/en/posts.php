@@ -871,7 +871,6 @@ return [
                 'description' => 'Posts you publish will appear here.',
             ],
         ],
-        'reordered' => 'Queue updated',
     ],
     'group' => [
         'channels' => 'Channels (:count)',

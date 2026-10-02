@@ -9,14 +9,17 @@ use App\Actions\Post\Queue\ReflowChannelQueue;
 use App\Enums\Post\Status as PostStatus;
 use App\Jobs\PublishPost;
 use App\Models\Post;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Media\MediaCopyBatch;
 use App\Support\PostApproval;
 use App\Support\PostCompositionValidator;
+use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CreatePosts
 {
@@ -46,20 +49,27 @@ class CreatePosts
         $scheduledAt = $pending && data_get($resolved, 'status') === PostStatus::Publishing->value
             ? null
             : data_get($resolved, 'scheduled_at');
+        $queueSlot = filled(data_get($resolved, 'queue_slot')) ? CarbonImmutable::parse(data_get($resolved, 'queue_slot'))->utc() : null;
+        $channelIds = collect($resolved['destinations'])->pluck('social_account_id')->all();
 
-        $create = fn (): Collection => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($workspace, $user, $resolved, $groupId, $status, $scheduledAt, $beforeCreate, $afterCreate, $legacyMedia): Collection {
+        $create = fn (): Collection => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($workspace, $user, $resolved, $groupId, $status, $scheduledAt, $queueSlot, $channelIds, $beforeCreate, $afterCreate, $legacyMedia): Collection {
+            if ($queueSlot !== null) {
+                self::assertFreeSlot($workspace, $channelIds, $queueSlot);
+            }
+
             if ($beforeCreate !== null) {
                 $beforeCreate($batch);
             }
 
-            $posts = collect($resolved['destinations'])->map(function (array $destination) use ($workspace, $user, $resolved, $groupId, $status, $scheduledAt, $batch, $legacyMedia): Post {
+            $posts = collect($resolved['destinations'])->map(function (array $destination) use ($workspace, $user, $resolved, $groupId, $status, $scheduledAt, $queueSlot, $batch, $legacyMedia): Post {
                 $post = CreateChannelPost::execute($workspace, $user, [
                     ...$destination,
                     'post_group_id' => $groupId,
                     'legacy_media' => $legacyMedia,
                     'status' => $status,
-                    'scheduled_at' => $scheduledAt,
+                    'scheduled_at' => $queueSlot?->toIso8601String() ?? $scheduledAt,
                     'queue' => $resolved['queue'],
+                    'queue_slot' => $queueSlot !== null,
                     'label_ids' => $resolved['label_ids'] ?? [],
                     'created_via' => $resolved['created_via'] ?? null,
                 ], $batch);
@@ -78,17 +88,28 @@ class CreatePosts
             return $posts;
         });
 
-        $posts = $resolved['queue'] === null || $pending
+        $posts = $queueSlot === null && ($resolved['queue'] === null || $pending)
             ? $create()
-            : ReflowChannelQueue::withLock(
-                collect($resolved['destinations'])->pluck('social_account_id')->all(),
-                $create,
-            );
+            : ReflowChannelQueue::withLock($channelIds, $create);
 
         if ($pending) {
             NotifyApprovalRequested::execute($posts, $user);
         }
 
         return $posts;
+    }
+
+    /**
+     * @param  list<string>  $channelIds
+     */
+    private static function assertFreeSlot(Workspace $workspace, array $channelIds, CarbonImmutable $slot): void
+    {
+        $channel = count($channelIds) === 1
+            ? SocialAccount::query()->where('workspace_id', $workspace->id)->find($channelIds[0])
+            : null;
+
+        if ($channel === null || ! ReflowChannelQueue::isFreeSlot($channel, $slot)) {
+            throw ValidationException::withMessages(['queue_slot' => __('posts.errors.queue_order_stale')]);
+        }
     }
 }

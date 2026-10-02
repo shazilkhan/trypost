@@ -97,6 +97,23 @@ const changeSort = (sort: SummaryMetric): void => {
     }
 };
 
+const networkUrl = (row: ChannelPublicationRow): string | null =>
+    row.permalink && /^https:\/\//i.test(row.permalink) ? row.permalink : null;
+
+const linkAttributes = (
+    row: ChannelPublicationRow,
+): Record<string, string> => {
+    if (row.url) {
+        return { href: row.url };
+    }
+
+    const permalink = networkUrl(row);
+
+    return permalink
+        ? { href: permalink, target: '_blank', rel: 'noopener noreferrer' }
+        : {};
+};
+
 const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
     const value = row.metrics[key];
 
@@ -113,6 +130,8 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
 <template>
     <AnalyticsSection
         :title="$t('analytics.channel.performance')"
+        :info="$t('analytics.insights.about.channel_posts')"
+        info-testid="insights-posts-about"
         :range="periodRange"
     >
         <template #actions>
@@ -197,8 +216,9 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
                                 :data-testid="`insights-posts-row-${row.id}`"
                             >
                                 <TableCell class="border-r-0 px-4 py-3">
-                                    <Link
-                                        :href="row.url"
+                                    <component
+                                        :is="row.url ? Link : networkUrl(row) ? 'a' : 'span'"
+                                        v-bind="linkAttributes(row)"
                                         class="flex max-w-md min-w-0 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                         :data-testid="`insights-posts-link-${row.id}`"
                                     >
@@ -245,7 +265,7 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
                                                 }}
                                             </span>
                                         </span>
-                                    </Link>
+                                    </component>
                                 </TableCell>
                                 <TableCell
                                     v-for="column in columns"

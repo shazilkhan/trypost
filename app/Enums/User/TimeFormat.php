@@ -10,8 +10,14 @@ enum TimeFormat: string
     case TwentyFourHour = '24h';
 
     /**
-     * The format a user gets until they pick one: English reads a 12-hour clock,
-     * every other supported language a 24-hour one.
+     * The clock of `Locale::DEFAULT` (English): what a row gets when nothing else
+     * decides it.
+     */
+    public const DEFAULT = self::TwelveHour;
+
+    /**
+     * The clock a language reads by default: English a 12-hour one, every other
+     * supported language a 24-hour one. Used only when a signup cannot tell.
      */
     public static function forLocale(?Locale $locale): self
     {

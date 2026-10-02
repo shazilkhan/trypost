@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
+use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Support\Analytics\ChannelMetrics;
 use Carbon\CarbonImmutable;
@@ -28,8 +29,9 @@ class ListChannelPublicationPerformance
 
         $paginator = $this->latestSnapshots
             ->execute($channel->workspace_id, [$accountKey ?? $this->accountKey->for($channel)], $range->start, $range->observedThrough)
+            ->leftJoin((new PostPlatform)->getTable().' as destination', 'destination.id', '=', 'publication.post_platform_id')
             ->select([
-                'publication.id', 'publication.excerpt', 'publication.preview_metadata', 'publication.permalink',
+                'publication.id', 'destination.post_id', 'publication.excerpt', 'publication.preview_metadata', 'publication.permalink',
                 'publication.provider_published_at', 'publication.content_type',
                 'metric.reactions_count', 'metric.comments_count', 'metric.views_count', 'metric.shares_count',
                 'metric.saves_count', 'metric.reach_count', 'metric.engagement_count', 'metric.exposure_count',
@@ -46,7 +48,7 @@ class ListChannelPublicationPerformance
     }
 
     /**
-     * @return array{id: string, rank: int, excerpt: ?string, thumbnail_url: ?string, permalink: ?string, published_at: string, content_type: ?string, metrics: array{reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, shares: ?int, saves: ?int, reach: ?int}, url: string}
+     * @return array{id: string, rank: int, excerpt: ?string, thumbnail_url: ?string, permalink: ?string, published_at: string, content_type: ?string, metrics: array{reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, shares: ?int, saves: ?int, reach: ?int}, url: ?string}
      */
     private function row(object $row, int $rank): array
     {
@@ -69,7 +71,7 @@ class ListChannelPublicationPerformance
                 'saves' => $this->integer($row->saves_count),
                 'reach' => $this->integer($row->reach_count),
             ],
-            'url' => route('app.insights.publications.show', $row->id),
+            'url' => $row->post_id === null ? null : route('app.posts.index', ['post' => $row->post_id]),
         ];
     }
 

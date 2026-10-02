@@ -8,6 +8,7 @@ export interface PostComposerRequest {
     assistant: boolean;
     socialAccountIds: string[];
     draft: ComposerInitialDraft | null;
+    queueSlot: string | null;
 }
 
 let nextRequestId = 0;
@@ -20,6 +21,7 @@ export const openPostComposer = (
         assistant?: boolean;
         socialAccountIds?: string[];
         draft?: ComposerInitialDraft | null;
+        queueSlot?: string | null;
     } = {},
 ): void => {
     if (typeof window === 'undefined') return;
@@ -30,6 +32,7 @@ export const openPostComposer = (
         assistant: options.assistant ?? false,
         socialAccountIds: options.socialAccountIds ?? [],
         draft: options.draft ?? null,
+        queueSlot: options.queueSlot ?? null,
     };
 };
 

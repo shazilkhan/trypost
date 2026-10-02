@@ -15,7 +15,7 @@ use App\Models\WorkspaceLabel;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 
-test('split preserves IDs and clones labels, media and nested comments once', function () {
+test('split preserves IDs and clones labels, media and notes once', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
     $post = Post::factory()->create([
@@ -33,7 +33,8 @@ test('split preserves IDs and clones labels, media and nested comments once', fu
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
     $post->labels()->attach($label);
     $comment = PostNote::factory()->create(['post_id' => $post->id, 'user_id' => $user->id]);
-    $reply = PostNote::factory()->reply($comment)->create([
+    $older = PostNote::factory()->create([
+        'post_id' => $post->id,
         'user_id' => $user->id,
         'updated_at' => now()->subDays(3),
     ]);
@@ -52,9 +53,8 @@ test('split preserves IDs and clones labels, media and nested comments once', fu
         ->and($clone->scheduled_at->equalTo($post->scheduled_at))->toBeTrue()
         ->and($clone->labels()->pluck('workspace_labels.id')->all())->toBe([$label->id])
         ->and($clone->notes()->count())->toBe(2)
-        ->and($clone->notes()->where('body', $reply->body)->sole()->parent_id)
-        ->toBe($clone->notes()->where('body', $comment->body)->sole()->id)
-        ->and($clone->notes()->where('body', $reply->body)->sole()->updated_at->equalTo($reply->updated_at))->toBeTrue();
+        ->and($clone->notes()->where('body', $comment->body)->exists())->toBeTrue()
+        ->and($clone->notes()->where('body', $older->body)->sole()->updated_at->equalTo($older->updated_at))->toBeTrue();
     Event::assertNotDispatched(PostCreated::class);
 });
 

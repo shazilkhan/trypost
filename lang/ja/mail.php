@@ -48,7 +48,7 @@ return [
         'title' => '投稿が公開できない可能性があります',
         'heading' => '投稿が公開できない可能性があります',
         'intro' => '予約済みの投稿を公開するには、ワークスペース :workspace の次のアカウントを再接続する必要があります。',
-        'posts_label' => '{1} :count 件の予約投稿: :times UTC|[0,*] :count 件の予約投稿: :times UTC',
+        'posts_label' => '{1} :count 件の予約投稿: :times (:timezone)|[0,*] :count 件の予約投稿: :times (:timezone)',
         'reconnect_cta' => '予約投稿を逃さないよう、今すぐこれらのアカウントを再接続してください。',
         'button' => 'アカウントを再接続',
     ],

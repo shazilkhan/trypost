@@ -278,6 +278,17 @@ test('the emoji picker sets the template emoji', function () {
     JS);
     expect($gap)->toBe(0);
 
+    $shadows = $page->script(<<<'JS'
+        (() => {
+            const top = document.querySelector('[data-testid="emoji-picker-scroll"]').getBoundingClientRect().top;
+            return [...document.querySelectorAll('[data-testid="emoji-picker-category-header"]')]
+                .filter((header) => Math.abs(header.getBoundingClientRect().top - top) < 1)
+                .map((header) => getComputedStyle(header).boxShadow);
+        })()
+    JS);
+    expect($shadows)->not->toBeEmpty()
+        ->and($shadows[0])->not->toBe('none');
+
     $emoji = $page->script(<<<'JS'
         (() => {
             const option = document.querySelector('[data-testid="emoji-picker-option"]');

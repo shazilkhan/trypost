@@ -147,6 +147,7 @@ const submitComposition = (
         :signatures="data.signatures"
         :initial-date="postComposerRequest.date"
         :initial-account-ids="postComposerRequest.socialAccountIds"
+        :initial-queue-slot="postComposerRequest.queueSlot"
         :initial-draft="postComposerRequest.draft"
         :open-assistant="postComposerRequest.assistant"
         :submitting="submitting"

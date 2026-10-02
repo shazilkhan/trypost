@@ -54,20 +54,21 @@ test('webhook index hides the signing secret', function () {
         );
 });
 
-test('authenticated users can create a webhook from the index dialog', function () {
-    $this->actingAs($this->user)
+test('creating a webhook from the index dialog opens its page', function () {
+    $response = $this->actingAs($this->user)
         ->from(route('app.webhooks.index'))
         ->post(route('app.webhooks.store'), [
             'endpoint' => 'https://example.com/webhooks',
             'events' => [EventType::PostPublished->value, EventType::PostFailed->value],
-        ])
-        ->assertRedirect(route('app.webhooks.index'))
-        ->assertSessionMissing('flash.banner');
+        ]);
 
-    $this->assertDatabaseHas('webhooks', [
-        'workspace_id' => $this->workspace->id,
-        'endpoint' => 'https://example.com/webhooks',
-    ]);
+    $webhook = Webhook::query()
+        ->where('workspace_id', $this->workspace->id)
+        ->where('endpoint', 'https://example.com/webhooks')
+        ->sole();
+
+    $response->assertRedirect(route('app.webhooks.show', $webhook))
+        ->assertSessionMissing('flash.banner');
 });
 
 test('generateSigningSecret prefixes a 32 character random string', function () {

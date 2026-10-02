@@ -48,7 +48,7 @@ return [
         'title' => '内容可能无法发布',
         'heading' => '内容可能无法发布',
         'intro' => '需要重新连接工作区 :workspace 中的以下账号，这些已排期的内容才能发布：',
-        'posts_label' => '{1} 已排期 :count 条：:times UTC|[0,*] 已排期 :count 条：:times UTC',
+        'posts_label' => '{1} 已排期 :count 条：:times (:timezone)|[0,*] 已排期 :count 条：:times (:timezone)',
         'reconnect_cta' => '请立即重新连接这些账号，以免错过已排期的发布。',
         'button' => '重新连接账号',
     ],

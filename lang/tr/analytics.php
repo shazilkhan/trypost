@@ -5,7 +5,6 @@ declare(strict_types=1);
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Metin',
             'image' => 'Görsel',
@@ -17,12 +16,6 @@ return [
             'link' => 'Bağlantı',
             'poll' => 'Anket',
             'unknown' => 'Bilinmiyor',
-        ],
-        'time_basis' => [
-            'lifetime' => 'Yayınlandığından beri',
-            'range' => 'Seçilen dönem',
-            'rolling_90_days' => 'Son 90 gün',
-            'snapshot' => 'Anlık ölçüm',
         ],
         'labels' => [
             'watch_time_milliseconds' => 'İzlenme süresi',
@@ -56,17 +49,8 @@ return [
             'story_exits' => 'Hikâyeden çıkışlar',
             'unique_viewers' => 'Benzersiz izleyiciler',
         ],
-        'engagement' => 'Etkileşim',
-        'exposure' => 'Erişim',
-        'video' => 'Video ve izleyici tutma',
-        'last_collected' => 'Son veri toplama',
-        'stale' => 'Veriler güncel olmayabilir',
         'awaiting_metrics' => 'Metrikler henüz toplanmadı.',
-        'estimated' => 'Tahmini',
-        'back_to_insights' => 'Insights\'a dön',
         'details' => 'Ayrıntılar',
-        'published_via_trypost' => 'TryPost aracılığıyla yayınlandı',
-        'published_on' => ':platform üzerinde yayınlandı',
     ],
     'dashboard' => [
         'summary' => 'Özet',
@@ -79,7 +63,6 @@ return [
         'performance' => 'Performans',
         'top_posts' => 'En iyi 5 gönderi',
         'channel' => 'Kanal',
-        'workspace_description' => 'Bağlı kanallarınız bir arada, her hesap ayrı gösterilir.',
         'latest_snapshot_hint' => 'Bu dönemde yayınlanan gönderiler için son kaydedilen ölçümler kullanılır.',
         'followers_chart_mode' => 'Takipçi grafiği modu',
         'posts_chart_mode' => 'Gönderi grafiği modu',
@@ -191,6 +174,18 @@ return [
                 'label' => 'Ort. izlenme süresi (sn)',
                 'about' => 'Görüntülenme başına izlenen ortalama saniye.',
             ],
+            'reposts' => [
+                'label' => 'Yeniden paylaşımlar',
+                'about' => 'Dönemde yayınlanan gönderilerin yeniden paylaşımları.',
+            ],
+            'impressions' => [
+                'label' => 'Gösterimler',
+                'about' => 'Dönemde yayınlanan gönderilerin gösterilme sayısı.',
+            ],
+            'clicks' => [
+                'label' => 'Tıklamalar',
+                'about' => 'Dönemde yayınlanan gönderilere yapılan tıklamalar.',
+            ],
         ],
     ],
 
@@ -250,5 +245,44 @@ return [
         'bookings' => 'Rezervasyonlar',
         'food_orders' => 'Yemek siparişleri',
         'food_menu_clicks' => 'Menü tıklamaları',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => 'Dışa aktar',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => 'Tarih aralığı',
+            'compared_to' => 'Karşılaştırma',
+            'generated_at' => 'Oluşturulma',
+            'metric' => 'Metrik',
+            'value' => 'Değer',
+            'previous' => 'Önceki dönem',
+            'change' => 'Değişim',
+            'published_at' => 'Yayınlanma',
+            'network' => 'Ağ',
+            'content_type' => 'Tür',
+            'text' => 'Metin',
+            'link' => 'Bağlantı',
+        ],
+        'sync' => [
+            'button' => 'Senkronizasyon durumu',
+            'title' => 'Insights nasıl güncel kalır',
+            'new_posts' => 'Yeni gönderiler her kanalda :interval, X\'te ise :x_interval alınır.',
+            'every_hours' => '{1} her saat|[2,*] her :count saatte bir',
+            'metrics' => 'Gönderi metrikleri son :days günün gönderileri için günde bir kez yenilenir (X\'te :x_days).',
+            'followers' => 'Takipçi sayıları günde bir kez kaydedilir.',
+            'last_sync' => 'Son senkronizasyon :time',
+            'never' => 'Henüz senkronize edilmedi',
+        ],
+        'about' => [
+            'top_posts' => 'Bu dönemde en çok tepki veya yorum alan beş gönderiniz.',
+            'performance' => 'Dönemde yayınlanan gönderilerin kanal bazında toplamları, önceki dönemle karşılaştırmalı.',
+            'followers' => 'Dönem sonunda kanal başına takipçiler ve sayının nasıl değiştiği.',
+            'posts' => 'Her kanalın dönemde kaç gönderi yayınladığı.',
+            'channel_posts' => 'Bu kanalın dönemde yayınladığı tüm gönderiler, seçtiğiniz sütuna göre sıralı.',
+        ],
+        'columns' => 'Sütunlar',
+        'channels_shown' => ':range · :total kanaldan :shown tanesi gösteriliyor. Başka kanalları görmek için kanala göre filtreleyin.',
     ],
 ];

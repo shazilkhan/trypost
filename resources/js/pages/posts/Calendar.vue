@@ -32,6 +32,7 @@ import {
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import { useShowPostingSlots } from '@/composables/useShowPostingSlots';
+import { provideViewTimezone } from '@/composables/useViewTimezone';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
 import dayjs from '@/dayjs';
@@ -117,6 +118,8 @@ const { timezone, setTimezone } = useDisplayTimezone(
     undefined,
     RELOAD_PROPS,
 );
+
+provideViewTimezone(timezone);
 
 watch(
     () => props.displayTimezone,
@@ -368,17 +371,14 @@ const composerAccounts = (): string[] =>
 const newPost = (): void =>
     openPostComposer({ socialAccountIds: composerAccounts() });
 
-const composeOn = (day: dayjs.Dayjs): void =>
-    openPostComposer({
-        date: dayKey(day),
-        socialAccountIds: composerAccounts(),
-    });
-
 const composeAt = (utcIso: string): void =>
     openPostComposer({
         date: date.formatUtcForDateTimeLocalInput(utcIso),
         socialAccountIds: composerAccounts(),
     });
+
+const composeOn = (day: dayjs.Dayjs): void =>
+    composeAt(dayjs.tz(`${dayKey(day)}T09:00`, timezone.value).utc().format());
 
 const expandedDays = ref<string[]>([]);
 

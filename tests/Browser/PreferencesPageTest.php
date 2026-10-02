@@ -133,7 +133,7 @@ test('the time zone picker suggests the browser time zone first', function () {
 });
 
 test('a 12-hour clock shows meridiem hours on the calendar', function () {
-    $user = preferencesUser(['locale' => Locale::German]);
+    $user = preferencesUser(['locale' => Locale::German, 'time_format' => TimeFormat::TwentyFourHour]);
     $this->actingAs($user);
 
     $page = visit(route('app.settings.preferences'));
@@ -162,4 +162,41 @@ test('the week start and default posting action save', function () {
     $page = visit(route('app.calendar', ['view' => 'month']));
     waitForPreferencesTestId($page, 'calendar-month-grid');
     $page->assertNoJavaScriptErrors();
+});
+
+test('the time format offers only two clocks and keeps its value after a language change', function () {
+    $user = preferencesUser(['locale' => Locale::English, 'time_format' => TimeFormat::TwelveHour]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.settings.preferences'));
+    waitForPreferencesTestId($page, 'preferences-time-format-trigger');
+    $page->click('@preferences-time-format-trigger');
+    waitForPreferencesTestId($page, 'preferences-time-format-option-24h');
+
+    expect($page->script('document.querySelectorAll(\'[data-testid^="preferences-time-format-option-"]\').length'))->toBe(2);
+    $page->keys('@preferences-time-format-option-24h', 'Escape');
+    $page->script('(async () => { for (let i = 0; i < 150; i++) { if (! document.querySelector(\'[data-testid^="preferences-time-format-option-"]\')) return; await new Promise((r) => setTimeout(r, 50)); } })();');
+
+    choosePreference($page, 'preferences-language', 'de', 'locale');
+    $label = __('settings.preferences.time_format.twelve_hour', [], 'de');
+    $page->script("(async () => { for (let i = 0; i < 150; i++) { if (document.querySelector('[data-testid=\"preferences-time-format-value\"]')?.textContent.includes('{$label}')) return; await new Promise((r) => setTimeout(r, 50)); } })();");
+
+    $page->assertSeeIn('@preferences-time-format-value', $label)->assertNoJavaScriptErrors();
+    expect($user->fresh()->time_format)->toBe(TimeFormat::TwelveHour);
+});
+
+test('saving a preference shows no success toast', function () {
+    $user = preferencesUser(['time_format' => TimeFormat::TwelveHour]);
+    $this->actingAs($user);
+    $toastAppears = "(async () => { for (let i = 0; i < 20; i++) { if (document.querySelector('[data-sonner-toast]')) return true; await new Promise((r) => setTimeout(r, 50)); } return false; })();";
+
+    $page = visit(route('app.settings.preferences'));
+    choosePreference($page, 'preferences-time-format', '24h', 'time_format');
+    expect($page->script($toastAppears))->toBeFalse();
+
+    choosePreference($page, 'preferences-language', 'de', 'locale');
+    expect($page->script($toastAppears))->toBeFalse();
+
+    $page->assertNoJavaScriptErrors();
+    expect($user->fresh()->time_format)->toBe(TimeFormat::TwentyFourHour);
 });

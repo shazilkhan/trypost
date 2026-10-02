@@ -43,16 +43,6 @@ return [
     'date_range_picker' => [
         'placeholder' => '날짜 범위 선택',
         'today' => '오늘',
-        'yesterday' => '어제',
-        'last_7_days' => '지난 7일',
-        'last_30_days' => '지난 30일',
-        'last_3_months' => '지난 3개월',
-        'last_6_months' => '지난 6개월',
-        'last_12_months' => '지난 12개월',
-        'this_month' => '이번 달',
-        'last_month' => '지난달',
-        'year_to_date' => '올해 누적',
-        'last_year' => '작년',
     ],
 
     'cancel' => '취소',

@@ -68,7 +68,7 @@ test('creating a webhook happens in a centered dialog with cancel before the pri
         ->assertNoJavaScriptErrors();
 });
 
-test('an invalid endpoint shows an inline error and a valid one closes the dialog and lists the webhook', function () {
+test('an invalid endpoint shows an inline error and a valid one opens the new webhook page', function () {
     $user = webhookCreateDialogAdmin();
     $this->actingAs($user);
 
@@ -91,12 +91,19 @@ test('an invalid endpoint shows an inline error and a valid one closes the dialo
     waitForWebhookCreateTestIdGone($page, 'create-webhook-dialog');
 
     $webhook = Webhook::query()->where('workspace_id', $user->current_workspace_id)->sole();
-    waitForWebhookCreateTestId($page, "webhook-row-{$webhook->id}");
+    $showPath = parse_url(route('app.webhooks.show', $webhook), PHP_URL_PATH);
+    $page->script(<<<JS
+        (async () => {
+            for (let i = 0; i < 100; i++) {
+                if (location.pathname === '{$showPath}' && document.body.innerText.includes('example.com/hooks')) return;
+                await new Promise((r) => setTimeout(r, 50));
+            }
+        })();
+    JS);
 
     $page->assertMissing('@create-webhook-dialog')
-        ->assertUrlIs(route('app.webhooks.index'))
-        ->assertVisible("@webhook-row-{$webhook->id}")
-        ->assertSeeIn("@webhook-row-{$webhook->id}", 'https://example.com/hooks')
+        ->assertUrlIs(route('app.webhooks.show', $webhook))
+        ->assertSee('example.com/hooks')
         ->assertScript("document.querySelector('[data-sonner-toast]') === null", true)
         ->assertNoJavaScriptErrors();
 });

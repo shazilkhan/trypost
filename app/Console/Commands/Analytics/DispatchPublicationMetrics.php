@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Console\Commands\Analytics;
 
 use App\Enums\Analytics\PublicationContentType;
-use App\Enums\SocialAccount\Platform;
 use App\Jobs\Analytics\CollectPublicationMetrics;
 use App\Models\AnalyticsPublication;
 use App\Models\SocialAccount;
+use App\Support\Analytics\SyncCadence;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -27,7 +27,7 @@ class DispatchPublicationMetrics extends Command
             ->includedInAnalytics()
             ->lazyById(100)
             ->each(function (SocialAccount $account) use ($now): void {
-                $days = $account->platform === Platform::X ? 20 : 30;
+                $days = SyncCadence::metricsWindowDays($account->platform);
 
                 AnalyticsPublication::query()
                     ->available()

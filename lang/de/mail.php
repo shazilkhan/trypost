@@ -48,7 +48,7 @@ return [
         'title' => 'Beiträge könnten fehlschlagen',
         'heading' => 'Beiträge könnten fehlschlagen',
         'intro' => 'Die folgenden Konten im Workspace :workspace müssen neu verbunden werden, damit diese geplanten Beiträge veröffentlicht werden können:',
-        'posts_label' => '{1} :count Beitrag geplant: :times UTC|[0,*] :count Beiträge geplant: :times UTC',
+        'posts_label' => '{1} :count Beitrag geplant: :times (:timezone)|[0,*] :count Beiträge geplant: :times (:timezone)',
         'reconnect_cta' => 'Verbinde diese Konten jetzt neu, damit deine geplanten Beiträge nicht ausfallen.',
         'button' => 'Konten neu verbinden',
     ],

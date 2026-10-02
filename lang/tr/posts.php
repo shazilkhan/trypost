@@ -873,7 +873,6 @@ return [
                 'description' => 'Yayınladığın gönderiler burada görünecek.',
             ],
         ],
-        'reordered' => 'Kuyruk güncellendi',
     ],
     'group' => [
         'channels' => 'Kanallar (:count)',

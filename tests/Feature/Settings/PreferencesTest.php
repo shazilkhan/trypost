@@ -31,7 +31,7 @@ test('new users get the default preferences', function () {
     $user = User::factory()->create()->fresh();
 
     expect($user->theme)->toBe(Theme::System)
-        ->and($user->time_format)->toBeNull()
+        ->and($user->time_format)->toBe(TimeFormat::DEFAULT)
         ->and($user->week_starts_on)->toBe(WeekStart::Monday)
         ->and($user->default_post_action)->toBe(DefaultPostAction::Next);
 });
@@ -51,7 +51,7 @@ test('each preference saves on its own', function (string $field, string $value,
         ->and($user->timezone)->toBe($field === 'timezone' ? $expected : 'Europe/Warsaw');
 })->with([
     'theme' => ['theme', 'dark', Theme::Dark],
-    'time format' => ['time_format', '12h', TimeFormat::TwelveHour],
+    'time format' => ['time_format', '24h', TimeFormat::TwentyFourHour],
     'week start' => ['week_starts_on', 'sunday', WeekStart::Sunday],
     'default post action' => ['default_post_action', 'top', DefaultPostAction::Top],
     'time zone' => ['timezone', 'America/Sao_Paulo', 'America/Sao_Paulo'],
@@ -96,14 +96,29 @@ test('invalid preference values are rejected', function (string $field, string $
     ['theme', ''],
 ]);
 
-test('the time format follows the language until one is picked', function () {
-    $english = User::factory()->create(['locale' => Locale::English]);
-    $german = User::factory()->create(['locale' => Locale::German]);
-    $chosen = User::factory()->timeFormat(TimeFormat::TwentyFourHour)->create(['locale' => Locale::English]);
+test('a new account reads the clock of its language', function (string $locale, string $email, TimeFormat $expected) {
+    config()->set('trypost.self_hosted', false);
 
-    expect($english->resolvedTimeFormat())->toBe(TimeFormat::TwelveHour)
-        ->and($german->resolvedTimeFormat())->toBe(TimeFormat::TwentyFourHour)
-        ->and($chosen->resolvedTimeFormat())->toBe(TimeFormat::TwentyFourHour);
+    $this->post(route('register.store'), [
+        'name' => 'Ana',
+        'email' => $email,
+        'password' => 'Password123!',
+        'locale' => $locale,
+    ])->assertSessionHasNoErrors();
+
+    expect(User::query()->where('email', $email)->sole()->time_format)->toBe($expected);
+})->with([
+    'english' => ['en', 'ana-en@example.com', TimeFormat::TwelveHour],
+    'german' => ['de', 'ana-de@example.com', TimeFormat::TwentyFourHour],
+    'portuguese' => ['pt-BR', 'ana-pt@example.com', TimeFormat::TwentyFourHour],
+]);
+
+test('the shared time format is the stored one whatever the language', function () {
+    $user = User::factory()->timeFormat(TimeFormat::TwentyFourHour)->create(['locale' => Locale::English]);
+
+    $this->actingAs($user)
+        ->get(route('app.settings.preferences'))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('auth.user.time_format', '24h'));
 });
 
 test('the shared auth user exposes the preferences', function () {

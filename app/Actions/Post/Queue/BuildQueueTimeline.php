@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions\Post\Queue;
 
-use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -26,7 +25,7 @@ class BuildQueueTimeline
 
         $posts = Post::query()
             ->where('workspace_id', $workspace->id)
-            ->where('status', PostStatus::Scheduled)
+            ->holdingSlot()
             ->whereBetween('scheduled_at', [now(), $until])
             ->whereHas('postPlatforms', fn ($platforms) => $platforms->enabled()->whereIn('social_account_id', $channelIds))
             ->matchingLabelFilter($labelIds, $untagged)
@@ -43,15 +42,15 @@ class BuildQueueTimeline
                 continue;
             }
 
-            $items[] = [
-                'type' => 'post',
-                'at' => $post->scheduled_at->utc()->toIso8601String(),
-                'channel_id' => $channelId,
-                'post_id' => $post->id,
-            ];
+            $occupied[$channelId][$post->scheduled_at->getTimestamp()] = true;
 
-            if ($post->schedule_mode === ScheduleMode::Queue) {
-                $occupied[$channelId][$post->scheduled_at->getTimestamp()] = true;
+            if ($post->status === PostStatus::Scheduled) {
+                $items[] = [
+                    'type' => 'post',
+                    'at' => $post->scheduled_at->utc()->toIso8601String(),
+                    'channel_id' => $channelId,
+                    'post_id' => $post->id,
+                ];
             }
         }
 

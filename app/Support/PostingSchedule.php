@@ -6,6 +6,7 @@ namespace App\Support;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Generator;
 use InvalidArgumentException;
 
 /**
@@ -196,6 +197,37 @@ final class PostingSchedule
         return $slots;
     }
 
+    public function hasSlotAt(CarbonInterface $instant, string $timezone): bool
+    {
+        $slot = $this->nextSlots(CarbonImmutable::instance($instant)->subSecond(), $timezone, 1)[0] ?? null;
+
+        return $slot !== null && $slot->equalTo($instant);
+    }
+
+    /**
+     * Every enabled slot strictly after `$after`, lazily, as UTC instants.
+     *
+     * @return Generator<int, CarbonImmutable>
+     */
+    public function slotsAfter(CarbonInterface $after, string $timezone): Generator
+    {
+        $cursor = $after;
+
+        while (true) {
+            $batch = $this->nextSlots($cursor, $timezone, 64);
+
+            foreach ($batch as $slot) {
+                yield $slot;
+            }
+
+            if (count($batch) < 64) {
+                return;
+            }
+
+            $cursor = end($batch);
+        }
+    }
+
     /**
      * Every enabled slot strictly after `$after` and at or before `$until`, as UTC instants.
      *
@@ -203,30 +235,21 @@ final class PostingSchedule
      */
     public function slotsBetween(CarbonInterface $after, CarbonInterface $until, string $timezone): array
     {
-        if ($until->lessThanOrEqualTo($after)) {
-            return [];
-        }
-
         $slots = [];
-        $cursor = $after;
 
-        while (true) {
-            $batch = $this->nextSlots($cursor, $timezone, 64);
-
-            foreach ($batch as $slot) {
-                if ($slot->greaterThan($until)) {
-                    return $slots;
-                }
-
-                $slots[] = $slot;
-            }
-
-            if (count($batch) < 64) {
-                return $slots;
-            }
-
-            $cursor = end($batch);
+        if ($until->lessThanOrEqualTo($after)) {
+            return $slots;
         }
+
+        foreach ($this->slotsAfter($after, $timezone) as $slot) {
+            if ($slot->greaterThan($until)) {
+                break;
+            }
+
+            $slots[] = $slot;
+        }
+
+        return $slots;
     }
 
     /**

@@ -174,3 +174,28 @@ test('a foreign idea and a user outside the workspace are forbidden', function (
 
     $this->actingAs($outsider->fresh())->get(route('app.create.ideas.index'))->assertForbidden();
 });
+
+test('the gallery stage filter can include ideas without a stage', function () {
+    $stage = IdeaStage::factory()->create(['workspace_id' => $this->workspace->id]);
+    $other = IdeaStage::factory()->create(['workspace_id' => $this->workspace->id]);
+    $loose = Idea::factory()->create(['workspace_id' => $this->workspace->id]);
+    $staged = Idea::factory()->inStage($stage)->create();
+    Idea::factory()->inStage($other)->create();
+
+    $galleryIds = fn (array $query) => collect(
+        $this->actingAs($this->user)
+            ->get(route('app.create.ideas.index', ['view' => 'gallery', ...$query]))
+            ->assertOk()
+            ->viewData('page')['props']['ideas']['data'],
+    )->pluck('id')->sort()->values()->all();
+
+    expect($galleryIds(['unassigned' => 1]))->toBe([$loose->id])
+        ->and($galleryIds(['unassigned' => 1, 'stages' => [$stage->id]]))->toBe(collect([$loose->id, $staged->id])->sort()->values()->all())
+        ->and($galleryIds([]))->toHaveCount(3);
+
+    $this->actingAs($this->user)->get(route('app.create.ideas.index', ['view' => 'gallery', 'unassigned' => 1]))
+        ->assertInertia(fn (Assert $page) => $page->where('filters.unassigned', true));
+
+    $this->actingAs($this->user)->get(route('app.create.ideas.index', ['unassigned' => 1]))
+        ->assertInertia(fn (Assert $page) => $page->has('board', 3));
+});

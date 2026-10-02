@@ -4,9 +4,11 @@ import type { Directive } from 'vue';
 import DayHeading from '@/components/publish/DayHeading.vue';
 import PostTimelineCard from '@/components/publish/PostTimelineCard.vue';
 import QueueSlotRow from '@/components/publish/QueueSlotRow.vue';
-import type {
-    QueueDropIndicator,
-    SortableQueueItem,
+import {
+    queueSlotKey,
+    type QueueDropIndicator,
+    type QueueSlotTarget,
+    type SortableQueueItem,
 } from '@/composables/useSortableQueue';
 import type {
     PostCard,
@@ -22,9 +24,13 @@ const props = defineProps<{
     posts: Record<string, PostCard>;
     channels: Record<string, PublishSocialAccount>;
     positions: Record<string, QueuePostPosition>;
+    draggables: Record<string, SortableQueueItem>;
     displayTimezone: string;
     dropIndicator: QueueDropIndicator | null;
+    slotDropKey: string | null;
+    slotDrop: boolean;
     register: (el: HTMLElement, item: SortableQueueItem) => () => void;
+    registerSlot: (el: HTMLElement, slot: QueueSlotTarget) => () => void;
 }>();
 
 const emit = defineEmits<{
@@ -49,13 +55,36 @@ const vSortable: Directive<HTMLElement, SortableQueueItem | null> = {
     updated: (el, { value, oldValue }) => {
         if (
             value?.postId === oldValue?.postId &&
-            value?.channelId === oldValue?.channelId
+            value?.channelId === oldValue?.channelId &&
+            value?.queued === oldValue?.queued
         ) {
             return;
         }
 
         unbind(el);
         bind(el, value);
+    },
+    unmounted: (el) => unbind(el),
+};
+
+const bindSlot = (el: HTMLElement, slot: QueueSlotTarget | null): void => {
+    if (slot) {
+        cleanups.set(el, props.registerSlot(el, slot));
+    }
+};
+
+const vQueueSlotDrop: Directive<HTMLElement, QueueSlotTarget | null> = {
+    mounted: (el, { value }) => bindSlot(el, value),
+    updated: (el, { value, oldValue }) => {
+        if (
+            (value ? queueSlotKey(value) : null) ===
+            (oldValue ? queueSlotKey(oldValue) : null)
+        ) {
+            return;
+        }
+
+        unbind(el);
+        bindSlot(el, value);
     },
     unmounted: (el) => unbind(el),
 };
@@ -74,9 +103,10 @@ const onMove = (item: QueueItem, direction: PostCardMove): void => {
 };
 
 const sortableItem = (item: QueueItem): SortableQueueItem | null =>
-    item.post_id && props.positions[item.post_id]?.draggable
-        ? { postId: item.post_id, channelId: item.channel_id }
-        : null;
+    item.post_id ? (props.draggables[item.post_id] ?? null) : null;
+
+const slotTarget = (item: QueueItem): QueueSlotTarget | null =>
+    props.slotDrop ? { channelId: item.channel_id, at: item.at } : null;
 </script>
 
 <template>
@@ -104,14 +134,20 @@ const sortableItem = (item: QueueItem): SortableQueueItem | null =>
                     :can-move-down="
                         positions[item.post_id]?.canMoveDown ?? false
                     "
-                    :draggable="positions[item.post_id]?.draggable ?? false"
+                    :draggable="item.post_id in draggables"
+                    :gutter-handle="slotDrop"
                     :movable="item.post_id in positions"
                     @move="(direction) => onMove(item, direction)"
                 />
             </div>
             <QueueSlotRow
                 v-else-if="item.type === 'slot'"
+                v-queue-slot-drop="slotTarget(item)"
                 :item="item"
+                :drop-target="
+                    slotDropKey ===
+                    queueSlotKey({ channelId: item.channel_id, at: item.at })
+                "
                 :channel="channels[item.channel_id] ?? null"
                 :display-timezone="displayTimezone"
             />

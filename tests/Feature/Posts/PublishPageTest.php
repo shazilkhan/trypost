@@ -7,6 +7,7 @@ use App\Enums\Post\Origin;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\Status as PlatformStatus;
+use App\Enums\User\WeekStart;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -304,9 +305,10 @@ test('an invalid time zone and an oversized queue window fall back safely', func
             ->where('queue.queueDays', 14));
 });
 
-test('sent this week starts on monday in the channel time zone', function () {
+test("sent this week starts on the viewer's week start in the channel time zone", function (WeekStart $weekStart, int $expected) {
     $this->travelTo(CarbonImmutable::parse('2026-09-30 12:00:00', 'America/Sao_Paulo'));
     $this->channel->update(['timezone' => 'America/Sao_Paulo']);
+    $this->user->update(['week_starts_on' => $weekStart]);
 
     publishPagePost($this->channel, PostStatus::Published, [], [
         'status' => PlatformStatus::Published,
@@ -324,8 +326,11 @@ test('sent this week starts on monday in the channel time zone', function () {
 
     $this->actingAs($this->user)
         ->get(route('app.channels.publish', $this->channel))
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('channel.sent_this_week', 1));
-});
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('channel.sent_this_week', $expected));
+})->with([
+    'monday' => [WeekStart::Monday, 1],
+    'sunday' => [WeekStart::Sunday, 2],
+]);
 
 test('the publish page of another workspace channel is not found', function () {
     $foreign = SocialAccount::factory()->linkedin()->create();
@@ -520,10 +525,36 @@ test('a queue with scheduled posts lists every one of them and no slots', functi
 
     $this->get(route('app.channels.publish', $this->channel))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('queue.days', [])
+            ->where('queue.days', fn ($days) => collect($days)->flatMap(fn (array $day): array => $day['items'])->isNotEmpty())
             ->where('posts.data', fn ($posts) => collect($posts)->pluck('id')->all() === [$tomorrow->id, $farAway->id])
             ->where('counts.queue', 2)
             ->where('channels', fn ($channels) => collect($channels)->firstWhere('id', $this->channel->id)['scheduled_posts_count'] === 2));
+});
+
+test('a channel queue always interleaves its free posting times with its scheduled posts', function () {
+    $queued = publishPagePost($this->channel, PostStatus::Scheduled, [
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => CarbonImmutable::parse('2026-10-06 12:00:00', 'UTC'),
+    ]);
+    $custom = publishPagePost($this->channel, PostStatus::Scheduled, [
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => CarbonImmutable::parse('2026-10-07 12:00:00', 'UTC'),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('posts.data', fn ($posts) => collect($posts)->pluck('id')->all() === [$queued->id, $custom->id])
+            ->where('queue.days.0.items', [
+                ['type' => 'slot', 'at' => '2026-10-05T12:00:00+00:00', 'channel_id' => $this->channel->id, 'post_id' => null],
+            ])
+            ->where('queue.days.1.items', [
+                ['type' => 'post', 'at' => '2026-10-06T12:00:00+00:00', 'channel_id' => $this->channel->id, 'post_id' => $queued->id],
+            ])
+            ->where('queue.days.2.items', [
+                ['type' => 'post', 'at' => '2026-10-07T12:00:00+00:00', 'channel_id' => $this->channel->id, 'post_id' => $custom->id],
+            ])
+            ->where('queue.days.3.items.0.type', 'slot'));
 });
 
 test('the scheduled queue paginates with the default page size', function () {
@@ -642,4 +673,106 @@ test('imported posts count toward the weekly posting goal', function () {
     $this->actingAs($this->user)
         ->get(route('app.channels.publish', $this->channel))
         ->assertInertia(fn (AssertableInertia $page) => $page->where('channel.sent_this_week', 1));
+});
+
+test('the queue carries the pending queue requests holding a slot, and the slot is no free posting time', function () {
+    $requester = workspaceMember($this->workspace, 'approval');
+    $slot = CarbonImmutable::parse('2026-10-06 12:00:00', 'UTC');
+
+    $holder = publishPagePost($this->channel, PostStatus::PendingApproval, [
+        'user_id' => $requester->id,
+        'approval_requested_by' => $requester->id,
+        'approval_requested_at' => now(),
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => $slot,
+    ]);
+    publishPagePost($this->channel, PostStatus::PendingApproval, [
+        'user_id' => $requester->id,
+        'approval_requested_by' => $requester->id,
+        'approval_requested_at' => now(),
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => null,
+    ]);
+    publishPagePost($this->channel, PostStatus::PendingApproval, [
+        'user_id' => $requester->id,
+        'approval_requested_by' => $requester->id,
+        'approval_requested_at' => now(),
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => $slot->addHours(3),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('counts.queue', 0)
+            ->where('counts.approvals', 3)
+            ->has('queue.pending', 1)
+            ->where('queue.pending.0.id', $holder->id)
+            ->where('queue.pending.0.status', PostStatus::PendingApproval->value)
+            ->where('queue.pending.0.scheduled_at', fn ($value) => CarbonImmutable::parse($value)->equalTo($slot))
+            ->where('queue.pending.0.post_platforms.0.social_account_id', $this->channel->id)
+            ->where('queue.days', fn ($days) => collect($days)->flatMap(fn ($day) => $day['items'])
+                ->where('type', 'slot')
+                ->doesntContain('at', $slot->toIso8601String())));
+
+    $this->get(route('app.posts.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('queue.pending', 1)
+            ->where('queue.pending.0.id', $holder->id));
+});
+
+test('a requester sees only their own pending slot holders in the queue', function () {
+    $requester = workspaceMember($this->workspace, 'approval');
+    $colleague = workspaceMember($this->workspace, 'approval');
+
+    $pending = fn (User $user, string $at): Post => publishPagePost($this->channel, PostStatus::PendingApproval, [
+        'user_id' => $user->id,
+        'approval_requested_by' => $user->id,
+        'approval_requested_at' => now(),
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => CarbonImmutable::parse($at, 'UTC'),
+    ]);
+
+    $own = $pending($requester, '2026-10-06 12:00:00');
+    $colleagues = $pending($colleague, '2026-10-07 12:00:00');
+
+    $this->actingAs($requester)
+        ->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('queue.pending', 1)
+            ->where('queue.pending.0.id', $own->id)
+            ->where('queue.days', fn ($days) => collect($days)->flatMap(fn ($day) => $day['items'])
+                ->where('type', 'slot')
+                ->doesntContain('at', '2026-10-07T12:00:00+00:00')));
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('queue.pending', 2)
+            ->where('queue.pending.0.id', $own->id)
+            ->where('queue.pending.1.id', $colleagues->id));
+});
+
+test('pending slot holders follow the label filter', function () {
+    $requester = workspaceMember($this->workspace, 'approval');
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
+
+    $holder = publishPagePost($this->channel, PostStatus::PendingApproval, [
+        'user_id' => $requester->id,
+        'approval_requested_by' => $requester->id,
+        'approval_requested_at' => now(),
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => CarbonImmutable::parse('2026-10-06 12:00:00', 'UTC'),
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', [$this->channel, 'labels' => [$label->id]]))
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('queue.pending', 0));
+
+    $holder->labels()->attach($label->id);
+
+    $this->get(route('app.channels.publish', [$this->channel, 'labels' => [$label->id]]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('queue.pending', 1)
+            ->where('queue.pending.0.id', $holder->id));
 });

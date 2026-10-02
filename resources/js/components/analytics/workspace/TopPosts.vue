@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { IconArrowUpRight } from '@tabler/icons-vue';
+import { IconArrowUpRight, IconExternalLink } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import {
@@ -9,8 +9,7 @@ import {
 } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import { formatNumberCompact } from '@/lib/utils';
-import { show as insightsShow } from '@/routes/app/insights';
-import { show as publicationShow } from '@/routes/app/insights/publications';
+import { index as postsIndex } from '@/routes/app/posts';
 import type { TopPost, WorkspaceAnalyticsReport } from '@/types/analytics';
 
 import AnalyticsModeToggle from './AnalyticsModeToggle.vue';
@@ -35,6 +34,12 @@ const buttons = [
     },
 ] as const;
 const posts = computed<TopPost[]>(() => props.topPosts[metric.value]);
+const detailsUrl = (post: TopPost): string | null =>
+    post.post_id ? postsIndex.url({ query: { post: post.post_id } }) : null;
+const networkUrl = (post: TopPost): string | null =>
+    post.permalink && /^https:\/\//i.test(post.permalink)
+        ? post.permalink
+        : null;
 const thumbnailFor = (post: TopPost): string | null => {
     const value = post.preview_metadata?.thumbnail_url;
     return typeof value === 'string' && /^https:\/\//i.test(value)
@@ -46,6 +51,8 @@ const thumbnailFor = (post: TopPost): string | null => {
 <template>
     <AnalyticsSection
         :title="$t('analytics.dashboard.top_posts')"
+        :info="$t('analytics.insights.about.top_posts')"
+        info-testid="analytics-top-posts-about"
         :range="range"
     >
         <template #actions>
@@ -76,7 +83,7 @@ const thumbnailFor = (post: TopPost): string | null => {
             <article
                 v-for="(post, index) in posts"
                 :key="post.id"
-                class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-secondary"
+                class="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-secondary transition-control has-[a:hover]:border-border-strong"
                 data-testid="analytics-top-post"
             >
                 <div class="flex h-8 items-center justify-between gap-2 px-3">
@@ -151,15 +158,10 @@ const thumbnailFor = (post: TopPost): string | null => {
                                 : $t('analytics.dashboard.published_on_network')
                         }}</span>
                         <Link
-                            v-if="post.availability === 'available'"
-                            :href="
-                                post.post_id
-                                    ? insightsShow.url(post.post_id, {
-                                          query: { publication: post.id },
-                                      })
-                                    : publicationShow.url(post.id)
-                            "
-                            class="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 font-medium text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                            v-if="detailsUrl(post)"
+                            :href="detailsUrl(post)!"
+                            data-testid="analytics-top-post-link"
+                            class="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 font-medium text-foreground transition-control after:absolute after:inset-0 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
                         >
                             {{ $t('analytics.detail.details') }}
                             <IconArrowUpRight
@@ -167,6 +169,20 @@ const thumbnailFor = (post: TopPost): string | null => {
                                 aria-hidden="true"
                             />
                         </Link>
+                        <a
+                            v-else-if="networkUrl(post)"
+                            :href="networkUrl(post)!"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="analytics-top-post-link"
+                            class="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 font-medium text-foreground transition-control after:absolute after:inset-0 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                            {{ $t('analytics.dashboard.view_post') }}
+                            <IconExternalLink
+                                class="size-3.5"
+                                aria-hidden="true"
+                            />
+                        </a>
                     </div>
                 </div>
             </article>

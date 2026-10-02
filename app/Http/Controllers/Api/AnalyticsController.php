@@ -22,12 +22,12 @@ class AnalyticsController extends Controller
         $this->authorize('view', $workspace);
 
         if (! $request->has('range')) {
-            return response()->json($analytics->forSelection($workspace, $request->validated()));
+            return response()->json($analytics->forSelection($workspace, $request->validated(), weekStart: $request->user()->week_starts_on));
         }
 
         ['selection' => $selection, 'clamped' => $clamped] = $presets->selection($request->validated(), $request->user()->timezone);
 
-        return response()->json($analytics->forSelection($workspace, $selection, clampToBounds: $clamped));
+        return response()->json($analytics->forSelection($workspace, $selection, clampToBounds: $clamped, weekStart: $request->user()->week_starts_on));
     }
 
     public function showPublication(Request $request, string $publication, ReadPublicationAnalytics $analytics): JsonResponse

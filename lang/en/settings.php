@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => 'Receive an email when a team member adds a note to a post',
         'collaboration' => 'Collaboration',
         'collaboration_description' => 'Get emails about approval requests and approved or rejected posts',
-        'save' => 'Save preferences',
+        'save_failed' => 'Could not save your notification preferences. Please try again.',
     ],
 
     'preferences' => [
         'title' => 'Preferences',
-        'saved' => 'Preferences saved',
         'theme' => [
             'heading' => 'Appearance',
             'description' => 'Choose how TryPost looks for you.',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'Time zone',
-            'description' => 'Used as the default time zone for channels you connect.',
+            'description' => 'Used to show times, in Insights and emails, and as the default for new channels.',
         ],
         'time_format' => [
             'heading' => 'Time format',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => 'We could not cancel your subscription with the billing provider. Nothing was deleted. Please try again or contact support.',
         'logo_updated' => 'Logo uploaded successfully!',
         'logo_deleted' => 'Logo removed successfully!',
-        'notifications_updated' => 'Notification preferences updated!',
     ],
 
     'api_keys' => [

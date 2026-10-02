@@ -48,7 +48,7 @@ return [
         'title' => 'Posts kunnen mislukken',
         'heading' => 'Posts kunnen mislukken',
         'intro' => 'De volgende accounts in de werkruimte :workspace moeten opnieuw worden verbonden voordat deze ingeplande posts kunnen worden gepubliceerd:',
-        'posts_label' => '{1} :count post ingepland: :times UTC|[0,*] :count posts ingepland: :times UTC',
+        'posts_label' => '{1} :count post ingepland: :times (:timezone)|[0,*] :count posts ingepland: :times (:timezone)',
         'reconnect_cta' => 'Verbind deze accounts nu opnieuw zodat je ingeplande posts niet worden gemist.',
         'button' => 'Accounts opnieuw verbinden',
     ],

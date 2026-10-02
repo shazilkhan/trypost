@@ -8,7 +8,7 @@ import {
     IconTrash,
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
@@ -153,12 +153,34 @@ const save = (next: ChannelScheduleState): Promise<void> =>
         next,
     );
 
+const pendingTimezone = ref<string | null>(null);
+
 const timezone = computed({
     get: () => state.value.timezone,
     set: (value: string) => {
-        void save({ ...state.value, timezone: value });
+        if (value !== state.value.timezone) {
+            pendingTimezone.value = value;
+        }
     },
 });
+
+const timezoneConfirmOpen = computed({
+    get: () => pendingTimezone.value !== null,
+    set: (open: boolean) => {
+        if (!open) {
+            pendingTimezone.value = null;
+        }
+    },
+});
+
+const confirmTimezone = (): void => {
+    const value = pendingTimezone.value;
+    pendingTimezone.value = null;
+
+    if (value) {
+        void save({ ...state.value, timezone: value });
+    }
+};
 
 const stepGoal = (delta: number): void => {
     const next = Math.min(MAX_GOAL, Math.max(1, goal.value + delta));
@@ -216,7 +238,6 @@ const clearAll = (): void => {
     changeSchedule(cleared(currentSchedule.value));
 };
 
-const now = dayjs();
 const addTarget = ref<string>('every_day');
 const addTargets = computed(() => [
     ...(['every_day', 'weekdays', 'weekends'] as const).map((target) => ({
@@ -233,8 +254,17 @@ const addTargets = computed(() => [
 const selectedTarget = computed(() =>
     addTargets.value.find((option) => option.value === addTarget.value),
 );
-const addHour = ref(String(now.hour()).padStart(2, '0'));
-const addMinute = ref(String(now.minute()).padStart(2, '0'));
+const currentTime = () => dayjs().tz(state.value.timezone);
+const addHour = ref(String(currentTime().hour()).padStart(2, '0'));
+const addMinute = ref(String(currentTime().minute()).padStart(2, '0'));
+
+watch(
+    () => state.value.timezone,
+    () => {
+        addHour.value = String(currentTime().hour()).padStart(2, '0');
+        addMinute.value = String(currentTime().minute()).padStart(2, '0');
+    },
+);
 
 const addTriggerClass =
     'h-10 gap-2 rounded-lg border-border-strong data-[size=default]:h-10 bg-transparent px-4 font-medium transition-control hover:bg-accent data-[state=open]:bg-accent [&_svg]:opacity-100';
@@ -731,6 +761,45 @@ const addSlot = (): void => {
                         @click="clearAll"
                     >
                         {{ $t('channels.settings_page.clear_all') }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        <Dialog v-model:open="timezoneConfirmOpen">
+            <DialogContent
+                :show-close-button="false"
+                data-testid="channel-timezone-confirm-dialog"
+            >
+                <DialogHeader>
+                    <DialogTitle>
+                        {{
+                            $t('channels.settings_page.timezone_confirm_title')
+                        }}
+                    </DialogTitle>
+                    <DialogDescription>
+                        {{
+                            $t(
+                                'channels.settings_page.timezone_confirm_description',
+                                { timezone: pendingTimezone ?? '' },
+                            )
+                        }}
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        data-testid="channel-timezone-confirm-cancel"
+                        @click="timezoneConfirmOpen = false"
+                    >
+                        {{ $t('channels.settings_page.cancel') }}
+                    </Button>
+                    <Button
+                        type="button"
+                        data-testid="channel-timezone-confirm-submit"
+                        @click="confirmTimezone"
+                    >
+                        {{ $t('channels.settings_page.timezone_confirm') }}
                     </Button>
                 </DialogFooter>
             </DialogContent>

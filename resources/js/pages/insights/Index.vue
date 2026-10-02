@@ -4,6 +4,8 @@ import { IconChartBar } from '@tabler/icons-vue';
 import { computed, ref, watch } from 'vue';
 
 import AnalyticsRangePresets from '@/components/analytics/AnalyticsRangePresets.vue';
+import InsightsExportMenu from '@/components/analytics/InsightsExportMenu.vue';
+import InsightsSyncStatus from '@/components/analytics/InsightsSyncStatus.vue';
 import FollowersChart from '@/components/analytics/workspace/FollowersChart.vue';
 import ImportCoverage from '@/components/analytics/workspace/ImportCoverage.vue';
 import PerformanceTable from '@/components/analytics/workspace/PerformanceTable.vue';
@@ -21,6 +23,7 @@ import { accountColor } from '@/lib/analyticsColors';
 import { insights as insightsRoute } from '@/routes/app';
 import type {
     AnalyticsChannelOption,
+    InsightsSyncCadence,
     SummaryMetric,
     WorkspaceAnalyticsReport,
 } from '@/types/analytics';
@@ -30,6 +33,7 @@ const props = defineProps<{
     labels: { id: string; name: string; color: string }[];
     channelOptions: AnalyticsChannelOption[];
     availableMetrics: SummaryMetric[] | null;
+    sync: InsightsSyncCadence;
 }>();
 
 const selectedLabelIds = ref<string[]>([...props.report.filters.labels]);
@@ -136,11 +140,15 @@ const accountColors = computed<Record<string, string>>(() => {
                         :title="$t('analytics.title')"
                         :icon="IconChartBar"
                     />
-                    <p
-                        class="hidden max-w-md text-right text-sm text-muted-foreground lg:block"
-                    >
-                        {{ $t('analytics.dashboard.workspace_description') }}
-                    </p>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <InsightsSyncStatus
+                            :cadence="sync"
+                            :coverage="report.coverage"
+                        />
+                        <InsightsExportMenu
+                            :query="{ ...rangeQuery(), ...filterQuery }"
+                        />
+                    </div>
                 </div>
                 <div
                     class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 pt-2 pb-4"
@@ -219,12 +227,16 @@ const accountColors = computed<Record<string, string>>(() => {
                     :range="report.range"
                     :colors="accountColors"
                     :filtered="report.filters.channels.length > 0"
+                    :channel-filtered="report.filters.channels.length > 0"
+                    :total-channels="channelOptions.length"
                 />
                 <PostsChart
                     :posts="report.posts"
                     :range="report.range"
                     :colors="accountColors"
                     :filtered="filtered"
+                    :channel-filtered="report.filters.channels.length > 0"
+                    :total-channels="channelOptions.length"
                 />
             </template>
         </div>

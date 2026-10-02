@@ -7,6 +7,7 @@ use App\Models\IdeaStage;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
+use Pest\Browser\Playwright\Client;
 
 function waitForCreateIdeasBoardTestId(mixed $page, string $testId): void
 {
@@ -76,6 +77,87 @@ function createIdeasBoardIdea(Workspace $workspace, User $user, ?IdeaStage $stag
 function createIdeasBoardColumnIds(mixed $page): array
 {
     return $page->script('[...document.querySelectorAll(\'[data-testid^="idea-column-"]\')].map((el) => el.dataset.testid).filter((id) => /^idea-column-(unassigned|[0-9a-f-]{36})$/.test(id))');
+}
+
+function createIdeasBoardMouse(mixed $page, string $method, array $params = []): void
+{
+    $page->script('true');
+    $awaitable = property_exists($page, 'waitablePage') ? (fn () => $this->waitablePage)->call($page) : $page;
+    $playwrightPage = (fn () => $this->page)->call($awaitable);
+    $guid = (fn () => $this->guid)->call($playwrightPage);
+
+    iterator_to_array(Client::instance()->execute($guid, $method, $params));
+}
+
+/**
+ * @return array{x: float, y: float}
+ */
+function createIdeasBoardPoint(mixed $page, string $testId, float $xRatio = 0.5, float $yRatio = 0.5): array
+{
+    return $page->script(<<<JS
+        (() => {
+            const rect = document.querySelector('[data-testid="{$testId}"]').getBoundingClientRect();
+            return { x: rect.left + rect.width * {$xRatio}, y: rect.top + rect.height * {$yRatio} };
+        })()
+    JS);
+}
+
+function createIdeasBoardPickUp(mixed $page, string $testId): void
+{
+    $point = createIdeasBoardPoint($page, $testId);
+    createIdeasBoardMouse($page, 'mouseMove', ['x' => $point['x'], 'y' => $point['y']]);
+    createIdeasBoardMouse($page, 'mouseDown', ['button' => 'left', 'clickCount' => 1]);
+    createIdeasBoardMouse($page, 'mouseMove', ['x' => $point['x'] + 8, 'y' => $point['y'] + 2, 'steps' => 4]);
+}
+
+function createIdeasBoardMoveTo(mixed $page, string $testId, float $xRatio, float $yRatio): void
+{
+    $point = createIdeasBoardPoint($page, $testId, $xRatio, $yRatio);
+    createIdeasBoardMouse($page, 'mouseMove', ['x' => $point['x'], 'y' => $point['y'], 'steps' => 30]);
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
+}
+
+function createIdeasBoardRecordDragImages(mixed $page): void
+{
+    $page->script(<<<'JS'
+        (() => {
+            window.__dragImages = [];
+            const original = DataTransfer.prototype.setDragImage;
+            DataTransfer.prototype.setDragImage = function (image, x, y) {
+                window.__dragImages.push(image instanceof HTMLImageElement ? image.src.slice(0, 10) : image.tagName);
+                return original.call(this, image, x, y);
+            };
+        })()
+    JS);
+}
+
+/**
+ * @return list<string>
+ */
+function createIdeasBoardCardSlots(mixed $page, string $columnKey): array
+{
+    return $page->script(<<<JS
+        [...document.querySelector('[data-testid="idea-column-list-{$columnKey}"]').children]
+            .filter((child) => child.offsetHeight > 0 && (child.dataset.sortableIdea || child.dataset.testid === 'idea-card-placeholder'))
+            .map((child) => child.dataset.testid === 'idea-card-placeholder' ? 'placeholder' : child.dataset.sortableIdea)
+    JS);
+}
+
+/**
+ * @return list<string>
+ */
+function createIdeasBoardStageSlots(mixed $page): array
+{
+    return $page->script(<<<'JS'
+        [...document.querySelector('[data-testid="ideas-board"]').children]
+            .filter((child) => child.offsetWidth > 0 && (child.dataset.sortableStage || child.dataset.testid === 'idea-stage-placeholder'))
+            .map((child) => child.dataset.testid === 'idea-stage-placeholder' ? 'placeholder' : child.dataset.sortableStage)
+    JS);
+}
+
+function createIdeasBoardIsDropTarget(mixed $page, string $columnKey): bool
+{
+    return $page->script("document.querySelector('[data-testid=\"idea-column-{$columnKey}\"]').hasAttribute('data-drop-target')");
 }
 
 test('the board shows unassigned first and then the default stages with counts', function () {
@@ -289,6 +371,7 @@ test('the gallery view lists ideas and filters them by label and stage', functio
     waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"ideas-filter-labels-search\"]')");
     $page->click('@ideas-filter-stages-filter');
     waitForCreateIdeasBoardTestId($page, "ideas-filter-stages-option-{$stages['done']->id}");
+    $page->assertScript("document.querySelector('[data-testid=\"ideas-filter-stages-option-{$stages['done']->id}\"]').getBoundingClientRect().height <= 32", true);
     $page->click("@ideas-filter-stages-option-{$stages['done']->id}");
     waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"idea-card-{$loose->id}\"]')");
 
@@ -484,5 +567,252 @@ test('deleting a single idea asks for confirmation without typing a keyword', fu
     waitForCreateIdeasBoardDatabase($page, fn (): bool => Idea::whereKey($a->id)->doesntExist());
 
     expect(Idea::whereKey($a->id)->exists())->toBeFalse();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('a lifted placeholder shows where a dragged card lands, in its own column and in another one', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    $a = createIdeasBoardIdea($workspace, $user, $stages['todo'], 0, 'Idea A');
+    $b = createIdeasBoardIdea($workspace, $user, $stages['todo'], 1, 'Idea B');
+    $c = createIdeasBoardIdea($workspace, $user, $stages['todo'], 2, 'Idea C');
+    $d = createIdeasBoardIdea($workspace, $user, $stages['done'], 0, 'Idea D');
+    $this->actingAs($user);
+    $todo = $stages['todo']->id;
+    $done = $stages['done']->id;
+
+    $page = visit(route('app.create.ideas.index'));
+    waitForCreateIdeasBoardTestId($page, "idea-card-{$d->id}");
+    $height = $page->script("document.querySelector('[data-testid=\"idea-card-{$c->id}\"]').parentElement.offsetHeight");
+    createIdeasBoardRecordDragImages($page);
+
+    createIdeasBoardPickUp($page, "idea-card-{$c->id}");
+    waitForCreateIdeasBoardTestId($page, 'idea-card-placeholder');
+
+    expect($page->script('window.__dragImages'))->toBe(['data:image'])
+        ->and($page->script("document.querySelector('[data-testid=\"idea-card-placeholder-preview\"]')?.textContent"))->toContain('Idea C')
+        ->and($page->script("document.querySelector('[data-testid=\"idea-card-placeholder\"]').offsetHeight"))->toBe($height)
+        ->and(createIdeasBoardCardSlots($page, $todo))->toBe([$a->id, $b->id, 'placeholder']);
+
+    createIdeasBoardMoveTo($page, "idea-card-{$a->id}", 0.5, 0.25);
+
+    expect(createIdeasBoardCardSlots($page, $todo))->toBe(['placeholder', $a->id, $b->id])
+        ->and(createIdeasBoardIsDropTarget($page, $todo))->toBeTrue();
+
+    createIdeasBoardMoveTo($page, "idea-card-{$d->id}", 0.5, 0.75);
+
+    expect(createIdeasBoardCardSlots($page, $done))->toBe([$d->id, 'placeholder'])
+        ->and(createIdeasBoardCardSlots($page, $todo))->toBe([$a->id, $b->id])
+        ->and(createIdeasBoardIsDropTarget($page, $done))->toBeTrue()
+        ->and(createIdeasBoardIsDropTarget($page, $todo))->toBeFalse();
+
+    createIdeasBoardMouse($page, 'mouseUp', ['button' => 'left', 'clickCount' => 1]);
+    waitForCreateIdeasBoardDatabase($page, fn (): bool => $c->refresh()->idea_stage_id === $done);
+
+    expect($c->refresh()->idea_stage_id)->toBe($done)
+        ->and(Idea::where('idea_stage_id', $done)->orderBy('position')->pluck('id')->all())->toBe([$d->id, $c->id]);
+    waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"idea-card-placeholder\"]')");
+    expect(createIdeasBoardCardSlots($page, $done))->toBe([$d->id, $c->id]);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('a card dropped outside every column goes back where it was', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    $a = createIdeasBoardIdea($workspace, $user, $stages['todo'], 0, 'Idea A');
+    $b = createIdeasBoardIdea($workspace, $user, $stages['todo'], 1, 'Idea B');
+    $this->actingAs($user);
+    $todo = $stages['todo']->id;
+
+    $page = visit(route('app.create.ideas.index'));
+    waitForCreateIdeasBoardTestId($page, "idea-card-{$b->id}");
+
+    createIdeasBoardPickUp($page, "idea-card-{$b->id}");
+    waitForCreateIdeasBoardTestId($page, 'idea-card-placeholder');
+    createIdeasBoardMoveTo($page, "idea-card-{$a->id}", 0.5, 0.25);
+
+    expect(createIdeasBoardCardSlots($page, $todo))->toBe(['placeholder', $a->id]);
+
+    createIdeasBoardMoveTo($page, 'idea-stage-new', 0.5, 0.5);
+
+    expect(createIdeasBoardCardSlots($page, $todo))->toBe([$a->id, 'placeholder'])
+        ->and(createIdeasBoardIsDropTarget($page, $todo))->toBeFalse();
+
+    createIdeasBoardMouse($page, 'mouseUp', ['button' => 'left', 'clickCount' => 1]);
+    $page->script('new Promise((resolve) => setTimeout(resolve, 800))');
+
+    expect(Idea::where('idea_stage_id', $todo)->orderBy('position')->pluck('id')->all())->toBe([$a->id, $b->id])
+        ->and(createIdeasBoardCardSlots($page, $todo))->toBe([$a->id, $b->id]);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('a dragged stage leaves a column-sized placeholder where it will land', function () {
+    [$user, , $stages] = createIdeasBoardSetup();
+    $this->actingAs($user);
+    $todo = $stages['todo']->id;
+    $progress = $stages['in_progress']->id;
+    $done = $stages['done']->id;
+
+    $page = visit(route('app.create.ideas.index'))->resize(1440, 900);
+    waitForCreateIdeasBoardTestId($page, "idea-column-{$done}");
+    $width = $page->script("document.querySelector('[data-testid=\"idea-column-{$done}\"]').offsetWidth");
+    createIdeasBoardRecordDragImages($page);
+
+    $page->hover("@idea-column-{$done}");
+    createIdeasBoardPickUp($page, "idea-stage-handle-{$done}");
+    waitForCreateIdeasBoardTestId($page, 'idea-stage-placeholder');
+
+    expect($page->script('window.__dragImages'))->toBe(['data:image'])
+        ->and($page->script("document.querySelector('[data-testid=\"idea-stage-placeholder\"]').offsetWidth"))->toBe($width)
+        ->and($page->script("document.querySelector('[data-testid=\"idea-stage-placeholder-preview\"]')?.textContent"))->toContain($stages['done']->name)
+        ->and(createIdeasBoardStageSlots($page))->toBe([$todo, $progress, 'placeholder']);
+
+    createIdeasBoardMoveTo($page, "idea-column-{$todo}", 0.25, 0.5);
+
+    expect(createIdeasBoardStageSlots($page))->toBe(['placeholder', $todo, $progress]);
+
+    createIdeasBoardMouse($page, 'mouseUp', ['button' => 'left', 'clickCount' => 1]);
+    waitForCreateIdeasBoardDatabase($page, fn (): bool => $stages['done']->refresh()->position < $stages['todo']->refresh()->position);
+
+    expect($stages['done']->refresh()->position)->toBeLessThan($stages['todo']->refresh()->position);
+    waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"idea-stage-placeholder\"]')");
+    expect(createIdeasBoardStageSlots($page))->toBe([$done, $todo, $progress]);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the new stage button is a column-wide target with centered content', function () {
+    [$user, , $stages] = createIdeasBoardSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'))->resize(1600, 900);
+    waitForCreateIdeasBoardTestId($page, 'idea-stage-new');
+
+    $metrics = $page->script(<<<JS
+        (() => {
+            const centerOffset = (testId) => {
+                const element = document.querySelector('[data-testid="' + testId + '"]');
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                const content = range.getBoundingClientRect();
+                const box = element.getBoundingClientRect();
+                return Math.abs((content.left + content.width / 2) - (box.left + box.width / 2));
+            };
+            const button = document.querySelector('[data-testid="idea-stage-new"]');
+            return {
+                buttonWidth: button.offsetWidth,
+                columnWidth: document.querySelector('[data-testid="idea-column-{$stages['todo']->id}"]').offsetWidth,
+                buttonOffset: centerOffset('idea-stage-new'),
+                newIdeaOffset: centerOffset('idea-column-new-{$stages['todo']->id}'),
+                background: getComputedStyle(button).backgroundColor,
+            };
+        })()
+    JS);
+
+    expect($metrics['buttonWidth'])->toBe($metrics['columnWidth'])
+        ->and($metrics['buttonOffset'])->toBeLessThan(1.5)
+        ->and($metrics['newIdeaOffset'])->toBeLessThan(1.5)
+        ->and($metrics['background'])->toBe('rgba(0, 0, 0, 0)');
+
+    $page->hover('@idea-stage-new');
+    waitForCreateIdeasBoardCondition($page, "getComputedStyle(document.querySelector('[data-testid=\"idea-stage-new\"]')).backgroundColor !== 'rgba(0, 0, 0, 0)'");
+
+    expect($page->script("getComputedStyle(document.querySelector('[data-testid=\"idea-stage-new\"]')).backgroundColor"))->not->toBe('rgba(0, 0, 0, 0)');
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the gallery stage filter has an unassigned option that combines with stages', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    $loose = createIdeasBoardIdea($workspace, $user, null, 0, 'Loose');
+    $inTodo = createIdeasBoardIdea($workspace, $user, $stages['todo'], 0, 'In todo');
+    $inDone = createIdeasBoardIdea($workspace, $user, $stages['done'], 0, 'In done');
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index', ['view' => 'gallery']));
+    waitForCreateIdeasBoardTestId($page, 'ideas-filter-stages-filter');
+    $page->click('@ideas-filter-stages-filter');
+    waitForCreateIdeasBoardTestId($page, 'ideas-filter-stages-unassigned');
+
+    expect($page->script("(() => { const rows = [...document.querySelector('[data-testid=\"ideas-filter-stages-unassigned\"]').parentElement.parentElement.querySelectorAll('[data-testid=\"ideas-filter-stages-unassigned\"], [data-testid^=\"ideas-filter-stages-option-\"]')]; return rows[0].dataset.testid; })()"))->toBe('ideas-filter-stages-unassigned')
+        ->and($page->script("document.querySelector('[data-testid=\"ideas-filter-stages-unassigned\"]').getBoundingClientRect().height"))->toBeLessThanOrEqual(32);
+
+    $page->click('@ideas-filter-stages-unassigned-checkbox');
+    waitForCreateIdeasBoardCondition($page, "!document.querySelector('[data-testid=\"idea-card-{$inTodo->id}\"]')");
+
+    $page->assertVisible("@idea-card-{$loose->id}")
+        ->assertMissing("@idea-card-{$inDone->id}")
+        ->assertSeeIn('@ideas-filter-stages-count', '1');
+    expect($page->script('location.search'))->toContain('unassigned=1');
+
+    $page->click("@ideas-filter-stages-option-{$stages['todo']->id}");
+    waitForCreateIdeasBoardTestId($page, "idea-card-{$inTodo->id}");
+
+    $page->assertVisible("@idea-card-{$loose->id}")
+        ->assertMissing("@idea-card-{$inDone->id}")
+        ->assertSeeIn('@ideas-filter-stages-count', '2');
+
+    $page->click('@ideas-filter-stages-toggle-all');
+    waitForCreateIdeasBoardTestId($page, "idea-card-{$inDone->id}");
+
+    $page->assertVisible("@idea-card-{$loose->id}")
+        ->assertVisible("@idea-card-{$inTodo->id}")
+        ->assertMissing('@ideas-filter-stages-count');
+    expect($page->script('location.search'))->not->toContain('unassigned');
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the new stage button turns into an empty column in place and escape brings it back', function () {
+    [$user, , $stages] = createIdeasBoardSetup();
+    $this->actingAs($user);
+    $done = $stages['done']->id;
+
+    $page = visit(route('app.create.ideas.index'))->resize(1600, 900);
+    waitForCreateIdeasBoardTestId($page, 'idea-stage-new');
+    $before = $page->script("(() => { const rect = document.querySelector('[data-testid=\"idea-stage-new\"]').getBoundingClientRect(); return { left: rect.left, top: rect.top }; })()");
+
+    $page->click('@idea-stage-new');
+    $after = $page->script(<<<JS
+        new Promise((resolve) => requestAnimationFrame(() => {
+            const slot = document.querySelector('[data-testid="idea-stage-new-slot"]').getBoundingClientRect();
+            const column = document.querySelector('[data-testid="idea-column-{$done}"]');
+            const title = column.querySelector('h2').getBoundingClientRect();
+            const input = document.querySelector('[data-testid="idea-stage-new-input"]');
+            const field = input?.getBoundingClientRect();
+            resolve({
+                button: !!document.querySelector('[data-testid="idea-stage-new"]'),
+                left: slot.left,
+                width: slot.width,
+                height: slot.height,
+                columnWidth: column.getBoundingClientRect().width,
+                columnHeight: column.getBoundingClientRect().height,
+                titleMiddle: title.top + title.height / 2,
+                inputMiddle: field ? field.top + field.height / 2 : null,
+                focused: document.activeElement === input,
+            });
+        }))
+    JS);
+
+    expect($after['button'])->toBeFalse()
+        ->and(abs($after['left'] - $before['left']))->toBeLessThanOrEqual(1)
+        ->and($after['width'])->toBe($after['columnWidth'])
+        ->and($after['height'])->toBe($after['columnHeight'])
+        ->and(abs($after['inputMiddle'] - $after['titleMiddle']))->toBeLessThanOrEqual(1)
+        ->and($after['focused'])->toBeTrue();
+
+    $page->keys('@idea-stage-new-input', 'Escape');
+    $restored = $page->script(<<<'JS'
+        new Promise((resolve) => requestAnimationFrame(() => {
+            const button = document.querySelector('[data-testid="idea-stage-new"]');
+            const rect = button?.getBoundingClientRect();
+            resolve({
+                input: !!document.querySelector('[data-testid="idea-stage-new-input"]'),
+                left: rect?.left ?? null,
+                top: rect?.top ?? null,
+                focused: document.activeElement === button,
+            });
+        }))
+    JS);
+
+    expect($restored['input'])->toBeFalse()
+        ->and(abs($restored['left'] - $before['left']))->toBeLessThanOrEqual(1)
+        ->and(abs($restored['top'] - $before['top']))->toBeLessThanOrEqual(1)
+        ->and($restored['focused'])->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });

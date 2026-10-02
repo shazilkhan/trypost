@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useGuestLocale } from '@/composables/useGuestLocale';
 import AuthBase from '@/layouts/AuthLayout.vue';
+import { detectPreferences } from '@/lib/detectPreferences';
 import { login } from '@/routes';
 import { store } from '@/routes/register';
 
@@ -28,7 +29,7 @@ defineProps<{
 }>();
 
 const { locale } = useGuestLocale();
-const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+const detected = detectPreferences();
 
 const showPassword = ref(false);
 const showEmailForm = ref(false);
@@ -78,7 +79,9 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
             >
                 <input v-if="invite" type="hidden" name="invite" :value="invite" />
                 <input type="hidden" name="locale" :value="locale" />
-                <input type="hidden" name="timezone" :value="browserTimezone" data-testid="register-timezone" />
+                <input type="hidden" name="timezone" :value="detected.timezone" data-testid="register-timezone" />
+                <input type="hidden" name="week_starts_on" :value="detected.week_starts_on" data-testid="register-week-start" />
+                <input type="hidden" name="time_format" :value="detected.time_format ?? ''" data-testid="register-time-format" />
 
                 <div
                     v-if="hasSocial && showEmailForm"

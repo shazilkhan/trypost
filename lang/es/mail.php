@@ -48,7 +48,7 @@ return [
         'title' => 'Tus publicaciones podrían fallar',
         'heading' => 'Tus publicaciones podrían fallar',
         'intro' => 'Las siguientes cuentas del espacio de trabajo :workspace necesitan reconectarse antes de que estas publicaciones programadas puedan salir:',
-        'posts_label' => '{1} :count publicación programada: :times UTC|[0,*] :count publicaciones programadas: :times UTC',
+        'posts_label' => '{1} :count publicación programada: :times (:timezone)|[0,*] :count publicaciones programadas: :times (:timezone)',
         'reconnect_cta' => 'Reconecta estas cuentas ahora para no perder tus publicaciones programadas.',
         'button' => 'Reconectar cuentas',
     ],

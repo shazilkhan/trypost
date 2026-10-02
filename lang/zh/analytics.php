@@ -3,7 +3,6 @@
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => '文字',
             'image' => '图片',
@@ -15,12 +14,6 @@ return [
             'link' => '链接',
             'poll' => '投票',
             'unknown' => '未知',
-        ],
-        'time_basis' => [
-            'lifetime' => '发布以来',
-            'range' => '所选时间段',
-            'rolling_90_days' => '最近90天',
-            'snapshot' => '单次快照',
         ],
         'labels' => [
             'watch_time_milliseconds' => '观看时长',
@@ -54,17 +47,8 @@ return [
             'story_exits' => '退出快拍次数',
             'unique_viewers' => '独立观众数',
         ],
-        'engagement' => '互动',
-        'exposure' => '触达',
-        'video' => '视频与观看留存',
-        'last_collected' => '上次采集',
-        'stale' => '数据可能已过时',
         'awaiting_metrics' => '尚未采集到指标。',
-        'estimated' => '估算值',
-        'back_to_insights' => '返回 Insights',
         'details' => '详情',
-        'published_via_trypost' => '通过TryPost发布',
-        'published_on' => '发布于:platform',
     ],
     'dashboard' => [
         'summary' => '概览',
@@ -77,7 +61,6 @@ return [
         'performance' => '表现',
         'top_posts' => '前5条帖子',
         'channel' => '渠道',
-        'workspace_description' => '汇总已连接的渠道，同时分别显示每个账号。',
         'latest_snapshot_hint' => '此时间段内的帖子指标使用最近一次保存的测量值。',
         'followers_chart_mode' => '粉丝图表模式',
         'posts_chart_mode' => '帖子图表模式',
@@ -189,6 +172,18 @@ return [
                 'label' => '平均观看时长（秒）',
                 'about' => '每次观看的平均观看秒数。',
             ],
+            'reposts' => [
+                'label' => '转发',
+                'about' => '期间内发布帖子的转发数。',
+            ],
+            'impressions' => [
+                'label' => '展示次数',
+                'about' => '期间内发布的帖子被展示的次数。',
+            ],
+            'clicks' => [
+                'label' => '点击',
+                'about' => '期间内发布帖子的点击数。',
+            ],
         ],
     ],
 
@@ -248,5 +243,44 @@ return [
         'bookings' => '预订数',
         'food_orders' => '餐饮订单',
         'food_menu_clicks' => '菜单点击',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => '导出',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => '时间范围',
+            'compared_to' => '对比',
+            'generated_at' => '生成时间',
+            'metric' => '指标',
+            'value' => '数值',
+            'previous' => '上一期间',
+            'change' => '变化',
+            'published_at' => '发布时间',
+            'network' => '平台',
+            'content_type' => '类型',
+            'text' => '文本',
+            'link' => '链接',
+        ],
+        'sync' => [
+            'button' => '同步状态',
+            'title' => 'Insights 如何保持更新',
+            'new_posts' => '每个频道:interval获取一次新帖子，X 为:x_interval一次。',
+            'every_hours' => '{1} 每小时|[2,*] 每 :count 小时',
+            'metrics' => '帖子指标每天刷新一次，覆盖最近 :days 天的帖子（X 为 :x_days 天）。',
+            'followers' => '粉丝数每天保存一次。',
+            'last_sync' => '上次同步 :time',
+            'never' => '尚未同步',
+        ],
+        'about' => [
+            'top_posts' => '本期间反应或评论最多的五条帖子。',
+            'performance' => '本期间发布帖子的各频道合计，并与上一期间对比。',
+            'followers' => '期间结束时各频道的粉丝数及其变化。',
+            'posts' => '各频道在本期间发布的帖子数。',
+            'channel_posts' => '该频道在本期间发布的所有帖子，按所选列排序。',
+        ],
+        'columns' => '列',
+        'channels_shown' => ':range · 显示 :total 个频道中的 :shown 个。按频道筛选以查看其他频道。',
     ],
 ];

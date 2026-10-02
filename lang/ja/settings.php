@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => 'チームメンバーが投稿にメモを追加したときにメールを受け取ります',
         'collaboration' => 'コラボレーション',
         'collaboration_description' => '承認リクエストや、承認・却下された投稿についてメールを受け取る',
-        'save' => '設定を保存',
+        'save_failed' => '通知設定を保存できませんでした。もう一度お試しください。',
     ],
 
     'preferences' => [
         'title' => '環境設定',
-        'saved' => '環境設定を保存しました',
         'theme' => [
             'heading' => '外観',
             'description' => 'TryPost の表示方法を選択します。',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'タイムゾーン',
-            'description' => '接続するチャンネルのデフォルトのタイムゾーンとして使用されます。',
+            'description' => '時刻の表示、Insights、メールに使われ、新しく接続するチャンネルのデフォルトにもなります。',
         ],
         'time_format' => [
             'heading' => '時刻の形式',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => '請求プロバイダーでのサブスクリプションの解約に失敗しました。何も削除されていません。もう一度お試しいただくか、サポートまでご連絡ください。',
         'logo_updated' => 'ロゴを正常にアップロードしました！',
         'logo_deleted' => 'ロゴを正常に削除しました！',
-        'notifications_updated' => '通知設定を更新しました！',
     ],
 
     'api_keys' => [

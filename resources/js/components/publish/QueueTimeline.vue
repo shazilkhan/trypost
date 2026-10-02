@@ -5,7 +5,11 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 
 import NeedsAttention from '@/components/publish/NeedsAttention.vue';
 import QueueDayGroup from '@/components/publish/QueueDayGroup.vue';
-import { useSortableQueue } from '@/composables/useSortableQueue';
+import {
+    useSortableQueue,
+    type QueueSlotTarget,
+    type SortableQueueItem,
+} from '@/composables/useSortableQueue';
 import dayjs from '@/dayjs';
 import { PostStatus, ScheduleMode } from '@/types/post';
 import type {
@@ -25,11 +29,13 @@ const props = defineProps<{
     channels: Record<string, PublishSocialAccount>;
     displayTimezone: string;
     reorderable: boolean;
+    slotDrop: boolean;
 }>();
 
 const emit = defineEmits<{
     reorder: [channelId: string, orderedPostIds: string[]];
     moveTop: [post: PostCard];
+    moveToSlot: [postId: string, slot: QueueSlotTarget];
 }>();
 
 const MORE_DAYS = 14;
@@ -42,10 +48,12 @@ const imminenceTimer = window.setInterval(() => {
 
 onBeforeUnmount(() => window.clearInterval(imminenceTimer));
 
-const { register, dropIndicator } = useSortableQueue({
-    onReorder: (channelId, orderedPostIds) =>
-        emit('reorder', channelId, orderedPostIds),
-});
+const { register, registerSlot, dropIndicator, slotDropKey } =
+    useSortableQueue({
+        onReorder: (channelId, orderedPostIds) =>
+            emit('reorder', channelId, orderedPostIds),
+        onMoveToSlot: (postId, slot) => emit('moveToSlot', postId, slot),
+    });
 
 const channelQueues = computed<Record<string, string[]>>(() => {
     const movableAfter = now.value.add(1, 'minute');
@@ -86,12 +94,51 @@ const positions = computed<Record<string, QueuePostPosition>>(() =>
                 {
                     canMoveUp: props.reorderable && index > 0,
                     canMoveDown: props.reorderable && index < ids.length - 1,
-                    draggable: props.reorderable && ids.length > 1,
                 },
             ]),
         ),
     ),
 );
+
+const draggables = computed<Record<string, SortableQueueItem>>(() => {
+    if (!props.reorderable) {
+        return {};
+    }
+
+    const movableAfter = now.value.add(1, 'minute');
+    const items: Record<string, SortableQueueItem> = {};
+
+    for (const [channelId, ids] of Object.entries(channelQueues.value)) {
+        if (ids.length > 1 || props.slotDrop) {
+            for (const postId of ids) {
+                items[postId] = { postId, channelId, queued: true };
+            }
+        }
+    }
+
+    if (!props.slotDrop) {
+        return items;
+    }
+
+    for (const item of props.days.flatMap((day) => day.items)) {
+        const post = item.post_id ? props.posts[item.post_id] : undefined;
+
+        if (
+            post &&
+            !(post.id in items) &&
+            post.status === PostStatus.Scheduled &&
+            dayjs.utc(item.at).isAfter(movableAfter)
+        ) {
+            items[post.id] = {
+                postId: post.id,
+                channelId: item.channel_id,
+                queued: false,
+            };
+        }
+    }
+
+    return items;
+});
 
 const onMove = (post: PostCard, direction: PostCardMove): void => {
     if (direction === 'top') {
@@ -135,9 +182,13 @@ const loadMoreTimes = (): void => {
             :posts="posts"
             :channels="channels"
             :positions="positions"
+            :draggables="draggables"
             :display-timezone="displayTimezone"
             :drop-indicator="dropIndicator"
+            :slot-drop-key="slotDropKey"
+            :slot-drop="slotDrop && reorderable"
             :register="register"
+            :register-slot="registerSlot"
             @move="onMove"
         />
         <div

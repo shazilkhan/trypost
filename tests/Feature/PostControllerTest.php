@@ -1989,3 +1989,63 @@ test('the editor receives the tld list only while x link defusing is on', functi
     'enabled' => [true, true],
     'disabled' => [false, false],
 ]);
+
+test('composer data carries each channel posting schedule', function () {
+    $scheduled = SocialAccount::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform' => Platform::X,
+        'posting_schedule' => PostingSchedule::empty()->withTime(1, '09:00'),
+    ]);
+
+    $accounts = collect($this->actingAs($this->user)
+        ->getJson(route('app.posts.composer-data'))
+        ->assertOk()
+        ->json('socialAccounts'))->keyBy('id');
+
+    expect($accounts[$scheduled->id]['posting_schedule'][1])->toEqual(['day' => 1, 'enabled' => true, 'times' => ['09:00']])
+        ->and($accounts[$this->socialAccount->id]['posting_schedule'])->toEqual($this->socialAccount->fresh()->posting_schedule?->toArray());
+});
+
+test('composer data lists the instants already scheduled on each channel', function () {
+    $other = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::X]);
+    $taken = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => now()->addDays(2)->startOfMinute()]);
+    PostPlatform::factory()->create(['post_id' => $taken->id, 'social_account_id' => $this->socialAccount->id]);
+    $draft = Post::factory()->draft()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => now()->addDays(3)]);
+    PostPlatform::factory()->create(['post_id' => $draft->id, 'social_account_id' => $this->socialAccount->id]);
+    $disabled = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => now()->addDays(4)]);
+    PostPlatform::factory()->disabled()->create(['post_id' => $disabled->id, 'social_account_id' => $this->socialAccount->id]);
+
+    $accounts = collect($this->actingAs($this->user)
+        ->getJson(route('app.posts.composer-data'))
+        ->assertOk()
+        ->json('socialAccounts'))->keyBy('id');
+
+    expect($accounts[$this->socialAccount->id]['taken_slots'])->toBe([$taken->scheduled_at->toIso8601ZuluString()])
+        ->and($accounts[$other->id]['taken_slots'])->toBe([]);
+});
+
+test('channel filters do not carry posting schedules', function () {
+    $this->socialAccount->update(['posting_schedule' => PostingSchedule::empty()->withTime(1, '09:00')]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('filterAccounts.0.has_posting_schedule', true)
+            ->missing('filterAccounts.0.posting_schedule'));
+});
+
+test('composer data tells each channel time zone', function () {
+    $tokyo = SocialAccount::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform' => Platform::X,
+        'timezone' => 'Asia/Tokyo',
+    ]);
+
+    $accounts = collect($this->actingAs($this->user)
+        ->getJson(route('app.posts.composer-data'))
+        ->assertOk()
+        ->json('socialAccounts'))->keyBy('id');
+
+    expect($accounts[$tokyo->id]['timezone'])->toBe('Asia/Tokyo');
+});

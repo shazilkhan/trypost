@@ -90,6 +90,7 @@ import {
     toAutosaveMedia,
     useComposerAutosave,
 } from '@/composables/useComposerAutosave';
+import { useComposerTimezone } from '@/composables/useComposerTimezone';
 import {
     getMediaValidationWarning,
     mediaWarningParams,
@@ -130,6 +131,7 @@ import {
 } from '@/lib/mediaEditor';
 import { isGooglePickerOpen } from '@/lib/mediaSources/googleDrive';
 import { isImage, isVideo } from '@/lib/mediaType';
+import { userTimezone } from '@/preferences';
 import { settings as channelSettings } from '@/routes/app/channels';
 import { update as updatePreferences } from '@/routes/app/settings/preferences';
 import type {
@@ -159,6 +161,7 @@ const props = withDefaults(
         signatures?: { id: string; name: string; content: string }[];
         initialDate?: string | null;
         initialAccountIds?: string[];
+        initialQueueSlot?: string | null;
         submitting?: boolean;
         platformConfigs?: Record<string, any>;
         pinterestBoards?: Record<string, PinterestBoardsPayload>;
@@ -185,6 +188,7 @@ const props = withDefaults(
         signatures: () => [],
         initialDate: null,
         initialAccountIds: () => [],
+        initialQueueSlot: null,
         submitting: false,
         platformConfigs: () => ({}),
         pinterestBoards: () => ({}),
@@ -216,6 +220,37 @@ if (!props.initialPost && props.initialDate) {
 if (!props.initialPost) {
     props.initialAccountIds.forEach((id) => composition.toggleAccount(id));
 }
+const composerTimezone = useComposerTimezone(
+    () => composition.selectedAccounts.value,
+);
+let scheduledInstant =
+    props.initialQueueSlot ??
+    (composition.scheduledAt.value
+        ? date.wallClockToUtc(composition.scheduledAt.value, userTimezone.value)
+        : '');
+const scheduledWallClock = (): string =>
+    scheduledInstant
+        ? date.utcToWallClock(scheduledInstant, composerTimezone.value)
+        : '';
+composition.scheduledAt.value = scheduledWallClock();
+watch(
+    composition.scheduledAt,
+    (value) => {
+        if (value !== scheduledWallClock()) {
+            scheduledInstant = value
+                ? date.wallClockToUtc(value, composerTimezone.value)
+                : '';
+        }
+    },
+    { flush: 'sync' },
+);
+watch(
+    composerTimezone,
+    () => {
+        composition.scheduledAt.value = scheduledWallClock();
+    },
+    { flush: 'sync' },
+);
 const defaultPostAction =
     (usePage().props.auth?.user as User | null)?.default_post_action ?? 'next';
 if (
@@ -223,10 +258,7 @@ if (
     !composition.scheduledAt.value &&
     defaultPostAction === 'custom'
 ) {
-    composition.scheduledAt.value = dayjs()
-        .add(1, 'hour')
-        .startOf('hour')
-        .format('YYYY-MM-DDTHH:mm');
+    composition.scheduledAt.value = date.nextFullHour(composerTimezone.value);
 }
 const { contentFor } = useXLinkDefuser();
 const { requiresApproval } = useWorkspaceAbilities();
@@ -294,6 +326,25 @@ watch(
 
 const selectedAccounts = composition.selectedAccounts;
 const isSingleChannel = computed(() => selectedAccounts.value.length === 1);
+
+const slotSchedule = computed(() =>
+    isSingleChannel.value
+        ? (selectedAccounts.value[0]?.posting_schedule ?? null)
+        : null,
+);
+const ownScheduledInstant = props.initialPost ? scheduledInstant : '';
+const isInitialQueueSlot = (): boolean =>
+    Boolean(props.initialQueueSlot) &&
+    dayjs(scheduledInstant).isSame(props.initialQueueSlot) &&
+    isSingleChannel.value &&
+    selectedAccounts.value[0]?.id === props.initialAccountIds[0];
+const takenSlots = computed(() =>
+    isSingleChannel.value
+        ? (selectedAccounts.value[0]?.taken_slots ?? []).filter(
+              (at) => !ownScheduledInstant || !dayjs(at).isSame(ownScheduledInstant),
+          )
+        : [],
+);
 const acceptsTextOnly = (account: ComposerAccount): boolean =>
     !getMediaRulesForContentType(
         getContentTypeOptions(account.platform)[0]?.value ?? '',
@@ -1087,10 +1138,9 @@ const submit = (status: PostComposition['status']): void => {
             : null;
     const payload = composition.materialize(status, queue);
     if (status === 'scheduled' && !queue) {
-        payload.scheduled_at = date.formatLocalDateTimeForApi(
-            composition.scheduledAt.value,
-        );
-        if (!payload.scheduled_at) return;
+        if (!scheduledInstant) return;
+        payload.scheduled_at = scheduledInstant;
+        if (isInitialQueueSlot()) payload.queue_slot = scheduledInstant;
     }
     try {
         localStorage.setItem(
@@ -1264,7 +1314,7 @@ const resumeUnfinishedPost = (): void => {
     } else if (
         mode === 'custom' &&
         snapshot.scheduledAt &&
-        dayjs(snapshot.scheduledAt).isAfter(dayjs())
+        dayjs.tz(snapshot.scheduledAt, composerTimezone.value).isAfter(dayjs())
     ) {
         composition.scheduledAt.value = snapshot.scheduledAt;
         scheduleModeChosen.value = true;
@@ -2403,7 +2453,11 @@ const close = (): void => emit('update:open', false);
                             >
                                 <ComposerSchedulePicker
                                     v-if="schedulePanel === 'picker'"
+                                    :key="composerTimezone"
                                     :model-value="composition.scheduledAt.value"
+                                    :timezone="composerTimezone"
+                                    :posting-schedule="slotSchedule"
+                                    :taken-slots="takenSlots"
                                     @back="schedulePanel = 'menu'"
                                     @confirm="confirmScheduledAt"
                                 />

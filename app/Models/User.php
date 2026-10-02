@@ -75,6 +75,7 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
      */
     protected $attributes = [
         'theme' => Theme::DEFAULT->value,
+        'time_format' => TimeFormat::DEFAULT->value,
         'week_starts_on' => WeekStart::DEFAULT->value,
         'default_post_action' => DefaultPostAction::DEFAULT->value,
     ];
@@ -137,14 +138,6 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
             'week_starts_on' => WeekStart::class,
             'default_post_action' => DefaultPostAction::class,
         ];
-    }
-
-    /**
-     * The chosen clock, or the one the UI language implies when none was picked.
-     */
-    public function resolvedTimeFormat(): TimeFormat
-    {
-        return $this->time_format ?? TimeFormat::forLocale($this->locale);
     }
 
     public function preferredLocale(): string

@@ -158,7 +158,7 @@ test('mcp publishing by a requester is stored as pending', function () {
     Queue::assertNotPushed(PublishPost::class);
 });
 
-test('editing an approved queued post returns it to pending and reflows the queue', function () {
+test('editing an approved queued post returns it to pending and keeps reserving its slot', function () {
     $first = approvalGateStore($this, $this->owner);
     $second = approvalGateStore($this, $this->owner);
 
@@ -171,9 +171,9 @@ test('editing an approved queued post returns it to pending and reflows the queu
     $first->refresh();
 
     expect($first->status)->toBe(PostStatus::PendingApproval)
-        ->and($first->scheduled_at)->toBeNull()
-        ->and($first->approval_queue_position)->toBe(QueuePosition::Next)
-        ->and(approvalGateSlot($second))->toBe('Mon 09:00');
+        ->and($first->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(approvalGateSlot($first))->toBe('Mon 09:00')
+        ->and(approvalGateSlot($second))->toBe('Wed 09:00');
 });
 
 test('editing a pending post keeps the original request time', function () {

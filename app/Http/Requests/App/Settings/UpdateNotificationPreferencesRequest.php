@@ -7,6 +7,7 @@ namespace App\Http\Requests\App\Settings;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
+/** Each switch saves on its own as soon as it changes, so every field is optional and only the ones sent are written. */
 class UpdateNotificationPreferencesRequest extends FormRequest
 {
     /**
@@ -15,11 +16,11 @@ class UpdateNotificationPreferencesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'post_published' => ['required', 'boolean'],
-            'post_failed' => ['required', 'boolean'],
-            'account_disconnected' => ['required', 'boolean'],
-            'post_note_added' => ['required', 'boolean'],
-            'collaboration' => ['required', 'boolean'],
+            'post_published' => ['sometimes', 'required', 'boolean'],
+            'post_failed' => ['sometimes', 'required', 'boolean'],
+            'account_disconnected' => ['sometimes', 'required', 'boolean'],
+            'post_note_added' => ['sometimes', 'required', 'boolean'],
+            'collaboration' => ['sometimes', 'required', 'boolean'],
         ];
     }
 }

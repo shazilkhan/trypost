@@ -10,10 +10,13 @@ use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsPublicationDailySnapshot;
+use App\Models\Post;
+use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Analytics\ChannelMetrics;
+use App\Support\Analytics\SyncCadence;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
@@ -67,8 +70,15 @@ test('the insights page renders the channel report and its publications', functi
     $publication = channelInsightsPublication($this->instagram, '2026-09-20 10:00:00', ['reactions_count' => 8, 'comments_count' => 2], [
         'preview_metadata' => ['thumbnail_url' => 'https://cdn.example.com/a.jpg'],
     ]);
+    $post = Post::factory()->published()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+    $destination = PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->instagram->id,
+        'platform' => Platform::Instagram,
+    ]);
     $insecure = channelInsightsPublication($this->instagram, '2026-09-19 10:00:00', ['reactions_count' => 3], [
         'preview_metadata' => ['thumbnail_url' => 'http://cdn.example.com/b.jpg'],
+        'post_platform_id' => $destination->id,
     ]);
 
     $this->actingAs($this->user)
@@ -96,8 +106,11 @@ test('the insights page renders the channel report and its publications', functi
             ->where('publications.data.0.rank', 1)
             ->where('publications.data.0.thumbnail_url', 'https://cdn.example.com/a.jpg')
             ->where('publications.data.0.metrics.reactions', 8)
-            ->where('publications.data.0.url', route('app.insights.publications.show', $publication->id))
+            ->where('publications.data.0.url', null)
+            ->where('publications.data.0.permalink', $publication->permalink)
             ->where('publications.data.1.id', $insecure->id)
+            ->where('publications.data.1.url', route('app.posts.index', ['post' => $post->id]))
+            ->where('sync', SyncCadence::toArray())
             ->where('publications.data.1.rank', 2)
             ->where('publications.data.1.thumbnail_url', null)
             ->etc());

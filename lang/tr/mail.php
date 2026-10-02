@@ -48,7 +48,7 @@ return [
         'title' => 'Gönderiler paylaşılamayabilir',
         'heading' => 'Gönderiler paylaşılamayabilir',
         'intro' => 'Planlanan bu gönderilerin paylaşılabilmesi için :workspace çalışma alanındaki şu hesapların yeniden bağlanması gerekiyor:',
-        'posts_label' => '{1} :count gönderi planlandı: :times UTC|[0,*] :count gönderi planlandı: :times UTC',
+        'posts_label' => '{1} :count gönderi planlandı: :times (:timezone)|[0,*] :count gönderi planlandı: :times (:timezone)',
         'reconnect_cta' => 'Planladığın gönderileri kaçırmamak için bu hesapları hemen yeniden bağla.',
         'button' => 'Hesapları yeniden bağla',
     ],

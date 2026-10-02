@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Actions\Post\Queue;
 
-use App\Enums\Post\ScheduleMode;
-use App\Enums\Post\Status as PostStatus;
 use App\Models\Post;
 use App\Models\SocialAccount;
 use Illuminate\Support\Facades\DB;
@@ -24,10 +22,7 @@ class ReorderChannelQueue
     {
         ReflowChannelQueue::withLock([$channel->id], function () use ($channel, $postIds): void {
             $queued = Post::query()
-                ->where('status', PostStatus::Scheduled)
-                ->where('schedule_mode', ScheduleMode::Queue)
-                ->where('scheduled_at', '>', now()->addMinute())
-                ->whereHas('postPlatforms', fn ($query) => $query->enabled()->where('social_account_id', $channel->id))
+                ->queuedOn($channel->id, now()->addMinute())
                 ->orderBy('scheduled_at')
                 ->orderBy('id')
                 ->limit(count($postIds))

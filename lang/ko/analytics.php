@@ -3,7 +3,6 @@
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => '텍스트',
             'image' => '이미지',
@@ -15,12 +14,6 @@ return [
             'link' => '링크',
             'poll' => '투표',
             'unknown' => '알 수 없음',
-        ],
-        'time_basis' => [
-            'lifetime' => '게시 이후 누적',
-            'range' => '선택한 기간',
-            'rolling_90_days' => '최근 90일',
-            'snapshot' => '특정 시점',
         ],
         'labels' => [
             'watch_time_milliseconds' => '시청 시간',
@@ -54,17 +47,8 @@ return [
             'story_exits' => '스토리 이탈',
             'unique_viewers' => '순 시청자',
         ],
-        'engagement' => '참여',
-        'exposure' => '도달',
-        'video' => '동영상 및 시청 유지',
-        'last_collected' => '마지막 수집',
-        'stale' => '최신 데이터가 아닐 수 있음',
         'awaiting_metrics' => '아직 지표가 수집되지 않았습니다.',
-        'estimated' => '추정치',
-        'back_to_insights' => 'Insights로 돌아가기',
         'details' => '상세 정보',
-        'published_via_trypost' => 'TryPost를 통해 게시',
-        'published_on' => ':platform에 게시',
     ],
     'dashboard' => [
         'summary' => '요약',
@@ -77,7 +61,6 @@ return [
         'performance' => '성과',
         'top_posts' => '상위 게시물 5개',
         'channel' => '채널',
-        'workspace_description' => '연결된 채널을 함께 표시하되 각 계정은 구분합니다.',
         'latest_snapshot_hint' => '이 기간에 게시된 게시물의 지표는 마지막으로 저장된 측정값을 사용합니다.',
         'followers_chart_mode' => '팔로워 차트 표시 방식',
         'posts_chart_mode' => '게시물 차트 표시 방식',
@@ -189,6 +172,18 @@ return [
                 'label' => '평균 시청 시간(초)',
                 'about' => '조회당 평균 시청 초.',
             ],
+            'reposts' => [
+                'label' => '리포스트',
+                'about' => '기간 중 게시한 게시물의 리포스트 수.',
+            ],
+            'impressions' => [
+                'label' => '노출',
+                'about' => '기간 중 게시한 게시물이 표시된 횟수.',
+            ],
+            'clicks' => [
+                'label' => '클릭',
+                'about' => '기간 중 게시한 게시물의 클릭 수.',
+            ],
         ],
     ],
 
@@ -248,5 +243,44 @@ return [
         'bookings' => '예약',
         'food_orders' => '음식 주문',
         'food_menu_clicks' => '메뉴 클릭',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => '내보내기',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => '기간',
+            'compared_to' => '비교 기간',
+            'generated_at' => '생성 시각',
+            'metric' => '지표',
+            'value' => '값',
+            'previous' => '이전 기간',
+            'change' => '변화',
+            'published_at' => '게시 시각',
+            'network' => '네트워크',
+            'content_type' => '유형',
+            'text' => '텍스트',
+            'link' => '링크',
+        ],
+        'sync' => [
+            'button' => '동기화 상태',
+            'title' => 'Insights 업데이트 방식',
+            'new_posts' => '새 게시물은 채널마다 :interval, X는 :x_interval 가져옵니다.',
+            'every_hours' => '{1} 1시간마다|[2,*] :count시간마다',
+            'metrics' => '게시물 지표는 최근 :days일 게시물에 대해 하루 한 번 갱신됩니다(X는 :x_days일).',
+            'followers' => '팔로워 수는 하루 한 번 저장됩니다.',
+            'last_sync' => '마지막 동기화 :time',
+            'never' => '아직 동기화되지 않음',
+        ],
+        'about' => [
+            'top_posts' => '기간 중 반응이나 댓글이 가장 많은 게시물 5개.',
+            'performance' => '기간 중 게시한 게시물의 채널별 합계를 이전 기간과 비교합니다.',
+            'followers' => '기간 말 채널별 팔로워 수와 그 변화.',
+            'posts' => '각 채널이 기간 중 게시한 게시물 수.',
+            'channel_posts' => '이 채널이 기간 중 게시한 모든 게시물을 선택한 열 기준으로 정렬합니다.',
+        ],
+        'columns' => '열',
+        'channels_shown' => ':range · 채널 :total개 중 :shown개 표시 중. 다른 채널을 보려면 채널로 필터링하세요.',
     ],
 ];

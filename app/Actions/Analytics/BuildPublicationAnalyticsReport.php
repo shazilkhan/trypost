@@ -6,6 +6,8 @@ namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
 use App\Enums\Analytics\MetricAvailability;
+use App\Enums\Analytics\MetricKey;
+use App\Enums\User\WeekStart;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
@@ -17,6 +19,14 @@ use Illuminate\Support\LazyCollection;
 
 class BuildPublicationAnalyticsReport
 {
+    /**
+     * Metrics compared per channel in the Performance table, in display order.
+     */
+    public const array PERFORMANCE_METRICS = [
+        'posts', 'reactions', 'comments', 'engagement_rate', 'reposts', 'impressions', 'clicks', 'views',
+        'shares', 'saves', 'follows_gained', 'reach', 'watch_time_minutes', 'average_watch_time_seconds',
+    ];
+
     public function __construct(
         private readonly PeriodBuckets $buckets,
         private readonly QueryLatestPublicationSnapshots $latestSnapshots,
@@ -26,9 +36,10 @@ class BuildPublicationAnalyticsReport
      * @param  list<string>|null  $accountKeys  Analytics account keys to scope to; null means every account.
      * @param  list<string>  $labelIds  Only count publications of TryPost posts carrying any of these labels.
      * @param  bool  $untagged  Also count publications without labels, including posts published outside TryPost.
+     * @param  WeekStart  $weekStart  The viewer's week start; weekly buckets end on its last day.
      * @return array<string, mixed>
      */
-    public function execute(Workspace $workspace, DateRange $previous, DateRange $current, ?array $accountKeys = null, array $labelIds = [], bool $untagged = false): array
+    public function execute(Workspace $workspace, DateRange $previous, DateRange $current, ?array $accountKeys = null, array $labelIds = [], bool $untagged = false, WeekStart $weekStart = WeekStart::DEFAULT): array
     {
         $currentTotals = $this->emptyTotals();
         $previousTotals = $this->emptyTotals();
@@ -36,7 +47,7 @@ class BuildPublicationAnalyticsReport
         $previousAccounts = [];
         $topReactions = [];
         $topComments = [];
-        $buckets = $this->buckets->for($current);
+        $buckets = $this->buckets->for($current, $weekStart);
         $bucketIndexByDate = [];
         $bucketCounts = [];
 
@@ -121,6 +132,17 @@ class BuildPublicationAnalyticsReport
      */
     private function publications(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys, array $labelIds, bool $untagged): LazyCollection
     {
+        return $this->query($workspace, $start, $end, $accountKeys, $labelIds, $untagged)->cursor();
+    }
+
+    /**
+     * Publications in the window with their latest saved metrics, filtered the same way as the report.
+     *
+     * @param  list<string>|null  $accountKeys
+     * @param  list<string>  $labelIds
+     */
+    public function query(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys = null, array $labelIds = [], bool $untagged = false): Builder
+    {
         $labelPivot = (new Post)->labels()->getTable();
         $labels = fn (Builder $labelled): Builder => $labelled
             ->selectRaw('1')
@@ -146,11 +168,10 @@ class BuildPublicationAnalyticsReport
                 'metric.reach_count', 'metric.engagement_count', 'metric.exposure_count',
                 'metric.exposure_kind', 'metric.collected_at',
                 'metric.watch_time_milliseconds', 'metric.average_watch_time_milliseconds', 'metric.metrics',
-            ])
-            ->cursor();
+            ]);
     }
 
-    /** @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool} */
+    /** @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool} */
     private function emptyTotals(): array
     {
         return [
@@ -163,6 +184,9 @@ class BuildPublicationAnalyticsReport
             'reach' => 0,
             'shares' => 0,
             'saves' => 0,
+            'impressions' => 0,
+            'clicks' => 0,
+            'reposts' => 0,
             'watch_time' => 0,
             'average_watch_time' => 0,
             'average_watch_time_posts' => 0,
@@ -173,18 +197,22 @@ class BuildPublicationAnalyticsReport
             'has_reach' => false,
             'has_shares' => false,
             'has_saves' => false,
+            'has_impressions' => false,
+            'has_clicks' => false,
+            'has_reposts' => false,
             'has_watch_time' => false,
             'has_follows' => false,
         ];
     }
 
     /**
-     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool}  $totals
-     * @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool}
+     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool}  $totals
+     * @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool}
      */
     private function addTotals(array $totals, object $row): array
     {
         $totals['posts'] = data_get($totals, 'posts') + 1;
+        $measured = $row->metrics === null ? [] : (array) json_decode((string) $row->metrics, true);
 
         foreach ([
             'reactions' => $row->reactions_count,
@@ -193,8 +221,11 @@ class BuildPublicationAnalyticsReport
             'reach' => $row->reach_count,
             'shares' => $row->shares_count,
             'saves' => $row->saves_count,
+            'impressions' => $row->impressions_count,
+            'clicks' => $this->measured($measured, MetricKey::Clicks) ?? $this->measured($measured, MetricKey::LinkClicks),
+            'reposts' => $this->measured($measured, MetricKey::Reposts),
             'watch_time' => $row->watch_time_milliseconds,
-            'follows' => $this->follows($row),
+            'follows' => $this->measured($measured, MetricKey::Follows),
         ] as $metric => $value) {
             if ($value !== null) {
                 $totals["has_{$metric}"] = true;
@@ -215,22 +246,19 @@ class BuildPublicationAnalyticsReport
         return $totals;
     }
 
-    private function follows(object $row): ?int
+    /** @param array<string, mixed> $metrics */
+    private function measured(array $metrics, MetricKey $key): ?int
     {
-        if ($row->metrics === null) {
-            return null;
-        }
+        $metric = data_get($metrics, $key->value);
+        $value = data_get($metric, 'value');
 
-        $follows = data_get(json_decode((string) $row->metrics, true), 'follows');
-        $value = data_get($follows, 'value');
-
-        return data_get($follows, 'availability') === MetricAvailability::Available->value && is_numeric($value)
+        return data_get($metric, 'availability') === MetricAvailability::Available->value && is_numeric($value)
             ? (int) $value : null;
     }
 
     /**
-     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_watch_time: bool, has_follows: bool}  $totals
-     * @return array{posts: int, reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, reach: ?int, shares: ?int, saves: ?int, watch_time_minutes: ?float, average_watch_time_seconds: ?float, follows_gained: ?int}
+     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool}  $totals
+     * @return array{posts: int, reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, reach: ?int, shares: ?int, saves: ?int, impressions: ?int, clicks: ?int, reposts: ?int, watch_time_minutes: ?float, average_watch_time_seconds: ?float, follows_gained: ?int}
      */
     private function finalizeTotals(array $totals): array
     {
@@ -245,6 +273,9 @@ class BuildPublicationAnalyticsReport
             'reach' => data_get($totals, 'has_reach') ? data_get($totals, 'reach') : null,
             'shares' => data_get($totals, 'has_shares') ? data_get($totals, 'shares') : null,
             'saves' => data_get($totals, 'has_saves') ? data_get($totals, 'saves') : null,
+            'impressions' => data_get($totals, 'has_impressions') ? data_get($totals, 'impressions') : null,
+            'clicks' => data_get($totals, 'has_clicks') ? data_get($totals, 'clicks') : null,
+            'reposts' => data_get($totals, 'has_reposts') ? data_get($totals, 'reposts') : null,
             'watch_time_minutes' => data_get($totals, 'has_watch_time') ? round(data_get($totals, 'watch_time') / 60000, 2) : null,
             'average_watch_time_seconds' => $averagePosts === 0 ? null : round(data_get($totals, 'average_watch_time') / $averagePosts / 1000, 2),
             'follows_gained' => data_get($totals, 'has_follows') ? data_get($totals, 'follows') : null,
@@ -308,10 +339,10 @@ class BuildPublicationAnalyticsReport
                 'name' => $representative->account_display_name,
                 'username' => $representative->account_username,
                 'avatar_url' => $representative->account_avatar_url,
-                'posts' => MetricComparison::between(data_get($totals, 'posts'), data_get($prior, 'posts')),
-                'reactions' => MetricComparison::between(data_get($totals, 'reactions'), data_get($prior, 'reactions')),
-                'comments' => MetricComparison::between(data_get($totals, 'comments'), data_get($prior, 'comments')),
-                'engagement_rate' => MetricComparison::between(data_get($totals, 'engagement_rate'), data_get($prior, 'engagement_rate')),
+                ...array_combine(self::PERFORMANCE_METRICS, array_map(
+                    fn (string $metric): array => MetricComparison::between(data_get($totals, $metric), data_get($prior, $metric)),
+                    self::PERFORMANCE_METRICS,
+                )),
             ];
         }
 

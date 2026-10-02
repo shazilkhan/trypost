@@ -61,7 +61,7 @@ const rotate = (direction: 1 | -1): void => {
 
 <template>
     <div class="space-y-6">
-        <section class="space-y-2">
+        <section v-if="presets.length > 0" class="space-y-2">
             <h3 class="text-sm font-medium">
                 {{ $t('posts.composer.media_editor.crop_heading') }}
             </h3>

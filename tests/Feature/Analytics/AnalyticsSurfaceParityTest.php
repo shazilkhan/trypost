@@ -152,7 +152,7 @@ test('analytics API requires authentication and MCP denies a foreign workspace',
         ->assertHasErrors(['Not authorized to view workspace analytics.']);
 });
 
-test('web API and MCP expose imported publication metrics and isolate workspaces', function () {
+test('API and MCP expose imported publication metrics and isolate workspaces', function () {
     $access = createApiTestToken();
     $workspace = $access['workspace'];
     $publication = AnalyticsPublication::factory()->create([
@@ -177,16 +177,6 @@ test('web API and MCP expose imported publication metrics and isolate workspaces
         'network' => Platform::LinkedIn->network(),
     ]);
     Http::fake();
-
-    $this->actingAs($access['user'])
-        ->get(route('app.insights.publications.show', $publication))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('detail.publication.id', $publication->id)
-            ->where('detail.publication.origin', 'external')
-            ->where('detail.metrics.saves.value', 6)
-            ->where('detail.metrics.watch_time_milliseconds.value', 185000)
-            ->etc());
 
     $this->withHeaders(['Authorization' => 'Bearer '.$access['plain_token']])
         ->getJson(route('api.analytics.publications.show', $publication))

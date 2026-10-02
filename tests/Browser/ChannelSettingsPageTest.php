@@ -2,8 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Actions\Post\Queue\ReflowChannelQueue;
+use App\Enums\Post\QueuePosition;
+use App\Enums\Post\ScheduleMode;
+use App\Enums\Post\Status as PostStatus;
+use App\Enums\User\Locale;
 use App\Enums\User\TimeFormat;
 use App\Enums\User\WeekStart;
+use App\Models\Post;
+use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -43,6 +50,16 @@ function pickChannelSettingsOption(mixed $page, string $select, string $value): 
     $page->click("@{$select}");
     waitForChannelSettingsPageTestId($page, "{$select}-option-{$value}");
     $page->click("@{$select}-option-{$value}");
+}
+
+function chooseChannelSettingsTimezone(mixed $page, string $search, string $optionKey): void
+{
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-trigger');
+    $page->click('@channel-timezone-trigger');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-search');
+    $page->type('@channel-timezone-search', $search);
+    waitForChannelSettingsPageTestId($page, "channel-timezone-option-{$optionKey}");
+    $page->click("@channel-timezone-option-{$optionKey}");
 }
 
 function waitForChannelSaved(mixed $page, SocialAccount $channel, callable $predicate): void
@@ -88,12 +105,9 @@ test('the time zone and goal save from the page', function () {
     $this->actingAs($user);
 
     $page = visit(route('app.channels.settings', $channel));
-    waitForChannelSettingsPageTestId($page, 'channel-timezone-trigger');
-    $page->click('@channel-timezone-trigger');
-    waitForChannelSettingsPageTestId($page, 'channel-timezone-search');
-    $page->type('@channel-timezone-search', 'Warsaw');
-    waitForChannelSettingsPageTestId($page, 'channel-timezone-option-Europe-Warsaw');
-    $page->click('@channel-timezone-option-Europe-Warsaw');
+    chooseChannelSettingsTimezone($page, 'Warsaw', 'Europe-Warsaw');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-confirm-submit');
+    $page->click('@channel-timezone-confirm-submit');
     waitForChannelSaved($page, $channel, fn (SocialAccount $c): bool => $c->timezone === 'Europe/Warsaw');
 
     $page->click('@channel-goal-increase');
@@ -248,4 +262,102 @@ test('the schedule grid starts on Monday on a 24-hour clock by default', functio
         ->assertSeeIn('@schedule-day-0-time-1430-hour', '14')
         ->assertMissing('@schedule-day-0-time-1430-meridiem')
         ->assertNoJavaScriptErrors();
+});
+
+test('the channel time zone picker suggests the browser time zone first', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel));
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-trigger');
+    $page->click('@channel-timezone-trigger');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-detected');
+
+    $page->assertVisible('@channel-timezone-detected')->assertNoJavaScriptErrors();
+});
+
+test('changing the time zone asks first, cancel keeps the old zone', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel));
+    chooseChannelSettingsTimezone($page, 'Warsaw', 'Europe-Warsaw');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-confirm-dialog');
+
+    $order = $page->script('[...document.querySelectorAll(\'[data-testid="channel-timezone-confirm-dialog"] button[data-testid]\')].map((button) => button.dataset.testid)');
+    expect($order)->toBe(['channel-timezone-confirm-cancel', 'channel-timezone-confirm-submit']);
+    $page->assertSeeIn('@channel-timezone-confirm-dialog', 'Europe/Warsaw')
+        ->click('@channel-timezone-confirm-cancel');
+    $page->script('(async () => { for (let i = 0; i < 100; i++) { if (!document.querySelector(\'[data-testid="channel-timezone-confirm-dialog"]\')) return; await new Promise((r) => setTimeout(r, 50)); } })();');
+
+    $page->assertSeeIn('@channel-timezone-trigger', 'UTC')->assertNoJavaScriptErrors();
+    expect($channel->fresh()->timezone)->toBe('UTC');
+});
+
+test('escape dismisses the confirmation and saves nothing', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel));
+    chooseChannelSettingsTimezone($page, 'Warsaw', 'Europe-Warsaw');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-confirm-cancel');
+    $page->keys('@channel-timezone-confirm-cancel', 'Escape');
+    $page->script('(async () => { for (let i = 0; i < 100; i++) { if (!document.querySelector(\'[data-testid="channel-timezone-confirm-dialog"]\')) return; await new Promise((r) => setTimeout(r, 50)); } })();');
+
+    chooseChannelSettingsTimezone($page, 'Warsaw', 'Europe-Warsaw');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-confirm-dialog');
+    $page->assertVisible('@channel-timezone-confirm-dialog')->assertNoJavaScriptErrors();
+    expect($channel->fresh()->timezone)->toBe('UTC');
+});
+
+test('confirming the time zone saves it and reflows the queue into the new zone slots', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $post = Post::factory()->create([
+        'workspace_id' => $channel->workspace_id,
+        'user_id' => $user->id,
+        'status' => PostStatus::Scheduled,
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => null,
+    ]);
+    PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $channel->id, 'platform' => $channel->platform, 'enabled' => true]);
+    ReflowChannelQueue::handle($channel, $post, QueuePosition::Next);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel));
+    chooseChannelSettingsTimezone($page, 'Warsaw', 'Europe-Warsaw');
+    waitForChannelSettingsPageTestId($page, 'channel-timezone-confirm-submit');
+    $page->click('@channel-timezone-confirm-submit');
+    waitForChannelSaved($page, $channel, fn (SocialAccount $c): bool => $c->timezone === 'Europe/Warsaw');
+
+    for ($i = 0; $i < 40 && $post->fresh()->scheduled_at->setTimezone('Europe/Warsaw')->format('H:i') !== '09:42'; $i++) {
+        $page->script('new Promise((r) => setTimeout(r, 100))');
+    }
+
+    $local = $post->fresh()->scheduled_at->setTimezone('Europe/Warsaw');
+    expect($local->format('H:i'))->toBe('09:42')
+        ->and($local->dayOfWeek)->toBe(1);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the time zone confirmation buttons fit on one line in every language', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $this->actingAs($user);
+    $problems = [];
+
+    foreach (Locale::cases() as $locale) {
+        $user->update(['locale' => $locale]);
+        $page = visit(route('app.channels.settings', $channel));
+        chooseChannelSettingsTimezone($page, 'Warsaw', 'Europe-Warsaw');
+        waitForChannelSettingsPageTestId($page, 'channel-timezone-confirm-submit');
+
+        foreach (['channel-timezone-confirm-cancel', 'channel-timezone-confirm-submit'] as $button) {
+            $lines = $page->script("(() => { const range = document.createRange(); range.selectNodeContents(document.querySelector('[data-testid=\"{$button}\"]')); return new Set([...range.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.top))).size; })()");
+
+            if ($lines > 1) {
+                $problems[] = "{$locale->value}: {$button}";
+            }
+        }
+    }
+
+    expect($problems)->toBe([]);
 });

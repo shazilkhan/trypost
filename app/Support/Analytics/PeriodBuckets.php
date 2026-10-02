@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Analytics;
 
 use App\Dto\Analytics\DateRange;
+use App\Enums\User\WeekStart;
 
 class PeriodBuckets
 {
@@ -18,7 +19,7 @@ class PeriodBuckets
     }
 
     /** @return list<array{start: string, end: string}> */
-    public function for(DateRange $range): array
+    public function for(DateRange $range, WeekStart $weekStart): array
     {
         $resolution = $this->resolution($range);
         $cursor = $range->start;
@@ -26,7 +27,7 @@ class PeriodBuckets
 
         while ($cursor->lessThanOrEqualTo($range->end)) {
             $boundary = match ($resolution) {
-                'weekly' => $cursor->endOfWeek(),
+                'weekly' => $cursor->endOfWeek($weekStart->lastDay()),
                 'monthly' => $cursor->endOfMonth(),
                 default => $cursor,
             };

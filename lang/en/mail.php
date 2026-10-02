@@ -48,7 +48,7 @@ return [
         'title' => 'Posts May Fail to Publish',
         'heading' => 'Posts May Fail to Publish',
         'intro' => 'The following social accounts in your :workspace workspace need to be reconnected before these scheduled posts can publish:',
-        'posts_label' => '{1} :count post scheduled: :times UTC|[0,*] :count posts scheduled: :times UTC',
+        'posts_label' => '{1} :count post scheduled: :times (:timezone)|[0,*] :count posts scheduled: :times (:timezone)',
         'reconnect_cta' => 'Please reconnect these accounts now to avoid missing your scheduled posts.',
         'button' => 'Reconnect Accounts',
     ],

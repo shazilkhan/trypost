@@ -17,7 +17,6 @@ class StorePostNoteRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:2000'],
-            'parent_id' => ['nullable', 'uuid', 'exists:post_notes,id'],
         ];
     }
 }

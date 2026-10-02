@@ -28,7 +28,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       class="grid place-content-center text-current transition-none"
     >
       <slot v-bind="slotProps">
-        <IconCheck class="size-3.5" />
+        <IconCheck class="size-3.5 text-current" />
       </slot>
     </CheckboxIndicator>
   </CheckboxRoot>

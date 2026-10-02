@@ -152,8 +152,11 @@ export const editorTabsFor = (
     ];
 };
 
-export const createMediaEdit = (item: MediaItem): MediaEdit => ({
-    preset: 'original',
+/** An untouched edit: no crop, turn, flip, filter or metadata. */
+export const blankMediaEdit = (
+    preset: CropPresetValue = 'original',
+): MediaEdit => ({
+    preset,
     selection: null,
     quarterTurns: 0,
     flipX: false,
@@ -161,6 +164,13 @@ export const createMediaEdit = (item: MediaItem): MediaEdit => ({
     straighten: 0,
     filter: 'original',
     adjustments: { brightness: 0, contrast: 0, saturation: 0, warmth: 0 },
+    altText: '',
+    userTags: [],
+    coverOffsetMs: null,
+});
+
+export const createMediaEdit = (item: MediaItem): MediaEdit => ({
+    ...blankMediaEdit(),
     altText: item.meta?.alt_text ?? '',
     userTags: [...(item.meta?.user_tags ?? [])],
     coverOffsetMs: item.meta?.cover_offset_ms ?? null,
@@ -284,15 +294,26 @@ export const imageTransform = (
     };
 };
 
-export const renderMediaEdit = (
+export type RenderedImage = { file: File; width: number; height: number };
+
+/**
+ * Draws the edited image onto a canvas and encodes it. The longest side is
+ * capped at 4096px, or scaled to exactly `outputSide` when one is given (an
+ * avatar is always 512px, even from a smaller source).
+ */
+export const renderImageEdit = (
     image: HTMLImageElement,
-    item: MediaItem,
     edit: MediaEdit,
-): Promise<{ file: File; width: number; height: number }> => {
+    output: { fileName: string; mimeType: string; outputSide?: number },
+): Promise<RenderedImage> => {
     const natural = { width: image.naturalWidth, height: image.naturalHeight };
     const size = workingSize(natural, edit);
     const crop = cropSelection(natural, edit);
-    const scale = Math.min(1, MAX_OUTPUT_SIDE / Math.max(crop.sw, crop.sh));
+    const longestSide = Math.max(crop.sw, crop.sh);
+    const scale =
+        output.outputSide !== undefined
+            ? output.outputSide / longestSide
+            : Math.min(1, MAX_OUTPUT_SIDE / longestSide);
     const width = Math.max(1, Math.round(crop.sw * scale));
     const height = Math.max(1, Math.round(crop.sh * scale));
     const canvas = document.createElement('canvas');
@@ -320,7 +341,7 @@ export const renderMediaEdit = (
         context.fillRect(0, 0, width, height);
     }
 
-    const mime = resolveOutputMime(item.mime_type ?? 'image/png');
+    const mime = resolveOutputMime(output.mimeType);
 
     return new Promise((resolve, reject) => {
         canvas.toBlob(
@@ -334,10 +355,7 @@ export const renderMediaEdit = (
                 resolve({
                     file: new File(
                         [blob],
-                        resolveOutputFileName(
-                            item.original_filename ?? 'image.png',
-                            mime,
-                        ),
+                        resolveOutputFileName(output.fileName, mime),
                         { type: mime },
                     ),
                     width,
@@ -349,6 +367,16 @@ export const renderMediaEdit = (
         );
     });
 };
+
+export const renderMediaEdit = (
+    image: HTMLImageElement,
+    item: MediaItem,
+    edit: MediaEdit,
+): Promise<RenderedImage> =>
+    renderImageEdit(image, edit, {
+        fileName: item.original_filename ?? 'image.png',
+        mimeType: item.mime_type ?? 'image/png',
+    });
 
 export const normalizeUsername = (value: string): string =>
     value.trim().replace(/^@+/, '');

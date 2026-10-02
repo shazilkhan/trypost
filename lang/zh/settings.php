@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => '当团队成员为帖子添加备注时接收邮件',
         'collaboration' => '协作',
         'collaboration_description' => '接收关于审批请求以及已批准或已拒绝帖子的邮件',
-        'save' => '保存偏好',
+        'save_failed' => '无法保存通知偏好，请重试。',
     ],
 
     'preferences' => [
         'title' => '偏好设置',
-        'saved' => '偏好设置已保存',
         'theme' => [
             'heading' => '外观',
             'description' => '选择 TryPost 的显示方式。',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => '时区',
-            'description' => '用作你所连接频道的默认时区。',
+            'description' => '用于显示时间、Insights 和邮件，也是新连接频道的默认时区。',
         ],
         'time_format' => [
             'heading' => '时间格式',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => '无法在账单提供商处取消订阅。未删除任何内容。请重试或联系支持。',
         'logo_updated' => '徽标上传成功！',
         'logo_deleted' => '徽标移除成功！',
-        'notifications_updated' => '通知偏好已更新！',
     ],
 
     'api_keys' => [

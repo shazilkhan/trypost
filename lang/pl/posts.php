@@ -871,7 +871,6 @@ return [
                 'description' => 'Posty, które opublikujesz, pojawią się tutaj.',
             ],
         ],
-        'reordered' => 'Kolejka zaktualizowana',
     ],
     'group' => [
         'channels' => 'Kanały (:count)',

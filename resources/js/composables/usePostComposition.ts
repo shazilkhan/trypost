@@ -4,6 +4,7 @@ import { getContentTypeOptions } from '@/composables/usePlatformLogo';
 import type { MediaItem } from '@/types/media';
 import { Platform } from '@/types/platform';
 import type { QueuePositionValue, ScheduleModeValue } from '@/types/post';
+import type { PostingSchedule } from '@/types/posting-schedule';
 
 export interface ComposerAccount {
     id: string;
@@ -14,6 +15,9 @@ export interface ComposerAccount {
     handle_label: string;
     avatar_url: string | null;
     has_posting_schedule?: boolean;
+    timezone?: string;
+    posting_schedule?: PostingSchedule | null;
+    taken_slots?: string[];
 }
 
 export interface DestinationDraft {
@@ -29,6 +33,7 @@ export interface PostComposition {
     media: MediaItem[];
     scheduled_at: string | null;
     queue?: QueuePositionValue | null;
+    queue_slot?: string;
     status: 'draft' | 'scheduled' | 'publishing';
     label_ids: string[];
     destinations: DestinationDraft[];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
+use App\Enums\User\WeekStart;
 use App\Models\AnalyticsSyncState;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
@@ -28,11 +29,11 @@ class BuildWorkspaceAnalyticsReport
      * @param  bool  $untagged  Also count TryPost posts without labels (a union with $labelIds); restricts post metrics only.
      * @return array<string, mixed>
      */
-    public function forSelection(Workspace $workspace, array $selected = [], ?array $channelKeys = null, bool $clampToBounds = true, array $labelIds = [], bool $untagged = false): array
+    public function forSelection(Workspace $workspace, array $selected = [], ?array $channelKeys = null, bool $clampToBounds = true, array $labelIds = [], bool $untagged = false, WeekStart $weekStart = WeekStart::DEFAULT): array
     {
         ['bounds' => $bounds, 'range' => $range] = $this->resolveRange($workspace, $selected, $this->keys($channelKeys), $clampToBounds);
 
-        return $this->report($workspace, $range, $bounds, $channelKeys, $labelIds, $untagged);
+        return $this->forRange($workspace, $range, $bounds, $channelKeys, $labelIds, $untagged, $weekStart);
     }
 
     /**
@@ -51,11 +52,11 @@ class BuildWorkspaceAnalyticsReport
      * @param  array{min: ?string, max: ?string}|null  $bounds
      * @return array<string, mixed>
      */
-    public function execute(Workspace $workspace, DateRange $range, ?array $bounds = null, ?SocialAccount $channel = null, ?string $accountKey = null): array
+    public function execute(Workspace $workspace, DateRange $range, ?array $bounds = null, ?SocialAccount $channel = null, ?string $accountKey = null, WeekStart $weekStart = WeekStart::DEFAULT): array
     {
         $channelKeys = $channel === null ? null : [$channel->id => $accountKey ?? $this->accountKey->for($channel)];
 
-        return $this->report($workspace, $range, $bounds, $channelKeys);
+        return $this->forRange($workspace, $range, $bounds, $channelKeys, weekStart: $weekStart);
     }
 
     /**
@@ -64,11 +65,11 @@ class BuildWorkspaceAnalyticsReport
      * @param  list<string>  $labelIds
      * @return array<string, mixed>
      */
-    private function report(Workspace $workspace, DateRange $range, ?array $bounds, ?array $channelKeys, array $labelIds = [], bool $untagged = false): array
+    public function forRange(Workspace $workspace, DateRange $range, ?array $bounds, ?array $channelKeys, array $labelIds = [], bool $untagged = false, WeekStart $weekStart = WeekStart::DEFAULT): array
     {
         $accountKeys = $this->keys($channelKeys);
         $previous = $range->previous();
-        $publications = $this->publications->execute($workspace, $previous, $range, $accountKeys, $labelIds, $untagged);
+        $publications = $this->publications->execute($workspace, $previous, $range, $accountKeys, $labelIds, $untagged, $weekStart);
         $followers = $this->followers->execute($workspace, $previous, $range, $channelKeys);
         $current = data_get($publications, 'current_totals');
         $prior = data_get($publications, 'previous_totals');
@@ -110,7 +111,7 @@ class BuildWorkspaceAnalyticsReport
      * @param  array<string, string>|null  $channelKeys
      * @return list<string>|null
      */
-    private function keys(?array $channelKeys): ?array
+    public function keys(?array $channelKeys): ?array
     {
         return $channelKeys === null ? null : array_values(array_unique($channelKeys));
     }

@@ -6,6 +6,7 @@ use App\Actions\Post\CreatePosts;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\User\Locale;
+use App\Enums\User\TimeFormat;
 use App\Jobs\PublishPost;
 use App\Models\Post;
 use App\Models\PostPlatform;
@@ -13,6 +14,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\PostingSchedule;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Queue;
 
 function waitForApprovalsTestId(mixed $page, string $testId): void
@@ -240,4 +242,42 @@ test('the approval card footer does not wrap or overflow in any language', funct
     }
 
     expect($problems)->toBe([]);
+});
+
+test('a new time for a late request is typed in the channel zone', function () {
+    [$owner, $workspace, $channel, $requester] = approvalsBrowserSetup();
+    $owner->update(['timezone' => 'Asia/Tokyo', 'time_format' => TimeFormat::TwentyFourHour]);
+    $channel->update(['timezone' => 'America/Sao_Paulo']);
+    $late = Post::factory()->pendingApproval()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $requester->id,
+        'content' => 'Too late',
+        'scheduled_at' => now()->subHour(),
+    ]);
+    PostPlatform::factory()->create(['post_id' => $late->id, 'social_account_id' => $channel->id, 'platform' => $channel->platform]);
+    $this->actingAs($owner);
+
+    $page = visit(route('app.posts.index', ['tab' => 'approvals']));
+    waitForApprovalsTestId($page, "post-approve-{$late->id}");
+    $page->click("@post-approve-{$late->id}");
+    waitForApprovalsTestId($page, 'composer-schedule-timezone');
+
+    expect(trim((string) $page->script('document.querySelector("[data-testid=composer-schedule-timezone]").textContent')))->toBe('America/Sao Paulo');
+
+    $query = '[...document.querySelectorAll("[data-testid^=composer-schedule-day-]")].find((day) => !day.hasAttribute("data-disabled") && !day.hasAttribute("data-outside-view") && !day.hasAttribute("data-zone-today"))?.dataset.testid.replace("composer-schedule-day-", "") ?? null';
+    $day = $page->script($query);
+
+    if ($day === null) {
+        $page->click('@composer-schedule-calendar-next');
+        $day = $page->script($query);
+    }
+
+    $page->click("@composer-schedule-day-{$day}")
+        ->fill('@composer-schedule-time-input', '1000')
+        ->click('@composer-schedule-done');
+    waitForApprovalsGone($page, "post-card-{$late->id}");
+
+    expect($late->fresh()->scheduled_at->toIso8601String())
+        ->toBe(CarbonImmutable::parse("{$day} 10:00", 'America/Sao_Paulo')->utc()->toIso8601String());
+    $page->assertNoJavaScriptErrors();
 });

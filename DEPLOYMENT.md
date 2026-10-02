@@ -80,6 +80,18 @@ Migrations que entram nesta branch (entre outras):
   outra pessoa). Vira `null` se o usuário for apagado; aí vale o autor do post.
 - `add_collaboration_to_notification_preferences_table`: preferência
   "Colaboração" (ligada por padrão).
+- `flatten_replies_and_drop_reactions_from_post_notes_table`: notas ficam
+  simples (sem respostas nem reações). Respostas viram notas normais do mesmo
+  post, na ordem em que foram criadas; as colunas `parent_id` e `reactions` são
+  apagadas (reações somem).
+- `make_time_format_required_on_users_table`: `users.time_format` passa a ser
+  obrigatório (12h ou 24h; acaba o "seguir o idioma"). Quem estava sem formato
+  recebe o que já via: `12h` em inglês, `24h` nos outros idiomas. Ninguém percebe
+  mudança.
+
+Sem migração de dados para a fila: posts já na fila mantêm os horários que têm
+(a fila não é mais compactada nos primeiros horários livres), então nada muda
+para quem já tem posts enfileirados.
 
 ## 4. Filas e scheduler
 

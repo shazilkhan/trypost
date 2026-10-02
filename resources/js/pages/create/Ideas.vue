@@ -70,6 +70,7 @@ const clearSelection = (): void => {
 const selectedStageIds = ref<string[]>([...props.filters.stages]);
 const selectedLabelIds = ref<string[]>([...props.filters.labels]);
 const untagged = ref<boolean>(props.filters.untagged);
+const unassigned = ref<boolean>(props.filters.unassigned);
 
 const query = (view: IdeasView = props.view): Query => ({
     view: view === 'gallery' ? 'gallery' : undefined,
@@ -79,6 +80,7 @@ const query = (view: IdeasView = props.view): Query => ({
             : undefined,
     labels: selectedLabelIds.value.length ? selectedLabelIds.value : undefined,
     untagged: untagged.value ? '1' : undefined,
+    unassigned: view === 'gallery' && unassigned.value ? '1' : undefined,
 });
 
 const visitList = (view: IdeasView): void => {
@@ -95,7 +97,7 @@ const visitList = (view: IdeasView): void => {
     );
 };
 
-watch([selectedStageIds, selectedLabelIds, untagged], () => {
+watch([selectedStageIds, unassigned, selectedLabelIds, untagged], () => {
     clearSelection();
     visitList(props.view);
 });
@@ -519,6 +521,7 @@ const hasGalleryFilters = computed(
                         v-model:stage-ids="selectedStageIds"
                         v-model:label-ids="selectedLabelIds"
                         v-model:untagged="untagged"
+                        v-model:unassigned="unassigned"
                         :view="view"
                         :stages="localStages"
                         :labels="labels"

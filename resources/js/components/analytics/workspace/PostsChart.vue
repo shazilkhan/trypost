@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
+import date from '@/date';
 import { formatNumberCompact } from '@/lib/utils';
 import type { WorkspaceAnalyticsReport } from '@/types/analytics';
 
@@ -10,11 +11,13 @@ import AnalyticsSection from './AnalyticsSection.vue';
 import PostsOverTimeStackedBarChart from './charts/PostsOverTimeStackedBarChart.vue';
 import SocialAccountMetricBarChart from './charts/SocialAccountMetricBarChart.vue';
 
-defineProps<{
+const props = defineProps<{
     posts: WorkspaceAnalyticsReport['posts'];
     range: WorkspaceAnalyticsReport['range'];
     colors: Record<string, string>;
     filtered?: boolean;
+    channelFiltered?: boolean;
+    totalChannels?: number;
 }>();
 const mode = ref<'bar' | 'stacked'>('bar');
 const buttons = [
@@ -25,10 +28,36 @@ const buttons = [
         test: 'posts-stacked',
     },
 ] as const;
+const shownChannels = computed(() =>
+    props.channelFiltered &&
+    props.totalChannels &&
+    props.posts.accounts.length < props.totalChannels
+        ? props.posts.accounts.length
+        : null,
+);
+const rangeLabel = computed(
+    () =>
+        `${date.formatDayMonthYear(props.range.start)} – ${date.formatDayMonthYear(props.range.end)}`,
+);
 </script>
 
 <template>
-    <AnalyticsSection :title="$t('analytics.dashboard.posts')" :range="range">
+    <AnalyticsSection
+        :title="$t('analytics.dashboard.posts')"
+        :info="$t('analytics.insights.about.posts')"
+        info-testid="analytics-posts-about"
+        :range="shownChannels === null ? range : undefined"
+        :subtitle="
+            shownChannels === null
+                ? undefined
+                : $t('analytics.insights.channels_shown', {
+                      range: rangeLabel,
+                      shown: String(shownChannels),
+                      total: String(totalChannels),
+                  })
+        "
+        subtitle-testid="analytics-posts-subtitle"
+    >
         <template #actions>
             <AnalyticsModeToggle
                 v-model="mode"

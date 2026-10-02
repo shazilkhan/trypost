@@ -43,16 +43,6 @@ return [
     'date_range_picker' => [
         'placeholder' => 'Виберіть діапазон дат',
         'today' => 'Сьогодні',
-        'yesterday' => 'Вчора',
-        'last_7_days' => 'Останні 7 днів',
-        'last_30_days' => 'Останні 30 днів',
-        'last_3_months' => 'Останні 3 місяці',
-        'last_6_months' => 'Останні 6 місяців',
-        'last_12_months' => 'Останні 12 місяців',
-        'this_month' => 'Цей місяць',
-        'last_month' => 'Минулий місяць',
-        'year_to_date' => 'З початку року',
-        'last_year' => 'Минулий рік',
     ],
 
     'cancel' => 'Скасувати',

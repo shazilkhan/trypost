@@ -871,7 +871,6 @@ return [
                 'description' => 'Os posts que você publicar aparecerão aqui.',
             ],
         ],
-        'reordered' => 'Fila atualizada',
     ],
     'group' => [
         'channels' => 'Canais (:count)',

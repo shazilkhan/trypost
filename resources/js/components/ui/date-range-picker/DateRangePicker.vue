@@ -6,7 +6,6 @@ import {
   getLocalTimeZone,
 } from "@internationalized/date"
 import { IconCalendar } from "@tabler/icons-vue"
-import { trans } from "laravel-vue-i18n"
 import { computed, nextTick, ref, watch } from "vue"
 import { useWindowSize } from "@vueuse/core"
 import { Button } from "@/components/ui/button"
@@ -18,7 +17,6 @@ import {
 import { RangeCalendar } from "@/components/ui/range-calendar"
 import { useCalendarLocale } from "@/composables/useCalendarLocale"
 import { cn } from "@/lib/utils"
-import dayjs from "@/dayjs"
 import date from "@/date"
 
 const props = defineProps<{
@@ -27,7 +25,6 @@ const props = defineProps<{
   minDate?: Date
   maxDate?: Date
   disabled?: boolean
-  withoutPresets?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -60,54 +57,6 @@ const { width } = useWindowSize()
 const numberOfMonths = computed(() => width.value < 640 ? 1 : 2)
 const minimum = computed(() => props.minDate ? toCalendarDate(props.minDate) : undefined)
 const maximum = computed(() => props.maxDate ? toCalendarDate(props.maxDate) : undefined)
-const latestAvailableDay = computed(() => {
-  const today = dayjs().startOf("day")
-  const latest = props.maxDate ? dayjs(props.maxDate).startOf("day") : today
-  return latest.isBefore(today) ? latest : today
-})
-
-const range = (start: dayjs.Dayjs, end: dayjs.Dayjs) => ({
-  start: toCalendarDate(start.toDate()),
-  end: toCalendarDate(end.toDate()),
-})
-
-type Preset = { key: string, label: string, getValue: () => { start: CalendarDate, end: CalendarDate } }
-
-const presetGroups = computed<Preset[][]>(() => [
-  [
-    { key: 'today', label: trans('common.date_range_picker.today'), getValue: () => range(dayjs(), dayjs()) },
-    { key: 'yesterday', label: trans('common.date_range_picker.yesterday'), getValue: () => range(dayjs().subtract(1, "day"), dayjs().subtract(1, "day")) },
-  ],
-  [
-    { key: 'last_7_days', label: trans('common.date_range_picker.last_7_days'), getValue: () => range(latestAvailableDay.value.subtract(6, "day"), latestAvailableDay.value) },
-    { key: 'last_30_days', label: trans('common.date_range_picker.last_30_days'), getValue: () => range(latestAvailableDay.value.subtract(29, "day"), latestAvailableDay.value) },
-    { key: 'last_3_months', label: trans('common.date_range_picker.last_3_months'), getValue: () => range(latestAvailableDay.value.subtract(3, "month"), latestAvailableDay.value) },
-    { key: 'last_6_months', label: trans('common.date_range_picker.last_6_months'), getValue: () => range(latestAvailableDay.value.subtract(6, "month"), latestAvailableDay.value) },
-    { key: 'last_12_months', label: trans('common.date_range_picker.last_12_months'), getValue: () => range(latestAvailableDay.value.subtract(12, "month").add(1, "day"), latestAvailableDay.value) },
-  ],
-  [
-    { key: 'this_month', label: trans('common.date_range_picker.this_month'), getValue: () => range(dayjs().startOf("month"), dayjs().endOf("month")) },
-    { key: 'last_month', label: trans('common.date_range_picker.last_month'), getValue: () => range(dayjs().subtract(1, "month").startOf("month"), dayjs().subtract(1, "month").endOf("month")) },
-    { key: 'year_to_date', label: trans('common.date_range_picker.year_to_date'), getValue: () => range(dayjs().startOf("year"), dayjs()) },
-    { key: 'last_year', label: trans('common.date_range_picker.last_year'), getValue: () => range(dayjs().subtract(1, "year").startOf("year"), dayjs().subtract(1, "year").endOf("year")) },
-  ],
-].map(group => group.filter(preset => {
-  const selected = preset.getValue()
-  return (!minimum.value || selected.end.compare(minimum.value) >= 0)
-    && (!maximum.value || selected.start.compare(maximum.value) <= 0)
-})).filter(group => group.length > 0))
-
-const applyPreset = (preset: Preset) => {
-  const selected = preset.getValue()
-  const clamp = (date: CalendarDate) => {
-    if (minimum.value && date.compare(minimum.value) < 0) return minimum.value
-    if (maximum.value && date.compare(maximum.value) > 0) return maximum.value
-    return date
-  }
-  value.value = { start: clamp(selected.start), end: clamp(selected.end) }
-  isOpen.value = false
-}
-
 watch(
   () => props.modelValue,
   (newVal) => {
@@ -171,25 +120,6 @@ watch(
     </PopoverTrigger>
     <PopoverContent class="w-auto p-0" align="end">
       <div class="flex flex-col sm:flex-row">
-        <div v-if="!withoutPresets" class="hidden flex-col border-b border-border py-2 sm:flex sm:w-[170px] sm:shrink-0 sm:border-r sm:border-b-0">
-          <template v-for="(group, groupIndex) in presetGroups" :key="groupIndex">
-            <div v-if="groupIndex > 0" class="my-1 border-t border-border" />
-            <div class="space-y-0.5 px-2">
-              <Button
-                v-for="preset in group"
-                :key="preset.key"
-                :data-testid="`date-range-preset-${preset.key}`"
-                variant="ghost"
-                size="sm"
-                class="h-7 w-full justify-start text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                @click="applyPreset(preset)"
-              >
-                {{ preset.label }}
-              </Button>
-            </div>
-          </template>
-        </div>
-
         <div class="shrink-0">
           <RangeCalendar
             v-model="value"

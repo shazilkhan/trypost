@@ -28,6 +28,9 @@ const emit = defineEmits<{
 const search = ref('');
 const activeCategory = ref<EmojiCategory | 'recent'>('smileys');
 const scrollEl = useTemplateRef<HTMLDivElement>('scrollEl');
+const STUCK_HEADER_CLASS =
+    'shadow-[0_6px_10px_-8px_rgb(0_0_0/0.25)] border-b border-border';
+const stuckCategory = ref<EmojiCategory | 'recent' | null>(null);
 const headerRefs = ref<Record<string, HTMLElement | null>>({});
 const setHeaderRef = (key: string) => (el: unknown) => {
     headerRefs.value[key] = el instanceof HTMLElement ? el : null;
@@ -127,6 +130,10 @@ const onScroll = () => {
         }
     }
     activeCategory.value = current;
+
+    const section = headerRefs.value[current]?.parentElement;
+    stuckCategory.value =
+        section && container.scrollTop > section.offsetTop ? current : null;
 };
 
 watch(search, async () => {
@@ -136,6 +143,7 @@ watch(search, async () => {
 
 onBeforeUnmount(() => {
     headerRefs.value = {};
+    stuckCategory.value = null;
 });
 </script>
 
@@ -184,7 +192,8 @@ onBeforeUnmount(() => {
                 <section v-if="recentEmojis.length > 0">
                     <h3
                         :ref="setHeaderRef('recent')"
-                        class="sticky top-0 z-10 bg-card/95 px-1 py-1.5 text-[11px] font-black tracking-widest text-foreground/60 uppercase backdrop-blur"
+                        class="sticky top-0 z-10 -mx-2 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-shadow"
+                        :class="stuckCategory === 'recent' ? STUCK_HEADER_CLASS : ''"
                     >
                         {{ categoryLabel('recent') }}
                     </h3>
@@ -207,7 +216,8 @@ onBeforeUnmount(() => {
                     <h3
                         :ref="setHeaderRef(category)"
                         data-testid="emoji-picker-category-header"
-                        class="sticky top-0 z-10 bg-card/95 px-1 py-1.5 text-[11px] font-black tracking-widest text-foreground/60 uppercase backdrop-blur"
+                        class="sticky top-0 z-10 -mx-2 bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground transition-shadow"
+                        :class="stuckCategory === category ? STUCK_HEADER_CLASS : ''"
                     >
                         {{ categoryLabel(category) }}
                     </h3>
@@ -238,7 +248,7 @@ onBeforeUnmount(() => {
                 class="flex size-8 cursor-pointer items-center justify-center rounded-md text-base transition-colors hover:bg-foreground/5 focus:bg-foreground/5 focus:outline-none"
                 :class="
                     activeCategory === 'recent' && !isSearching
-                        ? 'bg-primary-subtle ring-2 ring-primary-strong'
+                        ? 'bg-primary-subtle'
                         : ''
                 "
                 :title="categoryLabel('recent')"
@@ -254,7 +264,7 @@ onBeforeUnmount(() => {
                 class="flex size-8 cursor-pointer items-center justify-center rounded-md text-base transition-colors hover:bg-foreground/5 focus:bg-foreground/5 focus:outline-none"
                 :class="
                     activeCategory === category && !isSearching
-                        ? 'bg-primary-subtle ring-2 ring-primary-strong'
+                        ? 'bg-primary-subtle'
                         : ''
                 "
                 :title="categoryLabel(category)"

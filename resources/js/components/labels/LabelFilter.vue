@@ -3,7 +3,6 @@ import { Link } from '@inertiajs/vue3';
 import { IconSettings, IconTag } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
-import LabelBadge from '@/components/labels/LabelBadge.vue';
 import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,6 +57,7 @@ const clear = (): void => {
         :test-id="testId"
         :show-header="false"
         :extra-count="untagged ? 1 : 0"
+        compact
         content-class="w-64"
         checkbox-position="start"
         :align="align"
@@ -75,7 +75,7 @@ const clear = (): void => {
                         showUntagged &&
                         matches($t('posts.label_filter_untagged'), search)
                     "
-                    class="flex min-h-10 cursor-pointer items-center gap-3 rounded-lg p-2 text-sm transition-control hover:bg-accent"
+                    class="flex min-h-8 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm leading-5 transition-control hover:bg-accent"
                     :class="{ 'bg-accent': untagged }"
                     :data-testid="`${testId}-untagged`"
                 >
@@ -83,14 +83,31 @@ const clear = (): void => {
                         v-model="untagged"
                         :data-testid="`${testId}-untagged-checkbox`"
                     />
-                    <span class="min-w-0 flex-1">{{
-                        $t('posts.label_filter_untagged')
-                    }}</span>
+                    <span
+                        class="flex min-w-0 flex-1 items-center gap-2.5 text-foreground"
+                    >
+                        <span
+                            class="size-2.5 shrink-0 rounded-full border border-dashed border-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <span class="truncate">{{
+                            $t('posts.label_filter_untagged')
+                        }}</span>
+                    </span>
                 </label>
             </div>
         </template>
         <template #option="{ option }">
-            <LabelBadge :label="labelFor(option.id)" />
+            <span
+                class="flex min-w-0 items-center gap-2.5 text-sm leading-5 text-foreground"
+            >
+                <span
+                    class="size-2.5 shrink-0 rounded-full"
+                    :style="{ backgroundColor: labelFor(option.id).color }"
+                    aria-hidden="true"
+                />
+                <span class="truncate">{{ labelFor(option.id).name }}</span>
+            </span>
         </template>
         <template #footer>
             <div

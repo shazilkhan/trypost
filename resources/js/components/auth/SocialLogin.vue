@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 import { Button } from '@/components/ui/button';
+import { detectPreferences } from '@/lib/detectPreferences';
 import { redirect as githubRedirect } from '@/routes/auth/github';
 import { redirect as googleRedirect } from '@/routes/auth/google';
 
@@ -20,8 +21,14 @@ const googleEnabled = computed(() => Boolean(page.props.googleAuthEnabled));
 const githubEnabled = computed(() => Boolean(page.props.githubAuthEnabled));
 const hasSocial = computed(() => googleEnabled.value || githubEnabled.value);
 
+const detected = detectPreferences();
+
 const query = computed(() => {
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = {
+        timezone: detected.timezone,
+        week_starts_on: detected.week_starts_on,
+    };
+    if (detected.time_format) params.time_format = detected.time_format;
     if (props.invite) params.invite = props.invite;
     return params;
 });
@@ -35,6 +42,7 @@ const githubUrl = computed(() => githubRedirect.url({ query: query.value }));
         <div class="flex flex-col gap-2">
             <Button
                 v-if="googleEnabled"
+                data-testid="social-login-google"
                 variant="outline"
                 size="lg"
                 class="w-full bg-card text-base"
@@ -55,6 +63,7 @@ const githubUrl = computed(() => githubRedirect.url({ query: query.value }));
 
             <Button
                 v-if="githubEnabled"
+                data-testid="social-login-github"
                 variant="outline"
                 size="lg"
                 class="w-full bg-card text-base"

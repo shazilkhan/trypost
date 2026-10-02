@@ -871,7 +871,6 @@ return [
                 'description' => '公開した投稿はここに表示されます。',
             ],
         ],
-        'reordered' => 'キューを更新しました',
     ],
     'group' => [
         'channels' => 'チャンネル (:count)',

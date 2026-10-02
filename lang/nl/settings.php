@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => 'Ontvang een e-mail wanneer een teamlid een notitie aan een bericht toevoegt',
         'collaboration' => 'Samenwerking',
         'collaboration_description' => 'Ontvang e-mails over goedkeuringsverzoeken en goedgekeurde of afgewezen berichten',
-        'save' => 'Voorkeuren opslaan',
+        'save_failed' => 'De meldingsvoorkeuren konden niet worden opgeslagen. Probeer het opnieuw.',
     ],
 
     'preferences' => [
         'title' => 'Voorkeuren',
-        'saved' => 'Voorkeuren opgeslagen',
         'theme' => [
             'heading' => 'Weergave',
             'description' => 'Kies hoe TryPost eruitziet.',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'Tijdzone',
-            'description' => 'Wordt gebruikt als standaardtijdzone voor kanalen die je verbindt.',
+            'description' => 'Gebruikt voor getoonde tijden, Insights en e-mails, en als standaard voor nieuwe kanalen.',
         ],
         'time_format' => [
             'heading' => 'Tijdnotatie',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => 'We konden je abonnement bij de betalingsprovider niet annuleren. Er is niets verwijderd. Probeer het opnieuw of neem contact op met support.',
         'logo_updated' => 'Logo succesvol geüpload!',
         'logo_deleted' => 'Logo succesvol verwijderd!',
-        'notifications_updated' => 'Meldingsvoorkeuren bijgewerkt!',
     ],
 
     'api_keys' => [

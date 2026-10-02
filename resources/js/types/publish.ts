@@ -23,6 +23,7 @@ export interface PublishSocialAccount {
     avatar_url: string | null;
     handle_label?: string;
     has_posting_schedule?: boolean;
+    timezone?: string;
 }
 
 export interface PublishChannel extends PublishSocialAccount {
@@ -101,12 +102,12 @@ export interface QueueDay {
 export interface QueuePostPosition {
     canMoveUp: boolean;
     canMoveDown: boolean;
-    draggable: boolean;
 }
 
 export interface PublishQueue {
     days: QueueDay[];
     needsAttention: PostCard[];
+    pending: PostCard[];
     queueDays: number;
     maxQueueDays: number;
 }

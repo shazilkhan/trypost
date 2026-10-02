@@ -54,6 +54,8 @@ test('the admin switch hides the publishing choice and the invite stores both fl
     $page->click('@invite-member-button');
     waitForMemberAccessTestId($page, 'member-access-publishing');
 
+    $page->assertScript('(() => { const row = document.querySelector("[data-testid=member-access-admin-row]").getBoundingClientRect(); const toggle = document.querySelector("[data-testid=member-access-admin]").getBoundingClientRect(); return Math.abs((row.top + row.bottom) / 2 - (toggle.top + toggle.bottom) / 2) < 1; })()', true);
+
     $page->click('@member-access-admin');
     waitForMemberAccessGone($page, 'member-access-publishing');
     $page->assertMissing('@member-access-publishing')

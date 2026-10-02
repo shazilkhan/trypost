@@ -16,10 +16,17 @@ interface PreferenceProps {
  * The signed-in user's display preferences, readable outside components. `@/date`
  * formats every time through `timeFormat`, and dayjs' `startOf('week')` follows
  * `weekStartsOn`, so neither has to be threaded through props. Guests keep the
- * defaults: a 24-hour clock and weeks that start on Monday.
+ * defaults: a 12-hour clock and weeks that start on Monday.
  */
-export const timeFormat = ref<TimeFormat>('24h');
+export const timeFormat = ref<TimeFormat>('12h');
 export const weekStartsOn = ref<WeekStart>('monday');
+
+/**
+ * The signed-in user's time zone (`users.timezone`). Every time the app shows
+ * or takes without an explicit zone uses it; the browser's zone never does.
+ * Guests get UTC.
+ */
+export const userTimezone = ref<string>('UTC');
 
 /** 0 for Sunday, 1 for Monday — the index dayjs and Reka calendars expect. */
 export const weekStartIndex = (): 0 | 1 =>
@@ -56,8 +63,9 @@ const alignWeekStart = (): void => {
 export const syncPreferences = (props: PreferenceProps): void => {
     const user = props.auth?.user;
 
-    timeFormat.value = user?.time_format ?? '24h';
+    timeFormat.value = user?.time_format ?? '12h';
     weekStartsOn.value = user?.week_starts_on ?? 'monday';
+    userTimezone.value = user?.timezone || 'UTC';
     alignWeekStart();
 
     applyTheme(user?.theme ?? 'light');

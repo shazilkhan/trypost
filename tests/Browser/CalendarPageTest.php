@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\Status as PostPlatformStatus;
 use App\Enums\User\TimeFormat;
@@ -338,7 +339,14 @@ test('show posting times renders empty slots in the week and month views', funct
     $month->fill("@composer-caption-{$linkedin->id}", 'From a calendar slot');
     waitForCalendarTestId($month, 'composer-submit');
 
-    expect($month->script('document.querySelector(\'[data-testid="composer-submit"]\').dataset.scheduleMode'))->toBe('next');
+    expect($month->script('document.querySelector(\'[data-testid="composer-submit"]\').dataset.scheduleMode'))->toBe('custom');
+
+    $month->click('@composer-submit');
+    waitForCalendarCondition($month, '!document.querySelector(\'[data-testid="post-composer-dialog"]\')');
+    $post = Post::query()->where('workspace_id', $linkedin->workspace_id)->sole();
+
+    expect($post->scheduled_at->equalTo($day->copy()->setTime(15, 0)))->toBeTrue()
+        ->and($post->schedule_mode)->toBe(ScheduleMode::Queue);
     $month->assertNoJavaScriptErrors();
 });
 

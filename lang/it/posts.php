@@ -871,7 +871,6 @@ return [
                 'description' => 'I post che pubblichi appariranno qui.',
             ],
         ],
-        'reordered' => 'Coda aggiornata',
     ],
     'group' => [
         'channels' => 'Canali (:count)',

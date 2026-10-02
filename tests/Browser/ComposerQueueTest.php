@@ -484,7 +484,7 @@ function composerScheduleOpenPicker(mixed $page): void
  */
 function composerSchedulePickFutureDay(mixed $page): string
 {
-    $query = '[...document.querySelectorAll("[data-testid^=composer-schedule-day-]")].find((day) => !day.hasAttribute("data-disabled") && !day.hasAttribute("data-outside-view") && !day.hasAttribute("data-today"))?.dataset.testid.replace("composer-schedule-day-", "") ?? null';
+    $query = '[...document.querySelectorAll("[data-testid^=composer-schedule-day-]")].find((day) => !day.hasAttribute("data-disabled") && !day.hasAttribute("data-outside-view") && !day.hasAttribute("data-zone-today"))?.dataset.testid.replace("composer-schedule-day-", "") ?? null';
     $day = $page->script($query);
 
     if ($day === null) {
@@ -497,11 +497,11 @@ function composerSchedulePickFutureDay(mixed $page): string
     return $day;
 }
 
-function composerScheduleExpectedLabel(string $day, string $time): string
+function composerScheduleExpectedLabel(string $day, string $time, string $userTimezone): string
 {
     $date = CarbonImmutable::parse($day);
 
-    return $date->format($date->year === now()->year ? 'M j' : 'M j, Y').", {$time}";
+    return $date->format($date->year === now($userTimezone)->year ? 'M j' : 'M j, Y').", {$time}";
 }
 
 test('the schedule trigger points up and its icon follows the selected mode', function () {
@@ -535,14 +535,13 @@ test('the schedule trigger points up and its icon follows the selected mode', fu
 
 test('picking a day and typing a time schedules a custom date with the user time format', function () {
     [$user] = composerQueueWorkspace();
-    $user->update(['time_format' => TimeFormat::TwelveHour]);
+    $user->update(['time_format' => TimeFormat::TwelveHour, 'timezone' => 'Asia/Tokyo']);
     $this->actingAs($user);
 
     $page = visit(route('app.posts.create'));
     composerScheduleOpenPicker($page);
 
-    expect($page->script('document.querySelector("[data-testid=composer-schedule-timezone]").textContent.trim()'))
-        ->toBe(str_replace('_', ' ', (string) $page->script('Intl.DateTimeFormat().resolvedOptions().timeZone')));
+    expect($page->script('document.querySelector("[data-testid=composer-schedule-timezone]").textContent.trim()'))->toBe('Asia/Tokyo');
 
     $day = composerSchedulePickFutureDay($page);
     $page->fill('@composer-schedule-time-input', '1715')
@@ -550,7 +549,7 @@ test('picking a day and typing a time schedules a custom date with the user time
         ->assertMissing('@composer-schedule-picker');
 
     expect(trim((string) $page->script('document.querySelector("[data-testid=composer-schedule-trigger]").textContent')))
-        ->toBe(composerScheduleExpectedLabel($day, '5:15 PM'));
+        ->toBe(composerScheduleExpectedLabel($day, '5:15 PM', $user->timezone));
     $page->assertNoJavaScriptErrors();
 });
 
@@ -582,7 +581,7 @@ test('the time input opens a fifteen minute list that sets the time', function (
     $page->click('@composer-schedule-done');
 
     expect(trim((string) $page->script('document.querySelector("[data-testid=composer-schedule-trigger]").textContent')))
-        ->toBe(composerScheduleExpectedLabel($day, '09:45'));
+        ->toBe(composerScheduleExpectedLabel($day, '09:45', $user->timezone));
     $page->assertNoJavaScriptErrors();
 });
 

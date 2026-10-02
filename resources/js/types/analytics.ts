@@ -50,11 +50,30 @@ export interface TopPost {
     comments: number | null;
 }
 
-export interface PerformanceRow extends AccountIdentityData {
-    posts: Comparison;
-    reactions: Comparison;
-    comments: Comparison;
-    engagement_rate: Comparison;
+export type PerformanceMetric =
+    | 'posts'
+    | 'reactions'
+    | 'comments'
+    | 'engagement_rate'
+    | 'reposts'
+    | 'impressions'
+    | 'clicks'
+    | 'views'
+    | 'shares'
+    | 'saves'
+    | 'follows_gained'
+    | 'reach'
+    | 'watch_time_minutes'
+    | 'average_watch_time_seconds';
+
+export type PerformanceRow = AccountIdentityData &
+    Record<PerformanceMetric, Comparison>;
+
+export interface InsightsSyncCadence {
+    discovery_hours: number;
+    x_discovery_hours: number;
+    metrics_days: number;
+    x_metrics_days: number;
 }
 
 export interface CoverageRow {
@@ -151,7 +170,7 @@ export interface ChannelPublicationRow {
     published_at: string;
     content_type: string | null;
     metrics: Partial<Record<SummaryMetric, number | null>>;
-    url: string;
+    url: string | null;
 }
 
 export interface PublicationMetricFact {

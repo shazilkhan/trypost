@@ -45,6 +45,7 @@ class PostCompositionValidator
                 'before:2038-01-19',
             ],
             'queue' => PostStatusRules::queueRules(),
+            'queue_slot' => ['nullable', 'date', 'prohibited_unless:status,scheduled', 'prohibits:queue'],
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)],
         ], PostStatusRules::queueMessages())->validate();

@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => 'Receber um e-mail quando um membro da equipe adicionar uma nota a uma publicação',
         'collaboration' => 'Colaboração',
         'collaboration_description' => 'Receba e-mails sobre pedidos de aprovação e posts aprovados ou rejeitados',
-        'save' => 'Salvar preferências',
+        'save_failed' => 'Não foi possível salvar as preferências de notificações. Tente novamente.',
     ],
 
     'preferences' => [
         'title' => 'Preferências',
-        'saved' => 'Preferências salvas',
         'theme' => [
             'heading' => 'Aparência',
             'description' => 'Escolha como o TryPost aparece para você.',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'Fuso horário',
-            'description' => 'Usado como fuso horário padrão dos canais que você conectar.',
+            'description' => 'Usado para mostrar horários, no Insights e nos e-mails, e como padrão dos novos canais.',
         ],
         'time_format' => [
             'heading' => 'Formato de hora',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => 'Não foi possível cancelar sua assinatura no provedor de cobrança. Nada foi excluído. Tente novamente ou entre em contato com o suporte.',
         'logo_updated' => 'Logo enviado com sucesso!',
         'logo_deleted' => 'Logo removido com sucesso!',
-        'notifications_updated' => 'Preferências de notificações atualizadas!',
     ],
 
     'api_keys' => [

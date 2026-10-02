@@ -7,8 +7,6 @@ export type SourceRect = {
 
 export type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
-const DEFAULT_SELECTION_RATIO = 0.8;
-
 const ENCODABLE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const EXTENSIONS: Record<string, string> = {
     'image/jpeg': 'jpg',
@@ -45,24 +43,6 @@ export const fullSelection = (
     }
 
     const width = Math.min(naturalWidth, naturalHeight * aspectRatio);
-    const height = width / aspectRatio;
-
-    return {
-        sx: (naturalWidth - width) / 2,
-        sy: (naturalHeight - height) / 2,
-        sw: width,
-        sh: height,
-    };
-};
-
-export const defaultSelection = (
-    naturalWidth: number,
-    naturalHeight: number,
-    aspectRatio = 1,
-): SourceRect => {
-    const width =
-        Math.min(naturalWidth, naturalHeight * aspectRatio) *
-        DEFAULT_SELECTION_RATIO;
     const height = width / aspectRatio;
 
     return {

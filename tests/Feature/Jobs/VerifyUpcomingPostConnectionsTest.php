@@ -66,7 +66,8 @@ test('marks the account expired and queues a notification when verify throws Tok
     Mail::assertQueued(PostAtRisk::class, function ($mail) use ($workspace, $postPlatform) {
         return $mail->workspace->id === $workspace->id
             && count($mail->postPlatformIds) === 1
-            && in_array($postPlatform->id, $mail->postPlatformIds, true);
+            && in_array($postPlatform->id, $mail->postPlatformIds, true)
+            && $mail->recipient->is($workspace->owner);
     });
 });
 

@@ -58,14 +58,14 @@ class WebhookController extends Controller
         $this->authorize('create', Webhook::class);
 
         try {
-            CreateWebhook::execute($workspace, $request->validated(), $webhookService);
+            $webhook = CreateWebhook::execute($workspace, $request->validated(), $webhookService);
         } catch (RuntimeException $e) {
             return back()->withErrors([
                 'endpoint' => $e->getMessage(),
             ]);
         }
 
-        return back();
+        return redirect()->route('app.webhooks.show', $webhook);
     }
 
     public function update(UpdateWebhookRequest $request, Webhook $webhook, WebhookService $webhookService): RedirectResponse

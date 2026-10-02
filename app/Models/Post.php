@@ -163,6 +163,45 @@ class Post extends Model
         return $query->where('status', PostStatus::Scheduled);
     }
 
+    /**
+     * Scheduled posts with an enabled destination on the given channel, upcoming after `$after`.
+     */
+    public function scopeScheduledOn(Builder $query, string $channelId, CarbonInterface $after): Builder
+    {
+        return $query->scheduled()
+            ->where('scheduled_at', '>', $after)
+            ->whereHas('postPlatforms', fn (Builder $platforms) => $platforms->enabled()->where('social_account_id', $channelId));
+    }
+
+    /**
+     * Posts holding their slot instant: scheduled posts and queue requests pending approval.
+     */
+    public function scopeHoldingSlot(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $holding) => $holding->scheduled()
+            ->orWhere(fn (Builder $pending) => $pending->pendingApproval()->where('schedule_mode', ScheduleMode::Queue)));
+    }
+
+    public function scopeOccupyingSlotsOn(Builder $query, string $channelId, CarbonInterface $after): Builder
+    {
+        return $query->holdingSlot()
+            ->where('scheduled_at', '>', $after)
+            ->whereHas('postPlatforms', fn (Builder $platforms) => $platforms->enabled()->where('social_account_id', $channelId));
+    }
+
+    public function scopePendingQueueRequestsOn(Builder $query, string $channelId, CarbonInterface $after): Builder
+    {
+        return $query->pendingApproval()
+            ->where('schedule_mode', ScheduleMode::Queue)
+            ->where('scheduled_at', '>', $after)
+            ->whereHas('postPlatforms', fn (Builder $platforms) => $platforms->enabled()->where('social_account_id', $channelId));
+    }
+
+    public function scopeQueuedOn(Builder $query, string $channelId, CarbonInterface $after): Builder
+    {
+        return $query->scheduledOn($channelId, $after)->where('schedule_mode', ScheduleMode::Queue);
+    }
+
     public function scopeDue(Builder $query): Builder
     {
         return $query->scheduled()->where('scheduled_at', '<=', now());

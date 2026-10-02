@@ -22,6 +22,7 @@ use App\Http\Resources\App\InstagramGridTileResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\SocialAccount;
 use App\Support\Analytics\ChannelMetrics;
+use App\Support\Analytics\SyncCadence;
 use App\Support\Timezone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -86,7 +87,7 @@ class ChannelController extends Controller
         abort_unless($account->platform->hasProfileGrid(), HttpResponse::HTTP_NOT_FOUND);
 
         return Inertia::render('channels/Grid', [
-            'channel' => BuildPublishPageProps::channelHeader($account),
+            'channel' => BuildPublishPageProps::channelHeader($account, $request->user()->week_starts_on),
             'posts' => Inertia::scroll(fn () => InstagramGridTileResource::collection(ListInstagramGridPosts::execute($account))),
         ]);
     }
@@ -129,7 +130,7 @@ class ChannelController extends Controller
 
         $supported = $account->platform->isIncludedInAnalytics();
         $props = [
-            'channel' => fn (): array => BuildPublishPageProps::channelHeader($account),
+            'channel' => fn (): array => BuildPublishPageProps::channelHeader($account, $request->user()->week_starts_on),
             'supported' => $supported,
         ];
 
@@ -156,11 +157,12 @@ class ChannelController extends Controller
         return Inertia::render('channels/Insights', [
             ...$props,
             'sortableMetrics' => ChannelMetrics::sortable(),
+            'sync' => SyncCadence::toArray(),
             'availableMetrics' => $metrics,
-            'report' => function () use ($resolve, $analytics, $workspace, $account, $accountKey): array {
+            'report' => function () use ($resolve, $analytics, $workspace, $account, $accountKey, $request): array {
                 ['bounds' => $bounds, 'range' => $current] = $resolve();
 
-                return $analytics->execute($workspace, $current, $bounds, $account, $accountKey);
+                return $analytics->execute($workspace, $current, $bounds, $account, $accountKey, $request->user()->week_starts_on);
             },
             'filters' => function () use ($resolve, $range, $period, $sort): array {
                 $current = data_get($resolve(), 'range');

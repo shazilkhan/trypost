@@ -45,12 +45,11 @@ return [
         'post_note_added_description' => '팀원이 게시물에 메모를 추가하면 이메일을 받습니다',
         'collaboration' => '협업',
         'collaboration_description' => '승인 요청과 승인 또는 거절된 게시물에 대한 이메일 받기',
-        'save' => '설정 저장',
+        'save_failed' => '알림 설정을 저장하지 못했습니다. 다시 시도해 주세요.',
     ],
 
     'preferences' => [
         'title' => '환경설정',
-        'saved' => '환경설정이 저장되었습니다',
         'theme' => [
             'heading' => '모양',
             'description' => 'TryPost의 표시 방식을 선택하세요.',
@@ -66,7 +65,7 @@ return [
         ],
         'timezone' => [
             'heading' => '시간대',
-            'description' => '연결하는 채널의 기본 시간대로 사용됩니다.',
+            'description' => '시간 표시, Insights, 이메일에 사용되며 새로 연결하는 채널의 기본값이 됩니다.',
         ],
         'time_format' => [
             'heading' => '시간 형식',
@@ -291,7 +290,6 @@ return [
         'delete_failed_billing' => '결제 제공업체에서 구독을 취소하지 못했습니다. 아무것도 삭제되지 않았습니다. 다시 시도하거나 지원팀에 문의하세요.',
         'logo_updated' => '로고가 성공적으로 업로드되었습니다!',
         'logo_deleted' => '로고가 성공적으로 제거되었습니다!',
-        'notifications_updated' => '알림 설정이 업데이트되었습니다!',
     ],
 
     'api_keys' => [

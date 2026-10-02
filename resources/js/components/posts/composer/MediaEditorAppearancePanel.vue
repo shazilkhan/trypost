@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {
     ADJUSTMENTS,
+    blankMediaEdit,
     cssFilter,
-    createMediaEdit,
     FILTER_PRESETS,
     type MediaEdit,
 } from '@/lib/mediaEditor';
@@ -14,7 +14,7 @@ defineProps<{
 const edit = defineModel<MediaEdit>('edit', { required: true });
 
 const previewFilter = (filter: MediaEdit['filter']): string =>
-    cssFilter({ ...createMediaEdit({ id: '', url: '' }), filter });
+    cssFilter({ ...blankMediaEdit(), filter });
 </script>
 
 <template>

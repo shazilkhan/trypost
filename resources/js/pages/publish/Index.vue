@@ -5,7 +5,10 @@ import { trans, transChoice } from 'laravel-vue-i18n';
 import { computed, provide, ref, shallowRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
-import { reorder as reorderChannelQueue } from '@/actions/App/Http/Controllers/App/ChannelQueueController';
+import {
+    moveToSlot as moveChannelPostToSlot,
+    reorder as reorderChannelQueue,
+} from '@/actions/App/Http/Controllers/App/ChannelQueueController';
 import {
     destroy as destroyPost,
     store as storePost,
@@ -49,8 +52,11 @@ import type {
     PostComposition,
 } from '@/composables/usePostComposition';
 import { useShowPostingSlots } from '@/composables/useShowPostingSlots';
+import type { QueueSlotTarget } from '@/composables/useSortableQueue';
+import { provideViewTimezone } from '@/composables/useViewTimezone';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
+import dayjs from '@/dayjs';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { calendar } from '@/routes/app';
 import {
@@ -61,7 +67,7 @@ import {
 } from '@/routes/app/channels';
 import { index as postsIndex } from '@/routes/app/posts';
 import type { User } from '@/types';
-import { PostStatus } from '@/types/post';
+import { PostStatus, ScheduleMode } from '@/types/post';
 import type { TimezoneOption } from '@/types/posting-schedule';
 import type {
     PostCard,
@@ -131,6 +137,8 @@ const { timezone, setTimezone, dayKey } = useDisplayTimezone(
     props.timezones.map((option) => option.value),
     () => props.tab,
 );
+
+provideViewTimezone(timezone);
 
 watch(
     () => props.displayTimezone,
@@ -253,6 +261,71 @@ const queueTarget = (post: PostCard): string | null =>
     post.post_platforms.find((target) => target.enabled)?.social_account_id ??
     null;
 
+const itemTime = (item: QueueItem): number => dayjs.utc(item.at).valueOf();
+
+const groupQueueItems = (items: QueueItem[]): QueueDay[] => {
+    const groups = new Map<string, QueueItem[]>();
+    const sorted = [...items].sort(
+        (a, b) =>
+            itemTime(a) - itemTime(b) ||
+            Number(a.type === 'slot') - Number(b.type === 'slot'),
+    );
+
+    for (const item of sorted) {
+        const key = dayKey(item.at);
+
+        groups.set(key, [...(groups.get(key) ?? []), item]);
+    }
+
+    return [...groups].map(([key, items]) => ({ date: key, items }));
+};
+
+const hasMorePosts = computed(
+    () => page.scrollProps?.posts?.nextPage != null,
+);
+
+const lastLoadedPostAt = computed<number | null>(() => {
+    const times = (props.posts?.data ?? [])
+        .filter((post) => post.scheduled_at)
+        .map((post) => dayjs.utc(post.scheduled_at).valueOf());
+
+    return props.channel && props.tab === 'queue' && times.length
+        ? Math.max(...times)
+        : null;
+});
+
+watch(
+    lastLoadedPostAt,
+    (at) => {
+        const queue = props.queue;
+
+        if (at === null || !queue) {
+            return;
+        }
+
+        const neededDays = Math.min(
+            queue.maxQueueDays,
+            Math.ceil(dayjs.utc(at).diff(dayjs(), 'day', true)) + 1,
+        );
+
+        if (neededDays > queue.queueDays) {
+            router.reload({
+                data: { queue_days: neededDays },
+                only: ['queue'],
+            });
+        }
+    },
+    { immediate: true },
+);
+
+const channelSlots = computed<QueueItem[]>(() =>
+    props.channel
+        ? (props.queue?.days ?? [])
+              .flatMap((day) => day.items)
+              .filter((item) => item.type === 'slot')
+        : [],
+);
+
 const queueSource = computed<QueueView>(() => {
     const scheduled =
         props.tab === 'queue'
@@ -263,11 +336,13 @@ const queueSource = computed<QueueView>(() => {
               ]
             : [];
 
-    if (scheduled.length === 0) {
+    const pending = props.tab === 'queue' ? (props.queue?.pending ?? []) : [];
+
+    if (scheduled.length === 0 && pending.length === 0) {
         return { days: props.queue?.days ?? [], posts: {} };
     }
 
-    const groups = new Map<string, QueueItem[]>();
+    const postItems: QueueItem[] = [];
 
     for (const post of scheduled) {
         const channelId = queueTarget(post);
@@ -276,27 +351,55 @@ const queueSource = computed<QueueView>(() => {
             continue;
         }
 
-        const key = dayKey(post.scheduled_at);
-
-        groups.set(key, [
-            ...(groups.get(key) ?? []),
-            {
-                type: 'post',
-                at: post.scheduled_at,
-                channel_id: channelId,
-                post_id: post.id,
-            },
-        ]);
+        postItems.push({
+            type: 'post',
+            at: post.scheduled_at,
+            channel_id: channelId,
+            post_id: post.id,
+        });
     }
 
+    const lastLoaded = postItems.reduce(
+        (latest, item) => Math.max(latest, itemTime(item)),
+        Number.NEGATIVE_INFINITY,
+    );
+    const loaded = (item: QueueItem): boolean =>
+        !hasMorePosts.value || itemTime(item) <= lastLoaded;
+    const timelineItems =
+        scheduled.length === 0
+            ? (props.queue?.days ?? []).flatMap((day) => day.items)
+            : channelSlots.value.filter(loaded);
+    const pendingItems = pending.flatMap((post): QueueItem[] => {
+        const channelId = queueTarget(post);
+
+        return post.scheduled_at && channelId
+            ? [
+                  {
+                      type: 'post',
+                      at: post.scheduled_at,
+                      channel_id: channelId,
+                      post_id: post.id,
+                  },
+              ]
+            : [];
+    });
+
     return {
-        days: [...groups].map(([key, items]) => ({ date: key, items })),
-        posts: Object.fromEntries(scheduled.map((post) => [post.id, post])),
+        days: groupQueueItems([
+            ...postItems,
+            ...timelineItems,
+            ...pendingItems.filter(loaded),
+        ]),
+        posts: Object.fromEntries(
+            [...scheduled, ...pending].map((post) => [post.id, post]),
+        ),
     };
 });
 
-const queueHasPosts = computed(
-    () => Object.keys(queueSource.value.posts).length > 0,
+const queueHasPosts = computed(() =>
+    Object.values(queueSource.value.posts).some(
+        (post) => post.status === PostStatus.Scheduled,
+    ),
 );
 
 const localQueue = shallowRef<QueueView>(queueSource.value);
@@ -329,8 +432,11 @@ const visibleQueueDays = computed<QueueDay[]>(() =>
 
 const canLoadMoreTimes = computed(
     () =>
-        !queueHasPosts.value &&
-        visibleQueueDays.value.length > 0 &&
+        (props.channel
+            ? !hasMorePosts.value &&
+              showSlots.value &&
+              channelSlots.value.length > 0
+            : !queueHasPosts.value && visibleQueueDays.value.length > 0) &&
         (props.queue?.queueDays ?? 0) < (props.queue?.maxQueueDays ?? 0),
 );
 
@@ -405,14 +511,93 @@ const reorderQueue = (channelId: string, orderedPostIds: string[]): void => {
             onFinish: () => {
                 reordering.value = false;
             },
-            onSuccess: () => {
-                toast.success(trans('posts.publish.reordered'), {
-                    testId: 'queue-reordered-toast',
-                });
-            },
             onError: (errors) =>
                 rollback(
                     errors.post_ids ??
+                        errors.queue ??
+                        trans('posts.errors.queue_busy'),
+                ),
+            onHttpException: () => {
+                rollback(trans('posts.errors.queue_busy'));
+
+                return false;
+            },
+        },
+    );
+};
+
+const withPostInSlot = (
+    queue: QueueView,
+    postId: string,
+    slot: QueueSlotTarget,
+): QueueView => {
+    const post = queue.posts[postId];
+    const items = queue.days.flatMap((day) => day.items);
+    const isTarget = (item: QueueItem): boolean =>
+        item.type === 'slot' &&
+        item.channel_id === slot.channelId &&
+        itemTime(item) === dayjs.utc(slot.at).valueOf();
+    const freed: QueueItem[] =
+        post?.schedule_mode === ScheduleMode.Queue && post.scheduled_at
+            ? [
+                  {
+                      type: 'slot',
+                      at: post.scheduled_at,
+                      channel_id: slot.channelId,
+                      post_id: null,
+                  },
+              ]
+            : [];
+
+    return {
+        days: groupQueueItems([
+            ...items.filter((item) => item.post_id !== postId && !isTarget(item)),
+            ...freed,
+            {
+                type: 'post',
+                at: slot.at,
+                channel_id: slot.channelId,
+                post_id: postId,
+            },
+        ]),
+        posts: {
+            ...queue.posts,
+            [postId]: {
+                ...post,
+                scheduled_at: slot.at,
+                schedule_mode: ScheduleMode.Queue,
+            },
+        },
+    };
+};
+
+const moveToSlot = (postId: string, slot: QueueSlotTarget): void => {
+    if (reordering.value || !localQueue.value.posts[postId]) {
+        return;
+    }
+
+    reordering.value = true;
+
+    const rollback = (message: string): void => {
+        localQueue.value = queueSource.value;
+        toast.error(message, { testId: 'queue-reorder-error-toast' });
+    };
+
+    localQueue.value = withPostInSlot(localQueue.value, postId, slot);
+
+    router.put(
+        moveChannelPostToSlot.url(slot.channelId),
+        { post_id: postId, slot_at: slot.at },
+        {
+            preserveScroll: true,
+            preserveState: true,
+            ...QUEUE_RELOAD,
+            onFinish: () => {
+                reordering.value = false;
+            },
+            onError: (errors) =>
+                rollback(
+                    errors.slot_at ??
                         errors.queue ??
                         trans('posts.errors.queue_busy'),
                 ),
@@ -743,7 +928,9 @@ const submitComposition = (
                                 !selectedUntagged &&
                                 !reordering
                             "
+                            :slot-drop="channel !== null"
                             @reorder="reorderQueue"
+                            @move-to-slot="moveToSlot"
                             @move-top="
                                 (post) =>
                                     schedulePostCard(

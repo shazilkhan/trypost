@@ -6,6 +6,7 @@ use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\User\Locale;
+use App\Enums\User\TimeFormat;
 use App\Mail\PostApprovalRequested;
 use App\Mail\PostApproved;
 use App\Mail\PostNoteAdded;
@@ -20,6 +21,7 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\Mail\ApprovalEmailPosts;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -246,6 +248,16 @@ function approvalEmailPost(Workspace $workspace, User $author, Platform $platfor
     return $post;
 }
 
+function approvalEmailTimeLabel(CarbonImmutable $at, User $recipient, Locale $locale): string
+{
+    $previous = app()->getLocale();
+    app()->setLocale($locale->value);
+    $label = (string) ApprovalEmailPosts::time($at, $recipient);
+    app()->setLocale($previous);
+
+    return $label;
+}
+
 test('the approval request email keeps the paragraph breaks of the post', function () {
     $requester = User::factory()->create();
     $approver = User::factory()->create(['account_id' => $requester->account_id]);
@@ -269,6 +281,23 @@ test('the post note email keeps the paragraph breaks of the post', function () {
 
     expect($html)->toContain("Tom &amp; Jerry\nare back");
 });
+
+test('a queue request holding its slot shows that time, not the next queue slot', function (Locale $locale) {
+    $requester = User::factory()->create();
+    $approver = User::factory()->create(['account_id' => $requester->account_id, 'timezone' => 'UTC']);
+    $workspace = Workspace::factory()->create(['account_id' => $requester->account_id, 'user_id' => $requester->id]);
+    $at = CarbonImmutable::parse('2026-10-06 09:00', 'UTC');
+    $post = approvalEmailPost($workspace, $requester, Platform::LinkedIn, 'Acme Inc', [
+        'status' => PostStatus::PendingApproval,
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => $at,
+    ]);
+
+    $mailable = (new PostApprovalRequested([$post->id], $requester, $approver))->locale($locale->value);
+
+    $mailable->assertSeeInHtml(approvalEmailTimeLabel($at, $approver, $locale))
+        ->assertDontSeeInHtml(__('mail.post_approval_requested.next_queue_slot', [], $locale->value));
+})->with([Locale::English, Locale::PortugueseBrazil]);
 
 test('a publish now request says it goes out as soon as it is approved', function (Locale $locale) {
     $requester = User::factory()->create();
@@ -300,15 +329,15 @@ test('the approved email lists the time of each channel when they go out at diff
 
     $mailable->assertSeeInOrderInHtml([
         $linkedIn->postPlatforms()->sole()->notificationLabel(),
-        "{$morning->locale($locale->value)->isoFormat('LLL')} (UTC)",
+        approvalEmailTimeLabel($morning, $author, $locale),
         $x->postPlatforms()->sole()->notificationLabel(),
-        "{$evening->locale($locale->value)->isoFormat('LLL')} (UTC)",
+        approvalEmailTimeLabel($evening, $author, $locale),
         $mastodon->postPlatforms()->sole()->notificationLabel(),
         __('mail.post_approved.publishing_now', [], $locale->value),
     ]);
     $mailable->assertSeeInHtml(__('mail.post_approved.channel_time', [
         'channel' => '<strong>'.e($x->postPlatforms()->sole()->notificationLabel()).'</strong>',
-        'time' => "{$evening->locale($locale->value)->isoFormat('LLL')} (UTC)",
+        'time' => approvalEmailTimeLabel($evening, $author, $locale),
     ], $locale->value), false);
 })->with([Locale::English, Locale::PortugueseBrazil, Locale::French]);
 
@@ -323,4 +352,34 @@ test('the approved email shows one time when every channel goes out together', f
     $html = (new PostApproved([$linkedIn->id, $x->id], $approver, $author))->render();
 
     expect(substr_count($html, "{$at->locale('en')->isoFormat('LLL')} (UTC)"))->toBe(1);
+});
+
+test('approval emails show the time in the recipient zone and clock', function (TimeFormat $format, Locale $locale, string $expected) {
+    $author = User::factory()->create(['timezone' => 'America/Sao_Paulo', 'time_format' => $format]);
+    $approver = User::factory()->create(['account_id' => $author->account_id]);
+    $workspace = Workspace::factory()->create(['account_id' => $author->account_id, 'user_id' => $author->id]);
+    $post = approvalEmailPost($workspace, $author, Platform::LinkedIn, 'Acme Inc', [
+        'status' => PostStatus::Scheduled,
+        'scheduled_at' => CarbonImmutable::parse('2026-10-07 15:00', 'UTC'),
+    ]);
+
+    $html = (new PostApproved([$post->id], $approver, $author))->locale($locale->value)->render();
+
+    expect($html)->toContain($expected);
+})->with([
+    'english 12-hour' => [TimeFormat::TwelveHour, Locale::English, 'October 7, 2026 12:00 PM (America/Sao_Paulo)'],
+    'english 24-hour' => [TimeFormat::TwentyFourHour, Locale::English, 'October 7, 2026 12:00 (America/Sao_Paulo)'],
+    'german 24-hour' => [TimeFormat::TwentyFourHour, Locale::German, '7. Oktober 2026 12:00 (America/Sao_Paulo)'],
+]);
+
+test('approval emails name the canonical zone of a legacy alias', function () {
+    $author = User::factory()->create(['timezone' => 'Asia/Calcutta', 'time_format' => TimeFormat::TwentyFourHour]);
+    $approver = User::factory()->create(['account_id' => $author->account_id]);
+    $workspace = Workspace::factory()->create(['account_id' => $author->account_id, 'user_id' => $author->id]);
+    $post = approvalEmailPost($workspace, $author, Platform::LinkedIn, 'Acme Inc', [
+        'status' => PostStatus::Scheduled,
+        'scheduled_at' => CarbonImmutable::parse('2026-10-07 15:00', 'UTC'),
+    ]);
+
+    expect((new PostApproved([$post->id], $approver, $author))->render())->toContain('October 7, 2026 20:30 (Asia/Kolkata)');
 });

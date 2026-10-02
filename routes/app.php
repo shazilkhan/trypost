@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Analytics\ExportFormat;
 use App\Http\Controllers\App\ApiKeyController;
 use App\Http\Controllers\App\BillingController;
 use App\Http\Controllers\App\CanvaController;
@@ -15,7 +16,6 @@ use App\Http\Controllers\App\IdeaController;
 use App\Http\Controllers\App\IdeaGenerateController;
 use App\Http\Controllers\App\IdeaStageController;
 use App\Http\Controllers\App\InsightsController;
-use App\Http\Controllers\App\InsightsPublicationController;
 use App\Http\Controllers\App\LibraryTemplateController;
 use App\Http\Controllers\App\LinkPreviewController;
 use App\Http\Controllers\App\McpSettingsController;
@@ -213,11 +213,13 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('channels/{account}/insights', [ChannelController::class, 'insights'])->name('app.channels.insights');
     Route::get('channels/{account}/settings', [ChannelController::class, 'settings'])->name('app.channels.settings');
     Route::put('channels/{account}/queue/order', [ChannelQueueController::class, 'reorder'])->name('app.channels.queue.order');
+    Route::put('channels/{account}/queue/slot', [ChannelQueueController::class, 'moveToSlot'])->name('app.channels.queue.slot');
 
     // Insights
     Route::get('insights', [InsightsController::class, 'index'])->name('app.insights');
-    Route::get('insights/publications/{publication}', [InsightsPublicationController::class, 'show'])->name('app.insights.publications.show');
-    Route::get('insights/{post}', [InsightsController::class, 'show'])->name('app.insights.show');
+    Route::get('insights/download/{format}', [InsightsController::class, 'download'])
+        ->whereIn('format', ExportFormat::values())
+        ->name('app.insights.download');
 
     // Schedule
     Route::get('schedule', [PostController::class, 'index'])->name('app.posts.index');
@@ -258,7 +260,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('posts/{post}/notes', [PostNoteController::class, 'store'])->name('app.posts.notes.store');
     Route::put('posts/{post}/notes/{note}', [PostNoteController::class, 'update'])->name('app.posts.notes.update');
     Route::delete('posts/{post}/notes/{note}', [PostNoteController::class, 'destroy'])->name('app.posts.notes.destroy');
-    Route::post('posts/{post}/notes/{note}/react', [PostNoteController::class, 'react'])->name('app.posts.notes.react');
 
     // Members
     Route::get('settings/workspace/members', [WorkspaceInviteController::class, 'index'])->name('app.members');
@@ -438,5 +439,5 @@ Route::middleware(['auth'])->group(function () {
         ->name('app.authentication.disconnect-provider');
 
     Route::get('settings/profile/notifications', [NotificationPreferenceController::class, 'edit'])->name('app.notifications.preferences');
-    Route::put('settings/profile/notifications', [NotificationPreferenceController::class, 'update'])->name('app.notifications.preferences.update');
+    Route::patch('settings/profile/notifications', [NotificationPreferenceController::class, 'update'])->name('app.notifications.preferences.update');
 });

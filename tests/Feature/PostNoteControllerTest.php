@@ -25,13 +25,14 @@ beforeEach(function () {
     ]);
 });
 
-test('index returns paginated comments with replies', function () {
-    $parent = PostNote::factory()->create([
+test('index returns every note of the post, newest first', function () {
+    $older = PostNote::factory()->create([
         'post_id' => $this->post->id,
         'user_id' => $this->user->id,
+        'created_at' => now()->subHour(),
     ]);
-
-    $reply = PostNote::factory()->reply($parent)->create([
+    $newer = PostNote::factory()->create([
+        'post_id' => $this->post->id,
         'user_id' => $this->user->id,
     ]);
 
@@ -39,10 +40,10 @@ test('index returns paginated comments with replies', function () {
         ->getJson(route('app.posts.notes.index', $this->post));
 
     $response->assertOk();
-    $response->assertJsonCount(1, 'data');
-    $response->assertJsonPath('data.0.id', $parent->id);
-    $response->assertJsonCount(1, 'data.0.replies');
-    $response->assertJsonPath('data.0.replies.0.id', $reply->id);
+    $response->assertJsonCount(2, 'data');
+    $response->assertJsonPath('data.0.id', $newer->id);
+    $response->assertJsonPath('data.1.id', $older->id);
+    $response->assertJsonPath('data.0.user.id', $this->user->id);
 });
 
 test('store creates a comment', function () {
@@ -60,7 +61,6 @@ test('store creates a comment', function () {
         'post_id' => $this->post->id,
         'user_id' => $this->user->id,
         'body' => 'This is a comment.',
-        'parent_id' => null,
     ]);
 
     Event::assertDispatched(PostNoteChanged::class, fn (PostNoteChanged $event) => $event->postId === $this->post->id
@@ -81,28 +81,6 @@ test('note changes broadcast to the post and its workspace', function () {
             "private-post.{$this->post->id}",
             "private-workspace.{$this->workspace->id}",
         ]);
-});
-
-test('store creates a reply', function () {
-    $parent = PostNote::factory()->create([
-        'post_id' => $this->post->id,
-        'user_id' => $this->user->id,
-    ]);
-
-    $response = $this->actingAs($this->user)
-        ->postJson(route('app.posts.notes.store', $this->post), [
-            'body' => 'This is a reply.',
-            'parent_id' => $parent->id,
-        ]);
-
-    $response->assertCreated();
-    $response->assertJsonPath('parent_id', $parent->id);
-
-    $this->assertDatabaseHas('post_notes', [
-        'post_id' => $this->post->id,
-        'parent_id' => $parent->id,
-        'body' => 'This is a reply.',
-    ]);
 });
 
 test('store emails every workspace member except the author', function () {
@@ -145,24 +123,6 @@ test('store emails the workspace owner when a member adds a note', function () {
     Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($this->user->email));
 });
 
-test('store emails members about a reply too', function () {
-    Mail::fake();
-
-    $member = User::factory()->create();
-    $this->workspace->members()->attach($member->id, membershipPivot('member'));
-
-    $parent = PostNote::factory()->create([
-        'post_id' => $this->post->id,
-        'user_id' => $member->id,
-    ]);
-
-    $this->actingAs($this->user)
-        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Done', 'parent_id' => $parent->id])
-        ->assertCreated();
-
-    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($member->email));
-});
-
 test('store respects a member who turned note emails off', function () {
     Mail::fake();
 
@@ -187,7 +147,7 @@ test('store sends nothing when the author is the only member', function () {
     Queue::assertNotPushed(SendNotification::class);
 });
 
-test('update, delete and react send no email', function () {
+test('update and delete send no email', function () {
     Queue::fake();
 
     $member = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
@@ -202,34 +162,11 @@ test('update, delete and react send no email', function () {
         ->putJson(route('app.posts.notes.update', [$this->post, $note]), ['body' => 'Edited'])
         ->assertOk();
 
-    $this->actingAs($member)
-        ->postJson(route('app.posts.notes.react', [$this->post, $note]), ['emoji' => '👍'])
-        ->assertOk();
-
     $this->actingAs($this->user)
         ->deleteJson(route('app.posts.notes.destroy', [$this->post, $note]))
         ->assertNoContent();
 
     Queue::assertNotPushed(SendNotification::class);
-});
-
-test('store rejects reply to a reply', function () {
-    $parent = PostNote::factory()->create([
-        'post_id' => $this->post->id,
-        'user_id' => $this->user->id,
-    ]);
-
-    $reply = PostNote::factory()->reply($parent)->create([
-        'user_id' => $this->user->id,
-    ]);
-
-    $response = $this->actingAs($this->user)
-        ->postJson(route('app.posts.notes.store', $this->post), [
-            'body' => 'Nested reply attempt.',
-            'parent_id' => $reply->id,
-        ]);
-
-    $response->assertStatus(422);
 });
 
 test('update own comment', function () {
@@ -302,39 +239,6 @@ test('cannot delete other user comment', function () {
         ->deleteJson(route('app.posts.notes.destroy', [$this->post, $comment]));
 
     $response->assertForbidden();
-});
-
-test('react toggles emoji', function () {
-    Event::fake([PostNoteChanged::class]);
-    $comment = PostNote::factory()->create([
-        'post_id' => $this->post->id,
-        'user_id' => $this->user->id,
-    ]);
-
-    // First reaction adds the emoji
-    $response = $this->actingAs($this->user)
-        ->postJson(route('app.posts.notes.react', [$this->post, $comment]), [
-            'emoji' => '👍',
-        ]);
-
-    $response->assertOk();
-    $comment->refresh();
-    expect($comment->reactions)->toHaveCount(1);
-    expect($comment->reactions[0]['emoji'])->toBe('👍');
-    expect($comment->reactions[0]['user_id'])->toBe($this->user->id);
-
-    // Same reaction again removes the emoji
-    $response = $this->actingAs($this->user)
-        ->postJson(route('app.posts.notes.react', [$this->post, $comment]), [
-            'emoji' => '👍',
-        ]);
-
-    $response->assertOk();
-    $comment->refresh();
-    expect($comment->reactions)->toHaveCount(0);
-
-    Event::assertDispatchedTimes(PostNoteChanged::class, 2);
-    Event::assertDispatched(PostNoteChanged::class, fn (PostNoteChanged $event) => $event->change === 'reacted');
 });
 
 test('cannot comment on post from other workspace', function () {

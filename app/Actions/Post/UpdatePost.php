@@ -38,6 +38,8 @@ class UpdatePost
     /**
      * `$actor` is the user making the change; system callers pass none and are never gated.
      * A pending post is changed under its approval lock (see PostApproval::whilePending()).
+     * `queue_slot` (an instant, set only by MoveChannelPostToQueueSlot under the channel lock)
+     * stores a single-channel post in queue mode at that slot without reflowing the queue.
      *
      * @return array{post: Post, action: PostAction|null}
      */
@@ -209,8 +211,13 @@ class UpdatePost
         $keepsPending = $previousStatus === PostStatus::PendingApproval && ! array_key_exists('status', $data);
         $status = $keepsPending ? PostStatus::Draft->value : (string) data_get($data, 'status', $previousStatus->value);
         $pending = $keepsPending || PostApproval::isRequired($workspace, $actor, $status);
-        $wasQueued = $post->schedule_mode === ScheduleMode::Queue && $previousStatus === PostStatus::Scheduled;
-        $keepsQueueSlot = ! $pending && $position === QueuePosition::Next && $wasQueued && $post->scheduled_at?->isFuture();
+        $keepsQueueSlot = $position === QueuePosition::Next
+            && $post->schedule_mode === ScheduleMode::Queue
+            && $post->scheduled_at?->isFuture()
+            && ($previousStatus === PostStatus::Scheduled
+                || ($previousStatus === PostStatus::PendingApproval && ReflowChannelQueue::isFreeSlot($channel, $post->scheduled_at, $post->id)));
+
+        $approvesHolder = $keepsQueueSlot && $previousStatus === PostStatus::PendingApproval && ! $pending;
 
         if ($keepsQueueSlot) {
             $position = null;
@@ -220,6 +227,8 @@ class UpdatePost
             $position = $post->approval_queue_position;
         }
 
+        $queueSlot = $position === null && ! $keepsPending ? data_get($data, 'queue_slot') : null;
+
         $meta = array_filter(
             array_merge($target->meta ?? [], data_get($data, 'meta') ?? []),
             fn (mixed $value): bool => $value !== null,
@@ -228,6 +237,7 @@ class UpdatePost
             $keepsPending => $post->scheduled_at?->toIso8601String(),
             $position !== null => null,
             $keepsQueueSlot => $post->scheduled_at->toIso8601String(),
+            filled($queueSlot) => $queueSlot,
             ($pending || $previousStatus === PostStatus::PendingApproval) && $status === PostStatus::Publishing->value => null,
             array_key_exists('scheduled_at', $data) => data_get($data, 'scheduled_at'),
             default => $post->scheduled_at?->toIso8601String(),
@@ -237,6 +247,7 @@ class UpdatePost
             $position !== null => ScheduleMode::Queue,
             $status !== PostStatus::Scheduled->value => null,
             $keepsQueueSlot => ScheduleMode::Queue,
+            filled($queueSlot) => ScheduleMode::Queue,
             filled(data_get($data, 'scheduled_at')) => ScheduleMode::Custom,
             $pending => ScheduleMode::Custom,
             default => $post->schedule_mode ?? ScheduleMode::Custom,
@@ -256,13 +267,15 @@ class UpdatePost
             ]],
         ], $post->media ?? []);
 
-        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $meta, $scheduledAt, $mode, $position, $wasQueued, $pending, $previousStatus, $storedStatus, $actor): array {
+        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $meta, $scheduledAt, $mode, $position, $pending, $approvesHolder, $previousStatus, $storedStatus, $actor): array {
+            $slotLost = $approvesHolder && ! ReflowChannelQueue::isFreeSlot($channel->refresh(), $post->scheduled_at, $post->id);
+            $position = $slotLost ? QueuePosition::Next : $position;
             $destination = $resolved['destinations'][0];
             $occurrence = $post->currentOccurrence();
             $post->update([
                 'content' => $destination['content'],
                 'status' => $storedStatus,
-                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt)->utc() : null,
+                'scheduled_at' => $scheduledAt && ! $slotLost ? Carbon::parse($scheduledAt)->utc() : null,
                 'schedule_mode' => $mode,
                 ...PostApproval::transition($previousStatus, $storedStatus, $actor, $pending ? $position : null),
             ]);
@@ -278,14 +291,12 @@ class UpdatePost
 
             if ($position !== null && ! $pending) {
                 CreateChannelPost::enqueue($channel, $post, $position);
-            } elseif ($wasQueued && ($pending || $mode !== ScheduleMode::Queue)) {
-                ReflowChannelQueue::afterCommit($target->social_account_id);
             }
 
             return self::finish($post, $previousStatus, $storedStatus, $occurrence, $actor);
         });
 
-        return $position === null || $pending
+        return ($position === null && ! $approvesHolder) || $pending
             ? $write()
             : ReflowChannelQueue::withLock([$target->social_account_id], $write);
     }

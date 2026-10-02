@@ -26,6 +26,7 @@ class SocialAccountResource extends JsonResource
             'avatar_url' => $this->avatar_url,
             'profile_url' => $this->profile_url,
             'status' => $this->status,
+            'timezone' => $this->timezone,
             'has_posting_schedule' => $this->hasPostingSchedule(),
             'error_message' => $this->error_message,
             'last_used_at' => $this->last_used_at,

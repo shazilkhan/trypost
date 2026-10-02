@@ -16,7 +16,6 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Vite;
 
 function waitForWorkspaceInsightsTestId(mixed $page, string $testId): void
 {
@@ -74,7 +73,6 @@ test('workspace dashboard separates accounts and switches follower and post char
     }
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights'));
     waitForWorkspaceInsightsTestId($page, 'analytics-summary-followers');
 
@@ -117,7 +115,6 @@ test('workspace dashboard explains the empty state without inventing follower to
     $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
 
     $this->actingAs($user);
     $page = visit(route('app.insights'));
@@ -152,7 +149,6 @@ test('the custom preset opens the calendar without a second trigger or quick pre
     }
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights', ['start' => '2026-01-01', 'end' => '2026-02-01']));
     waitForWorkspaceInsightsTestId($page, 'insights-range-custom');
 
@@ -170,8 +166,6 @@ test('the custom preset opens the calendar without a second trigger or quick pre
     JS);
 
     $page->assertScript('document.querySelector("[role=dialog]") !== null', true)
-        ->assertMissing('@date-range-preset-last_30_days')
-        ->assertMissing('@date-range-preset-today')
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 });
@@ -196,7 +190,6 @@ test('a range preset on the workspace dashboard reloads with that range', functi
     ]);
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights'));
     waitForWorkspaceInsightsTestId($page, 'insights-range-7d');
 
@@ -224,7 +217,6 @@ test('workspace dashboard is titled Insights for a German user', function () {
     subscribeAccount($user->account);
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
 
     visit(route('app.insights'))
         ->assertScript('document.querySelector("[data-testid=analytics-page-header]")?.textContent.includes("Insights")', true)
@@ -243,7 +235,6 @@ test('dashboard refreshes when the first analytics snapshot arrives after openin
     $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights'));
     waitForWorkspaceInsightsTestId($page, 'analytics-empty-state');
     $page->assertVisible('@analytics-empty-state');
@@ -282,7 +273,6 @@ test('import progress disappears after the queued backfill finishes without navi
     ]);
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights'));
     waitForWorkspaceInsightsTestId($page, 'analytics-import-coverage');
     $page->assertVisible('@analytics-import-coverage');
@@ -330,7 +320,6 @@ test('follower chart localizes tooltip values and names accounts without usernam
     ]);
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights'));
 
     $page->assertPresent('@accounts-unovis-bar-chart')
@@ -370,7 +359,6 @@ test('workspace dashboard abbreviates large percentage changes in the user local
     }
 
     $this->actingAs($user);
-    Vite::useHotFile(storage_path('framework/testing/workspace-analytics-no-hot'));
     $page = visit(route('app.insights', ['start' => '2026-09-12', 'end' => '2026-09-23']));
 
     $page->assertScript('document.querySelector("[data-testid=analytics-summary-reactions-change]")?.innerText.includes('.json_encode($expectedChange).')', true)

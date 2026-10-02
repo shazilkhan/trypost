@@ -58,6 +58,6 @@ test('post notes are accessible on a phone after the post exists', function () {
     $page = visit(route('app.posts.index', ['tab' => 'drafts']))->resize(375, 812);
 
     $page->click("@post-notes-trigger-{$post->id}");
-    waitForTestId($page, 'note-reply');
-    $page->assertVisible('@note-reply');
+    waitForTestId($page, 'note-actions');
+    $page->assertVisible('@note-actions');
 });

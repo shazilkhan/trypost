@@ -32,6 +32,7 @@ const props = withDefaults(
         showHeader?: boolean;
         extraCount?: number;
         align?: 'start' | 'center' | 'end';
+        compact?: boolean;
     }>(),
     {
         contentClass: 'w-72',
@@ -39,8 +40,11 @@ const props = withDefaults(
         showHeader: true,
         extraCount: 0,
         align: 'end',
+        compact: false,
     },
 );
+
+const emit = defineEmits<{ clear: [] }>();
 
 const selectedIds = defineModel<string[]>({ required: true });
 const open = ref(false);
@@ -69,9 +73,14 @@ const selectedCount = computed(
 );
 
 const toggleAll = (): void => {
-    selectedIds.value = selectedIds.value.length
-        ? []
-        : props.options.map((option) => option.id);
+    if (selectedCount.value) {
+        selectedIds.value = [];
+        emit('clear');
+
+        return;
+    }
+
+    selectedIds.value = props.options.map((option) => option.id);
 };
 </script>
 
@@ -95,7 +104,7 @@ const toggleAll = (): void => {
                     <span>{{ label }}</span>
                     <span
                         v-if="selectedCount"
-                        class="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-secondary px-1 text-xs font-medium"
+                        class="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-xs font-medium text-primary-foreground"
                         :data-testid="`${testId}-count`"
                         >{{ selectedCount }}</span
                     >
@@ -135,7 +144,7 @@ const toggleAll = (): void => {
                     :data-testid="`${testId}-toggle-all`"
                     @click="toggleAll"
                 >
-                    {{ selectedIds.length ? deselectAllLabel : selectAllLabel }}
+                    {{ selectedCount ? deselectAllLabel : selectAllLabel }}
                 </button>
             </div>
 
@@ -155,7 +164,8 @@ const toggleAll = (): void => {
                 <div
                     v-for="option in visibleOptions"
                     :key="option.id"
-                    class="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg p-2 text-sm transition-control hover:bg-accent"
+                    class="flex cursor-pointer items-center gap-3 rounded-lg text-sm transition-control hover:bg-accent"
+                    :class="compact ? 'min-h-8 px-2 py-1.5 leading-5' : 'min-h-12 p-2'"
                     :data-testid="`${testId}-option-${option.id}`"
                     @click="toggle(option.id)"
                 >

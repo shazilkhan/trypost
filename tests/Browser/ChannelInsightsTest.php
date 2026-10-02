@@ -11,12 +11,13 @@ use App\Models\AnalyticsAccountDailySnapshot;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsPublicationDailySnapshot;
 use App\Models\AnalyticsSyncState;
+use App\Models\Post;
+use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Vite;
 
 function waitForChannelInsightsTestId(mixed $page, string $testId): void
 {
@@ -80,7 +81,6 @@ function channelInsightsBrowserPublication(SocialAccount $account, CarbonImmutab
 
 beforeEach(function () {
     Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
-    Vite::useHotFile(storage_path('framework/testing/channel-insights-no-hot'));
 
     $this->user = channelInsightsBrowserUser();
     $this->instagram = SocialAccount::factory()->create([
@@ -222,5 +222,36 @@ test('finishing the import refreshes the available metrics and the publication t
     $page->assertVisible("@insights-posts-row-{$publication->id}")
         ->assertVisible('@insights-card-saves')
         ->assertVisible('@insights-sort-saves')
+        ->assertNoJavaScriptErrors();
+});
+
+test('the channel header exports this channel and rows open the post details or the network post', function () {
+    $post = Post::factory()->published()->create(['workspace_id' => $this->instagram->workspace_id, 'user_id' => $this->user->id]);
+    $destination = PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->instagram->id,
+        'platform' => Platform::Instagram,
+    ]);
+    $this->mostReactions->update(['post_platform_id' => $destination->id]);
+    $this->mostViews->update(['permalink' => 'https://www.instagram.com/p/most-views/']);
+
+    $page = visit(route('app.channels.insights', ['account' => $this->instagram, 'range' => '7d']));
+    waitForChannelInsightsTestId($page, 'insights-export');
+
+    $page->click('@insights-export');
+    waitForChannelInsightsTestId($page, 'insights-export-csv');
+    $href = (string) $page->script('document.querySelector("[data-testid=insights-export-csv]").getAttribute("href")');
+    parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+
+    expect(parse_url($href, PHP_URL_PATH))->toBe(parse_url(route('app.insights.download', 'csv'), PHP_URL_PATH))
+        ->and(data_get($query, 'channels'))->toBe([$this->instagram->id])
+        ->and(data_get($query, 'range'))->toBe('7d');
+
+    $page->keys('@insights-export-csv', 'Escape')
+        ->assertPresent('@insights-sync-status')
+        ->assertPresent('@insights-posts-about')
+        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostReactions->id}\"]').getAttribute('href')", route('app.posts.index', ['post' => $post->id]))
+        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostViews->id}\"]').getAttribute('target')", '_blank')
+        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostViews->id}\"]').getAttribute('href')", 'https://www.instagram.com/p/most-views/')
         ->assertNoJavaScriptErrors();
 });

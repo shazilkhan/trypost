@@ -27,7 +27,10 @@ const testKey = computed(
 );
 
 const newPost = (): void => {
-    openPostComposer({ socialAccountIds: [props.postingSlot.channel_id] });
+    openPostComposer({
+        socialAccountIds: [props.postingSlot.channel_id],
+        queueSlot: props.postingSlot.at,
+    });
 };
 </script>
 

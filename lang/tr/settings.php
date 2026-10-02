@@ -47,12 +47,11 @@ return [
         'post_note_added_description' => 'Bir ekip üyesi bir gönderiye not eklediğinde e-posta al',
         'collaboration' => 'İş birliği',
         'collaboration_description' => 'Onay istekleri ile onaylanan veya reddedilen gönderiler hakkında e-posta alın',
-        'save' => 'Tercihleri kaydet',
+        'save_failed' => 'Bildirim tercihleri kaydedilemedi. Lütfen tekrar dene.',
     ],
 
     'preferences' => [
         'title' => 'Tercihler',
-        'saved' => 'Tercihler kaydedildi',
         'theme' => [
             'heading' => 'Görünüm',
             'description' => 'TryPost\'un nasıl görüneceğini seçin.',
@@ -68,7 +67,7 @@ return [
         ],
         'timezone' => [
             'heading' => 'Saat dilimi',
-            'description' => 'Bağladığın kanallar için varsayılan saat dilimi olarak kullanılır.',
+            'description' => 'Saatleri göstermek, Insights ve e-postalar için kullanılır; yeni kanallar için de varsayılandır.',
         ],
         'time_format' => [
             'heading' => 'Saat biçimi',
@@ -293,7 +292,6 @@ return [
         'delete_failed_billing' => 'Aboneliğinizi faturalama sağlayıcısında iptal edemedik. Hiçbir şey silinmedi. Lütfen tekrar deneyin veya destek ile iletişime geçin.',
         'logo_updated' => 'Logo başarıyla yüklendi!',
         'logo_deleted' => 'Logo başarıyla kaldırıldı!',
-        'notifications_updated' => 'Bildirim tercihleri güncellendi!',
     ],
 
     'api_keys' => [

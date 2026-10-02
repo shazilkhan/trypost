@@ -48,7 +48,7 @@ return [
         'title' => 'Posty mogą się nie opublikować',
         'heading' => 'Posty mogą się nie opublikować',
         'intro' => 'Poniższe konta w przestrzeni roboczej :workspace wymagają ponownego połączenia, zanim te zaplanowane posty będą mogły zostać opublikowane:',
-        'posts_label' => ':count zaplanowany post: :times UTC|:count zaplanowane posty: :times UTC|:count zaplanowanych postów: :times UTC',
+        'posts_label' => ':count zaplanowany post: :times (:timezone)|:count zaplanowane posty: :times (:timezone)|:count zaplanowanych postów: :times (:timezone)',
         'reconnect_cta' => 'Połącz te konta ponownie już teraz, aby nie przegapić zaplanowanych postów.',
         'button' => 'Połącz konta ponownie',
     ],

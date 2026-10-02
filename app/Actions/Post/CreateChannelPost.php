@@ -47,7 +47,7 @@ class CreateChannelPost
             'media' => [],
             'status' => $status,
             'schedule_mode' => match (true) {
-                $position instanceof QueuePosition => ScheduleMode::Queue,
+                $position instanceof QueuePosition, (bool) data_get($destination, 'queue_slot') => ScheduleMode::Queue,
                 $status === PostStatus::Scheduled => ScheduleMode::Custom,
                 $pending && filled(data_get($destination, 'scheduled_at')) => ScheduleMode::Custom,
                 default => null,

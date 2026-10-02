@@ -43,16 +43,6 @@ return [
     'date_range_picker' => [
         'placeholder' => '期間を選択',
         'today' => '今日',
-        'yesterday' => '昨日',
-        'last_7_days' => '過去 7 日間',
-        'last_30_days' => '過去 30 日間',
-        'last_3_months' => '過去 3 か月',
-        'last_6_months' => '過去 6 か月',
-        'last_12_months' => '過去 12 か月',
-        'this_month' => '今月',
-        'last_month' => '先月',
-        'year_to_date' => '今年（年初から）',
-        'last_year' => '昨年',
     ],
 
     'cancel' => 'キャンセル',

@@ -3,7 +3,6 @@
 return [
     'title' => 'Insights',
     'detail' => [
-        'page_title' => 'Insights · :platform',
         'content_types' => [
             'text' => 'Tekst',
             'image' => 'Afbeelding',
@@ -15,12 +14,6 @@ return [
             'link' => 'Link',
             'poll' => 'Peiling',
             'unknown' => 'Onbekend',
-        ],
-        'time_basis' => [
-            'lifetime' => 'Sinds publicatie',
-            'range' => 'Geselecteerde periode',
-            'rolling_90_days' => 'Laatste 90 dagen',
-            'snapshot' => 'Momentopname',
         ],
         'labels' => [
             'watch_time_milliseconds' => 'Kijktijd',
@@ -54,17 +47,8 @@ return [
             'story_exits' => 'Verhaalverlatingen',
             'unique_viewers' => 'Unieke kijkers',
         ],
-        'engagement' => 'Betrokkenheid',
-        'exposure' => 'Bereik',
-        'video' => 'Video en kijkersbehoud',
-        'last_collected' => 'Laatst verzameld',
-        'stale' => 'Mogelijk verouderd',
         'awaiting_metrics' => 'Er zijn nog geen statistieken verzameld.',
-        'estimated' => 'Geschat',
-        'back_to_insights' => 'Terug naar Insights',
         'details' => 'Details',
-        'published_via_trypost' => 'Gepubliceerd via TryPost',
-        'published_on' => 'Gepubliceerd op :platform',
     ],
     'dashboard' => [
         'summary' => 'Overzicht',
@@ -77,7 +61,6 @@ return [
         'performance' => 'Prestaties',
         'top_posts' => 'Top 5 berichten',
         'channel' => 'Kanaal',
-        'workspace_description' => 'Al je gekoppelde kanalen samen, met elk account afzonderlijk weergegeven.',
         'latest_snapshot_hint' => 'Voor berichten in deze periode wordt de laatst opgeslagen meting gebruikt.',
         'followers_chart_mode' => 'Weergave van de volgersgrafiek',
         'posts_chart_mode' => 'Weergave van de berichtengrafiek',
@@ -189,6 +172,18 @@ return [
                 'label' => 'Gem. kijktijd (sec)',
                 'about' => 'Gemiddeld aantal bekeken seconden per weergave.',
             ],
+            'reposts' => [
+                'label' => 'Reposts',
+                'about' => 'Reposts van berichten uit deze periode.',
+            ],
+            'impressions' => [
+                'label' => 'Weergaven in feed',
+                'about' => 'Hoe vaak berichten uit deze periode werden getoond.',
+            ],
+            'clicks' => [
+                'label' => 'Klikken',
+                'about' => 'Klikken op berichten uit deze periode.',
+            ],
         ],
     ],
 
@@ -248,5 +243,44 @@ return [
         'bookings' => 'Reserveringen',
         'food_orders' => 'Maaltijdbestellingen',
         'food_menu_clicks' => 'Menuklikken',
+    ],
+
+    'insights' => [
+        'export' => [
+            'button' => 'Exporteren',
+            'csv' => 'CSV',
+            'markdown' => 'Markdown',
+            'range' => 'Periode',
+            'compared_to' => 'Vergeleken met',
+            'generated_at' => 'Gemaakt op',
+            'metric' => 'Statistiek',
+            'value' => 'Waarde',
+            'previous' => 'Vorige periode',
+            'change' => 'Verandering',
+            'published_at' => 'Gepubliceerd op',
+            'network' => 'Netwerk',
+            'content_type' => 'Type',
+            'text' => 'Tekst',
+            'link' => 'Link',
+        ],
+        'sync' => [
+            'button' => 'Synchronisatiestatus',
+            'title' => 'Zo blijven Insights actueel',
+            'new_posts' => 'Nieuwe berichten worden :interval per kanaal opgehaald, en :x_interval op X.',
+            'every_hours' => '{1} elk uur|[2,*] elke :count uur',
+            'metrics' => 'Statistieken worden dagelijks vernieuwd voor berichten van de afgelopen :days dagen (:x_days op X).',
+            'followers' => 'Het aantal volgers wordt eenmaal per dag opgeslagen.',
+            'last_sync' => 'Laatst gesynchroniseerd :time',
+            'never' => 'Nog niet gesynchroniseerd',
+        ],
+        'about' => [
+            'top_posts' => 'Je vijf berichten uit deze periode met de meeste reacties of opmerkingen.',
+            'performance' => 'Totalen per kanaal voor berichten uit deze periode, vergeleken met de vorige periode.',
+            'followers' => 'Volgers per kanaal aan het eind van de periode en hoe het aantal veranderde.',
+            'posts' => 'Hoeveel berichten elk kanaal in deze periode publiceerde.',
+            'channel_posts' => 'Alle berichten van dit kanaal in deze periode, gesorteerd op de gekozen kolom.',
+        ],
+        'columns' => 'Kolommen',
+        'channels_shown' => ':range · :shown van :total kanalen getoond. Filter op kanaal om andere te zien.',
     ],
 ];

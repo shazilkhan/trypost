@@ -14,6 +14,7 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceLabel;
 use App\Support\PostingSchedule;
 
 function waitForPublishPageTestId(mixed $page, string $testId): void
@@ -367,5 +368,27 @@ test('the queue tab shows the empty state when there are no posts and no posting
 
     $page->assertSeeIn('@empty-state', __('posts.publish.empty.queue.title'))
         ->assertVisible('@publish-empty-new-post-queue')
+        ->assertNoJavaScriptErrors();
+});
+
+test('an active label filter shows its count in the primary color', function () {
+    [$user, $workspace] = publishPageSetup();
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => 'drafts', 'labels' => [$label->id]]));
+    waitForPublishPageTestId($page, 'posts-label-count');
+
+    $page->assertSeeIn('@posts-label-count', '1')
+        ->assertScript(<<<'JS'
+            (() => {
+                const probe = document.createElement('span');
+                probe.className = 'bg-primary';
+                document.body.appendChild(probe);
+                const primary = getComputedStyle(probe).backgroundColor;
+                probe.remove();
+                return getComputedStyle(document.querySelector('[data-testid="posts-label-count"]')).backgroundColor === primary;
+            })()
+        JS, true)
         ->assertNoJavaScriptErrors();
 });

@@ -45,7 +45,7 @@ dataset('email notifications', fn (): array => [
         $workspace,
         collect([SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id])]),
     ), 'account_disconnected'],
-    'post at risk' => [Type::PostAtRisk, fn (User $user, Workspace $workspace): Mailable => new PostAtRisk($workspace, [], 1), 'account_disconnected'],
+    'post at risk' => [Type::PostAtRisk, fn (User $user, Workspace $workspace): Mailable => new PostAtRisk($workspace, [], 1, $user), 'account_disconnected'],
     'post note added' => [Type::PostNoteAdded, fn (User $user, Workspace $workspace): Mailable => new PostNoteAdded(
         PostNote::factory()->create([
             'post_id' => Post::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id])->id,

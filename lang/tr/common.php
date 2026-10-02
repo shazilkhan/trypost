@@ -43,16 +43,6 @@ return [
     'date_range_picker' => [
         'placeholder' => 'Bir tarih aralığı seçin',
         'today' => 'Bugün',
-        'yesterday' => 'Dün',
-        'last_7_days' => 'Son 7 gün',
-        'last_30_days' => 'Son 30 gün',
-        'last_3_months' => 'Son 3 ay',
-        'last_6_months' => 'Son 6 ay',
-        'last_12_months' => 'Son 12 ay',
-        'this_month' => 'Bu ay',
-        'last_month' => 'Geçen ay',
-        'year_to_date' => 'Yıl başından bugüne',
-        'last_year' => 'Geçen yıl',
     ],
 
     'cancel' => 'İptal',

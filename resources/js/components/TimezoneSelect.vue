@@ -22,6 +22,9 @@ const search = ref('');
 const open = ref(false);
 const id = computed(() => props.testid ?? 'timezone');
 
+const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const suggestion = computed(() => (props.suggested === undefined ? detectedTimezone : props.suggested));
+
 const selected = computed(() => props.options.find((option) => option.value === model.value));
 
 const sections = computed(() => {
@@ -29,7 +32,7 @@ const sections = computed(() => {
     const matches = (option: TimezoneOption): boolean =>
         term === '' || `${option.label} ${option.value} ${option.offset}`.toLowerCase().includes(term);
 
-    const suggestedOption = props.suggested ? props.options.find((option) => option.value === props.suggested) : undefined;
+    const suggestedOption = suggestion.value ? props.options.find((option) => option.value === suggestion.value) : undefined;
     const fallbackGroups = suggestedOption
         ? [
               { labelKey: 'channels.timezone_select.suggestions', options: [suggestedOption] },
@@ -118,7 +121,7 @@ const choose = (value: string): void => {
                             <span class="text-xs text-muted-foreground">({{ option.offset }})</span>
                         </span>
                         <IconMapPin
-                            v-if="section.labelKey === 'channels.timezone_select.suggestions' && option.value === suggested"
+                            v-if="section.labelKey === 'channels.timezone_select.suggestions' && option.value === suggestion"
                             class="ms-auto size-4 shrink-0 text-muted-foreground"
                             :aria-label="$t('channels.timezone_select.detected')"
                             :data-testid="`${id}-detected`"

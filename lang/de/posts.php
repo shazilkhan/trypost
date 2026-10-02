@@ -873,7 +873,6 @@ return [
                 'description' => 'Beiträge, die du veröffentlichst, erscheinen hier.',
             ],
         ],
-        'reordered' => 'Warteschlange aktualisiert',
     ],
     'group' => [
         'channels' => 'Kanäle (:count)',

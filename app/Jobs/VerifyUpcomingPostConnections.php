@@ -344,7 +344,7 @@ class VerifyUpcomingPostConnections implements ShouldBeUnique, ShouldQueue
         SendNotification::dispatch(
             user: $owner,
             type: Type::PostAtRisk,
-            mailable: new PostAtRisk($workspace, $postPlatformIds, $postCount),
+            mailable: new PostAtRisk($workspace, $postPlatformIds, $postCount, $owner),
         );
     }
 }

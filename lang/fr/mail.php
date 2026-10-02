@@ -48,7 +48,7 @@ return [
         'title' => 'Vos publications risquent d’échouer',
         'heading' => 'Vos publications risquent d’échouer',
         'intro' => 'Les comptes suivants de l’espace de travail :workspace doivent être reconnectés avant que ces publications planifiées puissent partir :',
-        'posts_label' => '{1} :count publication planifiée : :times UTC|[0,*] :count publications planifiées : :times UTC',
+        'posts_label' => '{1} :count publication planifiée : :times (:timezone)|[0,*] :count publications planifiées : :times (:timezone)',
         'reconnect_cta' => 'Reconnectez ces comptes dès maintenant pour ne pas manquer vos publications planifiées.',
         'button' => 'Reconnecter les comptes',
     ],
