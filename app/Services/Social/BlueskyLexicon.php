@@ -33,6 +33,8 @@ final class BlueskyLexicon
 
     public const GET_POSTS = 'app.bsky.feed.getPosts';
 
+    public const GET_POST_THREAD = 'app.bsky.feed.getPostThread';
+
     public const GET_PROFILE = 'app.bsky.actor.getProfile';
 
     public const EMBED_IMAGES = 'app.bsky.embed.images';

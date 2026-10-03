@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Verbinde das überwachte Konto erneut, bevor du diese Automatisierung startest.',
         'destinations_required' => 'Wähle vor dem Aktivieren mindestens ein Ziel.',
         'destination_needs_video' => 'Dieses Format kann kein Video tragen.',
+        'destination_not_supported' => 'Google Business kann kein Ziel sein: Die Beiträge unterstützen kein Video.',
         'only_paused_resumes' => 'Nur ein pausiertes Repurpose kann fortgesetzt werden.',
         'only_active_pauses' => 'Nur ein aktives Repurpose kann pausiert werden.',
         'only_running_disables' => 'Nur ein laufendes Repurpose kann deaktiviert werden.',

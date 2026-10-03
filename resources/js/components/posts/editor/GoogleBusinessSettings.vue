@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import DatePicker from '@/components/DatePicker.vue';
 import InputError from '@/components/InputError.vue';
 import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
 import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
     Select,
     SelectContent,
@@ -14,24 +13,20 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { usePageErrors } from '@/composables/usePageErrors';
 import {
     GOOGLE_BUSINESS_CTA_OPTIONS,
-    GOOGLE_BUSINESS_EVENT_TOPIC_TYPES,
-    GOOGLE_BUSINESS_TOPIC_TYPES,
     GoogleBusinessCtaAction,
     GoogleBusinessTopicType,
     googleBusinessAllowsCallToAction,
-    googleBusinessEventDateTimeParts,
-    googleBusinessEventDateTimeValue,
     resolveGoogleBusinessCtaAction,
     resolveGoogleBusinessTopicType,
     type GoogleBusinessCtaActionValue,
-    type GoogleBusinessTopicTypeValue,
 } from '@/lib/googleBusiness';
 
 interface Props {
-    /** This panel's position in the submitted `platforms` array — see findError. */
+    /** This panel's position in the submitted `destinations` (composer) or `platforms` array — see findError. */
     platformIndex: number;
     meta: Record<string, any>;
     disabled?: boolean;
@@ -53,22 +48,57 @@ const updateEvent = (patch: Record<string, any>) => {
     updateMeta({ event: { ...props.meta?.event, ...patch } });
 };
 
-const topicType = computed<GoogleBusinessTopicTypeValue>({
-    get: () => resolveGoogleBusinessTopicType(props.meta?.topic_type),
-    set: (value: GoogleBusinessTopicTypeValue) => {
-        if (value === GoogleBusinessTopicType.Standard) {
-            updateMeta({ topic_type: value, event: null, offer: null });
-            return;
-        }
+const topicType = computed(() =>
+    resolveGoogleBusinessTopicType(props.meta?.topic_type),
+);
+const isOffer = computed(
+    () => topicType.value === GoogleBusinessTopicType.Offer,
+);
+const isEvent = computed(
+    () => topicType.value === GoogleBusinessTopicType.Event,
+);
 
-        if (value === GoogleBusinessTopicType.Event) {
-            updateMeta({ topic_type: value, offer: null });
-            return;
-        }
-
-        updateMeta({ topic_type: value, call_to_action: null });
-    },
+const addTime = ref(
+    Boolean(props.meta?.event?.start_time || props.meta?.event?.end_time),
+);
+watch(isEvent, (event) => {
+    if (event) {
+        addTime.value = Boolean(
+            props.meta?.event?.start_time || props.meta?.event?.end_time,
+        );
+    }
 });
+const setAddTime = (value: boolean): void => {
+    addTime.value = value;
+    if (!value) {
+        updateEvent({ start_time: null, end_time: null });
+    }
+};
+
+const hasOfferDetails = (): boolean =>
+    Boolean(
+        props.meta?.offer?.coupon_code ||
+            props.meta?.offer?.redeem_online_url ||
+            props.meta?.offer?.terms_conditions,
+    );
+const addMoreDetails = ref(hasOfferDetails());
+watch(isOffer, (offer) => {
+    if (offer) {
+        addMoreDetails.value = hasOfferDetails();
+    }
+});
+const setAddMoreDetails = (value: boolean): void => {
+    addMoreDetails.value = value;
+    if (!value) {
+        updateMeta({
+            offer: {
+                coupon_code: null,
+                redeem_online_url: null,
+                terms_conditions: null,
+            },
+        });
+    }
+};
 
 const ctaActionType = computed<GoogleBusinessCtaActionValue>({
     get: () =>
@@ -100,10 +130,6 @@ const showCtaUrl = computed(
         ctaActionType.value !== GoogleBusinessCtaAction.Call,
 );
 
-const showEventFields = computed(() =>
-    GOOGLE_BUSINESS_EVENT_TOPIC_TYPES.includes(topicType.value),
-);
-
 const ctaUrl = computed<string>({
     get: () => props.meta?.call_to_action?.url || '',
     set: (value: string) =>
@@ -121,24 +147,19 @@ const eventTitle = computed<string>({
         updateEvent({ title: value.trim() === '' ? null : value }),
 });
 
-const eventDateTime = (
-    dateKey: 'start_date' | 'end_date',
-    timeKey: 'start_time' | 'end_time',
+const eventField = (
+    key: 'start_date' | 'end_date' | 'start_time' | 'end_time',
 ) =>
     computed({
-        get: (): string =>
-            googleBusinessEventDateTimeValue(
-                props.meta?.event?.[dateKey],
-                props.meta?.event?.[timeKey],
-            ),
-        set: (value: string | null) => {
-            const parts = googleBusinessEventDateTimeParts(value);
-            updateEvent({ [dateKey]: parts.date, [timeKey]: parts.time });
-        },
+        get: (): string => props.meta?.event?.[key] || '',
+        set: (value: string | null) =>
+            updateEvent({ [key]: value?.trim() ? value : null }),
     });
 
-const eventStart = eventDateTime('start_date', 'start_time');
-const eventEnd = eventDateTime('end_date', 'end_time');
+const eventStartDate = eventField('start_date');
+const eventEndDate = eventField('end_date');
+const eventStartTime = eventField('start_time');
+const eventEndTime = eventField('end_time');
 
 const eventTitleLabelKey = computed(() =>
     topicType.value === GoogleBusinessTopicType.Offer
@@ -170,13 +191,16 @@ const offerCouponCode = offerField('coupon_code');
 const offerRedeemUrl = offerField('redeem_online_url');
 const offerTerms = offerField('terms_conditions');
 
-// Backend validation errors are keyed `platforms.{index}.meta.*`. Matching the
-// full key keeps a location's error off the other locations' panels when a post
-// targets more than one Google Business Profile.
+// The composer's errors are keyed `destinations.{index}.meta.*` and other
+// forms' `platforms.{index}.meta.*`. Matching the full key keeps a
+// location's error off the other locations' panels when a post targets more
+// than one Google Business Profile.
 const errors = usePageErrors();
 const findError = (field: string) =>
     computed<string | undefined>(
-        () => errors.value[`platforms.${props.platformIndex}.meta.${field}`],
+        () =>
+            errors.value[`destinations.${props.platformIndex}.meta.${field}`] ??
+            errors.value[`platforms.${props.platformIndex}.meta.${field}`],
     );
 const eventTitleError = findError('event.title');
 const eventStartDateError = findError('event.start_date');
@@ -192,29 +216,7 @@ const ctaUrlError = findError('call_to_action.url');
 
 <template>
     <SettingsSection>
-        <SettingsRow :label="$t('posts.form.google_business.topic_type_label')">
-            <RadioGroup
-                v-model="topicType"
-                :disabled="disabled"
-                orientation="horizontal"
-                :aria-label="$t('posts.form.google_business.topic_type_label')"
-                class="flex min-h-8 flex-wrap items-center gap-x-5 gap-y-2"
-            >
-                <label
-                    v-for="type in GOOGLE_BUSINESS_TOPIC_TYPES"
-                    :key="type.value"
-                    class="flex cursor-pointer items-center gap-2 text-sm"
-                >
-                    <RadioGroupItem
-                        :value="type.value"
-                        :data-testid="`google-business-topic-${type.value}`"
-                    />
-                    {{ $t(type.labelKey) }}
-                </label>
-            </RadioGroup>
-        </SettingsRow>
-
-        <template v-if="showEventFields">
+        <template v-if="isOffer || isEvent">
             <SettingsRow
                 :label="$t(eventTitleLabelKey)"
                 :label-for="`google-business-event-title-${platformIndex}`"
@@ -223,6 +225,7 @@ const ctaUrlError = findError('call_to_action.url');
                 <Input
                     :id="`google-business-event-title-${platformIndex}`"
                     v-model="eventTitle"
+                    data-testid="google-business-title"
                     type="text"
                     :placeholder="$t(eventTitlePlaceholderKey)"
                     :disabled="disabled"
@@ -230,24 +233,63 @@ const ctaUrlError = findError('call_to_action.url');
                 />
                 <InputError :message="eventTitleError" />
             </SettingsRow>
+            <SettingsRow v-if="isEvent">
+                <label
+                    class="flex min-h-8 items-center justify-end gap-2 text-sm"
+                >
+                    <Switch
+                        size="sm"
+                        :model-value="addTime"
+                        data-testid="google-business-add-time"
+                        :disabled="disabled"
+                        @update:model-value="setAddTime(Boolean($event))"
+                    />
+                    <span data-single-line>{{
+                        $t('posts.form.google_business.add_time')
+                    }}</span>
+                </label>
+            </SettingsRow>
             <SettingsRow
                 :label="$t('posts.form.google_business.event_start_date')"
                 align-top
             >
-                <DatePicker
-                    v-model="eventStart"
-                    align="start"
-                    :show-time="true"
-                    :disabled="disabled"
-                    :placeholder="
-                        $t('posts.form.google_business.event_start_date')
-                    "
-                    :class="
-                        eventStartDateError || eventStartTimeError
-                            ? 'border-destructive'
-                            : undefined
-                    "
-                />
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="w-40" data-testid="google-business-start">
+                        <DatePicker
+                            v-model="eventStartDate"
+                            align="start"
+                            :show-time="false"
+                            :disabled="disabled"
+                            :placeholder="
+                                $t('posts.form.google_business.event_start_date')
+                            "
+                            :class="
+                                eventStartDateError
+                                    ? 'border-destructive'
+                                    : undefined
+                            "
+                        />
+                    </div>
+                    <template v-if="isEvent && addTime">
+                        <label
+                            :for="`google-business-start-time-${platformIndex}`"
+                            class="text-[13px] font-medium text-foreground"
+                            data-single-line
+                            >{{
+                                $t('posts.form.google_business.event_start_time')
+                            }}</label
+                        >
+                        <Input
+                            :id="`google-business-start-time-${platformIndex}`"
+                            v-model="eventStartTime"
+                            data-testid="google-business-start-time"
+                            type="time"
+                            class="w-32"
+                            :disabled="disabled"
+                            :aria-invalid="eventStartTimeError ? true : undefined"
+                        />
+                    </template>
+                </div>
                 <InputError
                     :message="eventStartDateError || eventStartTimeError"
                 />
@@ -256,22 +298,46 @@ const ctaUrlError = findError('call_to_action.url');
                 :label="$t('posts.form.google_business.event_end_date')"
                 align-top
             >
-                <DatePicker
-                    v-model="eventEnd"
-                    align="start"
-                    :show-time="true"
-                    :disabled="disabled"
-                    :placeholder="
-                        $t('posts.form.google_business.event_end_date')
-                    "
-                    :class="
-                        eventEndDateError || eventEndTimeError
-                            ? 'border-destructive'
-                            : undefined
-                    "
-                />
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="w-40" data-testid="google-business-end">
+                        <DatePicker
+                            v-model="eventEndDate"
+                            align="start"
+                            :show-time="false"
+                            :disabled="disabled"
+                            :placeholder="
+                                $t('posts.form.google_business.event_end_date')
+                            "
+                            :class="
+                                eventEndDateError
+                                    ? 'border-destructive'
+                                    : undefined
+                            "
+                        />
+                    </div>
+                    <template v-if="isEvent && addTime">
+                        <label
+                            :for="`google-business-end-time-${platformIndex}`"
+                            class="text-[13px] font-medium text-foreground"
+                            data-single-line
+                            >{{
+                                $t('posts.form.google_business.event_end_time')
+                            }}</label
+                        >
+                        <Input
+                            :id="`google-business-end-time-${platformIndex}`"
+                            v-model="eventEndTime"
+                            data-testid="google-business-end-time"
+                            type="time"
+                            class="w-32"
+                            :disabled="disabled"
+                            :aria-invalid="eventEndTimeError ? true : undefined"
+                        />
+                    </template>
+                </div>
                 <InputError :message="eventEndDateError || eventEndTimeError" />
                 <p
+                    v-if="isEvent && addTime"
                     class="text-xs text-muted-foreground"
                     data-testid="google-business-event-timezone-hint"
                 >
@@ -282,51 +348,81 @@ const ctaUrlError = findError('call_to_action.url');
                     }}
                 </p>
             </SettingsRow>
-        </template>
-
-        <template v-if="topicType === GoogleBusinessTopicType.Offer">
-            <SettingsRow
-                :label="$t('posts.form.google_business.offer_coupon_code')"
-                :label-for="`google-business-coupon-${platformIndex}`"
-                align-top
-            >
-                <Input
-                    :id="`google-business-coupon-${platformIndex}`"
-                    v-model="offerCouponCode"
-                    type="text"
-                    :disabled="disabled"
-                    :aria-invalid="offerCouponCodeError ? true : undefined"
-                />
-                <InputError :message="offerCouponCodeError" />
-            </SettingsRow>
-            <SettingsRow
-                :label="$t('posts.form.google_business.offer_redeem_url')"
-                :label-for="`google-business-redeem-${platformIndex}`"
-                align-top
-            >
-                <Input
-                    :id="`google-business-redeem-${platformIndex}`"
-                    v-model="offerRedeemUrl"
-                    type="text"
-                    :disabled="disabled"
-                    :aria-invalid="offerRedeemUrlError ? true : undefined"
-                />
-                <InputError :message="offerRedeemUrlError" />
-            </SettingsRow>
-            <SettingsRow
-                :label="$t('posts.form.google_business.offer_terms')"
-                :label-for="`google-business-terms-${platformIndex}`"
-                align-top
-            >
-                <Input
-                    :id="`google-business-terms-${platformIndex}`"
-                    v-model="offerTerms"
-                    type="text"
-                    :disabled="disabled"
-                    :aria-invalid="offerTermsError ? true : undefined"
-                />
-                <InputError :message="offerTermsError" />
-            </SettingsRow>
+            <template v-if="isOffer">
+                <SettingsRow>
+                    <label
+                        class="flex min-h-8 items-center justify-end gap-2 text-sm"
+                    >
+                        <Switch
+                            size="sm"
+                            :model-value="addMoreDetails"
+                            data-testid="google-business-add-details"
+                            :disabled="disabled"
+                            @update:model-value="
+                                setAddMoreDetails(Boolean($event))
+                            "
+                        />
+                        <span data-single-line>{{
+                            $t('posts.form.google_business.add_more_details')
+                        }}</span>
+                    </label>
+                </SettingsRow>
+                <template v-if="addMoreDetails">
+                    <SettingsRow
+                        :label="
+                            $t('posts.form.google_business.offer_coupon_code')
+                        "
+                        :label-for="`google-business-coupon-${platformIndex}`"
+                        align-top
+                    >
+                        <Input
+                            :id="`google-business-coupon-${platformIndex}`"
+                            v-model="offerCouponCode"
+                            data-testid="google-business-coupon"
+                            type="text"
+                            :disabled="disabled"
+                            :aria-invalid="
+                                offerCouponCodeError ? true : undefined
+                            "
+                        />
+                        <InputError :message="offerCouponCodeError" />
+                    </SettingsRow>
+                    <SettingsRow
+                        :label="
+                            $t('posts.form.google_business.offer_redeem_url')
+                        "
+                        :label-for="`google-business-redeem-${platformIndex}`"
+                        align-top
+                    >
+                        <Input
+                            :id="`google-business-redeem-${platformIndex}`"
+                            v-model="offerRedeemUrl"
+                            data-testid="google-business-redeem"
+                            type="text"
+                            :disabled="disabled"
+                            :aria-invalid="
+                                offerRedeemUrlError ? true : undefined
+                            "
+                        />
+                        <InputError :message="offerRedeemUrlError" />
+                    </SettingsRow>
+                    <SettingsRow
+                        :label="$t('posts.form.google_business.offer_terms')"
+                        :label-for="`google-business-terms-${platformIndex}`"
+                        align-top
+                    >
+                        <Input
+                            :id="`google-business-terms-${platformIndex}`"
+                            v-model="offerTerms"
+                            data-testid="google-business-terms"
+                            type="text"
+                            :disabled="disabled"
+                            :aria-invalid="offerTermsError ? true : undefined"
+                        />
+                        <InputError :message="offerTermsError" />
+                    </SettingsRow>
+                </template>
+            </template>
         </template>
 
         <SettingsRow
@@ -339,6 +435,7 @@ const ctaUrlError = findError('call_to_action.url');
                 <SelectTrigger
                     :id="`google-business-cta-${platformIndex}`"
                     class="w-full"
+                    data-testid="google-business-cta"
                     :aria-invalid="ctaActionTypeError ? true : undefined"
                 >
                     <SelectValue>{{ $t(ctaLabelKey) }}</SelectValue>
@@ -348,6 +445,7 @@ const ctaUrlError = findError('call_to_action.url');
                         v-for="option in GOOGLE_BUSINESS_CTA_OPTIONS"
                         :key="option.value"
                         :value="option.value"
+                        :data-testid="`google-business-cta-option-${option.value}`"
                     >
                         {{ $t(option.labelKey) }}
                     </SelectItem>
@@ -365,6 +463,7 @@ const ctaUrlError = findError('call_to_action.url');
             <Input
                 :id="`google-business-cta-url-${platformIndex}`"
                 v-model="ctaUrl"
+                data-testid="google-business-cta-url"
                 type="text"
                 :placeholder="
                     $t('posts.form.google_business.cta_url_placeholder')

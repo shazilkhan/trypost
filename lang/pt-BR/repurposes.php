@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Reconecte a conta que esta automação monitora antes de iniciá-la.',
         'destinations_required' => 'Escolha ao menos um destino antes de ativar.',
         'destination_needs_video' => 'Esse formato não aceita vídeo.',
+        'destination_not_supported' => 'O Google Meu Negócio não pode ser destino: as postagens dele não aceitam vídeo.',
         'only_paused_resumes' => 'Só um repost pausado pode ser retomado.',
         'only_active_pauses' => 'Só um repost ativo pode ser pausado.',
         'only_running_disables' => 'Só um repost em execução pode ser desativado.',

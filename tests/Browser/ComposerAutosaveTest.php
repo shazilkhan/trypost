@@ -439,3 +439,157 @@ test('a restored custom time keeps its moment in the channel zone', function () 
         ->toBe($local->utc()->toIso8601String());
     $page->assertNoJavaScriptErrors();
 });
+
+test('an unfinished post from the old shared editor restores one card per network with its own text', function () {
+    [$user, $workspace, $linkedin] = composerAutosaveWorkspace();
+    $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    $key = composerAutosaveKeyFor($user, $workspace);
+    seedComposerAutosave($page, $key, [
+        'content' => 'Shared text',
+        'accountIds' => [$linkedin->id, $x->id],
+        'overrides' => [$x->id => ['content' => 'X text']],
+    ]);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, "composer-caption-{$linkedin->id}");
+
+    waitForComposerAutosaveCondition($page, "JSON.parse(localStorage.getItem('{$key}') ?? 'null')?.overrides?.['{$linkedin->id}']?.content !== undefined");
+    expect($page->script("JSON.parse(localStorage.getItem('{$key}')).overrides"))->toEqual([
+        $linkedin->id => ['content' => 'Shared text', 'media' => []],
+        $x->id => ['content' => 'X text', 'media' => []],
+    ]);
+    $page->assertValue("@composer-caption-{$linkedin->id}", 'Shared text')
+        ->assertSeeIn("@composer-expand-{$x->id}", 'X text')
+        ->assertMissing('@composer-base-content')
+        ->assertNoJavaScriptErrors();
+});
+
+test('an unfinished post with two networks and no per-network text resumes on the shared step', function () {
+    [$user, $workspace, $linkedin] = composerAutosaveWorkspace();
+    $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    $key = composerAutosaveKeyFor($user, $workspace);
+    seedComposerAutosave($page, $key, [
+        'content' => 'Still shared',
+        'accountIds' => [$linkedin->id, $x->id],
+    ]);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, 'composer-next');
+
+    $page->assertValue('@composer-base-content', 'Still shared')
+        ->assertMissing('@composer-customization')
+        ->assertMissing('@composer-back')
+        ->assertNoJavaScriptErrors();
+});
+
+/**
+ * @return array<string, string|null>
+ */
+function composerAutosaveSavedContents(Workspace $workspace): array
+{
+    return Post::query()->where('workspace_id', $workspace->id)->with('postPlatforms')->get()
+        ->mapWithKeys(fn (Post $post): array => [$post->postPlatforms->sole()->social_account_id => $post->content])
+        ->all();
+}
+
+test('two pages of one network that disagree in an unfinished post restore the first page text', function () {
+    [$user, $workspace] = composerAutosaveWorkspace();
+    [$first, $second] = SocialAccount::factory()->facebook()->count(2)->create(['workspace_id' => $workspace->id])->all();
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    $key = composerAutosaveKeyFor($user, $workspace);
+    seedComposerAutosave($page, $key, [
+        'content' => 'Shared text',
+        'accountIds' => [$first->id, $second->id],
+        'overrides' => [
+            $first->id => ['content' => 'First page text'],
+            $second->id => ['content' => 'Second page text'],
+        ],
+    ]);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, "composer-caption-{$first->id}");
+
+    waitForComposerAutosaveCondition($page, "JSON.parse(localStorage.getItem('{$key}') ?? 'null')?.content === 'First page text'");
+    expect($page->script("JSON.parse(localStorage.getItem('{$key}')).overrides"))->toEqual([
+        $first->id => [],
+        $second->id => [],
+    ]);
+    $page->assertValue("@composer-caption-{$first->id}", 'First page text')
+        ->assertMissing("@composer-caption-{$second->id}")
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft');
+    waitForComposerAutosaveCondition($page, '!document.querySelector(\'[data-testid="post-composer-dialog"]\')');
+
+    expect(composerAutosaveSavedContents($workspace))->toEqual([
+        $first->id => 'First page text',
+        $second->id => 'First page text',
+    ]);
+});
+
+test('two pages of one network restore the text of the page that owns one', function () {
+    [$user, $workspace] = composerAutosaveWorkspace();
+    [$first, $second] = SocialAccount::factory()->facebook()->count(2)->create(['workspace_id' => $workspace->id])->all();
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    $key = composerAutosaveKeyFor($user, $workspace);
+    seedComposerAutosave($page, $key, [
+        'content' => 'Shared text',
+        'accountIds' => [$first->id, $second->id],
+        'overrides' => [$second->id => ['content' => 'Second page text']],
+    ]);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, "composer-caption-{$first->id}");
+
+    $page->assertValue("@composer-caption-{$first->id}", 'Second page text')
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft');
+    waitForComposerAutosaveCondition($page, '!document.querySelector(\'[data-testid="post-composer-dialog"]\')');
+
+    expect(composerAutosaveSavedContents($workspace))->toEqual([
+        $first->id => 'Second page text',
+        $second->id => 'Second page text',
+    ]);
+});
+
+test('resuming an unfinished post keeps its thread replies', function () {
+    [$user, $workspace] = composerAutosaveWorkspace();
+    $bluesky = SocialAccount::factory()->bluesky()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    openComposerForAutosave($page);
+    writeUnfinishedPost($page, $bluesky, 'Thread root');
+    $page->click('@thread-start');
+    waitForComposerAutosaveTestId($page, 'thread-reply-0');
+    $page->fill('@thread-reply-0', 'Kept reply');
+    $key = composerAutosaveKeyFor($user, $workspace);
+    waitForComposerAutosaveCondition($page, "JSON.parse(localStorage.getItem('{$key}') ?? 'null')?.overrides?.['{$bluesky->id}']?.meta?.thread_replies?.[0] === 'Kept reply'");
+    closeComposerForAutosave($page);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, 'thread-reply-collapsed-0');
+
+    $page->assertSeeIn('@thread-reply-collapsed-0', 'Kept reply')
+        ->assertValue("@composer-caption-{$bluesky->id}", 'Thread root')
+        ->assertNoJavaScriptErrors();
+});

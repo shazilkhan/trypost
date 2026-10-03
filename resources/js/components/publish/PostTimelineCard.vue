@@ -20,12 +20,14 @@ import { reject as rejectPostRoute } from '@/actions/App/Http/Controllers/App/Po
 import { edit as editPostRoute } from '@/actions/App/Http/Controllers/App/PostController';
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import MediaLightbox from '@/components/media/MediaLightbox.vue';
+import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
 import PostNotesPopover from '@/components/posts/PostNotesPopover.vue';
 import PostScheduleModeBadge from '@/components/posts/PostScheduleModeBadge.vue';
 import ApprovePostButton from '@/components/publish/ApprovePostButton.vue';
 import PostCardLabels from '@/components/publish/PostCardLabels.vue';
 import PostCardMenu from '@/components/publish/PostCardMenu.vue';
 import PostDetailsDialog from '@/components/publish/PostDetailsDialog.vue';
+import PostFailurePopover from '@/components/publish/PostFailurePopover.vue';
 import PostMetricsBand from '@/components/publish/PostMetricsBand.vue';
 import PostRecurrenceDialog from '@/components/publish/PostRecurrenceDialog.vue';
 import PostRecurrenceSummary from '@/components/publish/PostRecurrenceSummary.vue';
@@ -41,7 +43,6 @@ import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import {
     getContentTypeBadgeKey,
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import {
     deletePostCardKey,
@@ -58,7 +59,13 @@ import { isImage, isVideo } from '@/lib/mediaType';
 import { compactPublicationMetrics } from '@/lib/publicationMetrics';
 import { recurrenceRuleOf } from '@/lib/recurrence';
 import { videoFrameUrl } from '@/lib/videoFrame';
-import { PostStatus, ScheduleMode } from '@/types/post';
+import { Platform } from '@/types/platform';
+import {
+    PostOrigin,
+    PostPlatformStatus,
+    PostStatus,
+    ScheduleMode,
+} from '@/types/post';
 import type {
     PostCard,
     PostCardMenuAction,
@@ -124,7 +131,9 @@ const account = computed(() => primaryTarget.value?.social_account ?? null);
 
 const time = computed(() =>
     props.tab === 'sent'
-        ? (props.post.published_at ?? props.post.scheduled_at)
+        ? (props.post.published_at ??
+          props.post.scheduled_at ??
+          props.post.created_at)
         : props.post.scheduled_at,
 );
 
@@ -216,6 +225,17 @@ const showStatus = computed(
         props.post.status !== PostStatus.Scheduled &&
         props.post.status !== PostStatus.Published &&
         !isPending.value,
+);
+
+const hasFailure = computed(
+    () =>
+        props.post.status === PostStatus.Failed ||
+        (props.post.status === PostStatus.PartiallyPublished &&
+            targets.value.some(
+                (target) =>
+                    target.status === PostPlatformStatus.Failed ||
+                    target.status === PostPlatformStatus.Rejected,
+            )),
 );
 
 const APPROVAL_RELOAD = {
@@ -364,10 +384,18 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 :mode="post.schedule_mode"
                 plain
             />
+            <PostFailurePopover
+                v-if="showStatus && hasFailure"
+                :post="post"
+                :test-key="testKey"
+                :attempted-at="time"
+                :timezone="timezone"
+            />
             <Badge
-                v-if="showStatus"
+                v-else-if="showStatus"
                 :variant="getPostStatusConfig(post.status).variant"
                 class="h-6 gap-1 px-2 [&>svg]:size-4"
+                :data-testid="`post-status-${testKey}`"
             >
                 <component :is="getPostStatusConfig(post.status).icon" />
                 {{ $t(`posts.status.${post.status}`) }}
@@ -401,6 +429,8 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 >
                     <div class="flex items-center gap-3">
                         <ChannelAvatar
+                            :status="account?.status"
+                            :account-id="account?.id"
                             v-if="primaryTarget"
                             :platform="primaryTarget.platform"
                             :src="account?.avatar_url"
@@ -530,20 +560,39 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 class="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border-strong px-4 py-3"
             >
                 <p class="min-w-0 truncate text-sm text-foreground">
-                    <span
-                        v-if="tab === 'sent' && primaryTarget"
-                        class="inline-flex items-center gap-0.5"
-                        :data-testid="`post-published-via-${testKey}`"
+                    <TooltipProvider
+                        v-if="post.origin === PostOrigin.Network && primaryTarget"
+                        :delay-duration="200"
                     >
-                        {{ $t('posts.publish.published_via') }}
-                        <img
-                            :src="getPlatformLogo(primaryTarget.platform)"
-                            alt=""
-                            class="ms-0.5 size-4 rounded-sm"
-                        />
-                        {{ getPlatformLabel(primaryTarget.platform) }}
-                    </span>
-                    <span v-else-if="post.user?.name">{{
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <span
+                                    class="inline-flex cursor-default items-center gap-1"
+                                    :data-testid="`post-published-via-${testKey}`"
+                                >
+                                    {{ $t('posts.publish.published_via') }}
+                                    <PlatformBrandIcon
+                                        :platform="primaryTarget.platform"
+                                        :data-testid="`post-published-via-icon-${testKey}`"
+                                    />
+                                    <template v-if="primaryTarget.platform !== Platform.X">
+                                        {{ getPlatformLabel(primaryTarget.platform) }}
+                                    </template>
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent :data-testid="`post-published-via-tooltip-${testKey}`">
+                                {{
+                                    $t('posts.publish.published_directly_from', {
+                                        network: getPlatformLabel(primaryTarget.platform),
+                                    })
+                                }}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                    <span
+                        v-else-if="post.user?.name"
+                        :data-testid="`post-created-by-${testKey}`"
+                        >{{
                         $t('posts.publish.created_by', {
                             name: post.user.name,
                             when: date.diffForHumans(post.created_at),

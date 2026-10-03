@@ -21,13 +21,13 @@ import PostComposerDialog from '@/components/posts/composer/PostComposerDialog.v
 import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
 import DayHeading from '@/components/publish/DayHeading.vue';
-import DisplayTimezoneSelect from '@/components/publish/DisplayTimezoneSelect.vue';
 import NewPostButton from '@/components/publish/NewPostButton.vue';
 import PostTimelineCard from '@/components/publish/PostTimelineCard.vue';
 import PublishEmptyIllustration from '@/components/publish/PublishEmptyIllustration.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
 import PublishTabs from '@/components/publish/PublishTabs.vue';
 import QueueTimeline from '@/components/publish/QueueTimeline.vue';
+import TimezoneSelect from '@/components/TimezoneSelect.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -91,7 +91,6 @@ interface Props {
     counts: PublishCounts;
     displayTimezone: string;
     timezones: TimezoneOption[];
-    channelTimezones: string[];
     queue?: PublishQueue;
     posts?: ScrollPostCards;
     labels: PostCardLabel[];
@@ -203,7 +202,7 @@ const applyFilters = (): void => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['posts', 'queue', 'counts', 'filters', 'channelTimezones'],
+            only: ['posts', 'queue', 'counts', 'filters'],
             reset: ['posts'],
         },
     );
@@ -248,7 +247,7 @@ const listGroups = computed<CardGroup[]>(() => {
         const at =
             props.tab === 'drafts' || props.tab === 'approvals'
                 ? post.scheduled_at
-                : (post.published_at ?? post.updated_at);
+                : (post.published_at ?? post.scheduled_at ?? post.created_at);
         const key = at ? dayKey(at) : NO_TIME;
 
         groups.set(key, [...(groups.get(key) ?? []), post]);
@@ -440,8 +439,6 @@ const canLoadMoreTimes = computed(
         (props.queue?.queueDays ?? 0) < (props.queue?.maxQueueDays ?? 0),
 );
 
-const needsAttention = computed(() => props.queue?.needsAttention ?? []);
-
 const queueChannels = computed<Record<string, PublishSocialAccount>>(() =>
     Object.fromEntries(
         (props.channel ? [props.channel] : props.filterAccounts).map(
@@ -619,8 +616,7 @@ const hasActiveFilters = computed(
 
 const isEmpty = computed(() =>
     props.tab === 'queue'
-        ? visibleQueueDays.value.length === 0 &&
-          needsAttention.value.length === 0
+        ? visibleQueueDays.value.length === 0
         : (props.posts?.data.length ?? 0) === 0,
 );
 
@@ -825,13 +821,21 @@ const submitComposition = (
                         v-model:untagged="selectedUntagged"
                         :labels="labels"
                     />
-                    <DisplayTimezoneSelect
-                        :model-value="timezone"
-                        :options="timezones"
-                        :user-timezone="userTimezone"
-                        :channel-timezones="channelTimezones"
-                        @update:model-value="setTimezone"
-                    />
+                    <div
+                        class="shrink-0"
+                        data-testid="publish-timezone-select"
+                        role="group"
+                        :aria-label="$t('posts.publish.timezone.label')"
+                    >
+                        <TimezoneSelect
+                            :model-value="timezone"
+                            :options="timezones"
+                            testid="publish-timezone"
+                            variant="ghost"
+                            compact
+                            @update:model-value="setTimezone"
+                        />
+                    </div>
                     <DropdownMenu v-if="channel">
                         <DropdownMenuTrigger as-child>
                             <Button
@@ -917,7 +921,6 @@ const submitComposition = (
                         <QueueTimeline
                             :days="visibleQueueDays"
                             :posts="localQueue.posts"
-                            :needs-attention="needsAttention"
                             :queue-days="queue?.queueDays ?? 0"
                             :can-load-more-times="canLoadMoreTimes"
                             :channels="queueChannels"

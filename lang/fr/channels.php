@@ -242,7 +242,11 @@ return [
 
         'all' => 'Tous les fuseaux horaires',
 
-        'detected' => 'Fuseau horaire détecté par le navigateur',
+        'yours' => 'Votre fuseau horaire',
+
+        'browser' => 'Détecté dans votre navigateur',
+
+        'more' => '+:count autres…',
         'placeholder' => 'Rechercher des villes ou des fuseaux horaires',
         'empty' => 'Aucun fuseau horaire trouvé',
     ],

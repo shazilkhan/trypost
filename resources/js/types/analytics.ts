@@ -1,3 +1,5 @@
+import type { SocialAccountStatusValue } from '@/types/social-account-status';
+
 export interface Comparison {
     value: number | null;
     previous: number | null;
@@ -10,6 +12,7 @@ export interface AccountIdentityData {
     name: string | null;
     username: string | null;
     avatar_url: string | null;
+    status?: SocialAccountStatusValue | null;
 }
 
 export interface FollowerAccount extends AccountIdentityData {
@@ -39,6 +42,8 @@ export interface TopPost {
     platform: string;
     name: string | null;
     username: string | null;
+    avatar_url: string | null;
+    status?: SocialAccountStatusValue | null;
     origin: string;
     content_type: string;
     availability: string;
@@ -149,6 +154,7 @@ export interface AnalyticsChannelOption {
     display_label: string;
     username: string | null;
     avatar_url: string | null;
+    status: SocialAccountStatusValue;
     analytics_key: string;
 }
 

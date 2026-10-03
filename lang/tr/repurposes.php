@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Bu otomasyonu başlatmadan önce izlenen hesabı yeniden bağlayın.',
         'destinations_required' => 'Etkinleştirmeden önce en az bir hedef seç.',
         'destination_needs_video' => 'Bu format video taşıyamaz.',
+        'destination_not_supported' => 'Google Business hedef olamaz: gönderileri video kabul etmez.',
         'only_paused_resumes' => 'Yalnızca duraklatılmış bir repurpose sürdürülebilir.',
         'only_active_pauses' => 'Yalnızca etkin bir repurpose duraklatılabilir.',
         'only_running_disables' => 'Yalnızca çalışan bir repurpose kapatılabilir.',

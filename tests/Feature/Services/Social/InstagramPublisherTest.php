@@ -2250,3 +2250,139 @@ test('instagram carousel video child sends its cover frame as thumb_offset', fun
     Http::assertNotSent(fn (Request $request): bool => data_get($request->data(), 'image_url') !== null
         && data_get($request->data(), 'thumb_offset') !== null);
 });
+
+function fakeInstagramReelFlow(): void
+{
+    $base = config('trypost.platforms.instagram.graph_api');
+    Http::fake([
+        "{$base}/ig_123456789/media" => Http::response(['id' => 'container-1']),
+        "{$base}/container-1*" => Http::response(['status_code' => 'FINISHED']),
+        "{$base}/ig_123456789/media_publish" => Http::response(['id' => 'media-1']),
+        "{$base}/media-1*" => Http::response(['permalink' => 'https://www.instagram.com/reel/X/']),
+    ]);
+}
+
+function instagramVideo(): array
+{
+    return [[
+        'id' => 'video-1', 'type' => 'video', 'path' => 'media/v.mp4',
+        'url' => 'https://example.com/v.mp4', 'mime_type' => 'video/mp4', 'original_filename' => 'v.mp4',
+    ]];
+}
+
+test('instagram reel options reach the container', function () {
+    $this->post->update(['media' => instagramVideo()]);
+    $this->postPlatform->update([
+        'content_type' => ContentType::InstagramReel,
+        'meta' => [
+            'is_ai_generated' => true,
+            'share_to_feed' => false,
+        ],
+    ]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
+        && data_get($request->data(), 'media_type') === 'REELS'
+        && data_get($request->data(), 'is_ai_generated') === 'true'
+        && data_get($request->data(), 'share_to_feed') === 'false');
+});
+
+test('an instagram reel without options publishes exactly as before', function () {
+    $this->post->update(['media' => instagramVideo()]);
+    $this->postPlatform->update(['content_type' => ContentType::InstagramReel, 'meta' => []]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
+        && data_get($request->data(), 'share_to_feed') === 'true'
+        && ! array_key_exists('is_ai_generated', $request->data()));
+});
+
+test('a story ignores leftover reel and feed options', function () {
+    $this->post->update(['media' => instagramVideo()]);
+    $this->postPlatform->update([
+        'content_type' => ContentType::InstagramStory,
+        'meta' => ['share_to_feed' => false, 'is_ai_generated' => true],
+    ]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
+        && data_get($request->data(), 'media_type') === 'STORIES'
+        && array_intersect(['share_to_feed', 'is_ai_generated'], array_keys($request->data())) === []);
+});
+
+test('a carousel sends the ai label on the parent only', function () {
+    $this->post->update(['media' => [
+        ['id' => 'a', 'type' => 'image', 'path' => 'media/a.jpg', 'url' => 'https://example.com/a.jpg', 'mime_type' => 'image/jpeg'],
+        ['id' => 'b', 'type' => 'image', 'path' => 'media/b.jpg', 'url' => 'https://example.com/b.jpg', 'mime_type' => 'image/jpeg'],
+    ]]);
+    $this->postPlatform->update(['meta' => ['is_ai_generated' => true]]);
+    $base = config('trypost.platforms.instagram.graph_api');
+    Http::fake([
+        'https://example.com/*' => Http::response(fakeJpegBytes()),
+        "{$base}/ig_123456789/media" => Http::sequence()->push(['id' => 'child-1'])->push(['id' => 'child-2'])->push(['id' => 'parent-1']),
+        "{$base}/parent-1*" => Http::response(['status_code' => 'FINISHED']),
+        "{$base}/ig_123456789/media_publish" => Http::response(['id' => 'media-2']),
+        "{$base}/media-2*" => Http::response(['permalink' => 'https://www.instagram.com/p/Y/']),
+    ]);
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'media_type') === 'CAROUSEL'
+        && data_get($request->data(), 'is_ai_generated') === 'true');
+    Http::assertNotSent(fn (Request $request): bool => data_get($request->data(), 'is_carousel_item') === 'true'
+        && array_key_exists('is_ai_generated', $request->data()));
+});
+
+test('an instagram reel sends share_to_feed false when turned off', function () {
+    $this->post->update(['media' => instagramVideo()]);
+    $this->postPlatform->update(['content_type' => ContentType::InstagramReel, 'meta' => ['share_to_feed' => false]]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
+        && data_get($request->data(), 'media_type') === 'REELS'
+        && data_get($request->data(), 'share_to_feed') === 'false');
+});
+
+test('a feed video sends the ai label but no reel-only options', function () {
+    $this->post->update(['media' => instagramVideo()]);
+    $this->postPlatform->update([
+        'content_type' => ContentType::InstagramFeed,
+        'meta' => ['is_ai_generated' => true, 'share_to_feed' => false],
+    ]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
+        && data_get($request->data(), 'media_type') === 'REELS'
+        && data_get($request->data(), 'is_ai_generated') === 'true'
+        && ! array_key_exists('share_to_feed', $request->data()));
+});
+
+test('instagram publishes a stored caption with more than five hashtags', function (ContentType $type) {
+    $this->post->update(['content' => 'Launch #a #b #c #d #e #f', 'media' => instagramVideo()]);
+    $this->postPlatform->update(['content_type' => $type]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media_publish'));
+})->with([ContentType::InstagramFeed, ContentType::InstagramReel, ContentType::InstagramStory]);
+
+test('an instagram story is not measured against the caption length', function () {
+    $this->post->update(['content' => str_repeat('a', 2300), 'media' => instagramVideo()]);
+    $this->postPlatform->update(['content_type' => ContentType::InstagramStory]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media_publish'));
+});

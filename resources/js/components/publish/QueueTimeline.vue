@@ -3,7 +3,6 @@ import { router } from '@inertiajs/vue3';
 import { IconPlus } from '@tabler/icons-vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
-import NeedsAttention from '@/components/publish/NeedsAttention.vue';
 import QueueDayGroup from '@/components/publish/QueueDayGroup.vue';
 import {
     useSortableQueue,
@@ -23,7 +22,6 @@ import type {
 const props = defineProps<{
     days: QueueDay[];
     posts: Record<string, PostCard>;
-    needsAttention: PostCard[];
     queueDays: number;
     canLoadMoreTimes: boolean;
     channels: Record<string, PublishSocialAccount>;
@@ -169,11 +167,6 @@ const loadMoreTimes = (): void => {
 
 <template>
     <div class="flex flex-col gap-10">
-        <NeedsAttention
-            v-if="needsAttention.length"
-            :posts="needsAttention"
-            :display-timezone="displayTimezone"
-        />
         <QueueDayGroup
             v-for="day in days"
             :key="day.date"

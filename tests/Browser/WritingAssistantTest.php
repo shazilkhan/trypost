@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Ai\Agents\PostWritingAssistant;
 use App\Enums\SocialAccount\Platform;
+use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -157,6 +158,23 @@ test('a single X channel shows its limit and the shared step shows none', functi
         ->assertNoJavaScriptErrors();
 });
 
+test('a premium X channel gets suggestions written for its own limit', function () {
+    [$user, $accounts] = writingAssistantSetup([Platform::X]);
+    $accounts[0]->update(['meta' => ['x_subscription_type' => 'Premium']]);
+    $long = trim(str_repeat('Great news for everyone. ', 16));
+    PostWritingAssistant::fake([$long]);
+
+    $page = openWritingAssistant($user, $accounts)
+        ->assertSeeIn('@writing-assistant-channel', '25')
+        ->click('@writing-assistant-mode-generate')
+        ->fill('@writing-assistant-prompt', 'announce our summer launch today')
+        ->click('@writing-assistant-generate');
+
+    waitForWritingAssistantTestId($page, 'writing-assistant-suggestion', 'Great news');
+    expect(trim((string) $page->script("document.querySelector('[data-testid=\"writing-assistant-suggestion\"]').textContent")))->toBe($long);
+    $page->assertNoJavaScriptErrors();
+});
+
 test('a denied AI gate shows the subscription message', function () {
     [$user, $accounts] = writingAssistantSetup([Platform::LinkedIn]);
     PostWritingAssistant::fake(['unused']);
@@ -207,8 +225,8 @@ test('switching channel after a suggestion resets the panel and never writes to 
 test('a validation error shows the server message inline', function () {
     [$user, $accounts] = writingAssistantSetup([Platform::LinkedIn]);
     PostWritingAssistant::fake(['unused']);
-    $tooLong = str_repeat('a ', 5001);
-    $message = __('validation.max.string', ['attribute' => 'current content', 'max' => 10000]);
+    $tooLong = str_repeat('a ', intdiv(Post::CONTENT_MAX_LENGTH, 2) + 1);
+    $message = __('validation.max.string', ['attribute' => 'current content', 'max' => Post::CONTENT_MAX_LENGTH]);
 
     $page = openWritingAssistant($user, $accounts, $tooLong)
         ->click('@writing-assistant-mode-rephrase');

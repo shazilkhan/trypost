@@ -97,7 +97,22 @@ test('a lost connection is flagged on the channel', function () {
     $page = visit(route('app.posts.index'));
     waitForSidebarChannelsTestId($page, "sidebar-channel-{$channel->id}-lost");
 
-    $page->assertVisible("@sidebar-channel-{$channel->id}-lost")->assertNoJavaScriptErrors();
+    $page->assertVisible("@sidebar-channel-{$channel->id}-lost")
+        ->assertMissing("@channel-avatar-disconnected-{$channel->id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('a lost connection shows one dot on the avatar for members who cannot reconnect', function () {
+    $user = sidebarChannelsUser('member');
+    $channel = SocialAccount::factory()->linkedin()->tokenExpired()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    waitForSidebarChannelsTestId($page, "channel-avatar-disconnected-{$channel->id}");
+
+    $page->assertVisible("@channel-avatar-disconnected-{$channel->id}")
+        ->assertMissing("@sidebar-channel-{$channel->id}-lost")
+        ->assertNoJavaScriptErrors();
 });
 
 test('an empty workspace offers to connect a channel', function () {

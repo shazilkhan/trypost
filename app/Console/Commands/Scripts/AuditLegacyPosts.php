@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Scripts;
 
 use App\Enums\Post\Status;
 use App\Models\Post;
@@ -38,8 +38,8 @@ class AuditLegacyPosts extends Command
             ['Draft with no enabled target (recoverable)', $zeroTargetDrafts],
             ['Scheduled with no enabled target (blocker)', $zeroTargetScheduled],
             ['Scheduled with an unavailable target (blocker)', $unavailableScheduled],
-            ['Settled aggregate (preserve history)', $settledAggregates],
-            ['In-flight aggregate (leave running)', $inFlightAggregates],
+            ['Settled with multiple enabled targets (split, each post takes its target status)', $settledAggregates],
+            ['In-flight aggregate (left running, not split)', $inFlightAggregates],
         ]);
 
         if ($this->option('strict') && ($multiTarget > 0 || $zeroTargetScheduled > 0 || $unavailableScheduled > 0)) {

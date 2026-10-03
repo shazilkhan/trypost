@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'أعد ربط الحساب الذي تراقبه هذه الأتمتة قبل بدئها.',
         'destinations_required' => 'اختر وجهة واحدة على الأقل قبل التفعيل.',
         'destination_needs_video' => 'هذه الصيغة لا تقبل الفيديو.',
+        'destination_not_supported' => 'لا يمكن أن يكون Google Business وجهة: منشوراته لا تقبل الفيديو.',
         'only_paused_resumes' => 'لا يمكن استئناف سوى repurpose متوقف مؤقتًا.',
         'only_active_pauses' => 'لا يمكن إيقاف سوى إعادة توظيف نشطة مؤقتًا.',
         'only_running_disables' => 'لا يمكن تعطيل سوى إعادة توظيف قيد التشغيل.',

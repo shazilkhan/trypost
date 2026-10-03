@@ -162,8 +162,8 @@ test('a caption over a destination limit is shortened for that post only', funct
 
     expect(Platform::TikTok->contentOverflow($captions[Platform::TikTok->value]))->toBe(0)
         ->and(Platform::YouTube->contentOverflow($captions[Platform::YouTube->value]))->toBe(0)
-        ->and(mb_strlen($captions[Platform::TikTok->value]))
-        ->toBeGreaterThan(mb_strlen($captions[Platform::YouTube->value]));
+        ->and(mb_strlen($captions[Platform::YouTube->value]))
+        ->toBeGreaterThan(mb_strlen($captions[Platform::TikTok->value]));
 });
 
 test('a failed download throws so the job retries, leaving no post behind', function () {
@@ -640,4 +640,25 @@ test('a requester repurpose in draft mode sends no approval email', function () 
 
     expect(Post::where('repurpose_item_id', $item->id)->count())->toBe(2);
     Queue::assertNotPushed(SendNotification::class);
+});
+
+test('a stored google business destination is skipped quietly', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+
+    $item = repurposeWithTwoDestinations();
+    $repurpose = $item->repurpose;
+    $googleBusiness = SocialAccount::factory()->for($repurpose->workspace)->create(['platform' => Platform::GoogleBusiness]);
+    $repurpose->update(['destinations' => [
+        ...$repurpose->destinations,
+        ['social_account_id' => $googleBusiness->id, 'content_type' => ContentType::GoogleBusinessPost->value, 'meta' => []],
+    ]]);
+
+    processItem($item->fresh());
+
+    $platforms = PostPlatform::query()->whereIn('post_id', Post::where('repurpose_item_id', $item->id)->pluck('id'))->pluck('social_account_id');
+
+    expect($item->fresh()->status)->toBe(ItemStatus::Published)
+        ->and($platforms)->not->toContain($googleBusiness->id)
+        ->and(Post::where('repurpose_item_id', $item->id)->count())->toBe(2);
 });

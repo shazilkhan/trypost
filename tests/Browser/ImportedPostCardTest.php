@@ -119,11 +119,21 @@ test('an imported sent card looks like a sent post and offers only the allowed a
         ->assertPresent("@post-metrics-{$post->id}")
         ->assertSeeIn("@post-published-via-{$post->id}", __('posts.publish.published_via'))
         ->assertSeeIn("@post-published-via-{$post->id}", 'Instagram')
+        ->assertPresent("@post-published-via-icon-{$post->id}")
         ->assertPresent("@post-time-{$post->id}")
         ->assertMissing("@post-schedule-mode-{$post->id}")
         ->assertMissing("@post-recurring-{$post->id}")
         ->assertMissing("@post-edit-{$post->id}")
         ->assertMissing("@post-publish-now-{$post->id}");
+
+    expect($page->script("document.querySelector('[data-testid=\"post-published-via-{$post->id}\"] img') === null"))
+        ->toBeTrue()
+        ->and($page->script("document.querySelector('[data-testid=\"post-published-via-icon-{$post->id}\"]').tagName.toLowerCase()"))
+        ->toBe('svg');
+
+    $page->script("document.querySelector('[data-testid=\"post-published-via-{$post->id}\"]').dispatchEvent(new PointerEvent('pointermove', {bubbles: true, pointerType: 'mouse'}))");
+    waitForImportedCardTestId($page, "post-published-via-tooltip-{$post->id}");
+    $page->assertSeeIn("@post-published-via-tooltip-{$post->id}", __('posts.publish.published_directly_from', ['network' => 'Instagram']));
 
     expect($page->script("document.querySelector('[data-testid=\"post-thumbnail-video-{$post->id}-0\"]').getAttribute('src')"))
         ->toEndWith('#t=0.1');
@@ -142,6 +152,7 @@ test('an imported sent card looks like a sent post and offers only the allowed a
     waitForImportedCardTestId($page, "post-details-{$post->id}");
 
     $page->assertSeeIn("@post-details-published-via-{$post->id}", 'Instagram')
+        ->assertPresent("@post-details-published-via-icon-{$post->id}")
         ->assertPresent("@post-details-metrics-{$post->id}")
         ->assertPresent("@post-details-insights-{$post->id}")
         ->assertMissing("@post-details-created-by-{$post->id}")
@@ -175,6 +186,8 @@ test('a trypost sent post keeps the created by footer and shows its metrics in i
 
     $page = visit(route('app.posts.index', ['tab' => 'sent']));
     waitForImportedCardTestId($page, "post-card-menu-{$post->id}");
+    $page->assertSeeIn("@post-created-by-{$post->id}", $user->name)
+        ->assertMissing("@post-published-via-{$post->id}");
     $page->click("@post-card-menu-{$post->id}");
     waitForImportedCardTestId($page, "post-details-open-{$post->id}");
     $page->click("@post-details-open-{$post->id}");

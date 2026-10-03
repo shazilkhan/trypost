@@ -242,7 +242,11 @@ return [
 
         'all' => 'Alle tijdzones',
 
-        'detected' => 'Door de browser gedetecteerde tijdzone',
+        'yours' => 'Jouw tijdzone',
+
+        'browser' => 'Gedetecteerd in je browser',
+
+        'more' => '+:count meer…',
         'placeholder' => 'Zoek steden of tijdzones',
         'empty' => 'Geen tijdzone gevonden',
     ],

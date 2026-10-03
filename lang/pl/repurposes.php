@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Połącz ponownie monitorowane konto przed uruchomieniem tej automatyzacji.',
         'destinations_required' => 'Wybierz co najmniej jeden cel przed aktywacją.',
         'destination_needs_video' => 'Ten format nie przyjmuje filmu.',
+        'destination_not_supported' => 'Google Business nie może być miejscem docelowym: jego posty nie obsługują wideo.',
         'only_paused_resumes' => 'Wznowić można tylko wstrzymany repurpose.',
         'only_active_pauses' => 'Tylko aktywny repurpose można wstrzymać.',
         'only_running_disables' => 'Tylko działający repurpose można wyłączyć.',

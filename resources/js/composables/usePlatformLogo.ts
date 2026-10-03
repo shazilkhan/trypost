@@ -47,7 +47,7 @@ const PLATFORM_CONTENT_TYPES: Record<string, string[]> = {
     tiktok: ['tiktok_video', 'tiktok_photo'],
     youtube: ['youtube_short'],
     x: ['x_post'],
-    threads: ['threads_post'],
+    threads: ['threads_post', 'threads_ghost_post'],
     pinterest: ['pinterest_pin', 'pinterest_video_pin', 'pinterest_carousel'],
     bluesky: ['bluesky_post'],
     mastodon: ['mastodon_post'],
@@ -59,6 +59,7 @@ const PLATFORM_CONTENT_TYPES: Record<string, string[]> = {
 export interface ContentTypeOption {
     value: string;
     labelKey: string;
+    disabledReasonKey?: string;
 }
 
 export const getPlatformLogo = (platform: string): string =>
@@ -74,6 +75,23 @@ export const getContentTypeOptions = (platform: string): ContentTypeOption[] =>
         value,
         labelKey: translationKeyFor(value),
     }));
+
+const LONE_CONTENT_TYPE_RADIO_PLATFORMS = new Set(['youtube']);
+
+/**
+ * The content types the composer offers as radios. A single type shows only
+ * where it gets a lone radio (YouTube "Short"); Pinterest derives its type from the media.
+ */
+export const getPickableContentTypeOptions = (
+    platform: string,
+): ContentTypeOption[] => {
+    const options =
+        platform === 'pinterest' ? [] : getContentTypeOptions(platform);
+
+    return options.length > 1 || LONE_CONTENT_TYPE_RADIO_PLATFORMS.has(platform)
+        ? options
+        : [];
+};
 
 /** Whether the user picks a format on this platform, or it only has one. */
 export const hasMultipleContentTypes = (platform: string): boolean =>

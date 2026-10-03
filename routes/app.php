@@ -18,6 +18,7 @@ use App\Http\Controllers\App\IdeaStageController;
 use App\Http\Controllers\App\InsightsController;
 use App\Http\Controllers\App\LibraryTemplateController;
 use App\Http\Controllers\App\LinkPreviewController;
+use App\Http\Controllers\App\LinkPreviewMediaController;
 use App\Http\Controllers\App\McpSettingsController;
 use App\Http\Controllers\App\MediaAltTextController;
 use App\Http\Controllers\App\MediaImportController;
@@ -246,6 +247,9 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('posts/link-preview', LinkPreviewController::class)
         ->middleware('throttle:30,1')
         ->name('app.posts.link-preview');
+    Route::post('posts/link-preview/media', LinkPreviewMediaController::class)
+        ->middleware('throttle:media-imports')
+        ->name('app.posts.link-preview-media');
 
     // Post AI
     Route::post('posts/ai/assist', PostAiAssistantController::class)

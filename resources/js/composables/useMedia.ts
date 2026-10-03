@@ -140,6 +140,7 @@ export const getMediaValidationWarning = (
 
     return firstWarning(
         rules.requiresMedia && total === 0 && warning('requires_media'),
+        rules.maxFiles === 0 && total > 0 && warning('text_only'),
         total > rules.maxFiles && warning('max_files_exceeded', { max: String(rules.maxFiles), current: String(total) }),
         total < (rules.minFiles ?? 0) && warning('min_files_required', { min: String(rules.minFiles), current: String(total) }),
         ! rules.acceptVideos && videos.length > 0 && warning('no_video_allowed'),

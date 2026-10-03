@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Переподключите отслеживаемый аккаунт перед запуском этой автоматизации.',
         'destinations_required' => 'Выберите хотя бы одно назначение перед активацией.',
         'destination_needs_video' => 'Этот формат не принимает видео.',
+        'destination_not_supported' => 'Google Business не может быть местом публикации: его посты не поддерживают видео.',
         'only_paused_resumes' => 'Возобновить можно только приостановленный repurpose.',
         'only_active_pauses' => 'Приостановить можно только активный repurpose.',
         'only_running_disables' => 'Отключить можно только работающий repurpose.',

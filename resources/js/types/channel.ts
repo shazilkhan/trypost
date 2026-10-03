@@ -50,6 +50,7 @@ export interface SidebarChannel {
     display_name: string | null;
     avatar_url: string | null;
     status: SocialAccountStatusValue | null;
+    timezone: string;
     scheduled_posts_count: number;
 }
 

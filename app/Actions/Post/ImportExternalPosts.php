@@ -18,6 +18,7 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Services\Social\ContentSanitizer;
 use App\Support\PostHistoryRetention;
+use App\Support\Social\ThreadProgress;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -130,6 +131,10 @@ class ImportExternalPosts
                 return null;
             }
 
+            if (self::isTryPostThreadSegment($account, $publication)) {
+                return null;
+            }
+
             if (self::claimedBySentPost($account, $publication)) {
                 return null;
             }
@@ -153,6 +158,22 @@ class ImportExternalPosts
             ->whereIn('platform_post_id', $remoteIds)
             ->whereHas('post', fn (Builder $post): Builder => $post->where('workspace_id', $account->workspace_id))
             ->first();
+    }
+
+    /**
+     * A reply TryPost chained under its own post, or a segment of a thread
+     * that stopped midway and is still waiting for its retry.
+     */
+    private static function isTryPostThreadSegment(SocialAccount $account, AnalyticsPublication $publication): bool
+    {
+        $remoteId = $publication->remote_id;
+
+        return filled($remoteId) && PostPlatform::query()
+            ->where('social_account_id', $account->id)
+            ->where(fn (Builder $query): Builder => $query
+                ->whereJsonContains('thread_reply_ids', $remoteId)
+                ->orWhereJsonContains('error_context->'.ThreadProgress::KEY, [['id' => $remoteId]]))
+            ->exists();
     }
 
     /**

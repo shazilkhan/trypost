@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 
-type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'success' | 'warning' | 'info' | 'outline';
+type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'destructive-subtle' | 'success' | 'warning' | 'info' | 'outline';
 
 interface StatusConfig {
     variant: BadgeVariant;
@@ -26,8 +26,8 @@ const CONFIGS: Record<string, Pick<StatusConfig, 'variant' | 'icon'>> = {
     retrying: { variant: 'warning', icon: IconLoader2 },
     published: { variant: 'success', icon: IconCircleCheck },
     partially_published: { variant: 'warning', icon: IconAlertCircle },
-    failed: { variant: 'destructive', icon: IconAlertCircle },
-    rejected: { variant: 'destructive', icon: IconBan },
+    failed: { variant: 'destructive-subtle', icon: IconAlertCircle },
+    rejected: { variant: 'destructive-subtle', icon: IconBan },
     pending_review: { variant: 'warning', icon: IconHourglass },
 };
 

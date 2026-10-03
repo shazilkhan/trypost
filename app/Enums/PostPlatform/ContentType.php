@@ -39,6 +39,7 @@ enum ContentType: string
 
     // Threads
     case ThreadsPost = 'threads_post';
+    case ThreadsGhostPost = 'threads_ghost_post';
 
     // Pinterest
     case PinterestPin = 'pinterest_pin';
@@ -66,6 +67,15 @@ enum ContentType: string
      */
     public const CAROUSEL_FORMAT = 'instagram_carousel';
 
+    /**
+     * Published without a caption, so the text is neither counted nor sent.
+     * Mirrored by `CAPTIONLESS_CONTENT_TYPES` in `resources/js/types/content-type.ts`.
+     */
+    public function isCaptionless(): bool
+    {
+        return in_array($this, [self::FacebookStory, self::InstagramStory], true);
+    }
+
     public function label(): string
     {
         return match ($this) {
@@ -80,7 +90,8 @@ enum ContentType: string
             self::TikTokPhoto => 'Photo carousel',
             self::YouTubeShort => 'Short',
             self::XPost => 'Post',
-            self::ThreadsPost => 'Post',
+            self::ThreadsPost => 'Thread',
+            self::ThreadsGhostPost => 'Ghost post',
             self::PinterestPin => 'Pin',
             self::PinterestVideoPin => 'Video Pin',
             self::PinterestCarousel => 'Carousel',
@@ -107,7 +118,7 @@ enum ContentType: string
             self::TikTokVideo, self::TikTokPhoto => SocialPlatform::TikTok,
             self::YouTubeShort => SocialPlatform::YouTube,
             self::XPost => SocialPlatform::X,
-            self::ThreadsPost => SocialPlatform::Threads,
+            self::ThreadsPost, self::ThreadsGhostPost => SocialPlatform::Threads,
             self::PinterestPin, self::PinterestVideoPin, self::PinterestCarousel => SocialPlatform::Pinterest,
             self::BlueskyPost => SocialPlatform::Bluesky,
             self::MastodonPost => SocialPlatform::Mastodon,
@@ -176,6 +187,7 @@ enum ContentType: string
             self::YouTubeShort => 1,
             self::XPost => 4,
             self::ThreadsPost => 10,
+            self::ThreadsGhostPost => 0,
             self::PinterestPin, self::PinterestVideoPin => 1,
             self::PinterestCarousel => 5,
             self::BlueskyPost => 4,
@@ -421,7 +433,7 @@ enum ContentType: string
             self::FacebookPost, self::LinkedInPost, self::LinkedInPagePost => ['1:1', '1.91:1'],
             self::PinterestPin, self::PinterestCarousel => ['2:3', '1:1'],
             self::PinterestVideoPin => ['2:3'],
-            self::ThreadsPost => ['1:1', '4:5', '1.91:1'],
+            self::ThreadsPost, self::ThreadsGhostPost => ['1:1', '4:5', '1.91:1'],
             self::BlueskyPost, self::MastodonPost => ['1:1', '16:9'],
             self::GoogleBusinessPost => ['4:3', '1:1'],
             self::TelegramPost, self::DiscordMessage => self::defaultCropPresets(),
@@ -636,6 +648,7 @@ enum ContentType: string
             self::YouTubeShort => true,
             self::XPost => true,
             self::ThreadsPost => true,
+            self::ThreadsGhostPost => false,
             self::PinterestVideoPin => true,
             self::PinterestPin, self::PinterestCarousel => false,
             self::BlueskyPost => true,
@@ -654,6 +667,7 @@ enum ContentType: string
             self::TikTokVideo => false,
             self::TikTokPhoto => true,
             self::YouTubeShort => false,
+            self::ThreadsGhostPost => false,
             self::PinterestVideoPin => false,
             default => true,
         };
@@ -705,7 +719,7 @@ enum ContentType: string
         return match ($this) {
             self::LinkedInPost, self::LinkedInPagePost => false,
             self::XPost => false,
-            self::ThreadsPost => false,
+            self::ThreadsPost, self::ThreadsGhostPost => false,
             self::BlueskyPost => false,
             self::MastodonPost => false,
             self::TelegramPost => false,

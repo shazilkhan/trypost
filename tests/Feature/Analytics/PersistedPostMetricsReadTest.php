@@ -187,3 +187,70 @@ test('post detail loads all destination observations in bounded queries', functi
         ->and($metrics->pluck('metrics.snapshot.reactions_count')->sort()->values()->all())->toBe([1, 2, 3])
         ->and($reads)->toHaveCount(3);
 });
+
+test('post metrics derive the engagement rate from the snapshot exposure like the channel reports', function () {
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->x()->createQuietly(['workspace_id' => $workspace->id]);
+    $post = Post::factory()->published()->create(['workspace_id' => $workspace->id]);
+    $destination = PostPlatform::factory()->x()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'platform_post_id' => '1840000000000000000',
+    ]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'post_platform_id' => $destination->id,
+        'platform' => Platform::X,
+        'content_type' => PublicationContentType::Text,
+    ]);
+    AnalyticsPublicationDailySnapshot::factory()->create([
+        'publication_id' => $publication->id,
+        'date' => '2026-09-20',
+        'impressions_count' => 200,
+        'engagement_count' => 7,
+        'exposure_count' => 200,
+        'exposure_kind' => 'impressions',
+        'metrics' => [
+            'impressions' => ['value' => 200, 'unit' => 'count', 'availability' => 'available'],
+            'engagements' => ['value' => 7, 'unit' => 'count', 'availability' => 'available'],
+        ],
+    ]);
+
+    $metrics = app(ReadPublicationAnalytics::class)->forPlatform($destination)['metrics'];
+
+    expect(data_get($metrics, 'engagement_rate.value'))->toBe(3.5)
+        ->and(data_get($metrics, 'engagement_rate.unit'))->toBe('percent')
+        ->and(data_get($metrics, 'engagement_rate.availability'))->toBe('available');
+});
+
+test('post metrics leave the engagement rate out when the network reports no exposure', function () {
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->mastodon()->createQuietly(['workspace_id' => $workspace->id]);
+    $post = Post::factory()->published()->create(['workspace_id' => $workspace->id]);
+    $destination = PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Mastodon,
+        'platform_post_id' => '117304063461175259',
+    ]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'post_platform_id' => $destination->id,
+        'platform' => Platform::Mastodon,
+        'content_type' => PublicationContentType::Text,
+    ]);
+    AnalyticsPublicationDailySnapshot::factory()->create([
+        'publication_id' => $publication->id,
+        'date' => '2026-09-20',
+        'engagement_count' => 6,
+        'exposure_count' => null,
+        'exposure_kind' => null,
+        'metrics' => ['engagements' => ['value' => 6, 'unit' => 'count', 'availability' => 'available']],
+    ]);
+
+    expect(app(ReadPublicationAnalytics::class)->forPlatform($destination)['metrics'])->not->toHaveKey('engagement_rate');
+});

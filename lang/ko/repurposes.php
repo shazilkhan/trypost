@@ -166,6 +166,7 @@ return [
         'source_unusable' => '이 자동화를 시작하기 전에 모니터링 중인 계정을 다시 연결하세요.',
         'destinations_required' => '활성화하기 전에 대상을 하나 이상 고르세요.',
         'destination_needs_video' => '그 형식은 영상을 담을 수 없습니다.',
+        'destination_not_supported' => 'Google 비즈니스는 대상이 될 수 없습니다. 게시물에 동영상을 쓸 수 없습니다.',
         'only_paused_resumes' => '일시중지된 Repurpose만 재개할 수 있습니다.',
         'only_active_pauses' => '활성 상태의 리퍼포즈만 일시중지할 수 있습니다.',
         'only_running_disables' => '실행 중인 리퍼포즈만 사용 중지할 수 있습니다.',

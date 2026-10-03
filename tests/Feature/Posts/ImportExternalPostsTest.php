@@ -18,6 +18,7 @@ use App\Models\AnalyticsPublication;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
+use App\Support\Social\ThreadProgress;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -537,4 +538,42 @@ test('a trypost story is not taken over by a native reel with the same caption',
 
     expect(Post::query()->imported()->count())->toBe(1)
         ->and($story->fresh()->platform_post_id)->toBe('story-container');
+});
+
+test('our own thread replies are never imported as external posts', function () {
+    $account = SocialAccount::factory()->mastodon()->create();
+    $root = sentByTryPost($account, 'root-1', 'Root', now()->subDay()->toImmutable(), ContentType::MastodonPost);
+    $root->update(['thread_reply_ids' => ['reply-1', 'reply-2']]);
+    externalPublication($account, ['remote_id' => 'reply-1', 'excerpt' => 'Second', 'content_type' => PublicationContentType::Text]);
+    externalPublication($account, ['remote_id' => 'other-1', 'excerpt' => 'Unrelated', 'content_type' => PublicationContentType::Text]);
+
+    ImportExternalPosts::execute($account);
+
+    expect(AnalyticsPublication::where('remote_id', 'reply-1')->value('post_platform_id'))->toBeNull()
+        ->and(PostPlatform::where('platform_post_id', 'reply-1')->exists())->toBeFalse()
+        ->and(PostPlatform::where('platform_post_id', 'other-1')->exists())->toBeTrue();
+});
+
+test('the live part of a thread that failed midway is never imported as external posts', function () {
+    $account = SocialAccount::factory()->bluesky()->create();
+    $post = Post::factory()->create(['workspace_id' => $account->workspace_id, 'status' => PostStatus::Failed]);
+    PostPlatform::factory()->failed()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'platform' => $account->platform,
+        'content_type' => ContentType::BlueskyPost,
+        'error_context' => ['category' => 'rate_limit', ThreadProgress::KEY => [
+            ['hash' => 'h0', 'id' => 'root-1', 'uri' => 'at://did/app.bsky.feed.post/root-1', 'cid' => 'c1'],
+            ['hash' => 'h1', 'id' => 'reply-1', 'uri' => 'at://did/app.bsky.feed.post/reply-1', 'cid' => 'c2'],
+        ]],
+    ]);
+    externalPublication($account, ['remote_id' => 'root-1', 'excerpt' => 'Root', 'content_type' => PublicationContentType::Text]);
+    externalPublication($account, ['remote_id' => 'reply-1', 'excerpt' => 'Second', 'content_type' => PublicationContentType::Text]);
+    externalPublication($account, ['remote_id' => 'other-1', 'excerpt' => 'Unrelated', 'content_type' => PublicationContentType::Text]);
+
+    ImportExternalPosts::execute($account);
+
+    expect(Post::where('origin', Origin::Network)->count())->toBe(1)
+        ->and(PostPlatform::where('platform_post_id', 'other-1')->exists())->toBeTrue()
+        ->and(AnalyticsPublication::whereIn('remote_id', ['root-1', 'reply-1'])->whereNotNull('post_platform_id')->exists())->toBeFalse();
 });

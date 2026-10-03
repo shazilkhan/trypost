@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Analytics\SyncCollector;
 use App\Enums\Analytics\SyncStatus;
 use App\Enums\SocialAccount\Platform;
+use App\Enums\SocialAccount\Status as SocialAccountStatus;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\AnalyticsAccountDailySnapshot;
@@ -34,6 +35,8 @@ function waitForInsightsParityTestId(mixed $page, string $testId): void
 {
     waitForInsightsParityCondition($page, "document.querySelector('[data-testid=\"{$testId}\"]')?.getBoundingClientRect().height > 0");
 }
+
+const INSIGHTS_PARITY_AVATAR = 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 fill=%22%23e11d48%22/%3E%3C/svg%3E';
 
 /**
  * @return array{user: User, instagram: SocialAccount, facebook: SocialAccount, post: Post}
@@ -66,6 +69,7 @@ function insightsParitySetup(): array
             'network' => $platform->network(),
             'platform_user_id' => $account->platform_user_id,
             'account_username' => $username,
+            'account_avatar_url' => $platform === Platform::Instagram ? INSIGHTS_PARITY_AVATAR : null,
             'date' => now('UTC')->subDays(2)->toDateString(),
             'followers_count' => $followers,
         ]);
@@ -89,6 +93,7 @@ function insightsParitySetup(): array
             'platform' => $platform,
             'network' => $platform->network(),
             'account_username' => $username,
+            'account_avatar_url' => $platform === Platform::Instagram ? INSIGHTS_PARITY_AVATAR : null,
             'excerpt' => "Insights parity post {$username}",
             'provider_published_at' => now('UTC')->subDays(3),
         ]);
@@ -239,6 +244,38 @@ test('followers and posts charts show network logos and say how many channels ar
         ->assertNoJavaScriptErrors();
 });
 
+test('performance and follower charts show each channel as avatar plus network badge', function () {
+    ['user' => $user] = insightsParitySetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.insights'));
+    waitForInsightsParityTestId($page, 'accounts-unovis-bar-chart');
+    waitForInsightsParityCondition($page, 'document.querySelectorAll("[data-testid=analytics-axis-channel]").length >= 4');
+
+    $page->assertScript('document.querySelectorAll("[data-testid=analytics-axis-avatar]").length', 2)
+        ->assertScript('document.querySelectorAll("[data-testid=analytics-axis-avatar-fallback]").length', 4)
+        ->assertScript('document.querySelectorAll("[data-testid=analytics-axis-channel] [data-testid=analytics-axis-logo]").length', 4)
+        ->assertScript('document.querySelectorAll("[data-testid=analytics-top-post-channel]").length >= 2', true)
+        ->assertNoJavaScriptErrors();
+});
+
+test('a channel whose connection is lost shows the disconnected dot in the filter, the table and the charts', function () {
+    ['user' => $user, 'facebook' => $facebook] = insightsParitySetup();
+    $facebook->update(['status' => SocialAccountStatus::TokenExpired]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.insights'));
+    waitForInsightsParityTestId($page, 'analytics-channel-filter');
+    waitForInsightsParityCondition($page, 'document.querySelectorAll("[data-testid=analytics-axis-disconnected]").length >= 2');
+
+    $page->assertScript('document.querySelectorAll("[data-testid=analytics-axis-disconnected]").length', 2)
+        ->assertScript("document.querySelectorAll('[data-testid=\"channel-avatar-disconnected-{$facebook->id}\"]').length >= 1", true)
+        ->click('@analytics-channel-filter');
+    waitForInsightsParityCondition($page, "document.querySelectorAll('[data-testid=\"channel-avatar-disconnected-{$facebook->id}\"]').length >= 2");
+
+    $page->assertNoJavaScriptErrors();
+});
+
 test('clicking a top post opens its post details on the publish page', function () {
     ['user' => $user, 'post' => $post] = insightsParitySetup();
     $this->actingAs($user);
@@ -262,7 +299,7 @@ test('performance columns sort ascending and descending, with the columns menu a
     $page = visit(route('app.insights'));
     waitForInsightsParityTestId($page, 'analytics-performance-sort-reactions');
 
-    $order = 'Array.from(document.querySelectorAll("tbody th[scope=row]")).map((cell) => cell.innerText.trim().split("\n")[0]).join(",")';
+    $order = 'Array.from(document.querySelectorAll("tbody th[scope=row]")).map((cell) => (cell.innerText.match(/@\\w+/) || [""])[0]).join(",")';
 
     $page->assertScript('document.querySelector("[data-testid=analytics-performance-columns]").closest("table") === null', true)
         ->click('@analytics-performance-sort-reactions');

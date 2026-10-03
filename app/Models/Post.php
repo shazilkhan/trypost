@@ -36,6 +36,8 @@ class Post extends Model
     /** @use HasFactory<PostFactory> */
     use HasFactory, HasUuids;
 
+    public const int CONTENT_MAX_LENGTH = SocialAccount::X_LONG_POST_LENGTH;
+
     protected $fillable = [
         'workspace_id',
         'post_group_id',
@@ -257,6 +259,16 @@ class Post extends Model
     public function scopeFailed(Builder $query): Builder
     {
         return $query->where('status', PostStatus::Failed);
+    }
+
+    /**
+     * Newest attempt first: when the post went out, else when it was due to go
+     * out, else when it was written. Never updated_at, which any later write
+     * (a release backfill, a label) moves without the post being sent again.
+     */
+    public function scopeLatestAttempt(Builder $query): Builder
+    {
+        return $query->orderByRaw('COALESCE(posts.published_at, posts.scheduled_at, posts.created_at) DESC');
     }
 
     /**

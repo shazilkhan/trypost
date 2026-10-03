@@ -242,7 +242,11 @@ return [
 
         'all' => 'Tüm saat dilimleri',
 
-        'detected' => 'Tarayıcının algıladığı saat dilimi',
+        'yours' => 'Saat diliminiz',
+
+        'browser' => 'Tarayıcınızda algılandı',
+
+        'more' => '+:count daha…',
         'placeholder' => 'Şehir veya saat dilimi ara',
         'empty' => 'Saat dilimi bulunamadı',
     ],

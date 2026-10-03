@@ -307,3 +307,25 @@ test('media already on the post may change its alt text and people tags, in any 
     expect(fn () => PostCompositionValidator::validate($workspace, $composition($moved), [$existing]))
         ->toThrow(ValidationException::class);
 });
+
+test('an instagram story schedules with more than five hashtags while a feed post does not', function () {
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $asset = Media::factory()->temporaryUpload($workspace)->create(['meta' => ['width' => 1080, 'height' => 1920]]);
+    $composition = fn (ContentType $type): array => [
+        'status' => 'scheduled', 'scheduled_at' => now()->addDay()->toIso8601String(),
+        'content' => 'Launch #a #b #c #d #e #f', 'media' => [MediaItem::fromMedia($asset)->toArray()],
+        'destinations' => [['social_account_id' => $account->id, 'content_type' => $type->value, 'meta' => []]],
+    ];
+
+    $resolved = PostCompositionValidator::validate($workspace, $composition(ContentType::InstagramStory));
+
+    expect($resolved['destinations'][0]['content'])->toBe('Launch #a #b #c #d #e #f');
+
+    try {
+        PostCompositionValidator::validate($workspace, $composition(ContentType::InstagramFeed));
+        test()->fail('Six hashtags were accepted on a feed post.');
+    } catch (ValidationException $exception) {
+        expect($exception->errors())->toHaveKey('destinations.0.content');
+    }
+});

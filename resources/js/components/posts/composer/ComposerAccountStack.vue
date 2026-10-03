@@ -10,6 +10,8 @@ defineProps<{
 <template>
     <span class="flex items-center -space-x-1.5 grayscale" aria-hidden="true">
         <ChannelAvatar
+            :status="account.status"
+            :account-id="account.id"
             v-for="account in accounts.slice(0, 2)"
             :key="account.id"
             :platform="account.platform"

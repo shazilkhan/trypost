@@ -53,6 +53,8 @@ const props = withDefaults(
 
 const METRIC_ICONS: Record<string, typeof IconEye> = {
     views: IconEye,
+    video_views: IconEye,
+    engaged_views: IconEye,
     impressions: IconEye,
     reach: IconTarget,
     reactions: IconThumbUp,
@@ -72,6 +74,7 @@ const METRIC_ICONS: Record<string, typeof IconEye> = {
     average_video_play_time_milliseconds: IconClockPlay,
     average_percentage_viewed: IconPercentage,
     clicks: IconClick,
+    link_clicks: IconClick,
     pin_clicks: IconPinned,
     outbound_clicks: IconExternalLink,
     save_rate: IconBookmark,
@@ -187,7 +190,12 @@ useResizeObserver(
                             class="size-4 text-muted-foreground"
                             aria-hidden="true"
                         />
-                        {{ publicationMetricLabel(metric.key) }}
+                        {{
+                            publicationMetricLabel(
+                                metric.key,
+                                detail.publication?.platform,
+                            )
+                        }}
                     </dt>
                     <dd class="text-sm leading-none font-strong tabular-nums">
                         {{ formatPublicationMetric(metric.key, metric.fact) }}

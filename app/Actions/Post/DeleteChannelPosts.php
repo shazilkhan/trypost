@@ -45,11 +45,60 @@ class DeleteChannelPosts
      */
     public static function orphaned(?string $workspaceId = null): array
     {
-        return self::purge(
-            fn (Builder $targets): Builder => $targets->whereNull('social_account_id'),
-            fn (Builder $live): Builder => $live,
-            $workspaceId,
-        );
+        return self::purge(self::orphanedTargets(...), self::anyChannel(...), $workspaceId);
+    }
+
+    /**
+     * What `orphaned()` would delete and detach, without changing anything.
+     *
+     * @return array{deleted_posts: int, detached_targets: int}
+     */
+    public static function orphanedPlan(?string $workspaceId = null): array
+    {
+        [$posts, $liveElsewhere] = self::scopes(self::orphanedTargets(...), self::anyChannel(...), $workspaceId);
+
+        return [
+            'deleted_posts' => $posts()->whereDoesntHave('postPlatforms', $liveElsewhere)->count(),
+            'detached_targets' => self::orphanedTargets(PostPlatform::query())
+                ->whereIn('post_id', $posts()->whereHas('postPlatforms', $liveElsewhere)->select('id'))
+                ->count(),
+        ];
+    }
+
+    /**
+     * @param  Builder<PostPlatform>  $targets
+     * @return Builder<PostPlatform>
+     */
+    private static function orphanedTargets(Builder $targets): Builder
+    {
+        return $targets->whereNull('social_account_id');
+    }
+
+    /**
+     * @param  Builder<PostPlatform>  $targets
+     * @return Builder<PostPlatform>
+     */
+    private static function anyChannel(Builder $targets): Builder
+    {
+        return $targets;
+    }
+
+    /**
+     * The posts that have a target on the channel, and the scope of their
+     * targets that still publish elsewhere.
+     *
+     * @param  Closure(Builder<PostPlatform>): Builder<PostPlatform>  $channelTargets
+     * @param  Closure(Builder<PostPlatform>): Builder<PostPlatform>  $otherChannels
+     * @return array{0: Closure(): Builder<Post>, 1: Closure(Builder<PostPlatform>): Builder<PostPlatform>}
+     */
+    private static function scopes(Closure $channelTargets, Closure $otherChannels, ?string $workspaceId): array
+    {
+        return [
+            fn (): Builder => Post::query()
+                ->when($workspaceId !== null, fn (Builder $query): Builder => $query->where('workspace_id', $workspaceId))
+                ->whereHas('postPlatforms', $channelTargets),
+            fn (Builder $targets): Builder => $otherChannels($targets->enabled()->whereNotNull('social_account_id')),
+        ];
     }
 
     /**
@@ -59,11 +108,7 @@ class DeleteChannelPosts
      */
     private static function purge(Closure $channelTargets, Closure $otherChannels, ?string $workspaceId): array
     {
-        $liveElsewhere = fn (Builder $targets): Builder => $otherChannels($targets->enabled()->whereNotNull('social_account_id'));
-
-        $posts = fn (): Builder => Post::query()
-            ->when($workspaceId !== null, fn (Builder $query): Builder => $query->where('workspace_id', $workspaceId))
-            ->whereHas('postPlatforms', $channelTargets);
+        [$posts, $liveElsewhere] = self::scopes($channelTargets, $otherChannels, $workspaceId);
 
         $deletedPosts = 0;
 

@@ -389,8 +389,9 @@ history — a post without a channel is a history that no longer exists.
   only this one (a Publishing post is re-settled through `FinalizePostPublication`).
 - Analytics publications stay and are only unlinked, never dismissed, so
   reconnecting the same identity re-imports its recent posts once.
-- `posts:purge-orphaned {--workspace=}` removes orphans left by earlier
-  disconnects through the same action.
+- Orphans left by disconnects before this rule are removed once by the release
+  script (`release:trypost-2`, step `posts:purge-orphaned`, in
+  `app/Console/Commands/Scripts/`), through the same action.
 
 ## Member permissions and post approvals
 
@@ -684,6 +685,38 @@ TryPost runs on **both PostgreSQL and MySQL**. Cloud runs PostgreSQL; a self-hos
     - Why: `FormRequest::validated()` (and MCP `$request->validate()`) STRIPS any key without a rule. A meta field defined in only one entry point is silently dropped everywhere else — which is exactly how Discord/Pinterest/TikTok meta was lost via API/MCP before this was centralized.
 - Required-on-publish (meta a platform needs to publish, e.g. Discord `channel_id`) also lives there: `addRequiredOnPublishErrors()` for request-driven flows (web/API update `withValidator`), `assertStoredPostPublishable()` for flows that publish stored state without resubmitting platforms (MCP `PublishPostTool`). Add new required-meta rules to `requiredMetaViolation()`, not inline.
 - When adding a new platform's meta field, add it (and any publish requirement) to `PostPlatformMetaRules` ONLY, and cover it in `tests/Feature/Api/PostApiPlatformMetaTest.php` + `tests/Feature/Mcp/PostPlatformMetaToolTest.php`.
+- `PostPlatformMetaRules::formatViolation()` holds meta no post may store, even as a draft (a YouTube title with `<` or `>`). Every create and update path (web, API, MCP, repurpose) goes through `App\Support\PostCompositionValidator`, which runs it and, once the post is scheduled or published, the content limits below.
+
+## Content limits
+
+- **Per account, not per platform.** Read the cap through `SocialAccount::maxContentLength()`. It is the platform's `Platform::maxContentLength()`, except an X account with long posts (`hasXLongPosts()`: a `Basic`, `Premium` or `PremiumPlus` subscription, or `verified_type=business`), which gets 25000. The tier lives in the account meta and is written by `SyncXSubscription`, called from `ConnectionVerifier` on connect and on the daily `social:check-connections`.
+- `Post::CONTENT_MAX_LENGTH` (25000 characters of plain text) is the ceiling of any post, enforced by `PostContentFitsMaxLength`.
+- `Platform::reservedLength()` counts what the network adds to the text: the Mastodon content warning (trimmed like `Str::trim`) counts toward the 500.
+- `Platform::maxHashtags()` is 5 on Instagram (both platforms). It is a **save-time** rule (web, API, MCP), never a publish-time failure: a post stored with more still publishes. Repurpose captions are trimmed to the first 5 by `CaptionAdapter` through `Hashtags::keepFirst()`. Hashtags are counted by `App\Support\Hashtags`, mirrored by `resources/js/lib/hashtags.ts` and kept identical by `HashtagParityTest`.
+- A captionless content type (`ContentType::isCaptionless()`: Instagram and Facebook Stories, mirrored by `CAPTIONLESS_CONTENT_TYPES`) sends no text, so it is measured for neither length nor hashtags, at save, at publish or in the composer.
+- `App\Rules\ContentFitsPlatformLimits` (save) and `HasSocialHttpClient::validateContentLength()` (publish) measure the same thing; keep them in step. Every counter counts code points (`mb_strlen`; `characterCount()` in `resources/js/lib/characters.ts`), so an emoji is one.
+
+## Thread replies
+
+- Bluesky and Mastodon only (`App\Support\ThreadReplies`), up to 24 replies in `meta.thread_replies`. X threads are not built yet.
+- Each segment already live is checkpointed in `post_platforms.error_context.thread_progress` (`App\Support\Social\ThreadProgress`), so a retry resumes instead of re-posting, and a resume keeps the root hash. `posts:retry` keeps the live segments.
+- `post_platforms.thread_reply_ids` lists the reply ids so `ImportExternalPosts` does not import TryPost's own replies as new posts.
+
+## Composer steps
+
+- Step 1 is one shared editor. "Customize for each network" opens one card per network, in channel-list order, grouped by `platform`; each card starts as a copy of the shared text.
+- Going back to step 1 discards every per-network override, including post type and settings.
+- Settings in `ACCOUNT_SCOPED_SETTINGS` (Pinterest, Discord, TikTok) stay per account; every other meta fans out to all accounts of the network.
+
+## Link preview card
+
+- `meta.link_preview === false` (the × on the card) is honoured only by the Facebook post, Bluesky and LinkedIn publishers, through `PostPlatform::attachesLinkPreview()`. Threads has no ×: its API always cards the first link.
+- "Replace link preview with media" goes through `LinkPreviewMediaController`.
+
+## YouTube
+
+- Without `meta.title`, the title is the first non-empty line of the post's plain text, with `<` and `>` removed, cut to 100 code points, and no ` #Shorts` (`YouTubeMetadata::title()`); `YouTubeSettings.vue` fills the Title field with the same rule.
+- Categories are a fixed list, `App\Enums\YouTube\Category`; the composer reads it from `Platform::publishConfig()` (`categoryOptions`, `defaultCategoryId`). Do not copy it into TypeScript.
 
 ## Media Types (image / video / document)
 
@@ -793,7 +826,7 @@ Standing constraints:
 - **Every** dot of the host must be broken. Defusing only the dot before the TLD leaves `blog.example.com` in `blog.example.com(.)br`, which X still detects and bills.
 - A URL carrying `https://`, `http://` or `www.` is defused on sight. A **bare** host is only a link when its last label is a delegated TLD — that check is the one thing separating `acme.com` from `Node.js`, and it goes through `App\Support\LinkTlds`, which mirrors the full IANA root zone rather than a hand-picked subset. Never replace it with "any 2+ letters after a dot", and never trim it back to a curated list: whatever X links is what X bills, so the two must stay in step. `README.md` and `backup.zip` are defused on purpose — `.md` and `.zip` are real TLDs and X links them too.
 - Off by default everywhere. Cloud opts in; self-hosted installs publish through their own X app and pay their own bill, so they only turn it on if they want to.
-- Character limits are measured against the **sanitized** content — the string the publisher actually sends — in both `App\Rules\ContentFitsPlatformLimits` (save/schedule) and `HasSocialHttpClient::validateContentLength()` (publish). The editor stores HTML and per-platform rules change the length again, so measuring the raw draft blocks saving posts that publish fine and lets through posts the network rejects. Keep the two in step.
+- Character limits are measured against the **sanitized** content — the string the publisher actually sends — against the **account's** limit plus the reserved length (see Content limits), in both `App\Rules\ContentFitsPlatformLimits` (save/schedule) and `HasSocialHttpClient::validateContentLength()` (publish). The editor stores HTML and per-platform rules change the length again, so measuring the raw draft blocks saving posts that publish fine and lets through posts the network rejects. Keep the two in step.
 - Tests enable it explicitly with `config()->set('trypost.platforms.x.defuse_links', true)` rather than pinning an env, so the suite runs against the shipped default.
 - The editor counts characters and renders the X preview client-side, so the rewrite is mirrored in `resources/js/lib/defuseXLinks.ts`. The TLD list is NOT duplicated there: `PostController@edit` sends `App\Support\LinkTlds::all()` as the `xLinkTlds` page prop, and only when defusing is on — an empty set means the feature is off, since without the list a bare host cannot be told from `Node.js`. Do not move it to the Inertia shared props; only the editor needs it. Two tests keep the mirror honest: `XLinkDefusingParityTest` runs a shared corpus through both engines over the same list and diffs the output, and `tests/Browser/XLinkDefusingTest.php` drives the real editor.
 - Neither expression may use lookbehind. Safari only understands it from 16.4, esbuild cannot transpile it, and a `SyntaxError` there takes down the whole chunk — the character before a candidate URL is consumed and put back instead.

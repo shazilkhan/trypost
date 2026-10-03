@@ -7,6 +7,7 @@ namespace App\Actions\Ai;
 use App\Ai\Agents\PostWritingAssistant;
 use App\Enums\Ai\PostAssistantMode;
 use App\Enums\SocialAccount\Platform;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Repurpose\CaptionAdapter;
@@ -22,8 +23,12 @@ final class AssistPostContent
         ?string $prompt,
         ?string $previousContent,
         ?Platform $platform,
+        ?SocialAccount $account = null,
     ): string {
-        $response = (new PostWritingAssistant($mode, $currentContent, $user->locale, $platform, $previousContent))
+        $platform = $account->platform ?? $platform;
+        $limit = $account?->maxContentLength() ?? $platform?->maxContentLength();
+
+        $response = (new PostWritingAssistant($mode, $currentContent, $user->locale, $platform, $previousContent, $limit))
             ->prompt($mode->requiresPrompt() ? trim((string) $prompt) : 'Revise the existing caption as instructed.');
 
         $text = trim((string) $response);
@@ -35,7 +40,7 @@ final class AssistPostContent
         }
 
         return $platform instanceof Platform
-            ? app(CaptionAdapter::class)->adapt($workspace, $user, $text, $platform)
+            ? app(CaptionAdapter::class)->adapt($workspace, $user, $text, $platform, $limit)
             : $text;
     }
 }

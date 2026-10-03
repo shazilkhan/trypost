@@ -13,6 +13,7 @@ use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Rules\ContentFitsPlatformLimits;
 use App\Rules\ContentTypeCompatibleWithMedia;
+use App\Rules\PostContentFitsMaxLength;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -29,13 +30,13 @@ class PostCompositionValidator
     {
         Validator::make($composition, [
             'status' => ['required', Rule::in(['draft', 'scheduled', 'publishing'])],
-            'content' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
             'media' => ['sometimes', 'array'],
             'destinations' => ['required', 'array', 'min:1'],
             'destinations.*.social_account_id' => ['required', 'uuid'],
             'destinations.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
             'destinations.*.meta' => ['sometimes', 'array'],
-            'destinations.*.content' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'destinations.*.content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
             'destinations.*.media' => ['sometimes', 'array'],
             'scheduled_at' => [
                 Rule::requiredIf(fn (): bool => data_get($composition, 'status') === 'scheduled' && blank(data_get($composition, 'queue'))),
@@ -177,13 +178,19 @@ class PostCompositionValidator
                     }
                 }
 
+                $formatViolation = PostPlatformMetaRules::formatViolation($account->platform, $destination['meta'] ?? []);
+                if ($formatViolation !== null) {
+                    [$field, $message] = $formatViolation;
+                    $validator->errors()->add("{$key}.meta.{$field}", $message);
+                }
+
                 if ($composition['status'] === 'draft') {
                     continue;
                 }
 
                 $contentValidator = Validator::make(
                     ['content' => $destination['content']],
-                    ['content' => [new ContentFitsPlatformLimits(collect([$account->platform]))]],
+                    ['content' => [new ContentFitsPlatformLimits(collect([$account]), [$destination['meta'] ?? []], [$destination['content_type']])]],
                 );
                 if ($contentValidator->fails()) {
                     $validator->errors()->add("{$key}.content", $contentValidator->errors()->first('content'));
@@ -194,7 +201,7 @@ class PostCompositionValidator
                 }
 
                 $metaViolation = PostPlatformMetaRules::requiredMetaViolation($account->platform, $destination['meta'] ?? []);
-                if ($metaViolation !== null) {
+                if ($metaViolation !== null && $metaViolation !== $formatViolation) {
                     [$field, $message] = $metaViolation;
                     $validator->errors()->add("{$key}.meta.{$field}", $message);
                 }
@@ -203,7 +210,7 @@ class PostCompositionValidator
                     'key' => "{$key}.content_type",
                     'content_type' => $destination['content_type'],
                     'aspect_ratio' => data_get($destination, 'meta.aspect_ratio'),
-                ]], $destination['media'], $workspace) as $field => $message) {
+                ]], $destination['media'], $workspace, $destination['content']) as $field => $message) {
                     $validator->errors()->add($field, $message);
                 }
             }

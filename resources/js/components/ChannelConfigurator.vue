@@ -14,7 +14,6 @@ import ChannelMediaWarnings from '@/components/posts/editor/ChannelMediaWarnings
 import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
 import FacebookSettings from '@/components/posts/editor/FacebookSettings.vue';
-import GoogleBusinessSettings from '@/components/posts/editor/GoogleBusinessSettings.vue';
 import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
@@ -73,7 +72,6 @@ const SETTINGS_PLATFORMS: string[] = [
     Platform.TikTok,
     Platform.Pinterest,
     Platform.YouTube,
-    Platform.GoogleBusiness,
     Platform.Discord,
 ];
 
@@ -307,13 +305,7 @@ const updateMeta = (channel: Channel, value: Record<string, any>) =>
                     <YouTubeSettings
                         v-else-if="channel.platform === Platform.YouTube"
                         :platform-index="index"
-                        :meta="channel.meta"
-                        :disabled="disabled"
-                        @update:meta="updateMeta(channel, $event)"
-                    />
-                    <GoogleBusinessSettings
-                        v-else-if="channel.platform === Platform.GoogleBusiness"
-                        :platform-index="index"
+                        :publish-config="channel.publishConfig ?? null"
                         :meta="channel.meta"
                         :disabled="disabled"
                         @update:meta="updateMeta(channel, $event)"

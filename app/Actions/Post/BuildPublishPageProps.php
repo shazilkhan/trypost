@@ -44,10 +44,6 @@ class BuildPublishPageProps
         PostStatus::Published,
         PostStatus::PartiallyPublished,
         PostStatus::Failed,
-    ];
-
-    private const NEEDS_ATTENTION_STATUSES = [
-        PostStatus::Failed,
         PostStatus::Publishing,
     ];
 
@@ -102,12 +98,6 @@ class BuildPublishPageProps
             ],
             'displayTimezone' => $displayTimezone,
             'timezones' => fn (): array => Timezone::options(),
-            'channelTimezones' => fn (): array => $channels()
-                ->map(fn (SocialAccount $account): string => Timezone::normalize($account->timezone))
-                ->reject(fn (string $timezone): bool => $timezone === $userTimezone)
-                ->unique()
-                ->values()
-                ->all(),
             'labels' => fn () => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
             'filters' => [
                 'labels' => $labelIds,
@@ -244,7 +234,7 @@ class BuildPublishPageProps
      * @param  Collection<int, SocialAccount>  $channels
      * @param  list<string>  $labelIds
      * @param  callable(): Builder  $cards
-     * @return array{days: list<array<string, mixed>>, needsAttention: list<Post>, pending: list<Post>, queueDays: int, maxQueueDays: int}
+     * @return array{days: list<array<string, mixed>>, pending: list<Post>, queueDays: int, maxQueueDays: int}
      */
     private static function queue(Workspace $workspace, Collection $channels, string $displayTimezone, Request $request, array $labelIds, bool $untagged, callable $cards, bool $channelScope, ?User $requester): array
     {
@@ -253,12 +243,6 @@ class BuildPublishPageProps
         $days = ! $channelScope && $cards()->where('status', PostStatus::Scheduled)->exists()
             ? []
             : BuildQueueTimeline::handle($workspace, $channels, $displayTimezone, now()->addDays($queueDays), $labelIds, $untagged);
-
-        $needsAttention = $cards()
-            ->whereIn('status', self::NEEDS_ATTENTION_STATUSES)
-            ->latest('updated_at')
-            ->limit((int) config('app.pagination.default'))
-            ->get();
 
         $pending = $cards()
             ->pendingApproval()
@@ -270,12 +254,10 @@ class BuildPublishPageProps
             ->limit((int) config('app.pagination.default'))
             ->get();
 
-        self::decorate($needsAttention);
         self::decorate($pending);
 
         return [
             'days' => $days,
-            'needsAttention' => $needsAttention->values()->all(),
             'pending' => $pending->values()->all(),
             'queueDays' => $queueDays,
             'maxQueueDays' => self::MAX_QUEUE_DAYS,
@@ -299,7 +281,7 @@ class BuildPublishPageProps
                 ->orderBy('posts.scheduled_at')
                 ->orderBy('posts.approval_requested_at'),
             default => $query->whereIn('status', self::SENT_STATUSES)
-                ->orderByRaw('COALESCE(posts.published_at, posts.updated_at) DESC'),
+                ->latestAttempt(),
         };
 
         $paginator = $query->orderBy('posts.id')->paginate((int) config('app.pagination.default'));

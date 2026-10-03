@@ -242,7 +242,11 @@ return [
 
         'all' => 'All time zones',
 
-        'detected' => 'Browser detected time zone',
+        'yours' => 'Your time zone',
+
+        'browser' => 'Detected in your browser',
+
+        'more' => '+:count more…',
         'placeholder' => 'Search cities or time zones',
         'empty' => 'No time zone found',
     ],

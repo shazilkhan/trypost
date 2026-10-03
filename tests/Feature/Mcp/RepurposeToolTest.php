@@ -391,3 +391,19 @@ test('the source formats tool lists what a repurpose can watch', function () {
         ->assertOk()
         ->assertSee(SourceFormat::Reel->value);
 });
+
+test('google business is rejected as a destination', function () {
+    $googleBusiness = SocialAccount::factory()->for($this->workspace)->create(['platform' => Platform::GoogleBusiness]);
+
+    TryPostServer::actingAs($this->user)
+        ->tool(CreateRepurposeTool::class, [
+            'source_social_account_id' => $this->source->id,
+            'destinations' => [[
+                'social_account_id' => $googleBusiness->id,
+                'content_type' => ContentType::GoogleBusinessPost->value,
+            ]],
+        ])
+        ->assertHasErrors([__('repurposes.errors.destination_not_supported')]);
+
+    expect(Repurpose::count())->toBe(0);
+});

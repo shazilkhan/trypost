@@ -6,6 +6,7 @@ namespace App\Services\Analytics\Collectors\Publications;
 
 use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\SocialAccount;
+use App\Support\Analytics\AnalyticsAccessToken;
 use App\Support\Analytics\InvalidPublicationCursor;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\PendingRequest;
@@ -79,6 +80,6 @@ abstract class AbstractApiPublicationCollector
     {
         $client = Http::acceptJson()->timeout(120);
 
-        return $authenticated ? $client->withToken($account->access_token) : $client;
+        return $authenticated ? $client->withToken(AnalyticsAccessToken::for($account)) : $client;
     }
 }

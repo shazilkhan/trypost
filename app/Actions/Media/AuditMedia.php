@@ -24,8 +24,13 @@ class AuditMedia
 
     public const string DIRECTORY = 'medias';
 
-    /** @return array<string, list<array<string, string>>> */
-    public static function execute(): array
+    /**
+     * `$checkMissingFiles` false skips the one storage request per row (the
+     * bucket listing behind `orphaned_files` stays: it is a few requests).
+     *
+     * @return array<string, list<array<string, string>>>
+     */
+    public static function execute(bool $checkMissingFiles = true): array
     {
         $report = [
             'orphaned_files' => [],
@@ -38,9 +43,9 @@ class AuditMedia
 
         $report['orphaned_files'] = self::orphanedFiles();
 
-        Media::query()->chunkById(self::CHUNK, function (Collection $rows) use (&$report): void {
+        Media::query()->chunkById(self::CHUNK, function (Collection $rows) use (&$report, $checkMissingFiles): void {
             foreach ($rows as $media) {
-                if (! Storage::exists($media->path)) {
+                if ($checkMissingFiles && ! Storage::exists($media->path)) {
                     $report['missing_files'][] = ['media_id' => $media->id, 'path' => $media->path];
                 }
 

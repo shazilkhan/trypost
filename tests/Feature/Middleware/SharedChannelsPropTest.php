@@ -93,3 +93,11 @@ test('connectable platforms are shared once', function () {
             ->where('connectablePlatforms', Platform::connectableOptions())
         );
 });
+
+test('shared channels carry their normalized time zone', function () {
+    SocialAccount::factory()->linkedin()->create(['workspace_id' => $this->workspace->id, 'timezone' => 'Europe/Warsaw']);
+
+    $this->actingAs($this->user)
+        ->get(route('app.workspace.channels'))
+        ->assertInertia(fn ($page) => $page->where('channels.0.timezone', 'Europe/Warsaw'));
+});

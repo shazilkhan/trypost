@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Reconnect the account this repurpose watches before starting it.',
         'destinations_required' => 'Pick at least one destination before activating.',
         'destination_needs_video' => 'That format cannot carry a video.',
+        'destination_not_supported' => 'Google Business cannot be a destination: its posts do not accept video.',
         'only_paused_resumes' => 'Only a paused repurpose can be resumed.',
         'only_active_pauses' => 'Only an active repurpose can be paused.',
         'only_running_disables' => 'Only a running repurpose can be turned off.',

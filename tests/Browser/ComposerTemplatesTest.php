@@ -149,7 +149,8 @@ test('in the per-network view a template goes to the expanded account override o
     $page->fill('@composer-base-content', 'Hello world')
         ->click('@composer-add-account')
         ->click("@composer-account-option-{$linkedIn->id}")
-        ->click("@composer-account-option-{$x->id}");
+        ->click("@composer-account-option-{$x->id}")
+        ->click('@composer-next');
     waitForComposerTemplatesTestId($page, 'composer-customization');
     $page->click("@composer-account-{$linkedIn->id}");
     waitForComposerTemplatesTestId($page, "composer-caption-{$linkedIn->id}");

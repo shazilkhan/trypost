@@ -22,6 +22,7 @@ class PostWritingAssistant implements Agent
         public Locale $locale,
         public ?Platform $platform = null,
         public ?string $previousContent = null,
+        public ?int $hardMaxChars = null,
     ) {}
 
     public function instructions(): string
@@ -34,7 +35,7 @@ class PostWritingAssistant implements Agent
             'previous_content' => $this->previousContent,
             'platform' => $this->platform?->value,
             'platform_label' => $this->platform?->label(),
-            'hard_max_chars' => $this->platform?->maxContentLength(),
+            'hard_max_chars' => $this->hardMaxChars ?? $this->platform?->maxContentLength(),
             'target_chars' => $this->platform?->recommendedAiContentLength(),
         ])->render();
     }

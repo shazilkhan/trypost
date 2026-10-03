@@ -31,6 +31,7 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => Queue::fake([BootstrapAccountAnalytics::class]))
     ->in('Feature', 'Unit');
 
 pest()->extend(BrowserTestCase::class)

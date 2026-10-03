@@ -86,7 +86,7 @@ Posts publish natively through each platform's official API.
 
 Self-hosting media maintenance:
 
-- `php artisan media:adopt-library --force` copies the old media library onto the posts and ideas that use it, then deletes the library. Docker runs it on boot; outside Docker, run it once after `php artisan migrate` with a queue worker running.
+- `php artisan release:trypost-2 --force` runs the one-off data steps of the 2.0 release once, after `php artisan migrate`: it splits multi-channel posts, purges posts of channels disconnected earlier, copies the old media library onto the posts and ideas that use it (then deletes the library) and queues the analytics backfill. Run it with a queue worker running. The individual commands live in `app/Console/Commands/Scripts/`.
 - `php artisan media:prune-uploads` deletes unused uploads older than `MEDIA_UPLOAD_RETENTION_HOURS` (24 by default) and stale publish crops. The scheduler runs it hourly.
 - `php artisan posts:prune-history` deletes published posts, and their media, older than `POST_HISTORY_RETENTION_DAYS` (730 by default). The scheduler runs it daily; analytics are kept.
 

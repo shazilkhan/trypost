@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Επανασύνδεσε τον λογαριασμό που παρακολουθείται πριν ξεκινήσεις αυτήν την αυτοματοποίηση.',
         'destinations_required' => 'Διάλεξε τουλάχιστον έναν προορισμό πριν την ενεργοποίηση.',
         'destination_needs_video' => 'Αυτή η μορφή δεν δέχεται βίντεο.',
+        'destination_not_supported' => 'Το Google Business δεν μπορεί να είναι προορισμός: οι αναρτήσεις του δεν δέχονται βίντεο.',
         'only_paused_resumes' => 'Μόνο ένα repurpose σε παύση μπορεί να συνεχιστεί.',
         'only_active_pauses' => 'Μόνο ένα ενεργό repurpose μπορεί να τεθεί σε παύση.',
         'only_running_disables' => 'Μόνο ένα repurpose σε λειτουργία μπορεί να απενεργοποιηθεί.',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import {
+    IconAlertCircle,
     IconArrowDown,
     IconArrowUp,
     IconDotsVertical,
@@ -12,7 +13,6 @@ import {
 import { computed } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -63,6 +63,8 @@ const accountTypeKey = computed((): string | null =>
         <slot name="handle" />
 
         <ChannelAvatar
+            :status="channel.status"
+            :account-id="channel.id"
             :platform="channel.platform"
             :src="channel.avatar_url"
             :name="channel.display_name || channel.username"
@@ -77,7 +79,15 @@ const accountTypeKey = computed((): string | null =>
             >
                 {{ channel.display_name || channel.username }}
             </p>
-            <p class="truncate text-sm text-muted-foreground">
+            <p
+                v-if="lost"
+                class="flex min-w-0 items-center gap-1.5 text-sm text-destructive"
+                :data-testid="`channel-connection-lost-${channel.id}`"
+            >
+                <IconAlertCircle class="size-4 shrink-0" />
+                <span class="truncate">{{ $t('channels.connection_lost_hint') }}</span>
+            </p>
+            <p v-else class="truncate text-sm text-muted-foreground">
                 {{
                     accountTypeKey
                         ? $t(accountTypeKey)
@@ -86,17 +96,16 @@ const accountTypeKey = computed((): string | null =>
             </p>
         </div>
 
-        <template v-if="lost">
-            <Badge variant="warning">{{ $t('channels.connection_lost') }}</Badge>
-            <Button
-                size="sm"
-                variant="outline"
-                :data-testid="`channel-reconnect-${channel.id}`"
-                @click="emit('reconnect', channel)"
-            >
-                {{ $t('channels.reconnect') }}
-            </Button>
-        </template>
+        <Button
+            v-if="lost"
+            size="sm"
+            class="shrink-0"
+            :data-testid="`channel-reconnect-${channel.id}`"
+            @click="emit('reconnect', channel)"
+        >
+            <IconRefresh class="size-4" />
+            {{ $t('channels.reconnect') }}
+        </Button>
 
         <div class="flex shrink-0 items-center">
             <Button

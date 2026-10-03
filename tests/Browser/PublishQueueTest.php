@@ -9,6 +9,7 @@ use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\User\TimeFormat;
+use App\Exceptions\Social\ErrorCategory;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -343,25 +344,57 @@ test('more times extends the queue range', function () {
         ->assertNoJavaScriptErrors();
 });
 
-test('a failed post is listed under needs attention', function () {
+test('a failed post is listed in sent with its failed badge and actions, not in the queue', function () {
     [$user, $workspace, $channel] = publishQueueSetup();
     $failed = Post::factory()->failed()->create([
         'workspace_id' => $workspace->id,
         'user_id' => $user->id,
+        'scheduled_at' => now()->subDays(21),
     ]);
     PostPlatform::factory()->failed()->create([
         'post_id' => $failed->id,
         'social_account_id' => $channel->id,
         'platform' => $channel->platform,
         'enabled' => true,
+        'error_message' => 'Video duration exceeds the 90 second limit.',
+        'error_context' => ['category' => ErrorCategory::MediaFormat->value],
     ]);
     $this->actingAs($user);
 
     $page = visit(route('app.posts.index'));
-    waitForPublishQueueTestId($page, 'needs-attention');
+    waitForPublishQueueTestId($page, 'publish-tab-queue');
 
-    expect($page->script("!!document.querySelector('[data-testid=\"needs-attention\"] [data-post-id=\"{$failed->id}\"]')"))->toBeTrue();
-    $page->assertNoJavaScriptErrors();
+    $page->assertMissing("@post-card-{$failed->id}")
+        ->assertMissing('@needs-attention')
+        ->assertNoJavaScriptErrors();
+
+    $page = visit(route('app.posts.index', ['tab' => 'sent']));
+    waitForPublishQueueTestId($page, "post-card-{$failed->id}");
+
+    $page->assertSeeIn("@post-status-{$failed->id}", __('posts.status.failed'))
+        ->assertSeeIn("@post-created-by-{$failed->id}", $user->name)
+        ->assertMissing("@post-published-via-{$failed->id}")
+        ->assertMissing("@post-edit-{$failed->id}");
+
+    expect($page->script("document.querySelector('[data-testid=\"post-time-{$failed->id}\"]').getAttribute('datetime')"))
+        ->toStartWith($failed->scheduled_at->toDateString());
+
+    $page->click("@post-status-{$failed->id}");
+    waitForPublishQueueTestId($page, "post-failure-{$failed->id}");
+
+    $page->assertSeeIn("@post-failure-reason-{$failed->id}", __('posts.publish.failure.categories.media_format'))
+        ->assertSeeIn("@post-failure-details-{$failed->id}", 'Video duration exceeds the 90 second limit.');
+
+    $page->script("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))");
+    waitForPublishQueueCondition($page, "!document.querySelector('[data-testid=\"post-failure-{$failed->id}\"]')");
+
+    $page->click("@post-card-menu-{$failed->id}");
+    waitForPublishQueueTestId($page, "post-duplicate-{$failed->id}");
+
+    $page->assertPresent("@post-duplicate-{$failed->id}")
+        ->assertPresent("@post-details-open-{$failed->id}")
+        ->assertPresent("@post-delete-{$failed->id}")
+        ->assertNoJavaScriptErrors();
 });
 
 function publishQueueCustomPost(User $user, SocialAccount $channel, CarbonInterface $at): Post
@@ -613,5 +646,32 @@ test('a pending queue request shows at its reserved slot and approving it keeps 
     $page->assertVisible("@post-card-{$pending->id}")
         ->assertMissing("@post-approval-badge-{$pending->id}")
         ->assertPresent("@post-drag-handle-{$pending->id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('a failed post without a stored reason explains it generically', function () {
+    [$user, $workspace, $channel] = publishQueueSetup();
+    $failed = Post::factory()->failed()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'scheduled_at' => now()->subDay(),
+    ]);
+    PostPlatform::factory()->failed()->create([
+        'post_id' => $failed->id,
+        'social_account_id' => $channel->id,
+        'platform' => $channel->platform,
+        'enabled' => true,
+        'error_message' => null,
+        'error_context' => null,
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => 'sent']));
+    waitForPublishQueueTestId($page, "post-status-{$failed->id}");
+    $page->click("@post-status-{$failed->id}");
+    waitForPublishQueueTestId($page, "post-failure-{$failed->id}");
+
+    $page->assertSeeIn("@post-failure-reason-{$failed->id}", __('posts.publish.failure.generic'))
+        ->assertMissing("@post-failure-details-{$failed->id}")
         ->assertNoJavaScriptErrors();
 });

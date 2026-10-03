@@ -44,8 +44,7 @@ const githubUrl = computed(() => githubRedirect.url({ query: query.value }));
                 v-if="googleEnabled"
                 data-testid="social-login-google"
                 variant="outline"
-                size="lg"
-                class="w-full bg-card text-base"
+                class="w-full bg-card"
                 as="a"
                 :href="googleUrl"
             >
@@ -65,8 +64,7 @@ const githubUrl = computed(() => githubRedirect.url({ query: query.value }));
                 v-if="githubEnabled"
                 data-testid="social-login-github"
                 variant="outline"
-                size="lg"
-                class="w-full bg-card text-base"
+                class="w-full bg-card"
                 as="a"
                 :href="githubUrl"
             >

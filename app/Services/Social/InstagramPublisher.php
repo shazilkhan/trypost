@@ -118,7 +118,7 @@ class InstagramPublisher
             $params['alt_text'] = $alt;
         }
 
-        $params = [...$params, ...$this->userTagsParam($media->userTags())];
+        $params = [...$params, ...$this->userTagsParam($media->userTags()), ...$this->sharedOptions()];
 
         $containerId = $this->createContainer($instagramId, $params, 'container');
 
@@ -133,6 +133,8 @@ class InstagramPublisher
             'media_type' => 'REELS',
             'access_token' => $accessToken,
             ...$this->thumbOffsetParam($media),
+            ...$this->sharedOptions(),
+            ...$this->reelOptions(),
         ], 'reel container');
 
         return $this->finishContainer($instagramId, $accessToken, $containerId);
@@ -241,6 +243,40 @@ class InstagramPublisher
     }
 
     /**
+     * Options Instagram accepts on a feed image, reel or carousel parent. A story
+     * takes none of them, and carousel children never get the AI label.
+     *
+     * @return array<string, string>
+     */
+    private function sharedOptions(): array
+    {
+        if ($this->postPlatform->content_type === ContentType::InstagramStory) {
+            return [];
+        }
+
+        return array_filter([
+            'is_ai_generated' => data_get($this->postPlatform->meta, 'is_ai_generated') === true ? 'true' : null,
+        ], fn (?string $value): bool => $value !== null);
+    }
+
+    /**
+     * Reel-only options. A feed video is also sent as REELS, so these apply only
+     * when the user picked the Reel content type.
+     *
+     * @return array<string, string>
+     */
+    private function reelOptions(): array
+    {
+        if ($this->postPlatform->content_type !== ContentType::InstagramReel) {
+            return [];
+        }
+
+        return [
+            'share_to_feed' => data_get($this->postPlatform->meta, 'share_to_feed', true) ? 'true' : 'false',
+        ];
+    }
+
+    /**
      * @return array{thumb_offset?: int}
      */
     private function thumbOffsetParam(MediaItem $media): array
@@ -271,6 +307,7 @@ class InstagramPublisher
             'caption' => $content,
             'children' => implode(',', $childContainers),
             'access_token' => $accessToken,
+            ...$this->sharedOptions(),
         ], 'carousel container');
 
         return $this->finishContainer($instagramId, $accessToken, $carouselId);

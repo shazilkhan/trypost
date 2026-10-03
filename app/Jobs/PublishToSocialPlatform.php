@@ -34,6 +34,7 @@ use App\Services\Social\XPublisher;
 use App\Services\Social\YouTubePublisher;
 use App\Support\Social\GoogleBusinessDerivativeCleaner;
 use App\Support\Social\PublishCheckpoint;
+use App\Support\Social\ThreadProgress;
 use App\Support\Social\TikTokPhotoDerivativeCleaner;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -187,6 +188,11 @@ class PublishToSocialPlatform implements ShouldBeUnique, ShouldQueue
         // tryFrom, not fromApi: every other publisher omits `state`. fromApi(null)
         // is Processing, which would hold LinkedIn/X/… in pending review forever.
         $state = LocalPostState::tryFrom((string) data_get($result, 'state'));
+        $threadReplyIds = data_get($result, 'thread_reply_ids');
+
+        if (is_array($threadReplyIds) && $threadReplyIds !== []) {
+            $this->postPlatform->thread_reply_ids = array_values($threadReplyIds);
+        }
 
         match ($state) {
             LocalPostState::Rejected => $this->postPlatform->markAsRejected(
@@ -256,6 +262,7 @@ class PublishToSocialPlatform implements ShouldBeUnique, ShouldQueue
             ]],
             (array) ($post->media ?? []),
             $post->workspace,
+            $post->content,
         );
 
         if ($errors === []) {
@@ -411,7 +418,10 @@ class PublishToSocialPlatform implements ShouldBeUnique, ShouldQueue
 
         $failureContext = [...$previousContext, ...($context ?? [])];
 
-        $this->postPlatform->markAsFailed($message, $failureContext === [] ? null : $failureContext);
+        $this->postPlatform->markAsFailed(
+            ThreadProgress::failureMessage($this->postPlatform, $message, $failureContext),
+            $failureContext === [] ? null : $failureContext,
+        );
     }
 
     /**

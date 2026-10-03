@@ -17,6 +17,7 @@ use App\Mcp\Concerns\DescribesPostMedia;
 use App\Models\Post;
 use App\Models\Workspace;
 use App\Rules\ContentTypeCompatibleWithMedia;
+use App\Rules\PostContentFitsMaxLength;
 use App\Support\PostMediaRules;
 use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
@@ -55,7 +56,7 @@ class UpdatePostTool extends Tool
         $validated = $request->validate(
             [
                 'post_id' => ['required', 'uuid'],
-                'content' => ['nullable', 'string', 'max:10000'],
+                'content' => ['nullable', 'string', new PostContentFitsMaxLength],
                 ...PostMediaRules::rules(),
                 'scheduled_at' => PostStatusRules::scheduledAtRules($post, $status, filled(data_get($request->all(), 'queue'))),
                 'queue' => PostStatusRules::queueRules(),
@@ -86,6 +87,7 @@ class UpdatePostTool extends Tool
                 ContentTypeCompatibleWithMedia::entriesForUpdate($post, $submittedTarget, data_get($validated, 'meta')),
                 (array) ($post->media ?? []),
                 $post->workspace,
+                array_key_exists('content', $validated) ? $validated['content'] : $post->content,
             );
 
             if ($errors !== []) {
@@ -127,7 +129,7 @@ class UpdatePostTool extends Tool
                 ->items($schema->string())
                 ->description('Workspace label IDs to attach (replaces existing labels).'),
             'content_type' => $schema->string()->description('New format for the post’s existing social account.'),
-            'meta' => $schema->object()->description('Settings for the existing account, merged with stored settings. YouTube Shorts: description is optional plain text, at most 5000 bytes. Omit it to keep the current override; pass null to use the post content as description.'),
+            'meta' => $schema->object()->description('Settings for the existing account, merged with stored settings. '.PostPlatformMetaRules::documentation()),
         ];
     }
 }

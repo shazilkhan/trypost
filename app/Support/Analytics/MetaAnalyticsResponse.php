@@ -26,7 +26,7 @@ class MetaAnalyticsResponse
 
         throw new AnalyticsCollectionException(
             $category,
-            "{$context} failed with HTTP {$response->status()}",
+            "{$context} failed with HTTP {$response->status()} (Graph code {$code})",
             RetryAfter::from($response),
         );
     }

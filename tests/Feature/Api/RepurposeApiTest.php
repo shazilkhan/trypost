@@ -385,3 +385,18 @@ test('the source formats a repurpose can watch are listed', function () {
         ->assertJsonCount(count(SourceFormat::cases()), 'data')
         ->assertJsonPath('data.0.value', SourceFormat::Reel->value);
 });
+
+test('google business is rejected as a destination', function () {
+    $googleBusiness = SocialAccount::factory()->for($this->workspace)->create(['platform' => Platform::GoogleBusiness]);
+
+    $this->withHeaders(apiHeaders($this->token))
+        ->postJson(route('api.repurposes.store'), [
+            'source_social_account_id' => $this->source->id,
+            'destinations' => [[
+                'social_account_id' => $googleBusiness->id,
+                'content_type' => ContentType::GoogleBusinessPost->value,
+            ]],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['destinations.0.social_account_id' => __('repurposes.errors.destination_not_supported')]);
+});

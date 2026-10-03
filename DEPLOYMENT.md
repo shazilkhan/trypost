@@ -13,16 +13,39 @@ referencia aquela seção em vez de repeti-la.
 
 ## 1. Antes do deploy
 
-1. **Snapshot do storage (R2/S3)** ou versionamento ligado. O `media:adopt-library`
-   apaga arquivos que só existiam na biblioteca de mídia. Detalhes em
-   `MEDIA_INTEGRATIONS_SETUP.md` §7.1.
-2. **Ensaio numa cópia da produção:**
+> **Snapshot do storage (R2/S3) ou versionamento ligado, sem exceção.** A adoção da
+> biblioteca de mídia (passo 3 do `release:trypost-2`) apaga arquivos que só
+> existiam na biblioteca, e não há ferramenta de export. Detalhes em
+> `MEDIA_INTEGRATIONS_SETUP.md` §7.1.
+
+1. **Snapshot do storage** (acima).
+2. **Ensaio numa cópia da produção**, depois do `migrate`:
    ```bash
-   php artisan media:adopt-library --dry-run
-   php artisan posts:split-legacy-active   # na cópia, para ver a saída
+   php artisan release:trypost-2 --dry-run   # mostra o que cada passo faria, não muda nada
    ```
+   > **Nunca rode `--force` numa cópia do banco que aponta para o bucket de
+   > produção.** A adoção apaga da cópia as linhas da biblioteca e, em seguida, os
+   > arquivos que nenhuma linha *da cópia* usa; os posts de produção ainda usam esses
+   > arquivos, e a perda só volta pelo snapshot. Para ensaiar de verdade (saída e
+   > tempo), a cópia precisa de **um bucket só dela** (uma cópia do bucket, ou
+   > `FILESYSTEM_DISK=local` sem credenciais de produção). Sem isso, só `--dry-run`.
+   ```bash
+   php artisan release:trypost-2 --force     # só numa cópia com bucket próprio
+   ```
+   O dry-run mostra quantos posts o passo 1 apagaria e quantos destinos tiraria, a
+   tabela do `posts:audit-legacy` (o passo 2 divide os "Editable with multiple
+   enabled targets"), o plano da adoção por workspace e a auditoria atual da mídia.
 3. **Imagem Docker** reconstruída com o `docker/Dockerfile` novo (Imagick + HEIC).
 4. **Variáveis de ambiente** (seção 2).
+5. **Conte os posts agendados do Instagram com mais de 5 hashtags** (só leitura):
+   ```bash
+   php artisan tinker --execute '$tag = "/(?:^|[^\p{L}\p{N}_&#\/])#(?=[\p{N}_]*\p{L})[\p{L}\p{N}_]+/u"; echo App\Models\PostPlatform::query()->where("enabled", true)->whereIn("platform", ["instagram", "instagram-facebook"])->where("content_type", "!=", "instagram_story")->whereHas("post", fn ($post) => $post->where("status", "scheduled"))->with("post:id,content")->get()->filter(fn ($target) => preg_match_all($tag, html_entity_decode(preg_replace("/<[^>]+>/", " ", (string) $target->post->content))) > 5)->count(), PHP_EOL;'
+   ```
+   Troque `->count()` por `->pluck("post_id")` para ver quais são. O comando roda
+   com o código que está em produção hoje (não depende de nada desta branch). O
+   limite de 5 hashtags vale só ao salvar (web, API e MCP): esses posts continuam
+   publicando, mas quem abrir um deles para editar precisa tirar as hashtags a
+   mais antes de salvar. Stories não contam (a legenda não é enviada).
 
 ## 2. Variáveis de ambiente
 
@@ -36,6 +59,7 @@ As da mídia estão em `MEDIA_INTEGRATIONS_SETUP.md` §7.2. Novas desta branch:
 | `EXTERNAL_POSTS_MATCH_WINDOW_MINUTES` | `120` | Minutos em torno de um post da rede em que um post do TryPost com o mesmo texto é tratado como esse post, em vez de importar uma cópia | nova |
 | `EXTERNAL_POSTS_MEDIA_REQUESTS_PER_MINUTE` | `30` | Chamadas por minuto, por rede, para buscar as mídias dos posts importados (orçamento separado do Analytics) | nova |
 | `PUBLICATION_DISCOVERY_INTERVAL_HOURS` | `3` | Intervalo da busca de posts novos nas redes | já existe |
+| `HORIZON_MEDIA_ADOPTION_PROCESSES` | `20` | Processos do supervisor `media-adoption` em produção, que adota a biblioteca em paralelo no passo 3 do release | nova |
 | `X_PUBLICATION_DISCOVERY_INTERVAL_HOURS` | `24` | Mesmo intervalo, só para o X (cobra por leitura) | já existe |
 | `PUBLICATION_DISCOVERY_OVERLAP_HOURS` | `6` | Margem para trás em cada busca, para não perder post atrasado | já existe |
 
@@ -45,23 +69,113 @@ Depois de mudar variáveis:
 php artisan config:clear
 ```
 
-## 3. No deploy, na ordem
+## 3. Deploy, na ordem
 
-```bash
-# 1. Esquema: grupos de posts, recorrência, origem do post, etc.
-php artisan migrate --force
+1. **Deploy** normal. Ele roda `php artisan migrate --force` (esquema: grupos de
+   posts, recorrência, origem do post, aprovações etc.).
+   - `widen_content_on_posts_table`: `posts.content` vira `mediumText` para caber o post longo do X (25000 caracteres).
+     - **PostgreSQL** (Cloud): não reescreve a tabela; é instantâneo.
+     - **MySQL** (self-hosted): `TEXT` → `MEDIUMTEXT` **recria a tabela `posts`**
+       (`ALGORITHM=COPY`), e as escritas em `posts` ficam bloqueadas enquanto ela é
+       copiada. Numa tabela grande, planeje uma janela de manutenção e meça antes o
+       tempo numa cópia do banco com o mesmo tamanho.
+     - O `down()` falha (ou corta o texto) depois que algum post passar de 64 KB.
+   - `add_thread_reply_ids_to_post_platforms_table`: coluna JSON nula
+     (`thread_reply_ids`), instantânea nos dois bancos.
+2. **Passos únicos do release**, num comando só:
+   ```bash
+   php artisan release:trypost-2 --force
+   ```
+3. **Acompanhe o Horizon** até as filas `analytics` e `media-imports` drenarem
+   (backfill do Analytics, importação dos posts externos e das mídias deles).
+4. **Checagens pós-deploy** (seção 6).
 
-# 2. Biblioteca de mídia antiga → mídia por post (só neste release)
-php artisan media:adopt-library --force
+O `release:trypost-2` para com erro, sem fazer nada, se houver migration pendente.
+Roda os passos nesta ordem, imprime a saída de cada um e termina com uma tabela de
+resumo:
 
-# 3. Divide posts antigos com várias redes em um post por rede,
-#    ligando todos pelo mesmo post_group_id. Seguro de rodar de novo.
-php artisan posts:split-legacy-active
+| # | Passo | Comando reaproveitado |
+| --- | --- | --- |
+| 1 | Apaga os posts que ficaram sem canal por desconexões antigas (agora desconectar apaga os posts do canal); num post com outro canal vivo, só tira o destino morto | `posts:purge-orphaned` |
+| 2 | Divide posts antigos com várias redes em um post por rede, ligados pelo mesmo `post_group_id`: rascunhos e agendados, e também os já terminados (publicado, parcialmente publicado, falhou). Cada post terminado fica com o status do próprio destino (publicado → `published`, falhou/rejeitado → `failed`); `partially_published` deixa de existir | `posts:split-legacy-active` |
+| 3 | Biblioteca de mídia antiga → mídia por post e por ideia: um `AdoptWorkspaceLibraryJob` por workspace na fila `media-adoption` (em paralelo no Horizon), e o comando **espera** até terminar | `media:adopt-library` |
+| 4 | Backfill do Analytics + importação dos posts externos (assíncrono, seção 5) | `analytics:backfill-existing` |
+| 5 | Busca imediata dos stories do Instagram (assíncrono) | `analytics:dispatch-publication-discovery --platform=instagram --platform=instagram-facebook` |
+| 6 | Auditoria da mídia (só leitura), comparada com a de antes do release | `AuditMedia` |
 
-# 4. Apaga os posts que ficaram sem canal por desconexões antigas (agora
-#    desconectar apaga os posts do canal). Seguro de rodar de novo.
-php artisan posts:purge-orphaned
-```
+- **A ordem importa.** Purgar antes de dividir: um post com um destino num canal
+  apagado e outro num canal vivo perde só o destino morto e mantém o id (dividido
+  antes, a metade morta podia levar o id original junto). Purgar antes de adotar
+  evita copiar mídia de posts que vão ser apagados. A divisão dá a cada post novo
+  as próprias mídias (arquivo e linha), antes ou depois da adoção, então a adoção
+  no boot do Docker não atrapalha.
+- **Como a divisão trata o histórico.** O destino (`post_platforms`) é **movido**
+  para o post novo, nunca copiado: link do post na rede, erro, `published_at`,
+  métricas e o vínculo do Analytics (`analytics_publications.post_platform_id`)
+  continuam no mesmo registro. Cada post novo ganha o mesmo texto, autor, origem,
+  datas, etiquetas, notas e as próprias mídias. Destinos desligados não viram post
+  e ficam no post original, como histórico de um destino que nunca rodou. Posts em
+  `publishing` e posts terminados com algum destino ainda em andamento (ex.: Google
+  Business em revisão) ficam como estão; o comando diz quantos. Um post
+  `partially_published` que ficou com um só destino (o outro era de um canal
+  apagado e saiu no passo 1) passa a ter o status desse destino. Nada disso dispara
+  e-mail, webhook ou evento.
+- **Rodar de novo é seguro:** cada passo pula o que já foi feito. Se um passo
+  falhar, o comando segue para os outros, mostra o resumo e sai com código
+  diferente de 0; corrija e rode de novo.
+- **O backfill (passo 4) é despachado uma vez só.** Os jobs dele podem ficar horas
+  esperando por causa do `--backfill-delay`; despachar de novo antes deles rodarem
+  leria cada conta duas vezes (o X cobra por leitura). O comando guarda no cache
+  quando despachou (na tabela `cache` do banco, não no Redis: sobrevive a um flush
+  e viaja junto com um snapshot do banco) e, nas próximas rodadas, pula o passo
+  ("Skipped: already dispatched at …"). Para despachar de novo de propósito:
+  `--rerun-backfill`.
+- **Adoção (passo 3).** O comando enfileira um job por workspace com biblioteca na
+  fila `media-adoption` e fica esperando, com uma linha de progresso a cada 15s
+  (`N/M workspace(s) done, X library row(s) left, Y stopped`). Só segue para os
+  passos 4–6 quando todos terminam ou quando passa o `--adoption-timeout` (padrão
+  `21600`, 6h). Dentro de um workspace a cópia é sequencial (um job por workspace:
+  a biblioteca só é apagada depois de todas as cópias, e dividir um workspace em
+  vários jobs quebraria essa garantia). Um workspace com post em `Publishing` é
+  tentado de novo pelo próprio job (a cada 5 min, por até 6h). Ao fim da espera:
+  - ainda rodando: fica para o job, que continua sozinho; o resumo diz quantos;
+  - parado com biblioteca sobrando (o job desistiu, ou os arquivos não foram
+    achados no disco): o passo falha, o resumo lista os workspaces e o comando sai
+    com código diferente de 0; veja o log, corrija e rode
+    `php artisan media:adopt-library --force`.
+
+  Rodar o release de novo com jobs ainda na fila não duplica nada (job único por
+  workspace) e volta a esperar.
+- **Tempo da adoção.** Cada cópia no R2 levou ~1,9s na cópia de produção
+  (sequencial). Tempo total ≈ cópias × 1,9s ÷ processos do supervisor
+  `media-adoption`, limitado pelo maior workspace (um workspace roda num processo
+  só). Exemplo: ~14,6 mil cópias com 20 processos ≈ 14.600 × 1,9 ÷ 20 ≈ 23 min.
+  No release, deixe `HORIZON_MEDIA_ADOPTION_PROCESSES` em 20 (padrão em produção;
+  dá para subir para 30–40 se o servidor aguentar) e reinicie o Horizon
+  (`php artisan horizon:terminate`) **antes** de rodar o comando, para o supervisor
+  novo existir.
+- **Opções repassadas ao backfill:** `--backfill-chunk=50 --backfill-delay=300`
+  (contas por lote e segundos entre lotes; padrão `100` e `0`) e
+  `--include-unsubscribed`.
+- **Como ler a auditoria (passo 6).** Antes do passo 1 o comando tira uma foto
+  rápida (só banco e a listagem do bucket, sem conferir arquivo por arquivo, então
+  não atrasa os passos de dados). No fim, depois dos passos de dados, roda a
+  auditoria completa, que confere o arquivo de cada mídia no bucket: conte com
+  **uns 10 a 30 minutos** em produção (um pedido ao R2 por mídia; o resumo mostra o
+  tempo). Ela mostra por checagem quantos achados são **esperados** e quantos são
+  **inesperados**. Esperados:
+  - os que já estavam na foto de antes (sujeira antiga, não do release);
+  - itens de post que apontam para uma linha da biblioteca que ficou (usada por
+    post de outro workspace, ou de um workspace que ficou para a fila);
+  - itens que apontam para uma mídia que não existe mais, **só** se ela já era da
+    biblioteca ou já estava sumida antes do release;
+  - arquivos sem linha que tinham linha antes do release (exclusão na fila do
+    `DeleteMediaFiles`), e mídias de antes do release sem arquivo (a foto não
+    confere arquivos).
+
+  Qualquer outra coisa, como uma mídia ainda usada por um post que o release
+  apagou, é **inesperada**: aparece uma por linha (`unexpected json_drift: … media_id=…`)
+  e faz o comando sair com código diferente de 0.
 
 Migrations que entram nesta branch (entre outras):
 
@@ -84,6 +198,12 @@ Migrations que entram nesta branch (entre outras):
   simples (sem respostas nem reações). Respostas viram notas normais do mesmo
   post, na ordem em que foram criadas; as colunas `parent_id` e `reactions` são
   apagadas (reações somem).
+- `fold_legacy_workspace_media_into_library`: as imagens de IA antigas (coleção
+  `ai-generated`, algumas gravadas com `App\Models\Workspace` em vez do alias
+  `workspace`) entram na biblioteca, para a adoção copiá-las para os posts que as
+  usam e apagar as que nenhum post usa. Linhas `assets` gravadas com o nome da
+  classe também passam a ser adotadas. Linhas de outras coleções (ex.: `logo`) e de
+  workspaces que não existem mais ficam como estão.
 - `make_time_format_required_on_users_table`: `users.time_format` passa a ser
   obrigatório (12h ou 24h; acaba o "seguir o idioma"). Quem estava sem formato
   recebe o que já via: `12h` em inglês, `24h` nos outros idiomas. Ninguém percebe
@@ -103,12 +223,13 @@ Os workers/Horizon precisam consumir todas estas filas (`config/horizon.php`):
 | `webhooks` | Webhooks de saída |
 | `analytics` | Analytics e, com a importação, a criação dos posts externos |
 | `media-imports` | Google Drive, Photos, Canva e, com a importação, as mídias dos posts externos |
+| `media-adoption` | Adoção da biblioteca de mídia (só neste release). Supervisor próprio no Horizon; em produção até `HORIZON_MEDIA_ADOPTION_PROCESSES` processos (padrão 20) |
 | `rss-feeds` | Feeds RSS |
 
 Com `queue:work` em vez de Horizon:
 
 ```bash
-php artisan queue:work --queue=default,posthog,broadcasts,webhooks,analytics,media-imports,rss-feeds
+php artisan queue:work --queue=default,posthog,broadcasts,webhooks,analytics,media-imports,media-adoption,rss-feeds
 ```
 
 Agendamentos (o scheduler já cuida, só confirme que ele está rodando):
@@ -125,38 +246,13 @@ Agendamentos (o scheduler já cuida, só confirme que ele está rodando):
 
 ## 5. Backfill do Analytics + importação dos posts externos
 
-Roda **depois** dos passos da seção 3. A ordem importa: o comando primeiro liga os
-posts que o TryPost já publicou às publicações do Analytics e só então importa os
-posts feitos direto nas redes. Ao contrário, um post do TryPost viraria um
-"importado" duplicado.
+É o passo 4 do `release:trypost-2`, depois da divisão dos posts e da adoção da biblioteca. A ordem importa: o
+backfill primeiro liga os posts que o TryPost já publicou às publicações do
+Analytics e só então importa os posts feitos direto nas redes. Ao contrário, um
+post do TryPost viraria um "importado" duplicado.
 
-Comandos (já existem):
-
-```bash
-# Todos os workspaces assinantes
-php artisan analytics:backfill-existing
-
-# Um workspace só (bom para testar primeiro)
-php artisan analytics:backfill-existing --workspace=<uuid>
-
-# Incluir workspaces sem assinatura reconhecida pelo Cashier
-php artisan analytics:backfill-existing --include-unsubscribed
-```
-
-Opções para rodar em lotes e controlar custo. `--chunk` conta **contas** por lote
-e `--delay` atrasa os jobs de cada lote em segundos; o comando despacha tudo e
-termina, não fica parado esperando:
-
-```bash
-# 50 contas por lote, um lote a cada 5 minutos
-php artisan analytics:backfill-existing --chunk=50 --delay=300
-
-# Só algumas redes (ex.: deixar o X, que cobra por leitura, para depois)
-php artisan analytics:backfill-existing --platforms=instagram,instagram-facebook,facebook,threads
-php artisan analytics:backfill-existing --platforms=x --chunk=10 --delay=600
-```
-
-O que acontece por conta:
+O comando despacha tudo e termina, não fica parado esperando. O que acontece por
+conta:
 
 1. O Analytics busca o histórico de **365 dias** (no X, no máximo 3.200 posts).
 2. Os **50 posts mais recentes** de cada canal (no X, os dos **últimos 30 dias**)
@@ -166,21 +262,14 @@ O que acontece por conta:
 4. As métricas são buscadas pelo Analytics.
 5. No Instagram, os **stories** entram também, mas só os que estão no ar (últimas
    24 horas): a API não devolve stories mais antigos. Eles têm um limite próprio
-   de 50, separado de feed e reels.
-
-Stories não precisam de comando próprio. Para contas que já tinham feito o backfill
-antes deste release, a busca de posts novos (a cada 3h) passa a ler os stories e
-traz os que estiverem no ar. Para trazer na hora, sem esperar a próxima busca:
-
-```bash
-php artisan analytics:dispatch-publication-discovery --platform=instagram --platform=instagram-facebook
-```
+   de 50, separado de feed e reels. Para contas que já tinham feito o backfill, o
+   passo 5 do release traz os que estão no ar na hora; depois disso a busca de
+   posts novos (a cada 3h) cuida deles.
 
 Rodar de novo é seguro: nenhum post é criado em dobro, e mídias já baixadas não são
 baixadas outra vez.
 
-Acompanhe pelo Horizon (filas `analytics` e `media-imports`) e pelo resumo que o
-comando imprime, uma linha por contador:
+O resumo do backfill tem uma linha por contador:
 
 - `accounts_dispatched`: contas que tiveram o backfill despachado.
 - `publications_to_link`: publicações do TryPost sem registro no Analytics, que o comando liga a ele.
@@ -191,15 +280,20 @@ comando imprime, uma linha por contador:
 
 ## 6. Depois do deploy
 
-```bash
-# Auditoria da mídia (só leitura; todas as checagens devem dar 0)
-php artisan media:audit
-```
-
-- Acompanhe os jobs `AdoptWorkspaceLibraryJob` até zerarem
-  (`MEDIA_INTEGRATIONS_SETUP.md` §7.4).
+- A auditoria da mídia já roda no fim do `release:trypost-2` (esperados ×
+  inesperados, seção 3). Se algum workspace ficou para a fila, rode o
+  `release:trypost-2 --force` de novo quando os `AdoptWorkspaceLibraryJob` zerarem
+  (o backfill não é despachado de novo).
 - Confira em alguns canais que Enviados e o calendário mostram os posts importados,
   com mídia e métricas.
+- **Limite do X por conta.** Contas do X com assinatura paga (Basic, Premium,
+  PremiumPlus) ou verificadas como empresa passam a ter 25000 caracteres. O plano
+  de cada conta é lido na próxima verificação da conexão (diária) ou ao reconectar;
+  até lá, a conta segue com 280. Para valer na hora:
+  `php artisan social:check-connections` (opcional).
+- **Título do YouTube.** Sem título preenchido, o título é a primeira linha não
+  vazia do texto (sem `<` e `>`, até 100 caracteres). Ele não ganha mais ` #Shorts`
+  no fim e não é mais cortado no primeiro `.`.
 
 ### Canais desconectados
 
@@ -267,6 +361,10 @@ Changelog, docs.trypost.it, instruções do MCP e e-mail do release:
 - Enviados e o calendário passam a mostrar também os posts feitos direto nas redes
   (últimos 50 por canal; no X, último mês).
 - A API e o MCP ganham o campo `origin` (`trypost` | `network`) nos posts.
+- Fuso horário: quem já tinha conta fica em **UTC** (a produção nunca guardou fuso), e os
+  canais existentes ganham a grade de horários em UTC. Isso é intencional: no changelog e no
+  e-mail do release, peça para cada um conferir o fuso em Configurações → Preferências e o fuso
+  de cada canal em Configurações do canal. Cadastros novos já detectam o fuso do navegador.
 
 Aprovação de posts (mudança que quebra compatibilidade para quem lê o status):
 
@@ -280,3 +378,39 @@ Aprovação de posts (mudança que quebra compatibilidade para quem lê o status
 - Os papéis Admin / Member / Viewer deixam de existir: a API e o MCP não expõem
   membros nem convites, então só a documentação e o changelog mudam.
 - Atualizar docs.trypost.it (membros e aprovações, API de posts) e o changelog.
+
+## 10. Comandos avulsos (opcional/manual)
+
+Os comandos que o `release:trypost-2` usa, e os de diagnóstico e de reversão deste
+release, ficam em `app/Console/Commands/Scripts/`. Só servem para rodar um passo
+isolado, ensaiar ou investigar; o deploy normal não precisa deles.
+
+```bash
+php artisan posts:audit-legacy [--strict]          # contagens dos posts antigos, só leitura
+php artisan posts:purge-orphaned [--workspace=<uuid>]   # passo 1
+php artisan posts:split-legacy-active              # passo 2
+php artisan media:adopt-library --dry-run          # o que a adoção faria, por workspace
+php artisan media:adopt-library --force            # adoção pela fila (AdoptWorkspaceLibraryJob), em vez do passo 3
+php artisan analytics:backfill-existing [--workspace=<uuid>] [--include-unsubscribed] [--platforms=instagram,facebook] [--chunk=100] [--delay=0]   # passo 4
+php artisan media:audit [--json]                   # passo 6
+php artisan posts:purge-imported [--workspace=<uuid>]   # reversão (seção 7)
+```
+
+Exemplos do backfill isolado:
+
+```bash
+# Um workspace só (bom para testar primeiro)
+php artisan analytics:backfill-existing --workspace=<uuid>
+
+# Só algumas redes (ex.: deixar o X, que cobra por leitura, para depois)
+php artisan analytics:backfill-existing --platforms=instagram,instagram-facebook,facebook,threads
+php artisan analytics:backfill-existing --platforms=x --chunk=10 --delay=600
+```
+
+`analytics:dispatch-publication-discovery` (passo 5) não é avulso: o scheduler usa,
+então fica em `app/Console/Commands/Analytics/`.
+
+**Depois do release, a pasta `app/Console/Commands/Scripts/` pode ser apagada
+inteira** (com os testes dos comandos dela e as menções em
+`docker/entrypoint.sh`, `README.md` e `MEDIA_INTEGRATIONS_SETUP.md`), na mesma
+limpeza da issue #376 (fallback do `PostAtRisk`).

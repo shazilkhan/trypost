@@ -80,7 +80,7 @@ const feedAspect = computed(
         media-layout="stack"
         :media-aspect="feedAspect"
         mute-badge
-        link-card
+        :link-card="meta?.link_preview !== false"
         :link-card-options="{ bleed: true, band: true, boldTitle: true }"
         :link-url="facebookLinkPreviewUrl"
         actions-style="inline-labels"

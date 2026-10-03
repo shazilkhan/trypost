@@ -7,6 +7,7 @@ import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
 import {
     getPlatformLabel,
 } from '@/composables/usePlatformLogo';
+import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 interface Channel {
     id: string;
@@ -14,6 +15,7 @@ interface Channel {
     display_label: string;
     username: string | null;
     avatar_url: string | null;
+    status?: SocialAccountStatusValue | null;
 }
 
 const props = withDefaults(
@@ -56,6 +58,8 @@ const channelFor = (id: string): Channel => channelsById.value.get(id)!;
         <template #option="{ option }">
             <span class="flex min-w-0 items-center gap-3">
                 <ChannelAvatar
+                    :status="channelFor(option.id).status"
+                    :account-id="channelFor(option.id).id"
                     :platform="channelFor(option.id).platform"
                     :src="channelFor(option.id).avatar_url"
                     :name="option.label"

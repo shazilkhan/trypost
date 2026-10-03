@@ -49,6 +49,8 @@ const remove = (): void => {
                         "
                     >
                         <ChannelAvatar
+                            :status="account.status"
+                            :account-id="account.id"
                             :platform="account.platform"
                             :src="account.avatar_url"
                             :name="account.display_name || account.username"

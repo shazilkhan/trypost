@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Analytics;
 
+use App\Dto\Analytics\MetricValue;
+use App\Enums\Analytics\MetricAvailability;
+use App\Enums\Analytics\MetricKey;
+use App\Enums\Analytics\MetricPrecision;
+use App\Enums\Analytics\MetricTimeBasis;
+use App\Enums\Analytics\MetricUnit;
 use App\Enums\PostPlatform\Status;
 use App\Enums\SocialAccount\Platform;
 use App\Models\AnalyticsPublication;
@@ -11,6 +17,7 @@ use App\Models\AnalyticsPublicationDailySnapshot;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
+use App\Support\Analytics\EngagementRate;
 use Illuminate\Support\Collection;
 
 class ReadPublicationAnalytics
@@ -179,8 +186,29 @@ class ReadPublicationAnalytics
                 'account_avatar_url' => $publication->account_avatar_url,
             ],
             'snapshot' => $snapshot ? $this->snapshot($snapshot) : null,
-            'metrics' => $snapshot?->metrics ?? [],
+            'metrics' => $snapshot ? $this->withEngagementRate($snapshot) : [],
         ];
+    }
+
+    /** @return array<string, mixed> */
+    private function withEngagementRate(AnalyticsPublicationDailySnapshot $snapshot): array
+    {
+        $metrics = $snapshot->metrics ?? [];
+        $rate = EngagementRate::of($snapshot->engagement_count, $snapshot->exposure_count);
+
+        if ($rate !== null) {
+            $metrics[MetricKey::EngagementRate->value] = (new MetricValue(
+                key: MetricKey::EngagementRate,
+                value: $rate,
+                unit: MetricUnit::Percent,
+                timeBasis: MetricTimeBasis::Lifetime,
+                precision: MetricPrecision::Exact,
+                availability: MetricAvailability::Available,
+                providerMetric: "derived_engagements_per_{$snapshot->exposure_kind?->value}",
+            ))->toArray();
+        }
+
+        return $metrics;
     }
 
     /** @return array<string, mixed> */

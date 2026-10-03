@@ -6,7 +6,7 @@ import {
     VisStackedBarSelectors,
     VisXYContainer,
 } from '@unovis/vue';
-import { computed } from 'vue';
+import { computed, getCurrentInstance } from 'vue';
 
 import {
     ChartContainer,
@@ -20,6 +20,7 @@ import {
 } from '@/composables/usePlatformLogo';
 import { accountColor } from '@/lib/analyticsColors';
 import type { AccountIdentityData } from '@/types/analytics';
+import { isConnectionLost } from '@/types/social-account';
 
 import {
     formatCountTick,
@@ -89,31 +90,142 @@ const tickAttributes = {
     },
 };
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const LOGO_SIZE = 12;
+const AVATAR_SIZE = 20;
+const BADGE_SIZE = 12;
+const AVATAR_GAP = 6;
+const chartUid = getCurrentInstance()?.uid ?? 0;
+
+const svgElement = (
+    name: string,
+    attributes: Record<string, string>,
+): SVGElement => {
+    const element = document.createElementNS(SVG_NAMESPACE, name);
+    Object.entries(attributes).forEach(([key, value]) =>
+        element.setAttribute(key, value),
+    );
+
+    return element;
+};
+
+const accountLabel = (account: AccountIdentityData): string =>
+    account.username
+        ? `@${account.username}`
+        : account.name || getPlatformLabel(account.platform);
+
+const buildAxisChannel = (
+    account: AccountIdentityData,
+    index: number,
+): SVGGElement => {
+    const radius = AVATAR_SIZE / 2;
+    const left = -AVATAR_SIZE - AVATAR_GAP;
+    const centerX = left + radius;
+    const clipId = `axis-avatar-clip-${chartUid}-${index}`;
+    const group = svgElement('g', {
+        'data-account-logo': '',
+        'data-testid': 'analytics-axis-channel',
+    }) as SVGGElement;
+
+    const clip = svgElement('clipPath', { id: clipId });
+    clip.appendChild(
+        svgElement('circle', { cx: String(centerX), cy: '0', r: String(radius) }),
+    );
+    group.appendChild(clip);
+
+    const fallback = svgElement('g', {
+        'data-testid': 'analytics-axis-avatar-fallback',
+    });
+    const fallbackCircle = svgElement('circle', {
+        cx: String(centerX),
+        cy: '0',
+        r: String(radius),
+    });
+    fallbackCircle.style.fill = 'var(--secondary)';
+    const initial = svgElement('text', {
+        x: String(centerX),
+        y: '0',
+        'text-anchor': 'middle',
+        'dominant-baseline': 'central',
+        'font-size': '9',
+        'font-weight': '700',
+    });
+    initial.style.fill = 'var(--foreground)';
+    initial.textContent = (
+        account.name ||
+        account.username ||
+        getPlatformLabel(account.platform)
+    )
+        .charAt(0)
+        .toUpperCase();
+    fallback.append(fallbackCircle, initial);
+    group.appendChild(fallback);
+
+    if (account.avatar_url) {
+        const photo = svgElement('image', {
+            href: account.avatar_url,
+            x: String(left),
+            y: String(-radius),
+            width: String(AVATAR_SIZE),
+            height: String(AVATAR_SIZE),
+            'clip-path': `url(#${clipId})`,
+            preserveAspectRatio: 'xMidYMid slice',
+            'data-testid': 'analytics-axis-avatar',
+            'aria-label': accountLabel(account),
+        });
+        photo.addEventListener('error', () => photo.remove());
+        group.appendChild(photo);
+    }
+
+    const badgeCenterX = left + AVATAR_SIZE - BADGE_SIZE / 2 + 3;
+    const badgeCenterY = radius - BADGE_SIZE / 2 + 2;
+    const badgeRing = svgElement('circle', {
+        cx: String(badgeCenterX),
+        cy: String(badgeCenterY),
+        r: String(BADGE_SIZE / 2 + 1),
+    });
+    badgeRing.style.fill = 'var(--card)';
+    group.appendChild(badgeRing);
+    group.appendChild(
+        svgElement('image', {
+            href: getPlatformLogo(account.platform),
+            x: String(badgeCenterX - BADGE_SIZE / 2),
+            y: String(badgeCenterY - BADGE_SIZE / 2),
+            width: String(BADGE_SIZE),
+            height: String(BADGE_SIZE),
+            'data-testid': 'analytics-axis-logo',
+            'aria-label': getPlatformLabel(account.platform),
+        }),
+    );
+
+    if (isConnectionLost({ status: account.status ?? null })) {
+        const dot = svgElement('circle', {
+            cx: String(left + 2),
+            cy: String(-radius + 2),
+            r: '4',
+            'data-testid': 'analytics-axis-disconnected',
+        });
+        dot.style.fill = 'var(--destructive)';
+        dot.style.stroke = 'var(--card)';
+        dot.style.strokeWidth = '1.5';
+        group.appendChild(dot);
+    }
+
+    return group as SVGGElement;
+};
+
 const decorateTicks = (svg: SVGSVGElement): void => {
     svg.querySelectorAll('[data-account-logo]').forEach((logo) =>
         logo.remove(),
     );
     svg.querySelectorAll<SVGGElement>('g[data-account-tick]').forEach(
         (tick) => {
-            const account =
-                props.rows[Number(tick.getAttribute('data-account-tick'))]
-                    ?.account;
+            const index = Number(tick.getAttribute('data-account-tick'));
+            const account = props.rows[index]?.account;
 
             if (!account) {
                 return;
             }
 
-            const logo = document.createElementNS(SVG_NAMESPACE, 'image');
-            logo.setAttribute('href', getPlatformLogo(account.platform));
-            logo.setAttribute('x', String(-LOGO_SIZE - 6));
-            logo.setAttribute('y', String(-LOGO_SIZE / 2));
-            logo.setAttribute('width', String(LOGO_SIZE));
-            logo.setAttribute('height', String(LOGO_SIZE));
-            logo.setAttribute('data-account-logo', '');
-            logo.setAttribute('data-testid', 'analytics-axis-logo');
-            logo.setAttribute('aria-label', getPlatformLabel(account.platform));
-            tick.appendChild(logo);
+            tick.appendChild(buildAxisChannel(account, index));
         },
     );
 };
@@ -160,7 +272,7 @@ const barAttributes = {
                 type="y"
                 :tick-format="formatAccount"
                 :tick-values="categoryTicks"
-                :tick-padding="LOGO_SIZE + 12"
+                :tick-padding="AVATAR_SIZE + AVATAR_GAP + 6"
                 :attributes="tickAttributes"
                 :grid-line="false"
                 :domain-line="false"

@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Riconnetti l\'account monitorato prima di avviare questa automazione.',
         'destinations_required' => 'Scegli almeno una destinazione prima di attivare.',
         'destination_needs_video' => 'Quel formato non accetta video.',
+        'destination_not_supported' => 'Google Business non può essere una destinazione: i suoi post non accettano video.',
         'only_paused_resumes' => 'Solo un repurpose in pausa può essere ripreso.',
         'only_active_pauses' => 'Solo un repurpose attivo può essere messo in pausa.',
         'only_running_disables' => 'Solo un repurpose in esecuzione può essere disattivato.',

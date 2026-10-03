@@ -137,10 +137,10 @@ class UpdatePost
                         $postPlatform = $post->postPlatforms()->where('id', data_get($platformData, 'id'))->first();
 
                         if ($postPlatform) {
-                            $updateData['meta'] = array_filter(
+                            $updateData['meta'] = PostPlatformMetaRules::normalize(array_filter(
                                 array_merge($postPlatform->meta ?? [], data_get($platformData, 'meta') ?? []),
                                 fn (mixed $value): bool => $value !== null,
-                            );
+                            ));
                         }
                     }
 
@@ -229,10 +229,10 @@ class UpdatePost
 
         $queueSlot = $position === null && ! $keepsPending ? data_get($data, 'queue_slot') : null;
 
-        $meta = array_filter(
+        $meta = PostPlatformMetaRules::normalize(array_filter(
             array_merge($target->meta ?? [], data_get($data, 'meta') ?? []),
             fn (mixed $value): bool => $value !== null,
-        );
+        ));
         $scheduledAt = match (true) {
             $keepsPending => $post->scheduled_at?->toIso8601String(),
             $position !== null => null,

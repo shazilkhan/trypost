@@ -56,7 +56,7 @@ test('ai shortens the caption', function () {
 
 test('a shortened caption that still overflows falls back to truncation', function () {
     config()->set('trypost.self_hosted', true);
-    PostContentShortener::fake([str_repeat('ainda enorme ', 200)]);
+    PostContentShortener::fake([str_repeat('ainda enorme ', 500)]);
 
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
@@ -135,12 +135,12 @@ test('a self-hosted install with no ai configured still gets a caption that fits
 
 test('a single word longer than the limit is cut mid-word rather than emptied', function () {
     $workspace = Workspace::factory()->create();
-    $caption = str_repeat('a', 300);
+    $caption = str_repeat('a', 6000);
 
     $adapted = app(CaptionAdapter::class)->adapt($workspace, null, $caption, Platform::YouTube);
 
     expect($adapted)->not->toBe('')
-        ->and(mb_strlen($adapted))->toBeLessThan(300)
+        ->and(mb_strlen($adapted))->toBeLessThan(6000)
         ->and(Platform::YouTube->contentOverflow($adapted))->toBe(0);
 });
 
@@ -206,4 +206,18 @@ test('a tighter limit still gets its own call instead of reusing a longer answer
     expect($calls)->toBe(2)
         ->and($threads)->toBe('A tight caption that fits.')
         ->and($youtube)->toBe('Short one.');
+});
+
+test('an instagram caption keeps only its first five hashtags', function (Platform $platform) {
+    $workspace = Workspace::factory()->create();
+
+    expect(app(CaptionAdapter::class)->adapt($workspace, null, 'New video #a #b #c #d #e #f #g', $platform))
+        ->toBe('New video #a #b #c #d #e');
+})->with([Platform::Instagram, Platform::InstagramFacebook]);
+
+test('a caption for a network without a hashtag cap keeps every hashtag', function () {
+    $workspace = Workspace::factory()->create();
+
+    expect(app(CaptionAdapter::class)->adapt($workspace, null, 'New video #a #b #c #d #e #f #g', Platform::TikTok))
+        ->toBe('New video #a #b #c #d #e #f #g');
 });

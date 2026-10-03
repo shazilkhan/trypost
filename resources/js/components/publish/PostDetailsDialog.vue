@@ -16,6 +16,7 @@ import { computed, ref, watch } from 'vue';
 import { show as showPostGroup } from '@/actions/App/Http/Controllers/App/PostGroupController';
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import MediaLightbox from '@/components/media/MediaLightbox.vue';
+import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
 import PostCardLabels from '@/components/publish/PostCardLabels.vue';
 import PostCardMenu from '@/components/publish/PostCardMenu.vue';
 import PostMetricsBand from '@/components/publish/PostMetricsBand.vue';
@@ -29,9 +30,9 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import { schedulePostCard } from '@/composables/usePostCardActions';
 import {
@@ -46,6 +47,7 @@ import { compactPublicationMetrics } from '@/lib/publicationMetrics';
 import { isRecurring } from '@/lib/recurrence';
 import { videoFrameUrl } from '@/lib/videoFrame';
 import type { MediaItem } from '@/types/media';
+import { Platform } from '@/types/platform';
 import { PostOrigin, PostStatus } from '@/types/post';
 import type { PostCard, PostCardMenuAction } from '@/types/publish';
 
@@ -256,6 +258,8 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         @click="selectedId = sibling.id"
                     >
                         <ChannelAvatar
+                            :status="siblingAccount(sibling)?.status"
+                            :account-id="siblingAccount(sibling)?.id"
                             :platform="siblingPlatform(sibling)"
                             :src="siblingAccount(sibling)?.avatar_url"
                             :name="
@@ -362,6 +366,8 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         :data-testid="`post-details-target-${target.id}`"
                     >
                         <ChannelAvatar
+                            :status="target.social_account?.status"
+                            :account-id="target.social_account?.id"
                             :platform="target.platform"
                             :src="target.social_account?.avatar_url"
                             :name="
@@ -500,22 +506,38 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-4"
                     >
                         <p class="min-w-0 truncate text-sm text-foreground">
-                            <span
+                            <TooltipProvider
                                 v-if="
                                     current.origin === PostOrigin.Network &&
                                     targets[0]
                                 "
-                                class="inline-flex items-center gap-0.5"
-                                :data-testid="`post-details-published-via-${currentKey}`"
+                                :delay-duration="200"
                             >
-                                {{ $t('posts.publish.published_via') }}
-                                <img
-                                    :src="getPlatformLogo(targets[0].platform)"
-                                    alt=""
-                                    class="ms-0.5 size-4 rounded-sm"
-                                />
-                                {{ getPlatformLabel(targets[0].platform) }}
-                            </span>
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <span
+                                            class="inline-flex cursor-default items-center gap-1"
+                                            :data-testid="`post-details-published-via-${currentKey}`"
+                                        >
+                                            {{ $t('posts.publish.published_via') }}
+                                            <PlatformBrandIcon
+                                                :platform="targets[0].platform"
+                                                :data-testid="`post-details-published-via-icon-${currentKey}`"
+                                            />
+                                            <template v-if="targets[0].platform !== Platform.X">
+                                                {{ getPlatformLabel(targets[0].platform) }}
+                                            </template>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent :data-testid="`post-details-published-via-tooltip-${currentKey}`">
+                                        {{
+                                            $t('posts.publish.published_directly_from', {
+                                                network: getPlatformLabel(targets[0].platform),
+                                            })
+                                        }}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                             <span
                                 v-else-if="current.user?.name"
                                 :data-testid="`post-details-created-by-${currentKey}`"

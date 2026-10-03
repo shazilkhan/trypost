@@ -10,6 +10,7 @@ import {
     IconCheck,
     IconChevronDown,
     IconChevronUp,
+    IconCirclePlus,
     IconEye,
     IconLibraryPhoto,
     IconLoader2,
@@ -45,6 +46,10 @@ import ComposerAccountChip from '@/components/posts/composer/ComposerAccountChip
 import ComposerAccountOptions from '@/components/posts/composer/ComposerAccountOptions.vue';
 import ComposerAccountStack from '@/components/posts/composer/ComposerAccountStack.vue';
 import ComposerEditorToolbar from '@/components/posts/composer/ComposerEditorToolbar.vue';
+import ComposerLinkCard from '@/components/posts/composer/ComposerLinkCard.vue';
+import ComposerNetworkCard from '@/components/posts/composer/ComposerNetworkCard.vue';
+import ComposerNetworkRow from '@/components/posts/composer/ComposerNetworkRow.vue';
+import ComposerNetworkSettings from '@/components/posts/composer/ComposerNetworkSettings.vue';
 import ComposerSchedulePicker from '@/components/posts/composer/ComposerSchedulePicker.vue';
 import ComposerTemplatesPanel from '@/components/posts/composer/ComposerTemplatesPanel.vue';
 import MediaEditorDialog, {
@@ -52,16 +57,19 @@ import MediaEditorDialog, {
 } from '@/components/posts/composer/MediaEditorDialog.vue';
 import ResumeUnfinishedPostDialog from '@/components/posts/composer/ResumeUnfinishedPostDialog.vue';
 import ChannelMediaWarnings from '@/components/posts/editor/ChannelMediaWarnings.vue';
-import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
-import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
-import FacebookSettings from '@/components/posts/editor/FacebookSettings.vue';
-import GoogleBusinessSettings from '@/components/posts/editor/GoogleBusinessSettings.vue';
-import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
-import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
-import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
-import YouTubeSettings from '@/components/posts/editor/YouTubeSettings.vue';
+import GoogleBusinessTopicTypeRadios from '@/components/posts/editor/GoogleBusinessTopicTypeRadios.vue';
+import ThreadRepliesField from '@/components/posts/editor/ThreadRepliesField.vue';
 import PlatformPreview from '@/components/posts/previews/PlatformPreview.vue';
 import PreviewPanelTitle from '@/components/posts/previews/PreviewPanelTitle.vue';
+import {
+    AlertDialog,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -91,6 +99,7 @@ import {
     useComposerAutosave,
 } from '@/composables/useComposerAutosave';
 import { useComposerTimezone } from '@/composables/useComposerTimezone';
+import { firstHttpUrl, useLinkCard } from '@/composables/useLinkCard';
 import {
     getMediaValidationWarning,
     mediaWarningParams,
@@ -108,31 +117,43 @@ import {
 } from '@/composables/useMediaUpload';
 import { usePageErrors } from '@/composables/usePageErrors';
 import {
-    getContentTypeOptions,
+    type ContentTypeOption,
+    getPickableContentTypeOptions,
     getPlatformLabel,
 } from '@/composables/usePlatformLogo';
-import { evaluatePlatformMeta } from '@/composables/usePostCompliance';
 import {
+    ACCOUNT_SCOPED_SETTINGS,
     usePostComposition,
     type ComposerAccount,
     type ComposerInitialDraft,
     type ComposerInitialPost,
+    type NetworkGroup,
     type PostComposition,
 } from '@/composables/usePostComposition';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import date from '@/date';
 import dayjs from '@/dayjs';
+import { characterCount, isBlankText } from '@/lib/characters';
+import {
+    googleBusinessTopicMeta,
+    resolveGoogleBusinessTopicType,
+} from '@/lib/googleBusiness';
+import { countHashtags } from '@/lib/hashtags';
+import { extractErrorMessage } from '@/lib/httpError';
 import { getInstagramImageAspectIssues } from '@/lib/instagramImageAspect';
+import { linkPreviewDroppable, linkPreviewUrl } from '@/lib/linkPreview';
 import {
     editorTabsFor,
     type EditorTab,
     rulesFor,
 } from '@/lib/mediaEditor';
 import { isGooglePickerOpen } from '@/lib/mediaSources/googleDrive';
-import { isImage, isVideo } from '@/lib/mediaType';
+import { evaluatePlatformMeta } from '@/lib/platformMeta';
+import { htmlToPlainText } from '@/lib/utils';
 import { userTimezone } from '@/preferences';
 import { settings as channelSettings } from '@/routes/app/channels';
+import { linkPreviewMedia } from '@/routes/app/posts';
 import { update as updatePreferences } from '@/routes/app/settings/preferences';
 import type {
     MediaUploadLimits,
@@ -140,7 +161,13 @@ import type {
     SharedData,
     User,
 } from '@/types';
+import {
+    CAPTIONLESS_CONTENT_TYPES,
+    MEDIALESS_CONTENT_TYPES,
+    ContentType,
+} from '@/types/content-type';
 import type { MediaItem } from '@/types/media';
+import { THREAD_MAX_REPLIES, THREAD_PLATFORMS } from '@/types/network-options';
 import { Platform } from '@/types/platform';
 import {
     PostStatus,
@@ -263,7 +290,6 @@ if (
 const { contentFor } = useXLinkDefuser();
 const { requiresApproval } = useWorkspaceAbilities();
 const errors = usePageErrors();
-const chosenStep = ref<1 | 2>(1);
 type ComposerSidePanel = 'templates' | 'assistant' | 'preview';
 const sidePanel = ref<ComposerSidePanel>(
     props.openAssistant ? 'assistant' : 'preview',
@@ -302,11 +328,50 @@ const initialScheduleMode = (): ComposerScheduleMode => {
     return composition.scheduledAt.value ? 'custom' : 'now';
 };
 const scheduleMode = ref<ComposerScheduleMode>(initialScheduleMode());
-const expandedAccountId = ref<string | null>(null);
 const previewAccountId = ref<string | null>(null);
+const networkGroups = composition.networkGroups;
+const customizing = composition.customizing;
+const sharedStep = computed(
+    () => networkGroups.value.length > 1 && !customizing.value,
+);
+const confirmingBack = ref(false);
+const openGroupKey = ref<string | null>(null);
+const findGroup = (groupKey: string | null): NetworkGroup | undefined =>
+    groupKey === null
+        ? undefined
+        : networkGroups.value.find((group) => group.key === groupKey);
+const openGroup = computed(() => findGroup(openGroupKey.value));
+const groupDestination = (group: NetworkGroup) =>
+    composition.resolvedDestination(group.anchor);
+const contentTypeOptionsFor = (group: NetworkGroup): ContentTypeOption[] => {
+    const options = getPickableContentTypeOptions(group.platform);
+
+    if (group.platform !== Platform.Threads) return options;
+
+    const attached =
+        groupDestination(group).media.length > 0 ||
+        (group.key === openGroupKey.value && openLinkCard.value !== null);
+
+    return options.map((option) =>
+        option.value === ContentType.ThreadsGhostPost && attached
+            ? {
+                  ...option,
+                  disabledReasonKey: 'posts.form.threads.ghost_post_attachments',
+              }
+            : option,
+    );
+};
+const openNetwork = (
+    groupKey: string,
+    accountId: string | null = null,
+): void => {
+    openGroupKey.value = groupKey;
+    previewAccountId.value =
+        accountId ?? findGroup(groupKey)?.anchor.id ?? null;
+};
 const cropping = ref(false);
 const cropTarget = ref<{
-    accountId: string | null;
+    groupKey: string | null;
     indexes: number[];
     initialIndex: number;
     tab: EditorTab;
@@ -345,31 +410,18 @@ const takenSlots = computed(() =>
           )
         : [],
 );
-const acceptsTextOnly = (account: ComposerAccount): boolean =>
-    !getMediaRulesForContentType(
-        getContentTypeOptions(account.platform)[0]?.value ?? '',
-    ).requiresMedia;
-const skipsSharedStep = computed(
-    () =>
-        isSingleChannel.value ||
-        (selectedAccounts.value.length > 1 &&
-            !composition.media.value.length &&
-            selectedAccounts.value.every(acceptsTextOnly)),
-);
-const step = computed<1 | 2>(() =>
-    skipsSharedStep.value ? 2 : chosenStep.value,
-);
-watch(skipsSharedStep, (skips) => {
-    if (!skips) chosenStep.value = 1;
-});
 watch(
-    () => selectedAccounts.value.map((account) => account.id),
-    (ids) => {
-        if (!ids.includes(expandedAccountId.value ?? '')) {
-            expandedAccountId.value = ids[0] ?? null;
+    () => composition.selectedAccountIds.value,
+    () => {
+        if (!findGroup(openGroupKey.value)) {
+            openGroupKey.value = networkGroups.value[0]?.key ?? null;
         }
-        if (!ids.includes(previewAccountId.value ?? '')) {
-            previewAccountId.value = ids[0] ?? null;
+        if (
+            !openGroup.value?.accounts.some(
+                (account) => account.id === previewAccountId.value,
+            )
+        ) {
+            previewAccountId.value = openGroup.value?.anchor.id ?? null;
         }
     },
     { immediate: true },
@@ -382,73 +434,188 @@ const mediaUploadLimits = (): MediaUploadLimits =>
         upload_retention_hours: 0,
         heic: false,
     };
+const trayKey = (groupKey: string | null): string =>
+    groupKey !== null && customizing.value ? groupKey : '';
 const appendMedia = (
-    accountId: string | null,
+    groupKey: string | null,
     item: MediaItem,
     replaces: string | null = null,
 ): void => {
-    const account = accountId
-        ? selectedAccounts.value.find((selected) => selected.id === accountId)
-        : undefined;
-    if (!accountId || !account) {
+    const group = findGroup(groupKey);
+    if (!group) {
         composition.media.value = withMediaAdded(
             composition.media.value,
             item,
             replaces,
         );
-        return;
     }
-    composition.setOverride(
-        accountId,
-        'media',
-        withMediaAdded(
-            composition.resolvedDestination(account).media,
-            item,
-            replaces,
+    const targets = group
+        ? [group]
+        : customizing.value
+          ? networkGroups.value
+          : [];
+    targets.forEach((target) =>
+        composition.setGroupOverride(
+            target.key,
+            'media',
+            withMediaAdded(groupDestination(target).media, item, replaces),
         ),
     );
 };
+const linkCardDestination = computed(() =>
+    !sharedStep.value && openGroup.value
+        ? groupDestination(openGroup.value)
+        : null,
+);
+const { card: openLinkCard } = useLinkCard(
+    computed(() => linkCardDestination.value?.content ?? ''),
+    computed(() => linkCardDestination.value?.media ?? []),
+    (text) =>
+        openGroup.value && linkCardDestination.value
+            ? linkPreviewUrl(
+                  openGroup.value.platform,
+                  linkCardDestination.value.content_type,
+                  linkCardDestination.value.meta,
+                  text,
+              )
+            : null,
+);
+const dropLinkCard = (group: NetworkGroup): void =>
+    composition.setGroupOverride(group.key, 'meta', {
+        ...groupDestination(group).meta,
+        link_preview: false,
+    });
+const openLinkUrl = computed(() =>
+    openGroup.value && linkCardDestination.value
+        ? linkPreviewUrl(
+              openGroup.value.platform,
+              linkCardDestination.value.content_type,
+              undefined,
+              linkCardDestination.value.content,
+          )
+        : null,
+);
+const lastLinkUrls = new Map<string, string>();
+watch(
+    () => props.open,
+    () => lastLinkUrls.clear(),
+);
+watch(
+    openLinkUrl,
+    (url) => {
+        const group = openGroup.value;
+        if (!group || url === null) return;
+        const previous = lastLinkUrls.get(group.key);
+        lastLinkUrls.set(group.key, url);
+        const meta = groupDestination(group).meta ?? {};
+        if (
+            previous === undefined ||
+            previous === url ||
+            meta.link_preview !== false
+        ) {
+            return;
+        }
+        composition.setGroupOverride(
+            group.key,
+            'meta',
+            Object.fromEntries(
+                Object.entries(meta).filter(([key]) => key !== 'link_preview'),
+            ),
+        );
+    },
+    { immediate: true },
+);
+const linkCardMediaHttp = useHttp<{ url: string }, MediaItem>({ url: '' });
+const replaceLinkCardWithMedia = async (group: NetworkGroup): Promise<void> => {
+    if (!openLinkCard.value) return;
+    linkCardMediaHttp.url = openLinkCard.value.uri;
+    try {
+        appendMedia(
+            group.key,
+            await linkCardMediaHttp.post(linkPreviewMedia.url()),
+        );
+    } catch (exception) {
+        toast.error(
+            extractErrorMessage(exception) ??
+                trans('posts.composer.media_sources.errors.import_failed'),
+        );
+    }
+};
 const uploadScope = effectScope();
 const uploaders = shallowReactive(new Map<string, MediaUploader>());
-const createUploader = (accountId: string | null): void => {
-    const key = accountId ?? '';
-    if (uploaders.has(key)) return;
-    uploaders.set(
-        key,
-        uploadScope.run(() =>
-            useMediaUpload({
-                limits: mediaUploadLimits,
-                onReady: (item, _key, replaces) =>
-                    appendMedia(accountId, item, replaces ?? null),
-            }),
-        )!,
-    );
+const cardUploaders = new Map<string, MediaUploader>();
+const withSharedUploads = (
+    own: MediaUploader,
+    shared: MediaUploader,
+): MediaUploader => {
+    const owner = (key: string): MediaUploader =>
+        shared.entries.value.some((entry) => entry.key === key) ||
+        shared.imports.value.some((pending) => pending.key === key)
+            ? shared
+            : own;
+
+    return {
+        ...own,
+        entries: computed(() => [
+            ...shared.entries.value,
+            ...own.entries.value,
+        ]),
+        imports: computed(() => [
+            ...shared.imports.value,
+            ...own.imports.value,
+        ]),
+        busy: computed(() => shared.busy.value || own.busy.value),
+        failed: computed(() => shared.failed.value || own.failed.value),
+        retry: (key) => owner(key).retry(key),
+        cancel: (key) => owner(key).cancel(key),
+        remove: (key) => owner(key).remove(key),
+    };
 };
-createUploader(null);
+const createUploader = (key: string): void => {
+    if (uploaders.has(key)) return;
+    uploadScope.run(() => {
+        const uploader = useMediaUpload({
+            limits: mediaUploadLimits,
+            onReady: (item, _key, replaces) =>
+                appendMedia(key || null, item, replaces ?? null),
+        });
+        uploaders.set(key, uploader);
+        if (key) {
+            cardUploaders.set(
+                key,
+                withSharedUploads(uploader, uploaders.get('')!),
+            );
+        }
+    });
+};
+createUploader('');
 const suggestedMedia = ref<Record<string, MediaItem[]>>({});
 watch(
-    () => composition.selectedAccountIds.value,
-    (ids, previousIds) => {
-        ids.forEach(createUploader);
-        (previousIds ?? [])
-            .filter((id) => !ids.includes(id))
-            .forEach((id) => {
-                uploaders.get(id)?.clear();
-                delete suggestedMedia.value[id];
+    () => networkGroups.value.map((group) => group.key),
+    (keys, previousKeys) => {
+        keys.forEach(createUploader);
+        (previousKeys ?? [])
+            .filter((key) => !keys.includes(key))
+            .forEach((key) => {
+                uploaders.get(key)?.clear();
+                delete suggestedMedia.value[key];
             });
     },
     { immediate: true },
 );
-const uploaderFor = (accountId: string | null): MediaUploader =>
-    (isSingleChannel.value ? undefined : uploaders.get(accountId ?? '')) ??
-    uploaders.get('')!;
-const suggestionsFor = (accountId: string | null): MediaItem[] =>
-    suggestedMedia.value[accountId ?? 'shared'] ?? [];
-const setSuggestions = (
-    accountId: string | null,
-    items: MediaItem[],
-): void => {
-    suggestedMedia.value[accountId ?? 'shared'] = items;
+const uploaderFor = (groupKey: string | null): MediaUploader =>
+    cardUploaders.get(trayKey(groupKey)) ?? uploaders.get('')!;
+const trayHasActivity = (groupKey: string | null): boolean => {
+    const uploader = uploaderFor(groupKey);
+
+    return (
+        uploader.entries.value.length > 0 || uploader.imports.value.length > 0
+    );
+};
+const suggestionsFor = (groupKey: string | null): MediaItem[] =>
+    suggestedMedia.value[trayKey(groupKey) || 'shared'] ?? [];
+const setSuggestions = (groupKey: string | null, items: MediaItem[]): void => {
+    suggestedMedia.value[trayKey(groupKey) || 'shared'] = items;
 };
 watch(
     () => props.open,
@@ -457,20 +624,26 @@ watch(
     },
 );
 const unsplashOpen = ref(false);
-const unsplashAccountId = ref<string | null>(null);
-const openUnsplash = (accountId: string | null): void => {
-    unsplashAccountId.value = accountId;
+const unsplashGroupKey = ref<string | null>(null);
+const openUnsplash = (groupKey: string | null): void => {
+    unsplashGroupKey.value = groupKey;
     unsplashOpen.value = true;
 };
 const mediaImport = useMediaImport();
 const onImportStarted = (
     started: MediaImportStarted,
-    accountId: string | null,
-): void => mediaImport.track(uploaderFor(accountId), started);
+    groupKey: string | null,
+): void => mediaImport.track(uploaderFor(groupKey), started);
+watch(customizing, (isCustomizing) => {
+    if (isCustomizing) return;
+    uploaders.forEach((uploader, key) => {
+        if (key) uploader.clear();
+    });
+});
 const activeUploaders = computed(() => [
-    uploaderFor(null),
-    ...composition.selectedAccountIds.value.flatMap((id) => {
-        const uploader = uploaders.get(id);
+    uploaders.get('')!,
+    ...(customizing.value ? networkGroups.value : []).flatMap((group) => {
+        const uploader = uploaders.get(group.key);
 
         return uploader ? [uploader] : [];
     }),
@@ -486,12 +659,12 @@ const ownsMediaOverride = (accountId: string): boolean =>
     Object.hasOwn(composition.overrides.value[accountId] ?? {}, 'media');
 type SubmittedMedia = {
     shared: MediaItem[];
-    destinations: { accountId: string; overridden: boolean; media: MediaItem[] }[];
+    destinations: { groupKey: string; overridden: boolean; media: MediaItem[] }[];
 };
 const snapshotMedia = (): SubmittedMedia => ({
     shared: [...composition.media.value],
     destinations: selectedAccounts.value.map((account) => ({
-        accountId: account.id,
+        groupKey: account.platform,
         overridden: ownsMediaOverride(account.id),
         media: [...composition.resolvedDestination(account).media],
     })),
@@ -523,7 +696,7 @@ const mediaErrorKeys = computed(() => {
             : undefined;
         if (!match || !destination) continue;
         record(
-            destination.overridden ? destination.accountId : '',
+            destination.overridden ? destination.groupKey : '',
             destination.media,
             Number(match[2]),
             message,
@@ -532,15 +705,11 @@ const mediaErrorKeys = computed(() => {
 
     return found;
 });
-const mediaErrorsFor = (accountId: string | null): Record<number, string> => {
-    const account = accountId
-        ? selectedAccounts.value.find((selected) => selected.id === accountId)
-        : undefined;
-    const target = account && ownsMediaOverride(account.id) ? account.id : '';
+const mediaErrorsFor = (groupKey: string | null): Record<number, string> => {
+    const group = findGroup(groupKey);
+    const target = group && ownsMediaOverride(group.anchor.id) ? group.key : '';
     const keyed = mediaErrorKeys.value[target] ?? {};
-    const items = account
-        ? composition.resolvedDestination(account).media
-        : composition.media.value;
+    const items = group ? groupDestination(group).media : composition.media.value;
 
     return Object.fromEntries(
         items.flatMap((item, index) => {
@@ -550,14 +719,14 @@ const mediaErrorsFor = (accountId: string | null): Record<number, string> => {
         }),
     );
 };
-const onMediaDropped = (event: DragEvent, accountId: string | null): void => {
+const onMediaDropped = (event: DragEvent, groupKey: string | null): void => {
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (!files.length || cropUploading.value) return;
-    uploaderFor(accountId).add(files);
+    uploaderFor(groupKey).add(files);
 };
 const onMediaPasted = (
     event: ClipboardEvent,
-    accountId: string | null,
+    groupKey: string | null,
 ): void => {
     const files = Array.from(event.clipboardData?.files ?? []);
     if (
@@ -568,7 +737,7 @@ const onMediaPasted = (
         return;
     }
     event.preventDefault();
-    uploaderFor(accountId).add(files);
+    uploaderFor(groupKey).add(files);
 };
 const queueAvailable = computed(
     () =>
@@ -708,12 +877,6 @@ const recentlyUsedAccounts = computed(() =>
         lastUsedAccountIds.value.includes(account.id),
     ),
 );
-const hasSharedPreview = computed(
-    () =>
-        Boolean(composition.content.value.trim()) ||
-        composition.media.value.length > 0,
-);
-
 onMounted(() => {
     try {
         const saved = JSON.parse(
@@ -728,6 +891,11 @@ onMounted(() => {
         lastUsedAccountIds.value = [];
     }
 });
+const hasSharedPreview = computed(
+    () =>
+        Boolean(composition.content.value.trim()) ||
+        composition.media.value.length > 0,
+);
 const previewAccount = computed(
     () =>
         selectedAccounts.value.find(
@@ -739,37 +907,39 @@ const previewDestination = computed(() =>
         ? composition.resolvedDestination(previewAccount.value)
         : null,
 );
-const expandedAccount = computed(() =>
-    selectedAccounts.value.find(
-        (account) => account.id === expandedAccountId.value,
-    ),
-);
-const expandedDestination = computed(() =>
-    expandedAccount.value
-        ? composition.resolvedDestination(expandedAccount.value)
-        : null,
-);
-const expandedOverride = computed(() =>
-    expandedAccountId.value
-        ? (composition.overrides.value[expandedAccountId.value] ?? {})
-        : {},
-);
+const contentOf = (groupKey: string | null): string => {
+    const group = findGroup(groupKey);
+
+    return group ? groupDestination(group).content : composition.content.value;
+};
+const writeContent = (groupKey: string | null, next: string): void => {
+    const group = findGroup(groupKey);
+    if (group) {
+        composition.setGroupOverride(group.key, 'content', next);
+        return;
+    }
+    composition.content.value = next;
+};
 const assistantContent = computed(() =>
-    step.value === 2 && expandedDestination.value
-        ? expandedDestination.value.content
-        : composition.content.value,
+    contentOf(sharedStep.value ? null : openGroupKey.value),
 );
+const accountLimit = (account: ComposerAccount): number =>
+    props.platformConfigs[account.id]?.maxContentLength ?? Infinity;
 const assistantChannel = computed<AssistantChannel | null>(() => {
-    const account =
-        step.value === 2
-            ? expandedAccount.value
-            : selectedAccounts.value.length === 1
-              ? selectedAccounts.value[0]
-              : undefined;
+    const account = sharedStep.value
+        ? undefined
+        : openGroup.value?.accounts.reduce<ComposerAccount | undefined>(
+              (tightest, candidate) =>
+                  !tightest || accountLimit(candidate) < accountLimit(tightest)
+                      ? candidate
+                      : tightest,
+              undefined,
+          );
     if (!account) return null;
     const limit = props.platformConfigs[account.id]?.maxContentLength;
 
     return {
+        accountId: account.id,
         platform: account.platform,
         label: getPlatformLabel(account.platform),
         limit: typeof limit === 'number' ? limit : null,
@@ -783,17 +953,115 @@ const canSubmit = computed(
         !mediaUploading.value &&
         !mediaFailed.value,
 );
+const contentWarningLength = (account: ComposerAccount): number =>
+    account.platform === Platform.Mastodon
+        ? characterCount(
+              String(
+                  composition.resolvedDestination(account).meta
+                      ?.spoiler_text ?? '',
+              ).trim(),
+          )
+        : 0;
 const remainingCharacters = (account: ComposerAccount): number | null => {
     const limit = props.platformConfigs[account.id]?.maxContentLength;
     if (typeof limit !== 'number' || limit <= 0) return null;
+    const destination = composition.resolvedDestination(account);
+    if (CAPTIONLESS_CONTENT_TYPES.has(destination.content_type)) return null;
 
     return (
         limit -
-        contentFor(
-            composition.resolvedDestination(account).content,
-            account.platform,
-        ).length
+        contentWarningLength(account) -
+        characterCount(contentFor(destination.content, account.platform))
     );
+};
+const groupRemaining = (group: NetworkGroup): number | null => {
+    const values = group.accounts
+        .map(remainingCharacters)
+        .filter((value): value is number => value !== null);
+
+    return values.length ? Math.min(...values) : null;
+};
+const threadActive = ref(-1);
+watch(openGroupKey, () => {
+    threadActive.value = -1;
+});
+const repliesOf = (meta: Record<string, any> | null | undefined): string[] =>
+    Array.isArray(meta?.thread_replies) ? meta.thread_replies : [];
+const threadReplies = (group: NetworkGroup): string[] =>
+    repliesOf(groupDestination(group).meta);
+const supportsThread = (group: NetworkGroup): boolean =>
+    THREAD_PLATFORMS.includes(group.platform);
+const replyLimit = (account: ComposerAccount): number | null => {
+    const limit = props.platformConfigs[account.id]?.maxContentLength;
+
+    return typeof limit === 'number' && limit > 0
+        ? limit - contentWarningLength(account)
+        : null;
+};
+const threadReplyLimit = (group: NetworkGroup): number | null => {
+    const limits = group.accounts
+        .map(replyLimit)
+        .filter((limit): limit is number => limit !== null);
+
+    return limits.length ? Math.min(...limits) : null;
+};
+const setThreadReplies = (group: NetworkGroup, replies: string[]): void => {
+    const meta = { ...groupDestination(group).meta };
+    delete meta.thread_replies;
+    composition.setGroupOverride(
+        group.key,
+        'meta',
+        replies.length ? { ...meta, thread_replies: replies } : meta,
+    );
+};
+const addThreadReply = (group: NetworkGroup): void => {
+    const replies = threadReplies(group);
+    if (replies.length >= THREAD_MAX_REPLIES) return;
+    setThreadReplies(group, [...replies, '']);
+    threadActive.value = replies.length;
+};
+const activeRemaining = (group: NetworkGroup): number | null => {
+    const reply = threadReplies(group)[threadActive.value];
+    if (reply === undefined) return groupRemaining(group);
+    const limit = threadReplyLimit(group);
+
+    return limit === null
+        ? null
+        : limit - characterCount(contentFor(reply, group.platform));
+};
+const threadReplyErrors = (group: NetworkGroup): Record<number, string> => {
+    const found: Record<number, string> = {};
+    for (const account of group.accounts) {
+        const prefix = `destinations.${selectedAccounts.value.indexOf(account)}.meta.thread_replies`;
+        for (const [key, message] of Object.entries(errors.value)) {
+            const match = key.startsWith(`${prefix}.`)
+                ? Number(key.slice(prefix.length + 1))
+                : NaN;
+            if (Number.isInteger(match)) found[match] ??= message;
+        }
+    }
+
+    return found;
+};
+const remainingHashtags = (account: ComposerAccount): number | null => {
+    const limit = props.platformConfigs[account.id]?.maxHashtags;
+    if (typeof limit !== 'number') return null;
+    const destination = composition.resolvedDestination(account);
+    if (CAPTIONLESS_CONTENT_TYPES.has(destination.content_type)) return null;
+
+    return (
+        limit -
+        countHashtags(
+            htmlToPlainText(contentFor(destination.content, account.platform)),
+        )
+    );
+};
+const groupHashtagsRemaining = (group: NetworkGroup): number | null => {
+    const values = group.accounts
+        .map(remainingHashtags)
+        .filter((value): value is number => value !== null);
+
+    return values.length ? Math.min(...values) : null;
 };
 type DestinationIssue = {
     key: string;
@@ -825,6 +1093,15 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
             warning: mediaWarning,
             contentType,
         });
+    } else if (
+        MEDIALESS_CONTENT_TYPES.has(contentType) &&
+        firstHttpUrl(destination.content) !== null
+    ) {
+        issues.push({
+            key: 'posts.form.warnings.text_only',
+            params: {},
+            contentType,
+        });
     }
     for (const aspectIssue of aspectIssues) {
         issues.push({
@@ -851,6 +1128,17 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
             contentType,
         });
     }
+    const hashtagsLeft = remainingHashtags(account);
+    if (hashtagsLeft !== null && hashtagsLeft < 0) {
+        issues.push({
+            key: 'posts.form.hashtags_exceed_platform',
+            params: {
+                platform: getPlatformLabel(account.platform),
+                limit: String(props.platformConfigs[account.id]?.maxHashtags),
+            },
+            contentType,
+        });
+    }
     if (!meta.valid) {
         issues.push({
             key: meta.tooltipKey ?? 'posts.edit.compliance_incomplete',
@@ -858,18 +1146,50 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
             contentType,
         });
     }
+    if (THREAD_PLATFORMS.includes(account.platform)) {
+        const limit = replyLimit(account);
+        for (const reply of repliesOf(destination.meta)) {
+            const over =
+                limit === null
+                    ? 0
+                    : characterCount(contentFor(reply, account.platform)) -
+                      limit;
+            if (isBlankText(reply)) {
+                issues.push({
+                    key: 'posts.form.thread.reply_empty',
+                    params: {},
+                    contentType,
+                });
+            } else if (over > 0) {
+                issues.push({
+                    key: 'posts.form.thread.reply_too_long',
+                    params: { limit: String(limit), over: String(over) },
+                    contentType,
+                });
+            }
+        }
+    }
 
     return issues;
 };
-const destinationIssueLabel = (account: ComposerAccount): string => {
-    const count = destinationIssues(account).length;
+const groupIssues = (group: NetworkGroup): DestinationIssue[] => {
+    const seen = new Set<string>();
+
+    return group.accounts.flatMap(destinationIssues).filter((issue) => {
+        const id = `${issue.key}:${JSON.stringify(issue.params)}`;
+        if (seen.has(id)) return false;
+        seen.add(id);
+
+        return true;
+    });
+};
+const groupIssueLabel = (group: NetworkGroup): string => {
+    const count = groupIssues(group).length;
 
     return transChoice('posts.composer.destination_issues', count, {
         count: String(count),
     });
 };
-const firstMedia = (account: ComposerAccount): MediaItem | undefined =>
-    composition.resolvedDestination(account).media[0];
 const blockingIssue = computed(() => {
     for (const account of selectedAccounts.value) {
         const [issue] = destinationIssues(account);
@@ -935,20 +1255,11 @@ const scheduleOptions = computed(() => [
         descriptionKey: 'posts.composer.set_date_time_description',
     },
 ].filter((option) => !requiresApproval.value || option.mode !== 'now'));
-const videoDurationSec = computed(
-    () =>
-        Math.ceil(
-            expandedDestination.value?.media.find(
-                (item) => item.type === 'video',
-            )?.meta?.duration ?? 0,
-        ) || null,
-);
 
 const selectAccount = (account: ComposerAccount): void => {
     composition.toggleAccount(account.id);
     if (composition.selectedAccountIds.value.includes(account.id)) {
-        previewAccountId.value = account.id;
-        if (step.value === 2) expandedAccountId.value = account.id;
+        openNetwork(account.platform, account.id);
     }
 };
 
@@ -989,43 +1300,30 @@ const saveSignature = (signature: {
 
 const appendSignature = (
     signature: { content: string },
-    accountId: string | null,
+    groupKey: string | null,
 ): void => {
-    const account = selectedAccounts.value.find(
-        (selected) => selected.id === accountId,
+    const current = contentOf(groupKey);
+    writeContent(
+        groupKey,
+        `${current}${current.trim() ? '\n\n' : ''}${signature.content}`,
     );
-    const current = account
-        ? composition.resolvedDestination(account).content
-        : composition.content.value;
-    const next = `${current}${current.trim() ? '\n\n' : ''}${signature.content}`;
-    if (account) {
-        composition.setOverride(account.id, 'content', next);
-    } else {
-        composition.content.value = next;
-    }
 };
 
-const appendEmoji = (emoji: string, accountId: string | null): void => {
-    const account = selectedAccounts.value.find(
-        (selected) => selected.id === accountId,
-    );
-    if (account) {
-        composition.setOverride(
-            account.id,
-            'content',
-            `${composition.resolvedDestination(account).content}${emoji}`,
-        );
-    } else {
-        composition.content.value += emoji;
-    }
+const appendEmoji = (emoji: string, groupKey: string | null): void =>
+    writeContent(groupKey, `${contentOf(groupKey)}${emoji}`);
+
+const writeAssistantTarget = (text: string): void =>
+    writeContent(sharedStep.value ? null : openGroupKey.value, text);
+
+const customizeNetworks = (): void => {
+    composition.customize();
+    const [firstGroup] = networkGroups.value;
+    if (firstGroup) openNetwork(firstGroup.key);
 };
 
-const writeAssistantTarget = (text: string): void => {
-    if (step.value === 2 && expandedAccount.value) {
-        composition.setOverride(expandedAccount.value.id, 'content', text);
-    } else {
-        composition.content.value = text;
-    }
+const goBackToSharedStep = (): void => {
+    composition.discardCustomization();
+    confirmingBack.value = false;
 };
 
 const insertAssistantText = (text: string): void => {
@@ -1039,44 +1337,34 @@ const showSidePanel = (panel: ComposerSidePanel): void => {
     mobilePanelOpen.value = true;
 };
 
-const editorAccount = (accountId: string | null): ComposerAccount | null =>
-    accountId === null
-        ? null
-        : (selectedAccounts.value.find(
-              (candidate) => candidate.id === accountId,
-          ) ?? null);
-const editorMedia = (accountId: string | null): MediaItem[] => {
-    const account = editorAccount(accountId);
+const editorMedia = (groupKey: string | null): MediaItem[] => {
+    const group = findGroup(groupKey);
 
-    return account
-        ? composition.resolvedDestination(account).media
-        : composition.media.value;
+    return group ? groupDestination(group).media : composition.media.value;
 };
-const editorContentTypes = (accountId: string | null): string[] => {
-    const account = editorAccount(accountId);
+const editorContentTypes = (groupKey: string | null): string[] => {
+    const group = findGroup(groupKey);
 
-    return (
-        account ? [account] : accountId === null ? selectedAccounts.value : []
-    )
-        .map((candidate) => composition.resolvedDestination(candidate).content_type)
+    return (group ? [group] : groupKey === null ? networkGroups.value : [])
+        .map((candidate) => groupDestination(candidate).content_type)
         .filter((contentType) => Boolean(contentType));
 };
 
 const openEditor = (
-    target: { accountId: string | null },
+    target: { groupKey: string | null },
     index: number,
     tab: EditorTab,
 ): void => {
     if (cropUploading.value) return;
-    if (target.accountId !== null && !editorAccount(target.accountId)) return;
-    const rules = rulesFor(editorContentTypes(target.accountId));
-    const indexes = editorMedia(target.accountId).flatMap((candidate, position) =>
+    if (target.groupKey !== null && !findGroup(target.groupKey)) return;
+    const rules = rulesFor(editorContentTypes(target.groupKey));
+    const indexes = editorMedia(target.groupKey).flatMap((candidate, position) =>
         editorTabsFor(candidate, rules).length > 0 ? [position] : [],
     );
     if (!indexes.includes(index)) return;
     cropError.value = false;
     cropTarget.value = {
-        accountId: target.accountId,
+        groupKey: target.groupKey,
         indexes,
         initialIndex: indexes.indexOf(index),
         tab,
@@ -1085,18 +1373,18 @@ const openEditor = (
 };
 
 const cropContentTypes = computed(() =>
-    cropTarget.value ? editorContentTypes(cropTarget.value.accountId) : [],
+    cropTarget.value ? editorContentTypes(cropTarget.value.groupKey) : [],
 );
 const cropItems = computed(() => {
     if (!cropTarget.value) return [];
-    const media = editorMedia(cropTarget.value.accountId);
+    const media = editorMedia(cropTarget.value.groupKey);
 
     return cropTarget.value.indexes.flatMap((index) =>
         media[index] ? [media[index]] : [],
     );
 });
 const cropAspectBounds = computed(() => {
-    if (!cropTarget.value?.accountId) return {};
+    if (!cropTarget.value?.groupKey) return {};
     const rules = getMediaRulesForContentType(cropContentTypes.value[0] ?? '');
 
     return { min: rules.aspectRatioMin, max: rules.aspectRatioMax };
@@ -1108,20 +1396,16 @@ const onMediaEdited = async (changes: MediaEditChange[]): Promise<void> => {
     await swapEditedMedia({
         changes,
         indexes: target.indexes,
-        items: () => editorMedia(target.accountId),
+        items: () => editorMedia(target.groupKey),
         write: (items) => {
-            if (target.accountId === null) {
+            if (target.groupKey === null) {
                 composition.media.value = items;
             } else {
-                composition.setOverride(target.accountId, 'media', items);
+                composition.setGroupOverride(target.groupKey, 'media', items);
             }
         },
     });
     cropTarget.value = null;
-};
-
-const goToCustomization = (): void => {
-    if (selectedAccounts.value.length) chosenStep.value = 2;
 };
 
 const submit = (status: PostComposition['status']): void => {
@@ -1302,8 +1586,9 @@ const resumeUnfinishedPost = (): void => {
                     : override,
             ]),
     );
-    composition.adoptSingleDestination();
-    previewAccountId.value = selectedIds[0] ?? null;
+    composition.normalizeGroups();
+    const [firstGroup] = composition.networkGroups.value;
+    if (firstGroup) openNetwork(firstGroup.key);
     const mode = snapshot.scheduleMode;
     if (
         mode === 'now' ||
@@ -1350,13 +1635,13 @@ const close = (): void => emit('update:open', false);
             >
                 <div class="flex min-w-0 items-center gap-3">
                     <Button
-                        v-if="step === 2 && !skipsSharedStep"
+                        v-if="customizing"
                         type="button"
                         variant="ghost"
                         size="icon"
                         data-testid="composer-back"
                         :aria-label="$t('common.back')"
-                        @click="chosenStep = 1"
+                        @click="confirmingBack = true"
                         ><IconArrowLeft class="size-4"
                     /></Button>
                     <DialogTitle class="font-sans">{{
@@ -1580,7 +1865,7 @@ const close = (): void => emit('update:open', false);
                 <div
                     class="min-h-0 overflow-y-auto px-4 pt-4 pb-5 sm:px-8"
                     :class="[
-                        step === 1 ? 'flex flex-col gap-6' : 'space-y-6',
+                        'flex flex-col gap-6',
                         mobilePanelOpen ? 'max-md:hidden' : '',
                     ]"
                 >
@@ -1602,16 +1887,9 @@ const close = (): void => emit('update:open', false);
                                 v-for="account in selectedAccounts"
                                 :key="account.id"
                                 :account="account"
-                                :active="
-                                    (step === 1
-                                        ? previewAccountId
-                                        : expandedAccountId) === account.id
-                                "
+                                :active="previewAccountId === account.id"
                                 :removable="!initialPost"
-                                @focus="
-                                    expandedAccountId = account.id;
-                                    previewAccountId = account.id;
-                                "
+                                @focus="openNetwork(account.platform, account.id)"
                                 @remove="selectAccount(account)"
                             />
                         </div>
@@ -1699,64 +1977,37 @@ const close = (): void => emit('update:open', false);
                             </Button>
                         </template>
                     </div>
-                    <template v-if="step === 1">
-                        <div
-                            class="mx-auto flex min-h-64 w-full max-w-[744px] flex-1 flex-col rounded-xl border border-border bg-card p-4"
-                            @dragover.prevent
-                            @drop.prevent="onMediaDropped($event, null)"
+                    <div
+                        class="mx-auto flex w-full max-w-[744px] flex-1 flex-col gap-3"
+                    >
+                        <ComposerNetworkCard
+                            v-if="!networkGroups.length || sharedStep"
+                            class="flex-1"
+                            data-testid="composer-base"
+                            test-id-prefix="composer-base"
+                            caption-test-id="composer-base-content"
+                            :content="composition.content.value"
+                            @update:content="composition.content.value = $event"
+                            @paste="onMediaPasted($event, null)"
+                            @drop="onMediaDropped($event, null)"
+                            @open-templates="showSidePanel('templates')"
                         >
-                            <div class="relative flex min-h-40 flex-1 flex-col">
-                                <textarea
-                                    v-model="composition.content.value"
-                                    data-testid="composer-base-content"
-                                    @paste="onMediaPasted($event, null)"
-                                    :aria-label="$t('posts.composer.content_label')"
-                                    :aria-describedby="
-                                        composition.content.value
-                                            ? undefined
-                                            : 'composer-templates-inspire-hint'
-                                    "
-                                    class="-mt-[3px] min-h-40 w-full flex-1 resize-none bg-transparent px-[9px] pt-0.5 pb-1 text-sm outline-none"
-                                />
-                                <p
-                                    v-if="!composition.content.value"
-                                    id="composer-templates-inspire-hint"
-                                    class="pointer-events-none absolute start-0 top-0 -mt-[3px] px-[9px] pt-0.5 text-sm text-subtle-foreground"
-                                >
-                                    {{
-                                        $t('create.templates.panel.inspire_prefix')
-                                    }}
-                                    <button
-                                        type="button"
-                                        class="pointer-events-auto cursor-pointer font-medium text-primary-text underline-offset-2 hover:underline"
-                                        data-testid="composer-templates-inspire"
-                                        @click="showSidePanel('templates')"
-                                    >
-                                        {{
-                                            $t(
-                                                'create.templates.panel.inspire_link',
-                                            )
-                                        }}
-                                    </button>
-                                </p>
-                            </div>
-                            <div>
+                            <template #media>
                                 <MediaTray
-                                    class="pt-5"
                                     test-id-prefix="composer"
                                     :items="composition.media.value"
                                     :limits="mediaUploadLimits()"
                                     :uploader="uploaderFor(null)"
                                     :suggested="suggestionsFor(null)"
-                                    @update:suggested="setSuggestions(null, $event)"
                                     :item-errors="mediaErrorsFor(null)"
                                     :content-types="editorContentTypes(null)"
                                     :disabled="cropUploading"
+                                    @update:suggested="setSuggestions(null, $event)"
                                     @update:items="composition.media.value = $event"
                                     @import-started="onImportStarted($event, null)"
                                     @edit="
                                         openEditor(
-                                            { accountId: null },
+                                            { groupKey: null },
                                             $event.index,
                                             $event.tab,
                                         )
@@ -1767,442 +2018,413 @@ const close = (): void => emit('update:open', false);
                                     class="mt-2 text-sm text-destructive"
                                     data-testid="composer-crop-error"
                                 >
-                                    {{
-                                        $t('posts.composer.crop_upload_failed')
-                                    }}
+                                    {{ $t('posts.composer.crop_upload_failed') }}
                                 </p>
-                            </div>
-                            <ComposerEditorToolbar
-                                test-id-prefix="composer-base"
-                                :signatures="availableSignatures"
-                                @import-started="onImportStarted($event, null)"
-                                @open-unsplash="openUnsplash(null)"
-                                @select-emoji="appendEmoji($event, null)"
-                                @select-signature="
-                                    appendSignature($event, null)
-                                "
-                                @save-signature="saveSignature"
-                            />
-                        </div>
-                    </template>
-
-                    <template v-else>
-                        <div
-                            v-if="expandedAccount && expandedDestination"
-                            :key="expandedAccount.id"
-                            class="mx-auto flex min-h-[540px] w-full max-w-[744px] gap-3 rounded-xl border bg-card p-3"
-                            data-testid="composer-customization"
-                            @dragover.prevent
-                            @drop.prevent="
-                                onMediaDropped($event, expandedAccount.id)
-                            "
+                            </template>
+                            <template #toolbar>
+                                <ComposerEditorToolbar
+                                    test-id-prefix="composer-base"
+                                    :signatures="availableSignatures"
+                                    @import-started="onImportStarted($event, null)"
+                                    @open-unsplash="openUnsplash(null)"
+                                    @select-emoji="appendEmoji($event, null)"
+                                    @select-signature="appendSignature($event, null)"
+                                    @save-signature="saveSignature"
+                                />
+                            </template>
+                        </ComposerNetworkCard>
+                        <template
+                            v-for="group in sharedStep ? [] : networkGroups"
+                            :key="group.key"
                         >
-                            <PlatformLogo
-                                :platform="expandedAccount.platform"
-                                :size="24"
-                            />
-                            <div class="flex min-w-0 flex-1 flex-col gap-4">
-                            <span class="sr-only">{{
-                                expandedAccount.display_name ||
-                                expandedAccount.username
-                            }}</span>
-                            <ContentTypeRadioGroup
-                                v-if="
-                                    getContentTypeOptions(
-                                        expandedAccount.platform,
-                                    ).length > 1
+                            <ComposerNetworkCard
+                                v-if="group.key === openGroupKey"
+                                class="flex-1"
+                                data-testid="composer-customization"
+                                :platform="group.platform"
+                                :test-id-prefix="`composer-${group.anchor.id}`"
+                                :caption-test-id="`composer-caption-${group.anchor.id}`"
+                                :type-test-id-prefix="`composer-type-${group.anchor.id}`"
+                                :content="groupDestination(group).content"
+                                :content-type-options="
+                                    contentTypeOptionsFor(group)
                                 "
-                                :options="
-                                    getContentTypeOptions(
-                                        expandedAccount.platform,
+                                :has-media="groupDestination(group).media.length > 0"
+                                :content-type="groupDestination(group).content_type"
+                                :disabled="cropUploading"
+                                :caption-collapsed="
+                                    threadReplies(group)[threadActive] !== undefined
+                                "
+                                @expand-caption="threadActive = -1"
+                                @update:content="
+                                    composition.setGroupOverride(
+                                        group.key,
+                                        'content',
+                                        $event,
                                     )
                                 "
-                                :model-value="expandedDestination.content_type"
-                                :test-id-prefix="`composer-type-${expandedAccount.id}`"
-                                :disabled="cropUploading"
-                                @update:model-value="
-                                    composition.setOverride(
-                                        expandedAccount.id,
+                                @update:content-type="
+                                    composition.setGroupOverride(
+                                        group.key,
                                         'content_type',
                                         $event,
                                     )
                                 "
-                            />
-                            <div
-                                v-if="requiresMediaWarning(expandedAccount)"
-                                role="status"
-                                class="flex items-center gap-2 rounded-md bg-warning/15 px-3 py-1.5 text-sm"
-                                :data-testid="`composer-media-warning-${expandedAccount.id}`"
+                                @paste="onMediaPasted($event, group.key)"
+                                @drop="onMediaDropped($event, group.key)"
+                                @open-templates="showSidePanel('templates')"
                             >
-                                <IconAlertTriangle class="size-4 text-warning" />
-                                {{ $t('posts.form.warnings.requires_media') }}
-                            </div>
-                            <ChannelMediaWarnings
-                                :platform="expandedAccount.platform"
-                                :content-type="expandedDestination.content_type"
-                                :media="expandedDestination.media"
-                                :media-editing="true"
-                                :disabled="cropUploading"
-                                @edit:media="
-                                    openEditor(
-                                        { accountId: expandedAccount.id },
-                                        $event,
-                                        'edit',
-                                    )
-                                "
-                            />
-                            <div class="flex min-h-40 flex-1 flex-col">
-                                <div
-                                    class="mb-1 flex items-center justify-between"
+                                <template
+                                    v-if="group.platform === Platform.GoogleBusiness"
+                                    #header
                                 >
-                                    <label
-                                        class="sr-only"
-                                        :for="`composer-caption-${expandedAccount.id}`"
-                                        >{{ $t('posts.edit.caption') }}</label
-                                    ><Button
-                                        v-if="
-                                            Object.hasOwn(
-                                                expandedOverride,
-                                                'content',
+                                    <GoogleBusinessTopicTypeRadios
+                                        :model-value="
+                                            resolveGoogleBusinessTopicType(
+                                                groupDestination(group).meta
+                                                    ?.topic_type,
                                             )
                                         "
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        @click="
-                                            composition.clearOverride(
-                                                expandedAccount.id,
-                                                'content',
+                                        :disabled="cropUploading"
+                                        @update:model-value="
+                                            composition.setGroupOverride(
+                                                group.key,
+                                                'meta',
+                                                googleBusinessTopicMeta(
+                                                    groupDestination(group).meta,
+                                                    $event,
+                                                ),
                                             )
                                         "
-                                        >{{
-                                            $t('posts.composer.use_shared')
-                                        }}</Button
+                                    />
+                                </template>
+                                <template #warnings>
+                                    <div
+                                        v-if="requiresMediaWarning(group.anchor)"
+                                        role="status"
+                                        class="flex items-center gap-2 rounded-md bg-warning/15 px-3 py-1.5 text-sm"
+                                        :data-testid="`composer-media-warning-${group.anchor.id}`"
                                     >
-                                </div>
-                                <textarea
-                                    :id="`composer-caption-${expandedAccount.id}`"
-                                    :value="expandedDestination.content"
-                                    :data-testid="`composer-caption-${expandedAccount.id}`"
-                                    @paste="
-                                        onMediaPasted(
-                                            $event,
-                                            expandedAccount.id,
-                                        )
-                                    "
-                                    class="min-h-40 w-full flex-1 resize-none bg-transparent px-[9px] pt-0.5 pb-1 text-sm outline-none placeholder:text-subtle-foreground/33"
-                                    @input="
-                                        composition.setOverride(
-                                            expandedAccount.id,
-                                            'content',
-                                            (
-                                                $event.target as HTMLTextAreaElement
-                                            ).value,
-                                        )
-                                    "
-                                />
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between">
-                                    <span class="sr-only">{{
-                                        $t('posts.create.steps.media_title')
-                                    }}</span
-                                    ><Button
+                                        <IconAlertTriangle
+                                            class="size-4 text-warning"
+                                        />
+                                        {{
+                                            $t(
+                                                'posts.form.warnings.requires_media',
+                                            )
+                                        }}
+                                    </div>
+                                    <div
                                         v-if="
-                                            Object.hasOwn(
-                                                expandedOverride,
-                                                'media',
+                                            destinationIssues(group.anchor).some(
+                                                (issue) =>
+                                                    issue.key ===
+                                                    'posts.form.warnings.text_only',
                                             )
                                         "
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        @click="
-                                            composition.clearOverride(
-                                                expandedAccount.id,
-                                                'media',
-                                            )
-                                        "
-                                        >{{
-                                            $t('posts.composer.use_shared')
-                                        }}</Button
+                                        role="status"
+                                        class="flex items-center gap-2 rounded-md bg-warning/15 px-3 py-1.5 text-sm"
+                                        :data-testid="`composer-text-only-warning-${group.anchor.id}`"
                                     >
-                                </div>
-                                <MediaTray
-                                    :test-id-prefix="`composer-${expandedAccount.id}`"
-                                    :items="expandedDestination.media"
-                                    :limits="mediaUploadLimits()"
-                                    :uploader="uploaderFor(expandedAccount.id)"
-                                    :suggested="suggestionsFor(expandedAccount.id)"
-                                    @update:suggested="
-                                        setSuggestions(expandedAccount.id, $event)
-                                    "
-                                    :item-errors="
-                                        mediaErrorsFor(expandedAccount.id)
-                                    "
-                                    :content-types="
-                                        editorContentTypes(expandedAccount.id)
-                                    "
-                                    :disabled="cropUploading"
-                                    @update:items="
-                                        composition.setOverride(
-                                            expandedAccount.id,
-                                            'media',
-                                            $event,
-                                        )
-                                    "
-                                    @edit="
-                                        openEditor(
-                                            { accountId: expandedAccount.id },
-                                            $event.index,
-                                            $event.tab,
-                                        )
-                                    "
-                                    @import-started="
-                                        onImportStarted(
-                                            $event,
-                                            expandedAccount.id,
-                                        )
-                                    "
-                                />
-                                <p
-                                    v-if="cropError"
-                                    class="mt-2 text-sm text-destructive"
-                                    :data-testid="`composer-${expandedAccount.id}-crop-error`"
-                                >
-                                    {{
-                                        $t('posts.composer.crop_upload_failed')
-                                    }}
-                                </p>
-                                <ComposerEditorToolbar
-                                    :test-id-prefix="`composer-${expandedAccount.id}`"
-                                    :signatures="availableSignatures"
-                                    @import-started="
-                                        onImportStarted(
-                                            $event,
-                                            expandedAccount.id,
-                                        )
-                                    "
-                                    @open-unsplash="
-                                        openUnsplash(expandedAccount.id)
-                                    "
-                                    @select-emoji="
-                                        appendEmoji($event, expandedAccount.id)
-                                    "
-                                    @select-signature="
-                                        appendSignature(
-                                            $event,
-                                            expandedAccount.id,
-                                        )
-                                    "
-                                    @save-signature="saveSignature"
-                                >
-                                    <span
-                                        v-if="
-                                            remainingCharacters(
-                                                expandedAccount,
-                                            ) !== null
+                                        <IconAlertTriangle
+                                            class="size-4 shrink-0 text-warning"
+                                        />
+                                        {{ $t('posts.form.warnings.text_only') }}
+                                    </div>
+                                    <div
+                                        v-if="(groupHashtagsRemaining(group) ?? 0) < 0"
+                                        role="status"
+                                        class="flex items-center gap-2 rounded-md bg-warning/15 px-3 py-1.5 text-sm"
+                                        :data-testid="`composer-hashtag-warning-${group.anchor.id}`"
+                                    >
+                                        <IconAlertTriangle
+                                            class="size-4 text-warning"
+                                        />
+                                        {{
+                                            $t(
+                                                'posts.form.hashtags_exceed_platform',
+                                                {
+                                                    platform: getPlatformLabel(
+                                                        group.platform,
+                                                    ),
+                                                    limit: String(
+                                                        platformConfigs[
+                                                            group.anchor.id
+                                                        ]?.maxHashtags,
+                                                    ),
+                                                },
+                                            )
+                                        }}
+                                    </div>
+                                    <ChannelMediaWarnings
+                                        :platform="group.platform"
+                                        :content-type="
+                                            groupDestination(group).content_type
                                         "
-                                        :data-testid="`composer-char-count-${expandedAccount.id}`"
-                                        class="rounded-sm border px-1 py-0.5 text-xs leading-3 tabular-nums"
-                                        :class="
-                                            (remainingCharacters(
-                                                expandedAccount,
-                                            ) ?? 0) < 0
-                                                ? 'border-destructive font-medium text-destructive-text'
-                                                : 'border-border-strong text-subtle-foreground'
+                                        :media="groupDestination(group).media"
+                                        :media-editing="true"
+                                        :disabled="cropUploading"
+                                        @edit:media="
+                                            openEditor(
+                                                { groupKey: group.key },
+                                                $event,
+                                                'edit',
+                                            )
                                         "
+                                    />
+                                </template>
+                                <template #media>
+                                    <ComposerLinkCard
+                                        v-if="openLinkCard"
+                                        class="mb-3"
+                                        :card="openLinkCard"
+                                        :test-id-prefix="`composer-link-card-${group.anchor.id}`"
+                                        :removable="
+                                            linkPreviewDroppable(group.platform)
+                                        "
+                                        :replacing="linkCardMediaHttp.processing"
+                                        :disabled="cropUploading"
+                                        @remove="dropLinkCard(group)"
+                                        @replace="replaceLinkCardWithMedia(group)"
+                                    />
+                                    <MediaTray
+                                        v-show="!openLinkCard || trayHasActivity(group.key)"
+                                        :test-id-prefix="`composer-${group.anchor.id}`"
+                                        :items="groupDestination(group).media"
+                                        :limits="mediaUploadLimits()"
+                                        :uploader="uploaderFor(group.key)"
+                                        :suggested="suggestionsFor(group.key)"
+                                        :item-errors="mediaErrorsFor(group.key)"
+                                        :content-types="
+                                            editorContentTypes(group.key)
+                                        "
+                                        :disabled="cropUploading"
+                                        @update:suggested="
+                                            setSuggestions(group.key, $event)
+                                        "
+                                        @update:items="
+                                            composition.setGroupOverride(
+                                                group.key,
+                                                'media',
+                                                $event,
+                                            )
+                                        "
+                                        @edit="
+                                            openEditor(
+                                                { groupKey: group.key },
+                                                $event.index,
+                                                $event.tab,
+                                            )
+                                        "
+                                        @import-started="
+                                            onImportStarted($event, group.key)
+                                        "
+                                    />
+                                    <p
+                                        v-if="cropError"
+                                        class="mt-2 text-sm text-destructive"
+                                        :data-testid="`composer-${group.anchor.id}-crop-error`"
                                     >
                                         {{
-                                            remainingCharacters(expandedAccount)
+                                            $t(
+                                                'posts.composer.crop_upload_failed',
+                                            )
                                         }}
-                                    </span>
-                                </ComposerEditorToolbar>
-                            </div>
-                            <FacebookSettings
-                                v-if="expandedAccount.platform === 'facebook'"
-                                :content-type="expandedDestination.content_type"
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            <TikTokSettings
-                                v-else-if="
-                                    expandedAccount.platform === 'tiktok'
-                                "
-                                :social-account="expandedAccount"
-                                :publish-config="
-                                    platformConfigs[expandedAccount.id]
-                                        ?.publishConfig ?? null
-                                "
-                                :creator-info="
-                                    tiktokCreatorInfos[expandedAccount.id] ??
-                                    null
-                                "
-                                :video-duration-sec="videoDurationSec"
-                                :content-type="expandedDestination.content_type"
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            <YouTubeSettings
-                                v-else-if="
-                                    expandedAccount.platform === 'youtube'
-                                "
-                                :platform-index="
-                                    selectedAccounts.findIndex(
-                                        (account) =>
-                                            account.id === expandedAccountId,
-                                    )
-                                "
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            <PinterestSettings
-                                v-else-if="
-                                    expandedAccount.platform === 'pinterest'
-                                "
-                                :social-account="expandedAccount"
-                                :boards="
-                                    pinterestBoards[expandedAccount.id]
-                                        ?.boards ?? []
-                                "
-                                :boards-truncated="
-                                    pinterestBoards[expandedAccount.id]
-                                        ?.truncated ?? false
-                                "
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            <LinkedInSettings
-                                v-else-if="
-                                    ['linkedin', 'linkedin-page'].includes(
-                                        expandedAccount.platform,
-                                    )
-                                "
-                                :account-id="expandedAccount.id"
-                                :media="expandedDestination.media"
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            <GoogleBusinessSettings
-                                v-else-if="
-                                    expandedAccount.platform ===
-                                    'google_business'
-                                "
-                                :platform-index="0"
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            <DiscordSettings
-                                v-else-if="
-                                    expandedAccount.platform === 'discord'
-                                "
-                                :social-account="expandedAccount"
-                                :meta="expandedDestination.meta"
-                                @update:meta="
-                                    composition.setOverride(
-                                        expandedAccount.id,
-                                        'meta',
-                                        $event,
-                                    )
-                                "
-                            />
-                            </div>
-                        </div>
-                        <div class="mx-auto w-full max-w-[744px] space-y-2">
-                            <button
-                                v-for="account in selectedAccounts.filter(
-                                    (selected) =>
-                                        selected.id !== expandedAccountId,
-                                )"
-                                :key="account.id"
-                                type="button"
-                                :data-testid="`composer-expand-${account.id}`"
-                                class="flex min-h-[50px] w-full items-center gap-3 rounded-xl border bg-card px-3 py-1 text-left transition-control hover:bg-accent"
-                                @click="
-                                    expandedAccountId = account.id;
-                                    previewAccountId = account.id;
-                                "
-                            >
-                                <PlatformLogo
-                                    :platform="account.platform"
-                                    :size="24"
-                                />
-                                <span
-                                    class="min-w-0 flex-1 truncate text-sm text-muted-foreground"
-                                    >{{
-                                        composition.resolvedDestination(account)
-                                            .content ||
-                                        account.display_name ||
-                                        account.username
-                                    }}</span
+                                    </p>
+                                </template>
+                                <template
+                                    v-if="threadReplies(group).length"
+                                    #replies
                                 >
-                                <span
-                                    v-if="destinationIssues(account).length > 0"
-                                    :data-testid="`composer-issues-${account.id}`"
-                                    class="flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300"
-                                    :aria-label="destinationIssueLabel(account)"
-                                >
-                                    <IconAlertTriangle class="size-3.5" />
-                                    {{ destinationIssues(account).length }}
-                                </span>
-                                <img
-                                    v-if="isImage(firstMedia(account))"
-                                    :src="firstMedia(account)!.url"
-                                    alt=""
-                                    :data-testid="`composer-thumb-${account.id}`"
-                                    class="size-10 shrink-0 rounded-md border object-cover"
-                                />
-                                <video
-                                    v-else-if="isVideo(firstMedia(account))"
-                                    :src="firstMedia(account)!.url"
-                                    :data-testid="`composer-thumb-${account.id}`"
-                                    class="size-10 shrink-0 rounded-md border object-cover"
-                                    muted
-                                    playsinline
-                                    preload="metadata"
-                                />
-                                <IconChevronDown
-                                    class="size-4 -rotate-90 text-muted-foreground"
-                                />
-                            </button>
-                        </div>
-                    </template>
+                                    <ThreadRepliesField
+                                        v-model:active="threadActive"
+                                        :model-value="threadReplies(group)"
+                                        :platform="group.platform"
+                                        :limit="threadReplyLimit(group) ?? Infinity"
+                                        :errors="threadReplyErrors(group)"
+                                        :disabled="cropUploading"
+                                        @update:model-value="
+                                            setThreadReplies(group, $event)
+                                        "
+                                    />
+                                </template>
+                                <template #toolbar>
+                                    <ComposerEditorToolbar
+                                        :test-id-prefix="`composer-${group.anchor.id}`"
+                                        :signatures="availableSignatures"
+                                        @import-started="
+                                            onImportStarted($event, group.key)
+                                        "
+                                        @open-unsplash="openUnsplash(group.key)"
+                                        @select-emoji="
+                                            appendEmoji($event, group.key)
+                                        "
+                                        @select-signature="
+                                            appendSignature($event, group.key)
+                                        "
+                                        @save-signature="saveSignature"
+                                    >
+                                        <span
+                                            v-if="activeRemaining(group) !== null"
+                                            :data-testid="`composer-char-count-${group.anchor.id}`"
+                                            class="rounded-sm border px-1 py-0.5 text-xs leading-3 tabular-nums"
+                                            :class="
+                                                (activeRemaining(group) ?? 0) < 0
+                                                    ? 'border-destructive font-medium text-destructive-text'
+                                                    : 'border-border-strong text-subtle-foreground'
+                                            "
+                                        >
+                                            {{ activeRemaining(group) }}
+                                        </span>
+                                        <template v-if="supportsThread(group)">
+                                            <Button
+                                                v-if="!threadReplies(group).length"
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                class="ms-1 text-primary-text"
+                                                data-testid="thread-start"
+                                                :disabled="cropUploading"
+                                                @click="addThreadReply(group)"
+                                            >
+                                                <IconCirclePlus class="size-4" />
+                                                <span data-single-line>{{
+                                                    $t('posts.form.thread.start')
+                                                }}</span>
+                                            </Button>
+                                            <Button
+                                                v-else-if="
+                                                    threadReplies(group).length <
+                                                    THREAD_MAX_REPLIES
+                                                "
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                class="ms-1 size-7 text-primary-text"
+                                                data-testid="thread-add-reply"
+                                                :aria-label="
+                                                    $t('posts.form.thread.add')
+                                                "
+                                                :disabled="cropUploading"
+                                                @click="addThreadReply(group)"
+                                            >
+                                                <IconCirclePlus class="size-4" />
+                                            </Button>
+                                        </template>
+                                        <span
+                                            v-if="(groupHashtagsRemaining(group) ?? -1) >= 0"
+                                            :data-testid="`composer-hashtags-remaining-${group.anchor.id}`"
+                                            data-single-line
+                                            class="rounded-sm border border-border-strong px-1 py-0.5 text-xs leading-3 text-subtle-foreground tabular-nums"
+                                        >
+                                            {{
+                                                $t(
+                                                    'posts.composer.hashtags_remaining',
+                                                    {
+                                                        count: String(
+                                                            groupHashtagsRemaining(
+                                                                group,
+                                                            ),
+                                                        ),
+                                                    },
+                                                )
+                                            }}
+                                        </span>
+                                    </ComposerEditorToolbar>
+                                </template>
+                                <template #settings>
+                                    <template
+                                        v-if="
+                                            ACCOUNT_SCOPED_SETTINGS.includes(
+                                                group.platform,
+                                            )
+                                        "
+                                    >
+                                        <section
+                                            v-for="account in group.accounts"
+                                            :key="account.id"
+                                            class="space-y-2"
+                                            :data-testid="`composer-account-settings-${account.id}`"
+                                        >
+                                            <p
+                                                v-if="group.accounts.length > 1"
+                                                class="truncate text-[13px] font-medium text-muted-foreground"
+                                            >
+                                                {{
+                                                    account.display_label ||
+                                                    account.display_name
+                                                }}
+                                            </p>
+                                            <ComposerNetworkSettings
+                                                :account="account"
+                                                :destination="
+                                                    composition.resolvedDestination(
+                                                        account,
+                                                    )
+                                                "
+                                                :platform-index="
+                                                    selectedAccounts.indexOf(account)
+                                                "
+                                                :platform-config="
+                                                    platformConfigs[account.id] ??
+                                                    null
+                                                "
+                                                :pinterest-boards="
+                                                    pinterestBoards[account.id] ??
+                                                    null
+                                                "
+                                                :tiktok-creator-info="
+                                                    tiktokCreatorInfos[
+                                                        account.id
+                                                    ] ?? null
+                                                "
+                                                @update:meta="
+                                                    composition.setGroupOverride(
+                                                        group.key,
+                                                        'meta',
+                                                        $event,
+                                                        account.id,
+                                                    )
+                                                "
+                                            />
+                                        </section>
+                                    </template>
+                                    <ComposerNetworkSettings
+                                        v-else
+                                        :account="group.anchor"
+                                        :destination="groupDestination(group)"
+                                        :platform-index="
+                                            selectedAccounts.indexOf(group.anchor)
+                                        "
+                                        :platform-config="
+                                            platformConfigs[group.anchor.id] ??
+                                            null
+                                        "
+                                        @update:meta="
+                                            composition.setGroupOverride(
+                                                group.key,
+                                                'meta',
+                                                $event,
+                                            )
+                                        "
+                                    />
+                                </template>
+                            </ComposerNetworkCard>
+                            <ComposerNetworkRow
+                                v-else
+                                :platform="group.platform"
+                                :anchor-id="group.anchor.id"
+                                :text="
+                                    groupDestination(group).content ||
+                                    group.anchor.display_name ||
+                                    group.anchor.username
+                                "
+                                :issue-count="groupIssues(group).length"
+                                :issue-label="groupIssueLabel(group)"
+                                @open="openNetwork(group.key)"
+                            />
+                        </template>
+                    </div>
                 </div>
 
                 <aside
@@ -2237,8 +2459,8 @@ const close = (): void => emit('update:open', false);
                         >
                             <WritingAssistantPanel
                                 :key="
-                                    step === 2
-                                        ? `account-${expandedAccountId}`
+                                    openGroupKey
+                                        ? `group-${openGroupKey}`
                                         : 'shared'
                                 "
                                 :content="assistantContent"
@@ -2251,29 +2473,23 @@ const close = (): void => emit('update:open', false);
                     <template v-else>
                         <PreviewPanelTitle
                             :title="
-                                step === 1
-                                    ? $t('posts.composer.post_previews')
-                                    : $t('posts.composer.network_preview', {
+                                previewAccount && !sharedStep
+                                    ? $t('posts.composer.network_preview', {
                                           network: getPlatformLabel(
-                                              previewAccount?.platform ?? '',
+                                              previewAccount.platform,
                                           ),
                                       })
+                                    : $t('posts.composer.post_previews')
                             "
                         />
                         <div
                             class="min-h-0 flex-1 space-y-10 overflow-x-hidden overflow-y-auto px-8 pb-8"
                             data-testid="composer-previews-scroll"
                         >
-                            <template
-                                v-if="
-                                    step === 1 &&
-                                    selectedAccounts.length &&
-                                    hasSharedPreview
-                                "
-                            >
+                            <template v-if="sharedStep && hasSharedPreview">
                                 <section
-                                    v-for="account in selectedAccounts"
-                                    :key="account.id"
+                                    v-for="group in networkGroups"
+                                    :key="group.key"
                                     data-testid="composer-preview-card"
                                     class="space-y-3"
                                 >
@@ -2282,43 +2498,29 @@ const close = (): void => emit('update:open', false);
                                         data-testid="composer-preview-label"
                                     >
                                         <PlatformLogo
-                                            :platform="account.platform"
+                                            :platform="group.platform"
                                             :size="18"
                                             :title="null"
                                             class="opacity-80 grayscale"
                                         />
-                                        {{ getPlatformLabel(account.platform) }}
+                                        {{ getPlatformLabel(group.platform) }}
                                     </h4>
                                     <PlatformPreview
                                         data-testid="composer-preview-frame"
-                                        :platform="account.platform"
-                                        :social-account="account"
-                                        :content="
-                                            composition.resolvedDestination(
-                                                account,
-                                            ).content
-                                        "
-                                        :media="
-                                            composition.resolvedDestination(
-                                                account,
-                                            ).media
-                                        "
+                                        :platform="group.platform"
+                                        :social-account="group.anchor"
+                                        :content="groupDestination(group).content"
+                                        :media="groupDestination(group).media"
                                         :content-type="
-                                            composition.resolvedDestination(
-                                                account,
-                                            ).content_type
+                                            groupDestination(group).content_type
                                         "
-                                        :meta="
-                                            composition.resolvedDestination(
-                                                account,
-                                            ).meta
-                                        "
+                                        :meta="groupDestination(group).meta"
                                     />
                                 </section>
                             </template>
                             <div
                                 v-else-if="
-                                    step === 2 &&
+                                    !sharedStep &&
                                     previewAccount &&
                                     previewDestination &&
                                     (previewDestination.content.trim() ||
@@ -2646,13 +2848,12 @@ const close = (): void => emit('update:open', false);
                                 </template>
                             </PopoverContent>
                         <Button
-                            v-if="step === 1"
+                            v-if="sharedStep"
                             type="button"
                             size="lg"
                             class="rounded-l-none rounded-r-xl"
                             data-testid="composer-next"
-                            :disabled="selectedAccounts.length === 0"
-                            @click="goToCustomization"
+                            @click="customizeNetworks"
                             >{{ $t('posts.composer.customize_networks')
                             }}<IconArrowRight class="size-4"
                         /></Button>
@@ -2745,8 +2946,41 @@ const close = (): void => emit('update:open', false);
     />
     <UnsplashDialog
         v-model:open="unsplashOpen"
-        @picked="appendMedia(unsplashAccountId, $event)"
+        @picked="appendMedia(unsplashGroupKey, $event)"
     />
+    <AlertDialog v-model:open="confirmingBack">
+        <AlertDialogContent
+            class="gap-0 px-0 pt-6 pb-0 sm:max-w-[512px]"
+            data-testid="composer-back-confirm"
+        >
+            <AlertDialogHeader class="gap-3 px-6 pb-4 text-left">
+                <AlertDialogTitle class="font-sans text-base font-medium">
+                    {{ $t('posts.composer.back_confirm.title') }}
+                </AlertDialogTitle>
+                <AlertDialogDescription class="text-sm text-foreground">
+                    {{ $t('posts.composer.back_confirm.description') }}
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter
+                class="flex-col border-t border-border px-6 py-4 sm:flex-row sm:justify-end"
+            >
+                <AlertDialogCancel
+                    class="mt-0"
+                    data-testid="composer-back-cancel"
+                >
+                    {{ $t('common.cancel') }}
+                </AlertDialogCancel>
+                <Button
+                    variant="destructive"
+                    size="lg"
+                    data-testid="composer-back-confirm-go"
+                    @click="goBackToSharedStep"
+                >
+                    {{ $t('posts.composer.back_confirm.confirm') }}
+                </Button>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     <ResumeUnfinishedPostDialog
         :open="resumeOpen"
         :accounts="resumeAccounts"

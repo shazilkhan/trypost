@@ -8,6 +8,7 @@ use App\Dto\Analytics\DateRange;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Support\Analytics\ChannelMetrics;
+use App\Support\Analytics\EngagementRate;
 use Carbon\CarbonImmutable;
 use Illuminate\Pagination\LengthAwarePaginator;
 use InvalidArgumentException;
@@ -63,9 +64,7 @@ class ListChannelPublicationPerformance
             'metrics' => [
                 'reactions' => $this->integer($row->reactions_count),
                 'comments' => $this->integer($row->comments_count),
-                'engagement_rate' => $row->engagement_count !== null && (int) $row->exposure_count > 0
-                    ? round((int) $row->engagement_count / (int) $row->exposure_count * 100, 2)
-                    : null,
+                'engagement_rate' => EngagementRate::of($row->engagement_count, $row->exposure_count),
                 'views' => $this->integer($row->views_count),
                 'shares' => $this->integer($row->shares_count),
                 'saves' => $this->integer($row->saves_count),

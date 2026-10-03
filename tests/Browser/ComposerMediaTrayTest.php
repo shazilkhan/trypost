@@ -18,7 +18,7 @@ function waitForComposerMediaTrayCondition(mixed $page, string $condition): void
 {
     $page->script(<<<JS
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if ({$condition}) return;
                 await new Promise((resolve) => setTimeout(resolve, 50));
             }
@@ -53,14 +53,16 @@ function composerMediaTrayDisabled(mixed $page, string $testId): bool
  *
  * @return array{0: mixed, 1: Workspace, 2: SocialAccount, 3: list<SocialAccount>}
  */
-function openComposerMediaTray(mixed $test, string $mode = 'pass', int $channels = 1, string $platform = 'linkedin', bool $select = false): array
+function openComposerMediaTray(mixed $test, string $mode = 'pass', int $channels = 1, string|array $platform = 'linkedin', bool $select = false): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
     $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
-    $accounts = SocialAccount::factory()->{$platform}()->count($channels)->create(['workspace_id' => $workspace->id])->all();
+    $accounts = collect(is_array($platform) ? $platform : array_fill(0, $channels, $platform))
+        ->map(fn (string $network): SocialAccount => SocialAccount::factory()->{$network}()->create(['workspace_id' => $workspace->id]))
+        ->all();
     $test->actingAs($user);
 
     $page = visit(route('app.posts.create'));
@@ -75,7 +77,8 @@ function openComposerMediaTray(mixed $test, string $mode = 'pass', int $channels
     if ($select) {
         selectComposerMediaTrayChannels($page, $accounts);
     }
-    waitForComposerMediaTrayTestId($page, $select && $channels === 1 ? "composer-{$accounts[0]->id}-dropzone" : 'composer-dropzone');
+    $networks = collect($accounts)->pluck('platform')->unique()->count();
+    waitForComposerMediaTrayTestId($page, $select && $networks === 1 ? "composer-{$accounts[0]->id}-dropzone" : 'composer-dropzone');
 
     $uploadUrl = route('app.media.store-chunked', absolute: false);
     $page->script(<<<JS
@@ -300,7 +303,7 @@ test('saving is blocked while an upload is in flight and the finished upload is 
 });
 
 test('cancel removes an uploading tile and retry recovers a network failure', function () {
-    [$page] = openComposerMediaTray($this, 'hold', 2, 'instagram', select: true);
+    [$page] = openComposerMediaTray($this, 'hold', platform: ['instagram', 'threads'], select: true);
 
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('cancel-me.png').']');
     waitForComposerMediaTrayCondition($page, 'window.__uploads.held.length === 1');
@@ -352,7 +355,7 @@ test('a rejected upload shows the server message without Retry', function () {
 });
 
 test('a failed tile blocks saving until it is retried or removed', function () {
-    [$page] = openComposerMediaTray($this, 'fail-first', 2, 'instagram', select: true);
+    [$page] = openComposerMediaTray($this, 'fail-first', platform: ['instagram', 'threads'], select: true);
     $page->fill('@composer-base-content', 'Blocked by a failed upload');
 
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('failed.png').']');
@@ -367,7 +370,7 @@ test('a failed tile blocks saving until it is retried or removed', function () {
 });
 
 test('three uploads run at once across the shared and channel trays, and uploads survive step and channel changes', function () {
-    [$page, , $first, $accounts] = openComposerMediaTray($this, 'hold', 2, 'instagram', select: true);
+    [$page, , $first, $accounts] = openComposerMediaTray($this, 'hold', platform: ['instagram', 'threads'], select: true);
     $second = $accounts[1];
 
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('shared-a.png').', '.composerMediaTrayPng('shared-b.png').']');
@@ -378,7 +381,7 @@ test('three uploads run at once across the shared and channel trays, and uploads
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('channel-c.png').', '.composerMediaTrayPng('channel-d.png').']', "composer-{$first->id}");
     waitForComposerMediaTrayCondition($page, 'window.__uploads.held.length === 3');
     expect($page->script('window.__uploads.held.map((held) => held.name)'))->toBe(['shared-a.png', 'shared-b.png', 'channel-c.png'])
-        ->and(composerMediaTrayCount($page, "composer-{$first->id}-upload-item"))->toBe(2);
+        ->and(composerMediaTrayCount($page, "composer-{$first->id}-upload-item"))->toBe(4);
 
     $page->click("@composer-account-{$second->id}");
     waitForComposerMediaTrayTestId($page, "composer-{$second->id}-dropzone");
@@ -393,6 +396,8 @@ test('three uploads run at once across the shared and channel trays, and uploads
         ->and(composerMediaTrayCount($page, "composer-{$second->id}-media-item"))->toBe(0);
 
     $page->click('@composer-back');
+    waitForComposerMediaTrayTestId($page, 'composer-back-confirm-go');
+    $page->click('@composer-back-confirm-go');
     waitForComposerMediaTrayTestId($page, 'composer-media-item');
     expect(composerMediaTrayCount($page, 'composer-media-item'))->toBe(2)
         ->and(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeFalse();
@@ -413,7 +418,7 @@ test('closing the composer aborts uploads still in flight', function () {
 });
 
 test('an expired upload is reported on its tile in the shared tray and in a channel tray', function () {
-    [$page, , $account] = openComposerMediaTray($this, channels: 2, platform: 'instagram', select: true);
+    [$page, , $account] = openComposerMediaTray($this, platform: ['instagram', 'threads'], select: true);
     $page->fill('@composer-base-content', 'Expired upload');
 
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('shared-expired.png').']');
@@ -591,7 +596,7 @@ test('a clipboard carrying text and an image pastes the text and adds no upload'
 });
 
 test('pasting an image into a channel caption adds it to that channel tray only', function () {
-    [$page, , $account] = openComposerMediaTray($this, channels: 2, platform: 'instagram', select: true);
+    [$page, , $account] = openComposerMediaTray($this, platform: ['instagram', 'threads'], select: true);
     $page->fill('@composer-base-content', 'Shared text');
     $page->click('@composer-next');
     waitForComposerMediaTrayTestId($page, "composer-caption-{$account->id}");
@@ -601,6 +606,8 @@ test('pasting an image into a channel caption adds it to that channel tray only'
 
     expect(composerMediaTrayCount($page, "composer-{$account->id}-media-item"))->toBe(1);
     $page->click('@composer-back');
+    waitForComposerMediaTrayTestId($page, 'composer-back-confirm-go');
+    $page->click('@composer-back-confirm-go');
     waitForComposerMediaTrayTestId($page, 'composer-dropzone');
     expect(composerMediaTrayCount($page, 'composer-media-item'))->toBe(0);
     $page->assertNoJavaScriptErrors();
@@ -649,7 +656,7 @@ test('in a right-to-left layout dropping a tile on the start edge of another put
 });
 
 test('deselecting a channel aborts its uploads, unblocks saving and leaves nothing behind when it is re-selected', function () {
-    [$page, , $first, $accounts] = openComposerMediaTray($this, 'hold', 2, 'instagram', select: true);
+    [$page, , $first, $accounts] = openComposerMediaTray($this, 'hold', platform: ['instagram', 'threads'], select: true);
     $second = $accounts[1];
     $page->fill('@composer-base-content', 'Deselect mid-upload');
     $page->click('@composer-next');
@@ -678,7 +685,7 @@ test('deselecting a channel aborts its uploads, unblocks saving and leaves nothi
 });
 
 test('a server error follows the expired item when an earlier item is removed', function () {
-    [$page] = openComposerMediaTray($this, channels: 2, platform: 'instagram', select: true);
+    [$page] = openComposerMediaTray($this, platform: ['instagram', 'threads'], select: true);
     $page->fill('@composer-base-content', 'Two uploads, one expired');
 
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('kept.png').', '.composerMediaTrayPng('expired.png').']');
@@ -757,7 +764,7 @@ test('dismissing suggested media hides the panel until the next removal', functi
 });
 
 test('suggested media survives step changes and channel switches', function () {
-    [$page, , $first, $accounts] = openComposerMediaTray($this, channels: 2, platform: 'instagram', select: true);
+    [$page, , $first, $accounts] = openComposerMediaTray($this, platform: ['instagram', 'threads'], select: true);
     $second = $accounts[1];
 
     selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('shared.png').']');
@@ -783,6 +790,8 @@ test('suggested media survives step changes and channel switches', function () {
     $page->assertVisible("@composer-{$first->id}-suggested-0");
 
     $page->click('@composer-back');
+    waitForComposerMediaTrayTestId($page, 'composer-back-confirm-go');
+    $page->click('@composer-back-confirm-go');
     waitForComposerMediaTrayTestId($page, 'composer-suggested-0');
     $page->assertVisible('@composer-suggested-0')
         ->assertNoJavaScriptErrors();
@@ -825,5 +834,67 @@ test('focusing the blocked primary button with the keyboard shows the same toolt
     expect($page->script("document.activeElement?.getAttribute('data-testid')"))->toBe('composer-submit')
         ->and($page->script("document.getElementById(document.querySelector('[data-testid=\"composer-submit\"]').getAttribute('aria-describedby'))?.textContent?.trim()"))
         ->toContain('Please include an image or video.');
+    $page->assertNoJavaScriptErrors();
+});
+
+test('a failed upload in a network card stops blocking once only one network is left', function () {
+    [$page, , $first, $accounts] = openComposerMediaTray($this, 'fail-first', platform: ['instagram', 'threads'], select: true);
+
+    $page->click('@composer-next');
+    waitForComposerMediaTrayTestId($page, "composer-{$first->id}-dropzone");
+    selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('broken.png').']', "composer-{$first->id}");
+    waitForComposerMediaTrayTestId($page, "composer-{$first->id}-upload-error");
+    expect(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeTrue();
+
+    $page->click("@composer-remove-account-{$accounts[1]->id}");
+    waitForComposerMediaTrayCondition($page, "!document.querySelector('[data-testid=\"composer-account-{$accounts[1]->id}\"]')");
+
+    expect(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeFalse();
+    $page->assertMissing("@composer-{$first->id}-upload-error")
+        ->assertNoJavaScriptErrors();
+});
+
+test('an upload still running when customizing shows in every card and lands in a network added afterwards', function () {
+    [$page, , $first, $accounts] = openComposerMediaTray($this, 'hold', platform: ['instagram', 'threads', 'linkedin']);
+    [, $second, $linkedin] = $accounts;
+    selectComposerMediaTrayChannels($page, [$first, $second]);
+    waitForComposerMediaTrayTestId($page, 'composer-next');
+
+    selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('in-flight.png').']');
+    waitForComposerMediaTrayCondition($page, 'window.__uploads.held.length === 1');
+    $page->click('@composer-next');
+    waitForComposerMediaTrayTestId($page, "composer-{$first->id}-upload-item");
+    expect(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeTrue();
+
+    $page->click("@composer-account-{$second->id}");
+    waitForComposerMediaTrayTestId($page, "composer-{$second->id}-upload-item");
+
+    $page->click('@composer-add-account')
+        ->click("@composer-account-option-{$linkedin->id}");
+    waitForComposerMediaTrayTestId($page, "composer-{$linkedin->id}-upload-item");
+    $page->script("window.__releaseUpload('in-flight.png');");
+    waitForComposerMediaTrayCondition($page, "document.querySelectorAll('[data-testid=\"composer-{$linkedin->id}-media-item\"]').length === 1");
+
+    $page->assertMissing("@composer-{$linkedin->id}-upload-item")
+        ->click("@composer-account-{$first->id}");
+    waitForComposerMediaTrayTestId($page, "composer-{$first->id}-media-item");
+    expect(composerMediaTrayCount($page, "composer-{$first->id}-media-item"))->toBe(1)
+        ->and(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeFalse();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('an upload that failed before customizing shows in the cards and removing it unblocks saving', function () {
+    [$page, , $first] = openComposerMediaTray($this, 'fail-first', platform: ['instagram', 'threads'], select: true);
+
+    selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('failed-early.png').']');
+    waitForComposerMediaTrayTestId($page, 'composer-upload-error');
+    $page->click('@composer-next');
+    waitForComposerMediaTrayTestId($page, "composer-{$first->id}-upload-error");
+    expect(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeTrue();
+
+    $page->click("@composer-{$first->id}-upload-remove-0");
+    waitForComposerMediaTrayCondition($page, "!document.querySelector('[data-testid=\"composer-{$first->id}-upload-error\"]')");
+
+    expect(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeFalse();
     $page->assertNoJavaScriptErrors();
 });

@@ -6,6 +6,9 @@ namespace App\Enums\SocialAccount;
 
 use App\Enums\Media\Type as MediaType;
 use App\Enums\TikTok\PrivacyLevel;
+use App\Enums\YouTube\Category;
+use App\Support\Hashtags;
+use Illuminate\Support\Str;
 
 enum Platform: string
 {
@@ -194,15 +197,14 @@ enum Platform: string
      * means the post can't be published. Values are the documented API maxes:
      *
      *  - LinkedIn UGC: 3000 (`commentary` field)
-     *  - X standard tweet: 280 (X Premium accepts 25K — ignored, conservative)
+     *  - X standard post: 280; an account with long posts gets 25000 through
+     *    `SocialAccount::maxContentLength()`
      *  - TikTok caption: 2200
-     *  - YouTube Shorts: content supplies the title, capped at 100 characters
-     *    (publisher derives it from the first line via `buildTitle`). Optional
-     *    meta.description is separate plain text, capped at 5000 UTF-8 bytes;
-     *    absent descriptions fall back to content.
+     *  - YouTube Shorts: content is the video description, 5000 (also capped at
+     *    5000 UTF-8 bytes by `YouTubeDescription`). The title is meta.title, or
+     *    `YouTubeMetadata::title()` derives it from the first line of content.
      *  - Facebook text status: 10000 (API allows 63206; we cap below
-     *    that — 63k-char posts are unrealistic and emoji-heavy content
-     *    risks overflowing the TEXT column's 65535-byte ceiling)
+     *    that — 63k-char posts are unrealistic)
      *  - Instagram feed caption: 2200
      *  - Threads: 500
      *  - Pinterest pin description: 800 (title is 100, not modeled here)
@@ -218,7 +220,7 @@ enum Platform: string
             self::LinkedIn, self::LinkedInPage => 3000,
             self::X => 280,
             self::TikTok => 2200,
-            self::YouTube => 100,
+            self::YouTube => 5000,
             self::Facebook => 10000,
             self::Instagram, self::InstagramFacebook => 2200,
             self::Threads => 500,
@@ -237,9 +239,40 @@ enum Platform: string
      * length checks — used both at schedule-validation time and at publish
      * time itself so the two paths can never drift apart.
      */
-    public function contentOverflow(string $content): int
+    public function contentOverflow(string $content, int $reserved = 0): int
     {
-        return max(0, mb_strlen($content) - $this->maxContentLength());
+        return max(0, mb_strlen($content) + $reserved - $this->maxContentLength());
+    }
+
+    /**
+     * Characters a network counts against the post limit besides its text:
+     * Mastodon counts the content warning.
+     *
+     * @param  array<string, mixed>|null  $meta
+     */
+    public function reservedLength(?array $meta): int
+    {
+        $warning = data_get($meta, 'spoiler_text');
+
+        return $this === self::Mastodon && is_string($warning) ? mb_strlen(Str::trim($warning)) : 0;
+    }
+
+    /**
+     * Hashtags the network accepts per post, or null when it sets no cap we enforce.
+     */
+    public function maxHashtags(): ?int
+    {
+        return match ($this) {
+            self::Instagram, self::InstagramFacebook => 5,
+            default => null,
+        };
+    }
+
+    public function hashtagOverflow(string $content): int
+    {
+        $limit = $this->maxHashtags();
+
+        return $limit === null ? 0 : max(0, Hashtags::count($content) - $limit);
     }
 
     /**
@@ -266,9 +299,9 @@ enum Platform: string
             self::Pinterest => 200,
             // TikTok caption — the video carries the story
             self::TikTok => 150,
-            // YouTube Shorts — fits within the 100-char title (with " #Shorts"
-            // suffix taking 8 chars) so the same string works as title + desc
-            self::YouTube => 80,
+            // YouTube Shorts — the content is the description; the first lines
+            // show under the video, so keep it short
+            self::YouTube => 300,
             // Telegram channel posts — short announcements read best
             self::Telegram => 400,
             // Discord — conversational community posts read best when concise
@@ -301,6 +334,15 @@ enum Platform: string
             self::Discord => [],
             self::GoogleBusiness => ['https://www.googleapis.com/auth/business.manage'],
         };
+    }
+
+    /**
+     * Whether a repurpose may publish to this platform. A repurpose always
+     * carries a video, so a platform whose posts cannot carry one never can.
+     */
+    public function acceptsRepurposeDestination(): bool
+    {
+        return $this !== self::GoogleBusiness;
     }
 
     public function supportsTextOnly(): bool
@@ -534,6 +576,10 @@ enum Platform: string
                 'privacyLevelOptions' => PrivacyLevel::values(),
                 'musicUsageConfirmationUrl' => 'https://www.tiktok.com/legal/page/global/music-usage-confirmation/en',
                 'brandedContentPolicyUrl' => 'https://www.tiktok.com/legal/page/global/bc-policy/en',
+            ],
+            self::YouTube => [
+                'categoryOptions' => Category::options(),
+                'defaultCategoryId' => Category::DEFAULT->value,
             ],
             default => [],
         };

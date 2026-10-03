@@ -24,7 +24,7 @@ class InstagramPublicationMetricsCollector extends AbstractMetaPublicationMetric
             ? ['reach', 'views', 'replies']
             : ['reach', 'views', 'likes', 'comments', 'shares', 'saved'];
         $url = $account->platform->instagramGraphBaseUrl()."/{$publication->remote_id}/insights";
-        $response = $this->get($account, $url, ['metric' => implode(',', $fields), 'access_token' => $account->access_token]);
+        $response = $this->get($account, $url, ['metric' => implode(',', $fields)]);
         $items = $response->json('data');
 
         if (! is_array($items)) {
@@ -71,7 +71,6 @@ class InstagramPublicationMetricsCollector extends AbstractMetaPublicationMetric
         try {
             $response = $this->get($account, $url, [
                 'metric' => implode(',', $fields),
-                'access_token' => $account->access_token,
             ]);
         } catch (AnalyticsCollectionException $exception) {
             if (! in_array($exception->category, ['permission', 'malformed'], true)) {

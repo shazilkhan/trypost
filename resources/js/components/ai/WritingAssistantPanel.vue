@@ -21,6 +21,7 @@ import { formatNumber } from '@/lib/utils';
 import { assist } from '@/routes/app/posts/ai';
 
 export type AssistantChannel = {
+    accountId: string;
     platform: string;
     label: string;
     limit: number | null;
@@ -66,6 +67,7 @@ const http = useHttp({
     current_content: '',
     previous_content: '',
     platform: null as string | null,
+    social_account_id: null as string | null,
 });
 
 onBeforeUnmount(() => {
@@ -103,6 +105,7 @@ const request = async (
     http.current_content = payload.current_content ?? '';
     http.previous_content = payload.previous_content ?? '';
     http.platform = props.channel?.platform ?? null;
+    http.social_account_id = props.channel?.accountId ?? null;
     try {
         const result = (await http.post(assist.url())) as
             | { content: string }

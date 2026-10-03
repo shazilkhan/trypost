@@ -146,7 +146,7 @@ abstract class AbstractPublicationMetricsCollector extends AbstractApiPublicatio
         $interactionKeys = [
             MetricKey::Reactions, MetricKey::Comments, MetricKey::Shares,
             MetricKey::Saves, MetricKey::Quotes, MetricKey::Bookmarks,
-            MetricKey::Clicks, MetricKey::LinkClicks,
+            MetricKey::Clicks, MetricKey::LinkClicks, MetricKey::PinClicks, MetricKey::OutboundClicks,
         ];
         $present = array_filter($metrics, fn (MetricValue $metric): bool => in_array($metric->key, $interactionKeys, true));
 

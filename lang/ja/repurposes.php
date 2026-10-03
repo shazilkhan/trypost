@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'この自動化を開始する前に、監視対象のアカウントを再接続してください。',
         'destinations_required' => '有効にする前に配信先を 1 つ以上選んでください。',
         'destination_needs_video' => 'その形式は動画に対応していません。',
+        'destination_not_supported' => 'Google ビジネスは公開先にできません。投稿で動画を使えないためです。',
         'only_paused_resumes' => '再開できるのは一時停止中の Repurpose だけです。',
         'only_active_pauses' => '一時停止できるのは有効なリパーパスだけです。',
         'only_running_disables' => '無効にできるのは稼働中のリパーパスだけです。',

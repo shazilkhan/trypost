@@ -235,6 +235,8 @@ const rows = computed(() =>
             <div class="mx-auto flex w-full max-w-[640px] flex-col items-center">
                 <div ref="avatar" class="shrink-0" data-testid="goal-avatar">
                     <ChannelAvatar
+                        :status="channel.status"
+                        :account-id="channel.id"
                         :platform="channel.platform"
                         :src="channel.avatar_url"
                         :name="channel.display_name || channel.username"

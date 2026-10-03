@@ -6,13 +6,18 @@ use Amp\DeferredFuture;
 use Amp\TimeoutCancellation;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
+use App\Enums\User\Locale;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Pest\Browser\Execution;
@@ -61,6 +66,8 @@ function seedLinkCardPreviewPost(
             Platform::Facebook => ContentType::FacebookPost,
             Platform::LinkedIn => ContentType::LinkedInPost,
             Platform::Mastodon => ContentType::MastodonPost,
+            Platform::Bluesky => ContentType::BlueskyPost,
+            Platform::Threads => ContentType::ThreadsPost,
             default => throw new LogicException('Unsupported link-card browser test platform.'),
         },
     ]);
@@ -74,7 +81,7 @@ function waitForLinkCardPreviewTestId(mixed $page, string $testId): void
 {
     $page->script(<<<JS
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 const dialog = document.querySelector('[data-testid="post-composer-dialog"]');
                 if (dialog?.getAttribute('data-state') === 'open'
                     && dialog.getAnimations().every((animation) => animation.playState !== 'running')
@@ -91,7 +98,7 @@ function waitForLinkCardPreviewText(mixed $page, string $text): void
 
     $page->script(<<<JS
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (document.querySelector('[data-testid="link-card-title"]')?.textContent.includes({$encoded})) return;
                 await new Promise((resolve) => setTimeout(resolve, 50));
             }
@@ -103,7 +110,7 @@ function waitForLinkCardPreviewGone(mixed $page): void
 {
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (!document.querySelector('[data-testid="link-card"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 50));
             }
@@ -116,6 +123,12 @@ test('facebook linkedin and mastodon previews render fetched link cards', functi
     Http::fake([$url => Http::response('<meta property="og:title" content="Article card">')]);
 
     [$post] = seedLinkCardPreviewPost($platform, "Read {$url}");
+    $previewRequests = 0;
+    Event::listen(RequestHandled::class, function (RequestHandled $event) use (&$previewRequests): void {
+        if ($event->request->routeIs('app.posts.link-preview')) {
+            $previewRequests++;
+        }
+    });
 
     $page = visit(route('app.posts.edit', $post));
     waitForLinkCardPreviewTestId($page, 'composer-preview-frame');
@@ -125,6 +138,7 @@ test('facebook linkedin and mastodon previews render fetched link cards', functi
         ->assertPresent('@link-card')
         ->assertNoJavaScriptErrors();
 
+    expect($previewRequests)->toBe(1);
     Http::assertSentCount(1);
 })->with([
     'Facebook' => Platform::Facebook,
@@ -247,4 +261,168 @@ test('attached media suppresses fetching until it is removed', function () {
         ->assertNoJavaScriptErrors();
 
     Http::assertSentCount(1);
+});
+
+function waitForLinkCardPreviewMissing(mixed $page, string $testId): void
+{
+    $page->script(<<<JS
+        (async () => {
+            for (let attempt = 0; attempt < 300; attempt++) {
+                if (!document.querySelector('[data-testid="{$testId}"]')) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+}
+
+test('the editor link card can be dropped and the post saves without it', function (Platform $platform) {
+    $url = 'https://93.184.216.34/article';
+    Http::fake([$url => Http::response('<meta property="og:title" content="Article card"><meta property="og:description" content="A great read">')]);
+    [$post, $account] = seedLinkCardPreviewPost($platform, "Read {$url}");
+    $card = "composer-link-card-{$account->id}";
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, $card);
+
+    $page->assertSeeIn("@{$card}-title", 'Article card')
+        ->assertPresent("@{$card}-replace")
+        ->click("@{$card}-remove");
+    waitForLinkCardPreviewMissing($page, $card);
+
+    $page->assertMissing("@{$card}")
+        ->assertMissing('@link-card')
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft')
+        ->assertMissing('@post-composer-dialog');
+
+    expect($post->postPlatforms()->sole()->meta)->toEqual(['link_preview' => false]);
+})->with([
+    'Facebook' => Platform::Facebook,
+    'Bluesky' => Platform::Bluesky,
+    'LinkedIn' => Platform::LinkedIn,
+]);
+
+test('the threads link card cannot be dropped because threads always shows it', function () {
+    $url = 'https://93.184.216.34/article';
+    Http::fake([$url => Http::response('<meta property="og:title" content="Article card">')]);
+    [$post, $account] = seedLinkCardPreviewPost(Platform::Threads, "Read {$url}");
+    $card = "composer-link-card-{$account->id}";
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, $card);
+
+    $page->assertPresent("@{$card}-replace")
+        ->assertMissing("@{$card}-remove")
+        ->assertNoJavaScriptErrors();
+});
+
+test('replacing the link card with media attaches the card image', function () {
+    $url = 'https://93.184.216.34/article';
+    $fake = UploadedFile::fake()->image('card.jpg', 1200, 630);
+    $image = file_get_contents($fake->getPathname());
+    Http::fake([
+        $url => Http::response('<meta property="og:title" content="Article card"><meta property="og:image" content="https://93.184.216.34/card.jpg">'),
+        'https://93.184.216.34/card.jpg' => Http::response($image, 200, ['Content-Type' => 'image/jpeg']),
+    ]);
+    [$post, $account] = seedLinkCardPreviewPost(Platform::Facebook, "Read {$url}");
+    $card = "composer-link-card-{$account->id}";
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, $card);
+
+    $page->click("@{$card}-replace");
+    waitForLinkCardPreviewTestId($page, "composer-{$account->id}-media-item-0");
+
+    $page->assertMissing("@{$card}")
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft')
+        ->assertMissing('@post-composer-dialog');
+
+    $media = Media::query()->sole();
+
+    expect($media->post_id)->toBe($post->id)
+        ->and($post->fresh()->media)->toHaveCount(1)
+        ->and(data_get($post->fresh()->media, '0.id'))->toBe($media->id);
+});
+
+test('the replace link preview button stays on one line in every language', function () {
+    $url = 'https://93.184.216.34/article';
+    Http::fake([$url => Http::response('<meta property="og:title" content="Article card">')]);
+    [$post, $account] = seedLinkCardPreviewPost(Platform::Facebook, "Read {$url}");
+    $user = auth()->user();
+
+    foreach (Locale::cases() as $locale) {
+        $user->update(['locale' => $locale]);
+        $page = visit(route('app.posts.edit', $post))->resize(1280, 900);
+        waitForLinkCardPreviewTestId($page, "composer-link-card-{$account->id}-replace");
+
+        $wraps = $page->script(<<<JS
+            (() => {
+                const label = document.querySelector('[data-testid="composer-link-card-{$account->id}-replace"] [data-single-line]');
+                const lineHeight = parseFloat(getComputedStyle(label).lineHeight) || 20;
+                return label.getBoundingClientRect().height > lineHeight * 1.5;
+            })()
+        JS);
+
+        expect($wraps)->toBeFalse("{$locale->value} wraps");
+        $page->assertNoJavaScriptErrors();
+    }
+});
+
+test('the shared step editor shows no link card and the network card does', function () {
+    $url = 'https://93.184.216.34/article';
+    Http::fake([$url => Http::response('<meta property="og:title" content="Article card">')]);
+    [, $facebook] = seedLinkCardPreviewPost(Platform::Facebook);
+    $linkedin = SocialAccount::factory()->create([
+        'workspace_id' => $facebook->workspace_id,
+        'platform' => Platform::LinkedIn,
+        'scopes' => Platform::LinkedIn->requiredPublishScopes(),
+    ]);
+
+    $page = visit(route('app.posts.create'));
+    waitForLinkCardPreviewTestId($page, 'composer-add-account');
+
+    $page->fill('@composer-base-content', "Read {$url}")
+        ->click('@composer-add-account')
+        ->click("@composer-account-option-{$facebook->id}")
+        ->click("@composer-account-option-{$linkedin->id}")
+        ->click("@composer-account-{$facebook->id}");
+    waitForLinkCardPreviewText($page, 'Article card');
+
+    $page->assertPresent('@composer-next')
+        ->assertPresent('@link-card')
+        ->assertMissing("@composer-link-card-{$facebook->id}")
+        ->assertMissing("@composer-link-card-{$linkedin->id}")
+        ->click('@composer-next');
+    waitForLinkCardPreviewTestId($page, "composer-link-card-{$facebook->id}");
+
+    $page->assertSeeIn("@composer-link-card-{$facebook->id}-title", 'Article card')
+        ->assertNoJavaScriptErrors();
+});
+
+test('a dropped link card comes back when the link changes', function () {
+    $url = 'https://93.184.216.34/article';
+    $other = 'https://93.184.216.34/other';
+    Http::fake([
+        $url => Http::response('<meta property="og:title" content="Article card">'),
+        $other => Http::response('<meta property="og:title" content="Other card">'),
+    ]);
+    [$post, $account] = seedLinkCardPreviewPost(Platform::Facebook, "Read {$url}");
+    $card = "composer-link-card-{$account->id}";
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForLinkCardPreviewTestId($page, $card);
+
+    $page->click("@{$card}-remove");
+    waitForLinkCardPreviewMissing($page, $card);
+
+    $page->fill("@composer-caption-{$account->id}", "Read {$other}");
+    waitForLinkCardPreviewTestId($page, $card);
+
+    $page->assertSeeIn("@{$card}-title", 'Other card')
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft')
+        ->assertMissing('@post-composer-dialog');
+
+    expect(data_get($post->postPlatforms()->sole()->meta, 'link_preview'))->toBeNull();
 });

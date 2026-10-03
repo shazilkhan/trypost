@@ -14,8 +14,11 @@ class MastodonPublicationMetricsCollector extends AbstractPublicationMetricsColl
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
         $account = $this->account($publication);
-        $instance = rtrim((string) data_get($account->meta, 'instance', config('trypost.platforms.mastodon.default_instance')), '/');
-        $response = $this->get($account, "{$instance}/api/v1/statuses/{$publication->remote_id}");
+        $response = $this->get(
+            $account,
+            "{$account->mastodonInstance()}/api/v1/statuses/{$publication->remote_id}",
+            authenticated: $account->canReadMastodonStatuses(),
+        );
 
         $status = (array) $response->json();
 

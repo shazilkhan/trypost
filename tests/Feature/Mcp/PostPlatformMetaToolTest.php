@@ -974,3 +974,203 @@ test('publish post rejects a Google Business post with a url-needing cta and no 
 
     $response->assertHasErrors([__('posts.form.google_business.cta_url_required')]);
 });
+
+test('create post persists youtube metadata in MCP', function () {
+    $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Short title',
+        'platforms' => [[
+            'social_account_id' => $account->id,
+            'content_type' => ContentType::YouTubeShort->value,
+            'meta' => ['title' => 'Title', 'privacy_status' => 'unlisted', 'made_for_kids' => true, 'is_ai_generated' => true],
+        ]],
+    ])->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $account->id)->sole()->meta)
+        ->toEqual(['title' => 'Title', 'privacy_status' => 'unlisted', 'made_for_kids' => true, 'is_ai_generated' => true]);
+});
+
+test('create post rejects an unknown youtube privacy status in MCP', function () {
+    $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Short title',
+        'platforms' => [['social_account_id' => $account->id, 'content_type' => ContentType::YouTubeShort->value, 'meta' => ['privacy_status' => 'friends']]],
+    ])->assertHasErrors();
+});
+
+test('create post persists instagram options in MCP', function () {
+    $instagram = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Instagram]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Reel',
+        'platforms' => [['social_account_id' => $instagram->id, 'content_type' => ContentType::InstagramReel->value, 'meta' => ['share_to_feed' => false]]],
+    ])->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $instagram->id)->sole()->meta)->toEqual(['share_to_feed' => false]);
+});
+
+test('create post rejects a youtube title with angle brackets on a draft in MCP', function () {
+    $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Short title',
+        'platforms' => [['social_account_id' => $account->id, 'content_type' => ContentType::YouTubeShort->value, 'meta' => ['title' => '<b>']]],
+    ])->assertHasErrors();
+
+    expect(PostPlatform::where('social_account_id', $account->id)->exists())->toBeFalse();
+});
+
+test('create post persists a dropped link preview', function () {
+    $bluesky = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Bluesky]);
+
+    TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'content' => 'Read https://example.com/article',
+            'platforms' => [[
+                'social_account_id' => $bluesky->id,
+                'content_type' => ContentType::BlueskyPost->value,
+                'meta' => ['link_preview' => false],
+            ]],
+        ])
+        ->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $bluesky->id)->sole()->meta)->toEqual(['link_preview' => false]);
+});
+
+test('create post persists a threads topic tag and rejects one with an ampersand in MCP', function () {
+    $threads = SocialAccount::factory()->threads()->create(['workspace_id' => $this->workspace->id]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Hi',
+        'platforms' => [['social_account_id' => $threads->id, 'content_type' => ContentType::ThreadsPost->value, 'meta' => ['topic_tag' => 'laravel']]],
+    ])->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $threads->id)->sole()->meta)->toEqual(['topic_tag' => 'laravel']);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Hi',
+        'platforms' => [['social_account_id' => $threads->id, 'content_type' => ContentType::ThreadsPost->value, 'meta' => ['topic_tag' => 'rock&roll']]],
+    ])->assertHasErrors();
+
+    expect(PostPlatform::where('social_account_id', $threads->id)->count())->toBe(1);
+});
+
+test('scheduling an instagram post with more than five hashtags is rejected in MCP', function () {
+    $instagram = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Instagram]);
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'content' => 'Launch #a #b #c #d #e #f',
+        'status' => PostStatus::Draft,
+        'media' => [['id' => 'image-1', 'type' => 'image', 'path' => 'medias/image.jpg', 'url' => 'https://example.com/image.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'image.jpg']],
+    ]);
+    PostPlatform::factory()->create([
+        'post_id' => $post->id, 'social_account_id' => $instagram->id,
+        'platform' => Platform::Instagram, 'content_type' => ContentType::InstagramFeed, 'enabled' => true,
+    ]);
+
+    TryPostServer::actingAs($this->user)->tool(UpdatePostTool::class, [
+        'post_id' => $post->id,
+        'status' => PostStatus::Scheduled->value,
+        'scheduled_at' => now()->addHour()->toIso8601String(),
+    ])->assertHasErrors([__('posts.form.hashtags_exceed_platform', ['platform' => Platform::Instagram->label(), 'limit' => 5])]);
+
+    expect($post->fresh()->status)->toBe(PostStatus::Draft);
+});
+
+test('a stored mastodon content warning counts toward the limit when scheduling through MCP', function () {
+    $mastodon = SocialAccount::factory()->mastodon()->create(['workspace_id' => $this->workspace->id]);
+    $limit = Platform::Mastodon->maxContentLength();
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => str_repeat('b', $limit - 9),
+        'platforms' => [['social_account_id' => $mastodon->id, 'content_type' => ContentType::MastodonPost->value, 'meta' => ['spoiler_text' => str_repeat('a', 10)]]],
+    ])->assertOk();
+    $platform = PostPlatform::where('social_account_id', $mastodon->id)->sole();
+
+    TryPostServer::actingAs($this->user)->tool(UpdatePostTool::class, [
+        'post_id' => $platform->post_id,
+        'status' => PostStatus::Scheduled->value,
+        'scheduled_at' => '2037-12-31T15:30:00Z',
+    ])->assertHasErrors();
+
+    expect($platform->post->fresh()->status)->toBe(PostStatus::Draft);
+});
+
+test('create post rejects a numeric link preview in MCP', function (mixed $value) {
+    $bluesky = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Bluesky]);
+
+    TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'content' => 'Read https://example.com/article',
+            'platforms' => [[
+                'social_account_id' => $bluesky->id,
+                'content_type' => ContentType::BlueskyPost->value,
+                'meta' => ['link_preview' => $value],
+            ]],
+        ])
+        ->assertHasErrors();
+
+    expect(PostPlatform::where('social_account_id', $bluesky->id)->exists())->toBeFalse();
+})->with([0, '0']);
+
+test('publish post rejects a stored threads ghost post whose text carries a link in MCP', function () {
+    $threads = SocialAccount::factory()->threads()->create(['workspace_id' => $this->workspace->id]);
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'content' => 'Read https://example.com/article', 'status' => PostStatus::Draft,
+    ]);
+    PostPlatform::factory()->threads()->create(['post_id' => $post->id, 'social_account_id' => $threads->id, 'enabled' => true, 'content_type' => ContentType::ThreadsGhostPost]);
+    Queue::fake();
+
+    TryPostServer::actingAs($this->user)->tool(PublishPostTool::class, ['post_id' => $post->id])
+        ->assertHasErrors([__('posts.form.warnings.text_only')]);
+    Queue::assertNotPushed(PublishPost::class);
+});
+
+test('create post judges a threads topic tag without its leading hash in MCP', function () {
+    $threads = SocialAccount::factory()->threads()->create(['workspace_id' => $this->workspace->id]);
+    $tag = str_repeat('a', 50);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Hi',
+        'platforms' => [['social_account_id' => $threads->id, 'content_type' => ContentType::ThreadsPost->value, 'meta' => ['topic_tag' => "#{$tag}"]]],
+    ])->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $threads->id)->sole()->meta)->toEqual(['topic_tag' => $tag]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Hi',
+        'platforms' => [['social_account_id' => $threads->id, 'content_type' => ContentType::ThreadsPost->value, 'meta' => ['topic_tag' => "#{$tag}a"]]],
+    ])->assertHasErrors([__('posts.form.threads.topic_invalid')]);
+});
+
+test('create post persists thread replies in MCP', function () {
+    $mastodon = SocialAccount::factory()->mastodon()->create(['workspace_id' => $this->workspace->id]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Root',
+        'platforms' => [['social_account_id' => $mastodon->id, 'content_type' => ContentType::MastodonPost->value, 'meta' => ['thread_replies' => ['Two']]]],
+    ])->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $mastodon->id)->sole()->meta)->toEqual(['thread_replies' => ['Two']]);
+});
+
+test('a stored mastodon thread reply that does not fit blocks scheduling through MCP', function () {
+    $mastodon = SocialAccount::factory()->mastodon()->create(['workspace_id' => $this->workspace->id]);
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Root',
+        'platforms' => [['social_account_id' => $mastodon->id, 'content_type' => ContentType::MastodonPost->value, 'meta' => ['spoiler_text' => 'Ten chars!', 'thread_replies' => [str_repeat('a', 495)]]]],
+    ])->assertOk();
+    $platform = PostPlatform::where('social_account_id', $mastodon->id)->sole();
+
+    TryPostServer::actingAs($this->user)->tool(UpdatePostTool::class, [
+        'post_id' => $platform->post_id,
+        'status' => PostStatus::Scheduled->value,
+        'scheduled_at' => '2037-12-31T15:30:00Z',
+    ])->assertHasErrors();
+
+    expect($platform->post->fresh()->status)->toBe(PostStatus::Draft);
+});

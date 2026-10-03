@@ -326,6 +326,8 @@ const addSlot = (): void => {
 
                 <div class="flex min-w-0 items-center gap-4">
                     <ChannelAvatar
+                        :status="channel.status"
+                        :account-id="channel.id"
                         :platform="channel.platform"
                         :src="channel.avatar_url"
                         :name="channel.display_name || channel.username"

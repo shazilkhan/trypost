@@ -168,7 +168,7 @@ test('job skips already disconnected accounts', function () {
 test('daily sweep skips verifying a connected account a recent refresh already proved valid', function () {
     Mail::fake();
     Http::fake([
-        config('trypost.platforms.x.api').'/users/me' => Http::response(['data' => ['id' => '123']], 200),
+        config('trypost.platforms.x.api').'/users/me*' => Http::response(['data' => ['id' => '123']], 200),
     ]);
 
     $workspace = Workspace::factory()->create();
@@ -189,7 +189,7 @@ test('daily sweep skips verifying a connected account a recent refresh already p
 test('daily sweep still verifies a connected account whose last_verified_at is stale', function () {
     Mail::fake();
     Http::fake([
-        config('trypost.platforms.x.api').'/users/me' => Http::response(['data' => ['id' => '123']], 200),
+        config('trypost.platforms.x.api').'/users/me*' => Http::response(['data' => ['id' => '123']], 200),
     ]);
 
     $workspace = Workspace::factory()->create();
@@ -207,7 +207,7 @@ test('daily sweep still verifies a connected account whose last_verified_at is s
 test('daily sweep still verifies a TokenExpired account despite a fresh last_verified_at', function () {
     Mail::fake();
     Http::fake([
-        config('trypost.platforms.x.api').'/users/me' => Http::response(['data' => ['id' => '123']], 200),
+        config('trypost.platforms.x.api').'/users/me*' => Http::response(['data' => ['id' => '123']], 200),
     ]);
 
     $workspace = Workspace::factory()->create();
@@ -227,7 +227,7 @@ test('daily sweep still verifies a TokenExpired account despite a fresh last_ver
 test('daily sweep records its own successful verification', function () {
     Mail::fake();
     Http::fake([
-        config('trypost.platforms.x.api').'/users/me' => Http::response(['data' => ['id' => '123']], 200),
+        config('trypost.platforms.x.api').'/users/me*' => Http::response(['data' => ['id' => '123']], 200),
     ]);
 
     $workspace = Workspace::factory()->create();

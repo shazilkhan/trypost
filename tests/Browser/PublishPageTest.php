@@ -282,10 +282,10 @@ test('a sent card shows the metrics band in order and links to the publication i
         'publication_id' => $publication->id,
         'metrics' => [
             'reactions' => $metric(40),
-            'views' => $metric(900),
+            'impressions' => $metric(900),
             'engagement_rate' => $metric(5.5, 'percent'),
             'comments' => $metric(7),
-            'reach' => $metric(600),
+            'shares' => $metric(3),
         ],
     ]);
 
@@ -295,7 +295,7 @@ test('a sent card shows the metrics band in order and links to the publication i
     waitForPublishPageTestId($page, "post-metrics-{$post->id}");
 
     expect($page->script("[...document.querySelectorAll('[data-testid=\"post-metrics-{$post->id}\"] dd')].map((value) => value.textContent.trim())"))
-        ->toBe(['40', '7', '5.5%', '900', '600'])
+        ->toBe(['40', '7', '5.5%', '900', '3'])
         ->and($page->script("new URL(document.querySelector('[data-testid=\"post-insights-{$post->id}\"]').href).pathname"))
         ->toBe(parse_url(route('app.channels.insights', $account), PHP_URL_PATH));
 

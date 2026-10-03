@@ -37,6 +37,8 @@ const label = computed(() =>
             :src="account.avatar_url"
             :name="label"
             ring="card"
+            :status="account.status"
+            :account-id="account.social_account_key"
         />
         <img
             v-else

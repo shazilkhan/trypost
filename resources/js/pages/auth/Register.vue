@@ -62,16 +62,17 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                     v-if="!showEmailForm"
                     type="button"
                     variant="outline"
-                    size="lg"
-                    class="w-full bg-card text-base"
+                    class="w-full bg-card"
+                    data-testid="register-email-toggle"
                     @click="showEmailForm = true"
                 >
-                    <IconMail class="size-4" />
+                    <IconMail />
                     {{ $t('auth.register.signup_with_email') }}
                 </Button>
             </div>
 
             <Form
+                v-show="emailFormVisible"
                 v-bind="store.form()"
                 :reset-on-success="['password']"
                 v-slot="{ errors, processing }"
@@ -99,7 +100,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                 >
                     <div v-if="emailFormVisible" class="grid gap-4">
                         <div class="grid gap-2">
-                            <Label for="name" class="text-base leading-6">{{ $t('auth.register.name') }}</Label>
+                            <Label for="name">{{ $t('auth.register.name') }}</Label>
                             <Input
                                 id="name"
                                 type="text"
@@ -108,13 +109,12 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                 autocomplete="name"
                                 name="name"
                                 :placeholder="$t('auth.register.name_placeholder')"
-                                class="h-10 rounded-lg px-3 text-base"
                             />
                             <InputError :message="errors.name" />
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="email" class="text-base leading-6">{{ $t('auth.register.email') }}</Label>
+                            <Label for="email">{{ $t('auth.register.email') }}</Label>
                             <Input
                                 id="email"
                                 type="email"
@@ -125,13 +125,13 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                 :default-value="email ?? ''"
                                 :readonly="Boolean(invite)"
                                 :aria-readonly="Boolean(invite)"
-                                :class="['h-10 rounded-lg px-3 text-base', { 'pointer-events-none bg-muted text-muted-foreground': invite }]"
+                                :class="{ 'pointer-events-none bg-muted text-muted-foreground': invite }"
                             />
                             <InputError :message="errors.email" />
                         </div>
 
                         <div class="grid gap-2">
-                            <Label for="password" class="text-base leading-6">{{ $t('auth.register.password') }}</Label>
+                            <Label for="password">{{ $t('auth.register.password') }}</Label>
                             <div class="relative">
                                 <Input
                                     id="password"
@@ -140,9 +140,9 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                     autocomplete="new-password"
                                     name="password"
                                     :placeholder="$t('auth.register.password')"
-                                    class="h-10 rounded-lg ps-3 pe-10 text-base"
+                                    class="pe-8"
                                 />
-                                <div class="absolute inset-y-0 end-0 flex items-center pe-3">
+                                <div class="absolute inset-y-0 end-0 flex items-center pe-2">
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger as-child>
@@ -168,9 +168,8 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
 
                         <Button
                             type="submit"
-                            size="lg"
-                            class="w-full text-base"
-                            tabindex="4"
+                            class="w-full"
+                            :tabindex="4"
                             :disabled="processing"
                             data-test="register-user-button"
                         >
@@ -179,16 +178,14 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                         </Button>
                     </div>
                 </Transition>
-
-                <div class="text-center text-base text-foreground">
-                    {{ $t('auth.register.has_account') }}
-                    <TextLink
-                        :href="login()"
-                        :tabindex="5"
-                        >{{ $t('auth.register.log_in') }}</TextLink
-                    >
-                </div>
             </Form>
+
+            <p class="text-center text-sm text-muted-foreground">
+                {{ $t('auth.register.has_account') }}
+                <TextLink :href="login()" :tabindex="5">{{
+                    $t('auth.register.log_in')
+                }}</TextLink>
+            </p>
 
             <LegalLinks />
         </div>

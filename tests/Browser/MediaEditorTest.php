@@ -625,7 +625,7 @@ test('alt text is offered only once a channel is selected', function () {
 test('a step 1 alt text is saved on every channel', function () {
     $user = mediaEditorComposerUser();
     $first = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
-    $second = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $second = SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id]);
     $page = openMediaEditorComposer($user, [$first, $second], [mediaEditorPng('photo.png')]);
 
     applyMediaEditorAltText($page, 'composer', 'Four coloured squares');
@@ -640,7 +640,7 @@ test('a step 1 alt text is saved on every channel', function () {
 test('a step 2 alt text stays on its channel and the others keep the shared one', function () {
     $user = mediaEditorComposerUser();
     $first = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
-    $second = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $second = SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id]);
     $page = openMediaEditorComposer($user, [$first, $second], [mediaEditorPng('photo.png')]);
 
     applyMediaEditorAltText($page, 'composer', 'Shared description');
@@ -665,7 +665,7 @@ test('a step 2 alt text stays on its channel and the others keep the shared one'
 test('a step 1 edit replaces the shared item in place and every post owns its own file', function () {
     $user = mediaEditorComposerUser();
     $first = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
-    $second = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $second = SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id]);
     $page = openMediaEditorComposer($user, [$first, $second], [mediaEditorPng('first.png'), mediaEditorPng('second.png')]);
     $originals = Media::query()->where('collection', Media::COLLECTION_UPLOADS)->orderBy('original_filename')->get()->keyBy('original_filename');
     $firstSrc = mediaEditorTileSrc($page, 'composer', 0);
@@ -701,7 +701,7 @@ test('a step 1 edit replaces the shared item in place and every post owns its ow
 test('a step 2 edit replaces only that channel\'s item and leaves the shared list alone', function () {
     $user = mediaEditorComposerUser();
     $first = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
-    $second = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $second = SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id]);
     $page = openMediaEditorComposer($user, [$first, $second], [mediaEditorPng('shared.png')]);
     $sharedSrc = mediaEditorTileSrc($page, 'composer', 0);
 
@@ -720,6 +720,8 @@ test('a step 2 edit replaces only that channel\'s item and leaves the shared lis
     expect(mediaEditorTileSrc($page, "composer-{$second->id}", 0))->toBe($sharedSrc);
 
     $page->click('@composer-back');
+    waitForMediaEditor($page, "document.querySelector('[data-testid=\"composer-back-confirm-go\"]')");
+    $page->click('@composer-back-confirm-go');
     waitForMediaEditor($page, "document.querySelector('[data-testid=\"composer-media-item-0\"]')");
     expect(mediaEditorTileSrc($page, 'composer', 0))->toBe($sharedSrc);
     $page->assertNoJavaScriptErrors();

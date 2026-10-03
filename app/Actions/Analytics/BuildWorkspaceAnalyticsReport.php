@@ -11,6 +11,7 @@ use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Support\Analytics\MetricComparison;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 
 class BuildWorkspaceAnalyticsReport
 {
@@ -76,6 +77,18 @@ class BuildWorkspaceAnalyticsReport
         $currentFollowers = data_get($followers, 'current_total');
         $previousFollowers = data_get($followers, 'previous_total');
 
+        $topPosts = data_get($publications, 'top_posts');
+        $postAccounts = data_get($publications, 'posts.accounts');
+        $followerAccounts = data_get($followers, 'followers.accounts');
+        $performance = data_get($publications, 'performance');
+        $statuses = $this->statusesByKey($workspace, [
+            ...array_column($postAccounts, 'social_account_key'),
+            ...array_column($followerAccounts, 'social_account_key'),
+            ...array_column($performance, 'social_account_key'),
+            ...array_column(data_get($topPosts, 'reactions'), 'social_account_key'),
+            ...array_column(data_get($topPosts, 'comments'), 'social_account_key'),
+        ]);
+
         return [
             'bounds' => $bounds ?? $this->bounds->execute($workspace, $accountKeys),
             'range' => $range->toArray(),
@@ -99,12 +112,53 @@ class BuildWorkspaceAnalyticsReport
                 'average_watch_time_seconds' => MetricComparison::between(data_get($current, 'average_watch_time_seconds'), data_get($prior, 'average_watch_time_seconds')),
                 'follows_gained' => MetricComparison::between(data_get($current, 'follows_gained'), data_get($prior, 'follows_gained')),
             ],
-            'followers' => data_get($followers, 'followers'),
-            'posts' => data_get($publications, 'posts'),
-            'top_posts' => data_get($publications, 'top_posts'),
-            'performance' => data_get($publications, 'performance'),
+            'followers' => [
+                ...data_get($followers, 'followers'),
+                'accounts' => $this->withStatus($followerAccounts, $statuses),
+            ],
+            'posts' => [
+                ...data_get($publications, 'posts'),
+                'accounts' => $this->withStatus($postAccounts, $statuses),
+            ],
+            'top_posts' => [
+                'reactions' => $this->withStatus(data_get($topPosts, 'reactions'), $statuses),
+                'comments' => $this->withStatus(data_get($topPosts, 'comments'), $statuses),
+            ],
+            'performance' => $this->withStatus($performance, $statuses),
             'coverage' => $this->coverage($workspace, $channelKeys === null ? null : array_keys($channelKeys)),
         ];
+    }
+
+    /**
+     * The live connection status of each key that is still a social account of the workspace;
+     * a key whose account is gone is absent, so its row carries no status.
+     *
+     * @param  list<string>  $keys
+     * @return array<string, string>
+     */
+    private function statusesByKey(Workspace $workspace, array $keys): array
+    {
+        $ids = array_values(array_unique(array_filter($keys, fn (string $key): bool => Str::isUuid($key))));
+
+        return SocialAccount::query()
+            ->whereBelongsTo($workspace)
+            ->whereIn('id', $ids)
+            ->get(['id', 'status'])
+            ->mapWithKeys(fn (SocialAccount $account): array => [$account->id => $account->status->value])
+            ->all();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, string>  $statuses
+     * @return list<array<string, mixed>>
+     */
+    private function withStatus(array $rows, array $statuses): array
+    {
+        return array_map(fn (array $row): array => [
+            ...$row,
+            'status' => data_get($statuses, data_get($row, 'social_account_key')),
+        ], $rows);
     }
 
     /**

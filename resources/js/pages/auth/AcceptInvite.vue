@@ -83,7 +83,7 @@ const accessKey = computed(() =>
                 </dl>
 
                 <div v-if="isLoggedIn" class="flex flex-col gap-2">
-                    <Button as-child size="lg" class="w-full text-base">
+                    <Button as-child class="w-full">
                         <Link :href="accept.url(invite.id)" method="post">
                             {{ $t('auth.accept_invite.accept') }}
                         </Link>
@@ -91,8 +91,7 @@ const accessKey = computed(() =>
                     <Button
                         as-child
                         variant="outline"
-                        size="lg"
-                        class="w-full bg-card text-base"
+                        class="w-full bg-card"
                     >
                         <Link :href="decline.url(invite.id)" method="post">
                             {{ $t('auth.accept_invite.decline') }}
@@ -101,10 +100,10 @@ const accessKey = computed(() =>
                 </div>
 
                 <div v-else class="flex flex-col gap-2">
-                    <p class="text-center text-base text-foreground">
+                    <p class="text-center text-sm text-muted-foreground">
                         {{ $t('auth.accept_invite.login_prompt') }}
                     </p>
-                    <Button as-child size="lg" class="w-full text-base">
+                    <Button as-child class="w-full">
                         <Link
                             :href="
                                 login({
@@ -121,8 +120,7 @@ const accessKey = computed(() =>
                     <Button
                         as-child
                         variant="outline"
-                        size="lg"
-                        class="w-full bg-card text-base"
+                        class="w-full bg-card"
                     >
                         <Link
                             :href="
@@ -140,7 +138,7 @@ const accessKey = computed(() =>
                 </div>
             </template>
 
-            <Button v-else as-child size="lg" class="w-full text-base">
+            <Button v-else as-child class="w-full">
                 <Link :href="home()">
                     {{ $t('auth.accept_invite.expired_action') }}
                 </Link>

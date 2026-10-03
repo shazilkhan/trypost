@@ -9,6 +9,7 @@ use App\Enums\Analytics\MetricAvailability;
 use App\Enums\Analytics\MetricKey;
 use App\Enums\SocialAccount\Platform;
 use App\Models\Workspace;
+use App\Support\Analytics\EngagementRate;
 use Carbon\CarbonImmutable;
 use Generator;
 
@@ -155,9 +156,7 @@ class BuildInsightsExport
             $values = [
                 'reactions' => $this->integer($row->reactions_count),
                 'comments' => $this->integer($row->comments_count),
-                'engagement_rate' => $row->engagement_count !== null && (int) $row->exposure_count > 0
-                    ? round((int) $row->engagement_count / (int) $row->exposure_count * 100, 2)
-                    : null,
+                'engagement_rate' => EngagementRate::of($row->engagement_count, $row->exposure_count),
                 'reposts' => $this->measured($metrics, MetricKey::Reposts),
                 'impressions' => $this->integer($row->impressions_count),
                 'clicks' => $this->measured($metrics, MetricKey::Clicks) ?? $this->measured($metrics, MetricKey::LinkClicks),

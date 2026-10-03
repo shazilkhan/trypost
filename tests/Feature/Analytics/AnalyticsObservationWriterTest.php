@@ -155,6 +155,28 @@ test('publication observations merge same-day metrics without erasing successful
     expect(AnalyticsPublicationDailySnapshot::count())->toBe(2);
 });
 
+test('a partial same-day read never lowers a lifetime count from a fuller one', function () {
+    $publication = AnalyticsPublication::factory()->create(['platform' => Platform::Facebook]);
+    $writer = app(WritePublicationDailySnapshot::class);
+
+    $writer->handle($publication, publicationObservation('2026-09-23', [
+        metric(MetricKey::Reactions, 5),
+        metric(MetricKey::Comments, 2),
+        metric(MetricKey::Engagements, 7),
+    ]));
+    $writer->handle($publication, publicationObservation('2026-09-23', [
+        metric(MetricKey::Reactions, 6),
+        metric(MetricKey::Engagements, 6),
+    ]));
+
+    $snapshot = AnalyticsPublicationDailySnapshot::sole();
+
+    expect($snapshot->reactions_count)->toBe(6)
+        ->and($snapshot->comments_count)->toBe(2)
+        ->and($snapshot->engagement_count)->toBe(7)
+        ->and(data_get($snapshot->metrics, 'engagements.value'))->toBe(7);
+});
+
 function accountObservation(string $date, ?int $followers): AccountDailyObservation
 {
     return new AccountDailyObservation(

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Media\MediaCopyBatch;
 use App\Support\PostApproval;
+use App\Support\PostPlatformMetaRules;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -66,7 +67,7 @@ class CreateChannelPost
             'content_type' => $destination['content_type'],
             'status' => PostPlatformStatus::Pending,
             'enabled' => true,
-            'meta' => $destination['meta'] ?? [],
+            'meta' => PostPlatformMetaRules::normalize($destination['meta'] ?? []),
         ]);
 
         SyncOwnedMedia::execute(

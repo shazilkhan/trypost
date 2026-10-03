@@ -28,6 +28,7 @@ use App\Services\Analytics\Collectors\Publications\FacebookPublicationCollector;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 test('the metric factory includes every v1 platform and excludes v2 and messaging platforms', function (Platform $platform, string $collector) {
     expect(app(PublicationMetricsCollectorFactory::class)->for($platform))->toBeInstanceOf($collector);
@@ -116,11 +117,12 @@ test('provider metric responses normalize measured values without inventing omit
     ]]], ['impressions' => 200, 'reactions' => 0, 'shares' => 3, 'bookmarks' => 4, 'engagements' => 7]],
     'pinterest' => [Platform::Pinterest, ['all' => ['summary_metrics' => [
         'IMPRESSION' => 30, 'SAVE' => 0, 'PIN_CLICK' => 2,
-    ]]], ['impressions' => 30, 'saves' => 0, 'pin_clicks' => 2]],
+    ]]], ['impressions' => 30, 'saves' => 0, 'pin_clicks' => 2, 'engagements' => 2]],
     'youtube' => [Platform::YouTube, [
         'columnHeaders' => [['name' => 'views'], ['name' => 'estimatedMinutesWatched'], ['name' => 'averageViewDuration'], ['name' => 'likes']],
         'rows' => [[231, 2.5, 23.4, 0]],
-    ], ['views' => 231, 'watch_time_milliseconds' => 150000, 'average_watch_time_milliseconds' => 23400, 'reactions' => 0, 'engagements' => 0]],
+        'items' => [['id' => '123456789', 'statistics' => []]],
+    ], ['views' => 231, 'reactions' => 0, 'watch_time_milliseconds' => 150000, 'average_watch_time_milliseconds' => 23400, 'engagements' => 0]],
     'tiktok' => [Platform::TikTok, ['data' => ['videos' => [[
         'id' => '123456789', 'view_count' => 400, 'like_count' => 0, 'comment_count' => 3,
     ]]]], ['views' => 400, 'reactions' => 0, 'comments' => 3, 'engagements' => 3]],
@@ -255,7 +257,7 @@ test('an optional Instagram Reel insight rate limit stays retryable', function (
 
     expect(fn () => app(InstagramPublicationMetricsCollector::class)
         ->collect($publication, CarbonImmutable::today('UTC')))
-        ->toThrow(fn (AnalyticsCollectionException $exception): bool => $exception->category === 'rate_limited');
+        ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('rate_limited'));
 
     Http::assertSentCount(3);
 });
@@ -344,7 +346,7 @@ test('Meta rate limiting in HTTP 400 is classified as retryable', function () {
     ]);
 
     expect(fn () => app(InstagramPublicationMetricsCollector::class)->collect($publication, CarbonImmutable::today('UTC')))
-        ->toThrow(fn (AnalyticsCollectionException $exception): bool => $exception->category === 'rate_limited');
+        ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('rate_limited'));
 });
 
 test('Meta publication metrics classify missing permission on HTTP 400', function () {
@@ -359,7 +361,7 @@ test('Meta publication metrics classify missing permission on HTTP 400', functio
 
     expect(fn () => app(InstagramPublicationMetricsCollector::class)
         ->collect($publication, CarbonImmutable::today('UTC')))
-        ->toThrow(fn (AnalyticsCollectionException $exception): bool => $exception->category === 'permission');
+        ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('permission'));
 });
 
 test('TikTok resolves a TryPost publish id before collecting the public video', function () {
@@ -397,4 +399,304 @@ test('TikTok resolves a TryPost publish id before collecting the public video', 
         ->and($publication->fresh()->remote_id)->toBe('v_pub_abc')
         ->and($postPlatform->fresh()->platform_post_id)->toBe('v_pub_abc');
     Http::assertSentCount(2);
+});
+
+test('youtube collects current statistics and every Analytics metric for a short', function () {
+    $analyticsApi = rtrim((string) config('trypost.platforms.youtube.analytics_api'), '/');
+    $dataApi = rtrim((string) config('trypost.platforms.youtube.data_api'), '/');
+    Http::fake([
+        "{$analyticsApi}/reports*" => Http::response([
+            'kind' => 'youtubeAnalytics#resultTable',
+            'columnHeaders' => collect([
+                'views', 'engagedViews', 'estimatedMinutesWatched', 'averageViewDuration', 'averageViewPercentage',
+                'likes', 'comments', 'shares', 'videosAddedToPlaylists', 'subscribersGained', 'subscribersLost',
+            ])->map(fn (string $name): array => ['name' => $name, 'columnType' => 'METRIC', 'dataType' => 'INTEGER'])->all(),
+            'rows' => [[1010, 640, 152, 9, 31.4, 24, 0, 3, 2, 1, 0]],
+        ]),
+        "{$dataApi}/videos*" => Http::response(['kind' => 'youtube#videoListResponse', 'items' => [[
+            'kind' => 'youtube#video',
+            'id' => 'short-1',
+            'statistics' => ['viewCount' => '1144', 'likeCount' => '26', 'favoriteCount' => '0', 'commentCount' => '0'],
+        ]]]),
+    ]);
+    $account = SocialAccount::factory()->youtube()->create();
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'short-1',
+        'content_type' => PublicationContentType::Short,
+    ]);
+
+    $observation = app(YouTubePublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect(collect($observation->metrics)->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value])->all())->toEqual([
+        'views' => 1144,
+        'reactions' => 26,
+        'comments' => 0,
+        'engaged_views' => 640,
+        'watch_time_milliseconds' => 9120000,
+        'average_watch_time_milliseconds' => 9000,
+        'average_percentage_viewed' => 31.4,
+        'shares' => 3,
+        'saves' => 2,
+        'subscribers_gained' => 1,
+        'subscribers_lost' => 0,
+        'engagements' => 31,
+    ]);
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/reports')
+        && str_contains((string) $request['metrics'], 'videosAddedToPlaylists'));
+});
+
+test('youtube keeps current video statistics when Analytics refuses the report', function () {
+    $analyticsApi = rtrim((string) config('trypost.platforms.youtube.analytics_api'), '/');
+    $dataApi = rtrim((string) config('trypost.platforms.youtube.data_api'), '/');
+    Http::fake([
+        "{$analyticsApi}/reports*" => Http::response(['error' => [
+            'code' => 403,
+            'message' => 'Forbidden',
+            'errors' => [['message' => 'Forbidden', 'domain' => 'global', 'reason' => 'forbidden']],
+        ]], 403),
+        "{$dataApi}/videos*" => Http::response(['items' => [[
+            'id' => 'short-1',
+            'statistics' => ['viewCount' => '1144', 'likeCount' => '26', 'commentCount' => '0'],
+        ]]]),
+    ]);
+    $account = SocialAccount::factory()->youtube()->create();
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'short-1',
+        'content_type' => PublicationContentType::Short,
+    ]);
+
+    $observation = app(YouTubePublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect(collect($observation->metrics)->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value])->all())
+        ->toEqual(['views' => 1144, 'reactions' => 26, 'comments' => 0, 'engagements' => 26]);
+});
+
+test('an expired youtube token is refreshed before publication metrics are requested', function () {
+    $analyticsApi = rtrim((string) config('trypost.platforms.youtube.analytics_api'), '/');
+    $dataApi = rtrim((string) config('trypost.platforms.youtube.data_api'), '/');
+    Http::fake([
+        config('trypost.platforms.youtube.oauth_api').'/token' => Http::response([
+            'access_token' => 'fresh-token',
+            'expires_in' => 3599,
+            'scope' => 'https://www.googleapis.com/auth/yt-analytics.readonly',
+            'token_type' => 'Bearer',
+        ]),
+        "{$analyticsApi}/reports*" => Http::response(['columnHeaders' => [['name' => 'views']], 'rows' => [[5]]]),
+        "{$dataApi}/videos*" => Http::response(['items' => [['id' => 'short-1', 'statistics' => ['viewCount' => '7']]]]),
+    ]);
+    $account = SocialAccount::factory()->youtube()->createQuietly([
+        'access_token' => 'stale-token',
+        'refresh_token' => 'refresh-token',
+        'token_expires_at' => now()->subHour(),
+    ]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'short-1',
+    ]);
+
+    app(YouTubePublicationMetricsCollector::class)->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    Http::assertNotSent(fn (Request $request): bool => $request->hasHeader('Authorization', 'Bearer stale-token'));
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/reports')
+        && $request->hasHeader('Authorization', 'Bearer fresh-token'));
+    expect($account->fresh()->access_token)->toBe('fresh-token');
+});
+
+test('a rejected token refresh is classified as an authentication failure', function () {
+    Http::fake([
+        config('trypost.platforms.youtube.oauth_api').'/token' => Http::response([
+            'error' => 'invalid_grant',
+            'error_description' => 'Token has been expired or revoked.',
+        ], 400),
+    ]);
+    $account = SocialAccount::factory()->youtube()->createQuietly(['token_expires_at' => now()->subHour()]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+    ]);
+
+    expect(fn () => app(YouTubePublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC')))
+        ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('authentication'));
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '/videos')
+        || str_contains($request->url(), '/reports'));
+});
+
+test('mastodon reads a public status without a token that lacks read scope', function (array $scopes, bool $authenticated) {
+    Http::fake(['https://mastodon.social/api/v1/statuses/*' => Http::response([
+        'id' => '117304063461175259',
+        'visibility' => 'public',
+        'replies_count' => 1,
+        'reblogs_count' => 2,
+        'favourites_count' => 3,
+    ])]);
+    $account = SocialAccount::factory()->mastodon()->create(['scopes' => $scopes]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Mastodon,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => '117304063461175259',
+    ]);
+
+    $observation = app(MastodonPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect(collect($observation->metrics)->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value])->all())
+        ->toBe(['reactions' => 3, 'comments' => 1, 'shares' => 2, 'engagements' => 6]);
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/api/v1/statuses/')
+        && $request->hasHeader('Authorization') === $authenticated);
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '/api/v1/statuses/')
+        && $request->hasHeader('Authorization') !== $authenticated);
+})->with([
+    'publish-only token' => [['read:accounts', 'write:statuses', 'write:media'], false],
+    'token with read:statuses' => [['read:accounts', 'read:statuses', 'write:statuses', 'write:media'], true],
+]);
+
+test('facebook keeps public post counts when Page insights are not available', function () {
+    $graph = rtrim((string) config('trypost.platforms.facebook.graph_api'), '/');
+    $account = SocialAccount::factory()->facebook()->create();
+    Http::fake([
+        "{$graph}/page_post/insights*" => Http::response(['error' => [
+            'message' => '(#200) Permissions error',
+            'type' => 'OAuthException',
+            'code' => 200,
+            'fbtrace_id' => 'trace',
+        ]], 403),
+        "{$graph}/page_post*" => Http::response([
+            'id' => 'page_post',
+            'reactions' => ['data' => [], 'summary' => ['total_count' => 5, 'viewer_reaction' => 'NONE']],
+            'comments' => ['data' => [], 'summary' => ['order' => 'ranked', 'total_count' => 2, 'can_comment' => true]],
+            'shares' => ['count' => 1],
+        ]),
+    ]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Facebook,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'page_post',
+        'content_type' => PublicationContentType::Image,
+    ]);
+
+    $observation = app(FacebookPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect(collect($observation->metrics)->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value])->all())
+        ->toBe(['reactions' => 5, 'comments' => 2, 'shares' => 1, 'engagements' => 8]);
+});
+
+test('pinterest requests only documented pin metric types and keeps lifetime comments and reactions', function () {
+    $api = rtrim((string) config('trypost.platforms.pinterest.api'), '/');
+    Http::fake(["{$api}/pins/*/analytics*" => Http::response(['all' => [
+        'daily_metrics' => [],
+        'summary_metrics' => ['IMPRESSION' => 240, 'SAVE' => 20, 'PIN_CLICK' => 37, 'OUTBOUND_CLICK' => 3, 'SAVE_RATE' => 0.0833],
+        'lifetime_metrics' => ['TOTAL_COMMENTS' => 2, 'TOTAL_REACTIONS' => 12],
+    ]])]);
+    $account = SocialAccount::factory()->pinterest()->createQuietly();
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Pinterest,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => '813744226420795884',
+        'content_type' => PublicationContentType::Image,
+    ]);
+
+    $observation = app(PinterestPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect(collect($observation->metrics)->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value])->all())->toEqual([
+        'impressions' => 240,
+        'saves' => 20,
+        'pin_clicks' => 37,
+        'outbound_clicks' => 3,
+        'save_rate' => 8.33,
+        'comments' => 2,
+        'reactions' => 12,
+        'engagements' => 74,
+    ]);
+    Http::assertSent(function (Request $request): bool {
+        $types = explode(',', (string) data_get($request->data(), 'metric_types'));
+
+        return str_contains($request->url(), '/analytics')
+            && in_array('TOTAL_COMMENTS', $types, true)
+            && in_array('TOTAL_REACTIONS', $types, true)
+            && array_diff($types, ['IMPRESSION', 'OUTBOUND_CLICK', 'PIN_CLICK', 'SAVE', 'SAVE_RATE', 'TOTAL_COMMENTS', 'TOTAL_REACTIONS']) === [];
+    });
+});
+
+test('meta collectors send the token through the shared refreshing path', function () {
+    $account = SocialAccount::factory()->instagram()->createQuietly([
+        'access_token' => 'expiring-token',
+        'refresh_token' => 'expiring-token',
+        'token_expires_at' => now()->addMinutes(5),
+    ]);
+    Http::fake([
+        config('trypost.platforms.instagram.auth_api').'/refresh_access_token*' => Http::response([
+            'access_token' => 'extended-token',
+            'token_type' => 'bearer',
+            'expires_in' => 5183944,
+        ]),
+        '*' => Http::response(['data' => [['name' => 'reach', 'values' => [['value' => 9]]]]]),
+    ]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Instagram,
+        'platform_user_id' => $account->platform_user_id,
+    ]);
+
+    app(InstagramPublicationMetricsCollector::class)->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/insights')
+        && $request->hasHeader('Authorization', 'Bearer extended-token'));
+    Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '/insights')
+        && str_contains($request->url(), 'access_token='));
+});
+
+test('facebook reports permission and logs the Graph code when every read is refused', function () {
+    Log::spy();
+    $account = SocialAccount::factory()->facebook()->createQuietly();
+    Http::fake([
+        rtrim((string) config('trypost.platforms.facebook.graph_api'), '/').'/page_post/insights*' => Http::response(['error' => [
+            'message' => '(#100) The value must be a valid insights metric',
+            'type' => 'OAuthException',
+            'code' => 100,
+        ]], 400),
+        '*' => Http::response(['error' => [
+            'message' => '(#10) This endpoint requires the pages_read_user_content permission',
+            'type' => 'OAuthException',
+            'code' => 10,
+        ]], 403),
+    ]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Facebook,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'page_post',
+        'content_type' => PublicationContentType::Image,
+    ]);
+
+    expect(fn () => app(FacebookPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC')))
+        ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('permission'));
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => $message === 'analytics.facebook_read_refused'
+        && str_contains((string) data_get($context, 'reason'), 'Graph code 100'));
 });

@@ -3,10 +3,8 @@ import { Link } from '@inertiajs/vue3';
 import { IconArrowUpRight, IconExternalLink } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
-import {
-    getPlatformLabel,
-    getPlatformLogo,
-} from '@/composables/usePlatformLogo';
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
+import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import { formatNumberCompact } from '@/lib/utils';
 import { index as postsIndex } from '@/routes/app/posts';
@@ -102,7 +100,7 @@ const thumbnailFor = (post: TopPost): string | null => {
                     class="flex flex-1 flex-col gap-2 rounded-t-lg border-t border-border bg-card p-3"
                 >
                     <div
-                        class="flex min-h-4.5 min-w-0 items-center justify-between gap-2"
+                        class="flex min-h-6 min-w-0 items-center justify-between gap-2"
                     >
                         <span
                             class="inline-flex min-w-0 items-center gap-1 text-xs text-foreground"
@@ -112,10 +110,20 @@ const thumbnailFor = (post: TopPost): string | null => {
                                     : (post.name ?? undefined)
                             "
                         >
-                            <img
-                                :src="getPlatformLogo(post.platform)"
-                                :alt="getPlatformLabel(post.platform)"
-                                class="size-3.5 shrink-0 rounded-sm object-contain"
+                            <ChannelAvatar
+                                :platform="post.platform"
+                                :src="post.avatar_url"
+                                :name="
+                                    post.username
+                                        ? `@${post.username}`
+                                        : (post.name ??
+                                          getPlatformLabel(post.platform))
+                                "
+                                :size="24"
+                                ring="card"
+                                :status="post.status"
+                                :account-id="post.social_account_key"
+                                data-testid="analytics-top-post-channel"
                             />
                             <span class="truncate">{{
                                 date.formatDateShort(post.published_at)

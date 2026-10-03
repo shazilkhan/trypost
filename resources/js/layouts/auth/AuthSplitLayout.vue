@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
-import { IconStarFilled } from '@tabler/icons-vue';
+import { IconCircleCheck, IconStarFilled } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Auth } from '@/types';
 
 const widthClass = {
@@ -15,12 +16,14 @@ withDefaults(
     defineProps<{
         title?: string;
         description?: string;
+        status?: string;
         panel?: boolean;
         width?: keyof typeof widthClass;
     }>(),
     {
         title: undefined,
         description: undefined,
+        status: undefined,
         panel: false,
         width: 'sm',
     },
@@ -86,31 +89,42 @@ const loopedReviews = [
                 <LocaleSwitcher v-if="isGuest" />
             </div>
 
-            <div
-                :class="['flex w-full flex-col gap-6 sm:gap-8', widthClass[width]]"
-            >
-                <div class="flex flex-col gap-6">
-                    <div class="flex flex-col items-center gap-4 text-center">
-                        <img
-                            src="/images/trypost/icon.png"
-                            alt="TryPost"
-                            class="motion-auth-logo h-11 w-auto"
-                            data-testid="auth-logo"
-                        />
+            <div :class="['flex w-full flex-col gap-6', widthClass[width]]">
+                <div class="flex flex-col items-center gap-4 text-center">
+                    <img
+                        src="/images/trypost/icon.png"
+                        alt="TryPost"
+                        class="motion-auth-logo h-11 w-auto"
+                        data-testid="auth-logo"
+                    />
+                    <div
+                        v-if="title || description"
+                        class="flex flex-col gap-1"
+                    >
                         <h1
                             v-if="title"
-                            class="font-heading text-xl leading-tight font-medium text-balance text-foreground"
+                            class="font-heading text-xl font-medium tracking-tight text-balance text-foreground"
+                            data-testid="auth-title"
                         >
                             {{ title }}
                         </h1>
+                        <p
+                            v-if="description"
+                            class="text-sm text-balance text-muted-foreground"
+                        >
+                            {{ description }}
+                        </p>
                     </div>
-                    <p
-                        v-if="description"
-                        class="text-center text-base text-balance text-foreground"
-                    >
-                        {{ description }}
-                    </p>
                 </div>
+
+                <Alert
+                    v-if="status"
+                    class="[&>svg]:text-success-text"
+                    data-testid="auth-status"
+                >
+                    <IconCircleCheck />
+                    <AlertDescription>{{ status }}</AlertDescription>
+                </Alert>
 
                 <slot />
             </div>

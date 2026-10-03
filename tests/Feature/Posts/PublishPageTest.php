@@ -112,7 +112,8 @@ test('the all-channels page defaults to the queue in the user time zone with cha
             ->where('channel', null)
             ->where('tab', 'queue')
             ->where('displayTimezone', 'America/Sao_Paulo')
-            ->where('channelTimezones', ['UTC'])
+            ->missing('channelTimezones')
+            ->where('channels.0.timezone', 'UTC')
             ->where('queue.queueDays', 14)
             ->where('queue.days.0.items.0.type', 'slot')
             ->where('queue.days.0.items.0.channel_id', $this->channel->id)
@@ -165,7 +166,7 @@ test('the sent tab returns settled posts newest first with metrics', function ()
         'status' => PlatformStatus::Published,
         'published_at' => now()->subDay(),
     ]);
-    $failed = publishPagePost($this->channel, PostStatus::Failed, ['published_at' => null, 'updated_at' => now()->subDays(5)], ['status' => PlatformStatus::Failed]);
+    $failed = publishPagePost($this->channel, PostStatus::Failed, ['published_at' => null, 'scheduled_at' => now()->subDays(5)], ['status' => PlatformStatus::Failed]);
     publishPagePost($this->channel, PostStatus::Draft);
 
     $this->actingAs($this->user)
@@ -184,10 +185,11 @@ test('the sent tab returns settled posts newest first with metrics', function ()
             ->where("posts.data.2.metrics.{$failed->postPlatforms->first()->id}.reason", 'not_published'));
 });
 
-test('the sent tab places a failed post at its failure time', function () {
+test('the sent tab places a failed post at the time it was attempted, not when its row was last touched', function () {
     $older = publishPagePost($this->channel, PostStatus::Published, ['published_at' => now()->subDays(3), 'updated_at' => now()->subDays(3)]);
     $newer = publishPagePost($this->channel, PostStatus::Published, ['published_at' => now()->subDay(), 'updated_at' => now()]);
-    $failed = publishPagePost($this->channel, PostStatus::Failed, ['published_at' => null, 'updated_at' => now()->subDays(2)]);
+    $failed = publishPagePost($this->channel, PostStatus::Failed, ['published_at' => null, 'scheduled_at' => now()->subDays(2), 'updated_at' => now()]);
+    $unscheduledFailed = publishPagePost($this->channel, PostStatus::Failed, ['published_at' => null, 'scheduled_at' => null, 'created_at' => now()->subDays(21), 'updated_at' => now()]);
 
     $this->actingAs($this->user)
         ->get(route('app.posts.index', ['tab' => 'sent']))
@@ -195,8 +197,43 @@ test('the sent tab places a failed post at its failure time', function () {
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('posts.data.0.id', $newer->id)
             ->where('posts.data.1.id', $failed->id)
-            ->where('posts.data.2.id', $older->id));
+            ->where('posts.data.2.id', $older->id)
+            ->where('posts.data.3.id', $unscheduledFailed->id));
 });
+
+test('the sent tab lists publishing, failed and partially published posts with the published ones', function () {
+    $published = publishPagePost($this->channel, PostStatus::Published, ['published_at' => now()->subDays(4)]);
+    $partial = publishPagePost($this->channel, PostStatus::PartiallyPublished, ['published_at' => now()->subDays(3)]);
+    $failed = publishPagePost($this->channel, PostStatus::Failed, ['scheduled_at' => now()->subDays(2)]);
+    $publishing = publishPagePost($this->channel, PostStatus::Publishing, ['scheduled_at' => now()->subMinute()]);
+    publishPagePost($this->channel, PostStatus::Scheduled, ['scheduled_at' => now()->addDay()]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['tab' => 'sent']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('counts.sent', 4)
+            ->where('counts.queue', 1)
+            ->where('posts.data', fn ($posts) => collect($posts)->pluck('id')->all() === [$publishing->id, $failed->id, $partial->id, $published->id]));
+
+    $this->get(route('app.channels.publish', [$this->channel, 'tab' => 'sent']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('counts.sent', 4)
+            ->has('posts.data', 4));
+});
+
+test('a focused failed or publishing post opens the sent tab', function (PostStatus $status) {
+    $post = publishPagePost($this->channel, $status, ['scheduled_at' => now()->subDay()]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index', ['post' => $post->id]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('tab', 'sent')
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $post->id));
+})->with([
+    'failed' => [PostStatus::Failed],
+    'publishing' => [PostStatus::Publishing],
+]);
 
 test('a partial reload resolves only the props it asks for', function () {
     DB::enableQueryLog();
@@ -261,18 +298,22 @@ test('counts follow the page scope', function () {
             ->where('filters.channels', [$other->id]));
 });
 
-test('needs attention lists failed and publishing posts but not published ones', function () {
-    $failed = publishPagePost($this->channel, PostStatus::Failed);
-    $publishing = publishPagePost($this->channel, PostStatus::Publishing);
-    $publishing->forceFill(['updated_at' => now()->addMinute()])->saveQuietly();
+test('the queue no longer carries failed or publishing posts', function () {
+    publishPagePost($this->channel, PostStatus::Failed, ['scheduled_at' => now()->subDay()]);
+    publishPagePost($this->channel, PostStatus::Publishing, ['scheduled_at' => now()->subMinute()]);
     publishPagePost($this->channel, PostStatus::Published, ['published_at' => now()->subDay()]);
 
     $this->actingAs($this->user)
         ->get(route('app.posts.index'))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->has('queue.needsAttention', 2)
-            ->where('queue.needsAttention.0.id', $publishing->id)
-            ->where('queue.needsAttention.1.id', $failed->id));
+            ->where('counts.queue', 0)
+            ->missing('queue.needsAttention')
+            ->has('posts.data', 0));
+
+    $this->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->missing('queue.needsAttention')
+            ->has('posts.data', 0));
 });
 
 test('scheduled posts in the queue are sent as paginated cards', function () {
@@ -393,8 +434,12 @@ test('the label filter narrows lists, queue cards and needs attention', function
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->has('posts.data', 1)
             ->where('posts.data.0.id', $taggedQueued->id)
-            ->has('queue.needsAttention', 1)
-            ->where('queue.needsAttention.0.id', $taggedFailed->id));
+            ->missing('queue.needsAttention'));
+
+    $this->get(route('app.posts.index', ['tab' => 'sent', 'labels' => [$label->id]]))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $taggedFailed->id));
 });
 
 test('untagged narrows to posts without labels and unions with selected labels', function () {
@@ -451,7 +496,10 @@ test('a channel filter from another workspace yields no posts and zero counts', 
             ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0, 'approvals' => 0])
             ->where('queue.days', [])
             ->has('posts.data', 0)
-            ->where('queue.needsAttention', []));
+            ->missing('queue.needsAttention'));
+
+    $this->get(route('app.posts.index', ['tab' => 'sent', 'channels' => [$foreign->id]]))
+        ->assertInertia(fn (AssertableInertia $page) => $page->has('posts.data', 0));
 
     $this->get(route('app.posts.index', ['tab' => 'drafts', 'channels' => [$foreign->id]]))
         ->assertInertia(fn (AssertableInertia $page) => $page->has('posts.data', 0));

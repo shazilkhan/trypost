@@ -38,6 +38,7 @@ class PostPlatform extends Model
         'platform_url',
         'error_message',
         'error_context',
+        'thread_reply_ids',
         'published_at',
         'submitted_at',
         'last_reconciled_at',
@@ -57,6 +58,7 @@ class PostPlatform extends Model
             'last_reconciled_at' => 'datetime',
             'meta' => 'array',
             'error_context' => 'array',
+            'thread_reply_ids' => 'array',
             'connection_warning_sent_at' => 'datetime',
         ];
     }
@@ -146,6 +148,15 @@ class PostPlatform extends Model
         }
 
         return $this->platform_avatar ? Storage::url($this->platform_avatar) : null;
+    }
+
+    /**
+     * Whether the publisher attaches the link preview card for the first URL.
+     * False only when the user dropped the card in the composer.
+     */
+    public function attachesLinkPreview(): bool
+    {
+        return data_get($this->meta, 'link_preview') !== false;
     }
 
     public function markAsPublishing(): void

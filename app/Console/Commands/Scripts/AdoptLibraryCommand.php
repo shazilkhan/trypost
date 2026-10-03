@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Scripts;
 
 use App\Actions\Media\AdoptWorkspaceLibrary;
 use App\Jobs\Media\AdoptWorkspaceLibraryJob;
@@ -34,7 +34,10 @@ class AdoptLibraryCommand extends Command
             ->all();
 
         if ($workspaceIds === []) {
-            Cache::forget(AdoptWorkspaceLibrary::FOREIGN_REFERENCES_CACHE_KEY);
+            if (! $this->option('dry-run')) {
+                Cache::forget(AdoptWorkspaceLibrary::FOREIGN_REFERENCES_CACHE_KEY);
+            }
+
             $this->info('No library media to adopt.');
 
             return self::SUCCESS;

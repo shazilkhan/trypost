@@ -108,7 +108,7 @@ abstract class AbstractLinkedInPublisher
             return $this->publishCarousel($content, $media);
         }
 
-        return $this->publishPost($content, $media);
+        return $this->publishPost($content, $media, $postPlatform->attachesLinkPreview());
     }
 
     private function retryWithRefresh(PostPlatform $postPlatform, ?string $content, TokenExpiredException $originalException): array
@@ -133,7 +133,7 @@ abstract class AbstractLinkedInPublisher
         }
     }
 
-    private function publishPost(?string $content, $media): array
+    private function publishPost(?string $content, $media, bool $attachArticle): array
     {
         $payload = $this->basePayload($content);
 
@@ -147,7 +147,7 @@ abstract class AbstractLinkedInPublisher
                     'altText' => $item->isImage() ? $item->altTextFor($this->platform()) : null,
                 ], fn ($v) => $v !== null)];
             }
-        } else {
+        } elseif ($attachArticle) {
             $article = $this->articleContent($content);
 
             if ($article !== null) {

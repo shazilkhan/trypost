@@ -27,7 +27,7 @@ defineProps<PreviewProps>();
         text-class="text-sm"
         :truncate="140"
         more-below
-        link-card
+        :link-card="meta?.link_preview !== false"
         :link-card-options="{
             bleed: true,
             band: true,

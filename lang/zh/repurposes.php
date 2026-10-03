@@ -166,6 +166,7 @@ return [
         'source_unusable' => '开始此自动化之前，请重新连接此自动化监控的账号。',
         'destinations_required' => '启用前请至少选择一个目标。',
         'destination_needs_video' => '该格式不支持视频。',
+        'destination_not_supported' => 'Google 商家不能作为发布目标：其帖子不支持视频。',
         'only_paused_resumes' => '只有已暂停的 Repurpose 才能继续。',
         'only_active_pauses' => '只有正在运行的转发规则才能暂停。',
         'only_running_disables' => '只有正在运行的转发规则才能停用。',

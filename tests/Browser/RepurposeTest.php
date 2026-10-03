@@ -346,3 +346,26 @@ test('the list shows each repurpose as a row that opens it and the back button r
         ->assertScript('document.documentElement.scrollWidth <= window.innerWidth + 1', true)
         ->assertNoJavaScriptErrors();
 });
+
+test('the destination picker does not list google business', function () {
+    [$user, $workspace, $source] = repurposeOwnerWithAccounts();
+
+    $googleBusiness = SocialAccount::factory()->for($workspace)->create(['platform' => Platform::GoogleBusiness]);
+    $facebook = SocialAccount::factory()->for($workspace)->create(['platform' => Platform::Facebook]);
+
+    $repurpose = Repurpose::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'source_social_account_id' => $source->id,
+    ]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.repurposes.show', $repurpose));
+
+    waitForRepurposeTestId($page, "channel-{$facebook->id}");
+
+    $page->assertVisible("@channel-{$facebook->id}")
+        ->assertMissing("@channel-{$googleBusiness->id}")
+        ->assertNoJavaScriptErrors();
+});

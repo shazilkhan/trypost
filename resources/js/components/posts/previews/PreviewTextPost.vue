@@ -46,6 +46,8 @@ const props = withDefaults(
         trailingActions?: PreviewAction[];
         actionsStyle?: 'spread' | 'start' | 'inline-labels' | 'column-labels';
         actionClass?: string;
+        threadPosition?: 'first' | 'middle' | 'last' | null;
+        concealed?: boolean;
     }>(),
     {
         variant: 'thread',
@@ -74,6 +76,8 @@ const props = withDefaults(
         trailingActions: () => [],
         actionsStyle: 'spread',
         actionClass: 'text-muted-foreground',
+        threadPosition: null,
+        concealed: false,
     },
 );
 
@@ -108,7 +112,10 @@ const hasActions = computed(
 <template>
     <article
         class="text-[15px] leading-5"
-        :class="isStacked ? 'space-y-3 py-3' : 'flex gap-4 py-4 pr-4 pl-3'"
+        :class="[
+            isStacked ? 'space-y-3 py-3' : 'flex gap-4 py-4 pr-4 pl-3',
+            { 'relative overflow-hidden': threadPosition },
+        ]"
     >
         <div :class="isStacked ? 'flex items-center gap-3 px-4' : 'contents'">
             <span class="relative h-fit shrink-0">
@@ -118,6 +125,17 @@ const hasActions = computed(
                     :class="avatarClass ?? (isStacked ? 'size-12' : 'size-8')"
                 />
                 <slot name="avatar-badge" />
+                <span
+                    v-if="threadPosition === 'middle' || threadPosition === 'last'"
+                    aria-hidden="true"
+                    class="absolute bottom-[calc(100%+4px)] left-1/2 h-screen w-0.5 -translate-x-1/2 bg-border"
+                />
+                <span
+                    v-if="threadPosition === 'first' || threadPosition === 'middle'"
+                    aria-hidden="true"
+                    data-testid="preview-thread-connector"
+                    class="absolute top-[calc(100%+4px)] left-1/2 h-screen w-0.5 -translate-x-1/2 bg-border"
+                />
             </span>
             <div
                 v-if="isStacked"
@@ -145,7 +163,10 @@ const hasActions = computed(
             </div>
             <slot v-if="isStacked" name="aside" />
         </div>
-        <div class="min-w-0 flex-1 space-y-3">
+        <div
+            class="min-w-0 flex-1 space-y-3"
+            :class="{ 'ms-14': isStacked && threadPosition }"
+        >
             <div v-if="!isStacked" class="space-y-0.5">
                 <div
                     class="flex min-w-0 items-baseline gap-1"
@@ -162,7 +183,7 @@ const hasActions = computed(
                     <slot name="aside" />
                 </div>
                 <div
-                    v-if="content"
+                    v-if="content && !concealed"
                     :data-testid="contentTestid"
                     :class="textClass"
                 >
@@ -176,7 +197,7 @@ const hasActions = computed(
                 </div>
             </div>
             <div
-                v-else-if="content"
+                v-else-if="content && !concealed"
                 class="px-4"
                 :class="textClass"
                 :data-testid="contentTestid"
@@ -204,6 +225,7 @@ const hasActions = computed(
                 <slot name="before-media" />
             </div>
             <PreviewMedia
+                v-if="!concealed"
                 :media="media"
                 :layout="mediaLayout"
                 :aspect="mediaAspect"

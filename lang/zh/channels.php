@@ -242,7 +242,11 @@ return [
 
         'all' => '所有时区',
 
-        'detected' => '浏览器检测到的时区',
+        'yours' => '您的时区',
+
+        'browser' => '浏览器检测到',
+
+        'more' => '还有 :count 个…',
         'placeholder' => '搜索城市或时区',
         'empty' => '未找到时区',
     ],

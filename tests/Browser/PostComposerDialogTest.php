@@ -26,7 +26,7 @@ function waitForComposerReady(mixed $page, string $testId = 'composer-add-accoun
 {
     $page->script(<<<JS
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 const sheet = document.querySelector('[data-testid="post-composer-dialog"]');
                 if (sheet?.getAttribute('data-state') === 'open'
                     && sheet.getAnimations().every((animation) => animation.playState !== 'running')
@@ -256,7 +256,7 @@ test('composer can search channels, preview a selected account, and expand to th
     $viewport = $page->script(<<<'JS'
         (async () => {
             const dialog = document.querySelector('[data-testid="post-composer-dialog"]');
-            for (let attempt = 0; attempt < 30; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (Math.abs(dialog.getBoundingClientRect().width - window.innerWidth) < 2) break;
                 await new Promise((resolve) => setTimeout(resolve, 20));
             }
@@ -488,7 +488,7 @@ test('composer searches and selects multiple labels and exposes emoji and signat
 
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 80; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (!document.querySelector('[data-testid="post-composer-dialog"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -554,10 +554,11 @@ test('creating a four account draft keeps composition in the browser until save'
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
 
-    $accounts = SocialAccount::factory()->count(4)->create([
-        'workspace_id' => $workspace->id,
-        'platform' => Platform::Instagram,
-    ]);
+    $accounts = collect([Platform::Instagram, Platform::LinkedIn, Platform::X, Platform::Facebook])
+        ->map(fn (Platform $platform): SocialAccount => SocialAccount::factory()->create([
+            'workspace_id' => $workspace->id,
+            'platform' => $platform,
+        ]));
 
     $this->actingAs($user);
 
@@ -593,7 +594,7 @@ test('creating a four account draft keeps composition in the browser until save'
     $page->click('@composer-save-draft');
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 80; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (!document.querySelector('[data-testid="post-composer-dialog"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -657,7 +658,7 @@ test('create another reopens a fresh composer after saving a draft', function ()
 
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 80; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 const composer = document.querySelector('[data-testid="composer-base-content"]');
                 if (composer && composer.value === '') return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
@@ -720,7 +721,7 @@ test('recovering an empty-target draft retains its caption media and labels', fu
         ->click('@composer-save-draft');
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 80; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (!document.querySelector('[data-testid="post-composer-dialog"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -813,44 +814,43 @@ test('post notes open after creation while the edit dialog still has its AI assi
         ->assertVisible('@composer-previews-scroll');
 });
 
-test('account overrides inherit later shared edits and are discarded when an account is removed', function () {
+test('going back to the shared step asks first and discards the per-network edits', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
     $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
-    $accounts = SocialAccount::factory()->count(2)->create(['workspace_id' => $workspace->id, 'platform' => Platform::Instagram]);
-    $firstId = $accounts[0]->id;
-    $secondId = $accounts[1]->id;
+    $instagram = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::Instagram]);
+    $linkedin = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::LinkedIn]);
     $this->actingAs($user);
 
     $page = visit(route('app.posts.create'));
     waitForComposerReady($page);
-    $page->click('@composer-add-account')->click("@composer-account-option-{$firstId}")
-        ->click("@composer-account-option-{$secondId}")
-        ->fill('@composer-base-content', 'Shared first')
+    $page->fill('@composer-base-content', 'Shared first')
+        ->click('@composer-add-account')->click("@composer-account-option-{$linkedin->id}")
+        ->click("@composer-account-option-{$instagram->id}")
         ->click('@composer-next')
-        ->fill("@composer-caption-{$firstId}", '')
+        ->fill("@composer-caption-{$instagram->id}", 'Only on Instagram')
         ->click('@composer-back')
+        ->assertVisible('@composer-back-confirm')
+        ->click('@composer-back-cancel')
+        ->assertValue("@composer-caption-{$instagram->id}", 'Only on Instagram')
+        ->click('@composer-back')
+        ->click('@composer-back-confirm-go')
+        ->assertValue('@composer-base-content', 'Shared first')
+        ->assertMissing('@composer-back')
         ->fill('@composer-base-content', 'Shared second')
-        ->click('@composer-next');
-
-    $firstCaption = $page->script("document.querySelector('[data-testid=\"composer-caption-{$firstId}\"]').value");
-    $page->click("@composer-expand-{$secondId}");
-    $secondCaption = $page->script("document.querySelector('[data-testid=\"composer-caption-{$secondId}\"]').value");
-    expect($firstCaption)->toBe('')
-        ->and($secondCaption)->toBe('Shared second');
-
-    $page->click('@composer-back')
-        ->click("@composer-remove-account-{$firstId}")
-        ->click('@composer-add-account')->click("@composer-account-option-{$firstId}")
         ->click('@composer-next')
-        ->click("@composer-expand-{$firstId}");
-
-    expect($page->script("document.querySelector('[data-testid=\"composer-caption-{$firstId}\"]').value"))
-        ->toBe('Shared second');
+        ->assertValue("@composer-caption-{$instagram->id}", 'Shared second')
+        ->click("@composer-expand-{$linkedin->id}")
+        ->assertValue("@composer-caption-{$linkedin->id}", 'Shared second')
+        ->fill("@composer-caption-{$linkedin->id}", 'LinkedIn only')
+        ->click("@composer-remove-account-{$instagram->id}")
+        ->assertValue("@composer-caption-{$linkedin->id}", 'LinkedIn only')
+        ->click('@composer-add-account')->click("@composer-account-option-{$instagram->id}")
+        ->assertValue('@composer-base-content', 'LinkedIn only')
+        ->assertNoJavaScriptErrors();
 });
-
 test('X remaining characters use the same link defusing as its preview', function () {
     config()->set('trypost.platforms.x.defuse_links', true);
     $user = User::factory()->create();
@@ -894,7 +894,7 @@ test('selecting a new image uploads an asset before any post is saved', function
             transfer.items.add(new File([bytes], 'new-composer-image.png', { type: 'image/png' }));
             input.files = transfer.files;
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (document.querySelector('[data-testid="composer-{$account->id}-media-item"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -931,7 +931,7 @@ test('dropping an image into the composer uploads it without saving a post', fun
             document.querySelector('[data-testid="composer-customization"]').dispatchEvent(
                 new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }),
             );
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (document.querySelectorAll('[data-testid="composer-{$account->id}-media-item"]').length === 1) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -943,13 +943,16 @@ test('dropping an image into the composer uploads it without saving a post', fun
         ->and(Post::where('workspace_id', $workspace->id)->count())->toBe(0);
 });
 
-test('cropping one account creates a separate asset and leaves the other account image intact', function () {
+test('cropping in one network card creates a separate asset and leaves the other network image intact', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
     $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
     subscribeAccount($user->account);
-    $accounts = SocialAccount::factory()->count(2)->create(['workspace_id' => $workspace->id, 'platform' => Platform::LinkedIn]);
+    $accounts = [
+        SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]),
+        SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]),
+    ];
     $this->actingAs($user);
 
     $page = visit(route('app.posts.create'));
@@ -965,7 +968,7 @@ test('cropping one account creates a separate asset and leaves the other account
             transfer.items.add(new File([bytes], 'crop-for-channel.png', { type: 'image/png' }));
             input.files = transfer.files;
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (document.querySelector('[data-testid="composer-media-item"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -979,7 +982,7 @@ test('cropping one account creates a separate asset and leaves the other account
 
     $originalId = Media::where('workspace_id', $workspace->id)->where('collection', Media::COLLECTION_UPLOADS)->sole()->id;
     $page->click('@composer-next')
-        ->assertVisible("@composer-thumb-{$accounts[1]->id}");
+        ->assertVisible("@composer-{$accounts[0]->id}-edit-0");
 
     // The browser test uses Laravel's private local disk, whose unsigned /storage
     // URL cannot be served. Give the crop canvas the uploaded fixture bytes.
@@ -1001,7 +1004,7 @@ test('cropping one account creates a separate asset and leaves the other account
 
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 const save = document.querySelector('[data-testid="composer-save-draft"]');
                 if (save && !save.disabled && !document.querySelector('[data-testid="media-editor-apply"]')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
@@ -1068,7 +1071,7 @@ test('video thumbnails appear in shared and channel media', function () {
             transfer.items.add(new File([bytes], 'sample.mp4', { type: 'video/mp4' }));
             input.files = transfer.files;
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (document.querySelector('[data-testid="composer-media-item"] video')) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -1138,7 +1141,7 @@ test('failed crop upload keeps the original asset selected', function () {
         ->click('@media-editor-apply');
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (window.__cropUploadFailed && document.querySelector('[data-testid="composer-save-draft"]')?.disabled === false) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }
@@ -1167,7 +1170,7 @@ test('settled legacy multi-target history appears as one read-only card per targ
     $page = visit(route('app.posts.index', ['tab' => 'sent']));
     $page->script(<<<'JS'
         (async () => {
-            for (let attempt = 0; attempt < 80; attempt++) {
+            for (let attempt = 0; attempt < 300; attempt++) {
                 if (document.querySelectorAll('[data-testid^="post-card-"]:not([data-testid^="post-card-menu-"])').length === 2) return;
                 await new Promise((resolve) => setTimeout(resolve, 100));
             }

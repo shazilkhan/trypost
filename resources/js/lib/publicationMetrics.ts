@@ -3,7 +3,17 @@ import { trans } from 'laravel-vue-i18n';
 import { formatNumberCompact, formatPercent } from '@/lib/utils';
 import type { PublicationMetricFact } from '@/types/analytics';
 
-export const publicationMetricLabel = (key: string): string => {
+/** Networks whose native name for a re-share is "repost"; stored as `shares`. */
+const REPOST_NETWORKS = new Set(['x', 'threads', 'mastodon', 'bluesky']);
+
+export const publicationMetricLabel = (
+    metricKey: string,
+    platform?: string | null,
+): string => {
+    const key =
+        metricKey === 'shares' && REPOST_NETWORKS.has(platform ?? '')
+            ? 'reposts'
+            : metricKey;
     const core = `analytics.metrics.${key}`;
     const coreLabel = trans(core);
     if (coreLabel !== core) return coreLabel;
@@ -67,29 +77,104 @@ const CONTENT_TYPE_METRICS: Record<string, readonly string[]> = {
     short: VIDEO_METRICS,
 };
 
-const NETWORK_METRICS: Record<string, readonly string[]> = {
-    x: ['reposts', 'quotes', 'bookmarks', 'impressions'],
-    pinterest: ['pin_clicks', 'outbound_clicks', 'save_rate'],
-    youtube: ['subscribers_gained', 'average_percentage_viewed'],
-    linkedin: ['clicks'],
-    'linkedin-page': ['clicks'],
-    facebook: ['clicks'],
-    tiktok: [
-        'total_play_time_milliseconds',
-        'average_video_play_time_milliseconds',
-    ],
+/**
+ * A network's own ordered set, replacing the content-type set. `feedOnly`
+ * keeps the content-type set for stories, reels and videos.
+ */
+const NETWORK_METRICS: Record<
+    string,
+    { metrics: readonly string[]; feedOnly?: boolean }
+> = {
+    facebook: {
+        metrics: [
+            'reactions',
+            'comments',
+            'engagement_rate',
+            'impressions',
+            'shares',
+            'clicks',
+        ],
+        feedOnly: true,
+    },
+    x: {
+        metrics: [
+            'reactions',
+            'comments',
+            'engagement_rate',
+            'impressions',
+            'shares',
+            'quotes',
+            'bookmarks',
+            'link_clicks',
+        ],
+    },
+    threads: {
+        metrics: [
+            'reactions',
+            'comments',
+            'engagement_rate',
+            'views',
+            'quotes',
+            'shares',
+        ],
+    },
+    mastodon: { metrics: ['reactions', 'comments', 'shares'] },
+    bluesky: { metrics: ['reactions', 'comments', 'shares', 'quotes'] },
+    pinterest: {
+        metrics: [
+            'saves',
+            'comments',
+            'engagement_rate',
+            'impressions',
+            'reactions',
+            'video_views',
+            'pin_clicks',
+            'outbound_clicks',
+        ],
+    },
+    tiktok: {
+        metrics: [
+            'reactions',
+            'comments',
+            'engagement_rate',
+            'views',
+            'shares',
+            'reach',
+            'watch_time_milliseconds',
+            'average_watch_time_milliseconds',
+        ],
+    },
+    youtube: {
+        metrics: [
+            'reactions',
+            'comments',
+            'engagement_rate',
+            'views',
+            'shares',
+            'saves',
+            'watch_time_milliseconds',
+            'average_watch_time_milliseconds',
+            'engaged_views',
+            'average_percentage_viewed',
+            'subscribers_gained',
+        ],
+    },
 };
 
-/** The metric keys a post shows for its content type, then its network's extras. */
+/** The metric keys a post shows: its network's own set, else its content type's. */
 export const publicationMetricKeys = (
     contentType: string | null | undefined,
     platform: string | null | undefined,
-): string[] => [
-    ...new Set([
-        ...(CONTENT_TYPE_METRICS[contentType ?? ''] ?? FEED_METRICS),
-        ...(NETWORK_METRICS[platform ?? ''] ?? []),
-    ]),
-];
+): readonly string[] => {
+    const network = NETWORK_METRICS[platform ?? ''];
+    const typed = CONTENT_TYPE_METRICS[contentType ?? ''];
+
+    if (network && !(network.feedOnly && typed)) {
+        return network.metrics;
+    }
+
+    return typed ?? FEED_METRICS;
+};
 
 /** The headline metrics a post card or post details band shows, in TryPost order. */
 export const compactPublicationMetrics = (detail: {

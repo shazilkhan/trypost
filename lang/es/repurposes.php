@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Vuelve a conectar la cuenta que observa esta automatización antes de iniciarla.',
         'destinations_required' => 'Elige al menos un destino antes de activar.',
         'destination_needs_video' => 'Ese formato no admite vídeo.',
+        'destination_not_supported' => 'Google Business no puede ser destino: sus publicaciones no admiten vídeo.',
         'only_paused_resumes' => 'Solo se puede reanudar un repurpose en pausa.',
         'only_active_pauses' => 'Solo se puede pausar un repurpose activo.',
         'only_running_disables' => 'Solo se puede desactivar un repurpose en marcha.',

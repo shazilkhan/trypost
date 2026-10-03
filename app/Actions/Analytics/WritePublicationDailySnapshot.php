@@ -9,6 +9,8 @@ use App\Dto\Analytics\PublicationMetricObservation;
 use App\Enums\Analytics\ExposureKind;
 use App\Enums\Analytics\MetricAvailability;
 use App\Enums\Analytics\MetricKey;
+use App\Enums\Analytics\MetricTimeBasis;
+use App\Enums\Analytics\MetricUnit;
 use App\Models\AnalyticsPublication;
 use App\Models\AnalyticsPublicationDailySnapshot;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -69,6 +71,9 @@ class WritePublicationDailySnapshot
     }
 
     /**
+     * Same-day reads merge field by field; a lifetime count keeps its highest
+     * value so a partial read (one call refused) cannot undercut a fuller one.
+     *
      * @param  array<string, array<string, mixed>>  $existing
      * @param  list<MetricValue>  $incoming
      * @return array<string, array<string, mixed>>
@@ -83,7 +88,13 @@ class WritePublicationDailySnapshot
             $incomingIsMeasured = $metric->availability === MetricAvailability::Available
                 && $metric->value !== null;
 
-            if ($incomingIsMeasured || ! $currentIsMeasured) {
+            $wouldLowerLifetimeCount = $incomingIsMeasured && $currentIsMeasured
+                && $metric->unit === MetricUnit::Count
+                && $metric->timeBasis === MetricTimeBasis::Lifetime
+                && data_get($current, 'time_basis', MetricTimeBasis::Lifetime->value) === MetricTimeBasis::Lifetime->value
+                && $metric->value < data_get($current, 'value');
+
+            if (($incomingIsMeasured || ! $currentIsMeasured) && ! $wouldLowerLifetimeCount) {
                 $existing[$key] = $metric->toArray();
             }
         }

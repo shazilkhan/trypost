@@ -34,6 +34,9 @@ class PostAiAssistantController extends Controller
                 prompt: $request->input('prompt'),
                 previousContent: $request->input('previous_content'),
                 platform: $request->enum('platform', Platform::class),
+                account: $request->filled('social_account_id')
+                    ? $workspace->socialAccounts()->find($request->input('social_account_id'))
+                    : null,
             ),
         ]);
     }

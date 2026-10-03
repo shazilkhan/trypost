@@ -7,8 +7,11 @@ namespace App\Http\Requests\App\Post;
 use App\Enums\Post\Status;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
+use App\Models\PostPlatform;
+use App\Models\SocialAccount;
 use App\Rules\ContentFitsPlatformLimits;
 use App\Rules\ContentTypeCompatibleWithMedia;
+use App\Rules\PostContentFitsMaxLength;
 use App\Support\PostMediaRules;
 use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
@@ -39,10 +42,10 @@ class UpdatePostRequest extends FormRequest
             'content' => [
                 'nullable',
                 'string',
-                'max:10000',
+                new PostContentFitsMaxLength,
                 Rule::when(
                     $enforcesMediaCompatibility,
-                    [new ContentFitsPlatformLimits($this->resolveSelectedPlatforms())]
+                    [new ContentFitsPlatformLimits($this->resolveSelectedPlatforms(), PostPlatformMetaRules::metaByKey($this->input('platforms', []), 'id'), PostPlatformMetaRules::contentTypesByKey($this->input('platforms', []), 'id', $this->storedContentTypes()))]
                 ),
             ],
             ...PostMediaRules::hostedRules(),
@@ -114,11 +117,22 @@ class UpdatePostRequest extends FormRequest
     }
 
     /**
-     * @return Collection<int|string, Platform>
+     * @return Collection<int|string, Platform|SocialAccount>
      */
+    /**
+     * @return array<string, string|null>
+     */
+    private function storedContentTypes(): array
+    {
+        return $this->route('post')->postPlatforms()->pluck('content_type', 'id')
+            ->map(fn (?ContentType $contentType): ?string => $contentType?->value)
+            ->all();
+    }
+
     private function resolveSelectedPlatforms(): Collection
     {
         $ids = collect($this->input('platforms', []))->pluck('id')->filter()->all();
+
         if (empty($ids)) {
             return collect();
         }
@@ -126,6 +140,10 @@ class UpdatePostRequest extends FormRequest
         return $this->route('post')
             ->postPlatforms()
             ->whereIn('id', $ids)
-            ->pluck('platform', 'id');
+            ->with('socialAccount')
+            ->get()
+            ->mapWithKeys(fn (PostPlatform $postPlatform): array => [
+                $postPlatform->id => $postPlatform->socialAccount ?? $postPlatform->platform,
+            ]);
     }
 }

@@ -8,6 +8,7 @@ use App\Enums\PostPlatform\ContentType;
 use App\Enums\Repurpose\PublishMode;
 use App\Enums\Repurpose\SourceFormat;
 use App\Enums\SocialAccount\Platform;
+use App\Models\SocialAccount;
 use App\Rules\ContentTypeMatchesPlatform;
 use App\Services\Repurpose\SourceFetcherFactory;
 use Illuminate\Validation\Rule;
@@ -56,6 +57,9 @@ class RepurposeRules
                 'uuid',
                 Rule::exists('social_accounts', 'id')
                     ->where('workspace_id', $workspaceId),
+                fn (string $attribute, mixed $value, callable $fail) => SocialAccount::query()->find($value)?->platform->acceptsRepurposeDestination() === false
+                    ? $fail(__('repurposes.errors.destination_not_supported'))
+                    : null,
             ],
             'destinations.*.content_type' => [
                 'required',

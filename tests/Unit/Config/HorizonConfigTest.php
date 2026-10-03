@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\RemoteFile;
+use App\Jobs\Media\AdoptWorkspaceLibraryJob;
 use App\Jobs\Media\ImportRemoteMedia;
 use App\Jobs\RssFeed\FetchRssFeed;
 use App\Jobs\RssFeed\FetchRssFeedItemImage;
@@ -64,4 +65,17 @@ test('the import timeout stays below a short retry_after so the database queue n
 
     expect($job->timeout)->toBe(60)
         ->and($job->timeout)->toBeLessThan(config('queue.connections.database.retry_after'));
+});
+
+test('the library adoption is worked only by its own supervisor, which outlives the job', function () {
+    $others = collect(config('horizon.defaults'))
+        ->except('media-adoption')
+        ->flatMap(fn (array $supervisor): array => (array) data_get($supervisor, 'queue', []))
+        ->all();
+
+    expect(config('horizon.defaults.media-adoption.queue'))->toBe([AdoptWorkspaceLibraryJob::QUEUE])
+        ->and($others)->not->toContain(AdoptWorkspaceLibraryJob::QUEUE)
+        ->and(config('horizon.defaults.media-adoption.timeout'))->toBeGreaterThan((new ReflectionClass(AdoptWorkspaceLibraryJob::class))->getProperty('timeout')->getDefaultValue())
+        ->and(config('horizon.environments.production.media-adoption.maxProcesses'))->toBe(20)
+        ->and(config('horizon.environments.local.media-adoption'))->toBeArray();
 });

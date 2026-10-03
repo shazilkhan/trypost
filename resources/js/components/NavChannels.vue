@@ -27,6 +27,7 @@ import {
 import {
     Tooltip,
     TooltipContent,
+    TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useActiveUrl } from '@/composables/useActiveUrl';
@@ -297,26 +298,31 @@ const reconnect = (channel: SidebarChannel): void => {
                                 :name="channelName(channel)"
                                 :size="28"
                                 ring="sidebar"
-                            >
-                                <span
-                                    v-if="isConnectionLost(channel) && !canManageAccounts"
-                                    aria-hidden="true"
-                                    class="absolute -top-0.5 -start-0.5 size-2 rounded-full bg-destructive ring-2 ring-sidebar"
-                                    :data-testid="`sidebar-channel-${channel.id}-lost`"
-                                />
-                            </ChannelAvatar>
+                                :status="canManageAccounts ? null : channel.status"
+                                :account-id="channel.id"
+                            />
                             <span class="truncate text-sm">{{ channelName(channel) }}</span>
                         </Link>
                     </SidebarMenuButton>
-                    <button
+                    <TooltipProvider
                         v-if="isConnectionLost(channel) && canManageAccounts"
-                        type="button"
-                        class="absolute start-1.5 top-0.5 z-10 size-2 cursor-pointer rounded-full bg-destructive ring-2 ring-sidebar outline-hidden focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:start-0 group-data-[collapsible=icon]:top-0"
-                        :aria-label="$t('channels.reconnect')"
-                        :title="$t('channels.connection_lost_hint')"
-                        :data-testid="`sidebar-channel-${channel.id}-lost`"
-                        @click="reconnect(channel)"
-                    />
+                        :delay-duration="200"
+                    >
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <button
+                                    type="button"
+                                    class="absolute start-1.5 top-0.5 z-10 size-2 cursor-pointer rounded-full bg-destructive ring-2 ring-sidebar outline-hidden focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:start-0 group-data-[collapsible=icon]:top-0"
+                                    :aria-label="$t('channels.reconnect')"
+                                    :data-testid="`sidebar-channel-${channel.id}-lost`"
+                                    @click="reconnect(channel)"
+                                />
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                                {{ $t('channels.connection_lost_hint') }}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <SidebarMenuBadge
                         :class="[
                             'top-2 right-0 group-hover/channel:hidden group-has-focus-visible/channel:hidden max-md:hidden',

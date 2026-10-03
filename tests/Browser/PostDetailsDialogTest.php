@@ -254,7 +254,13 @@ test('the details metrics follow the order of the post content type and network'
     'instagram story' => [Platform::Instagram, PublicationContentType::Story, ['views', 'reach', 'replies', 'engagement_rate', 'reactions']],
     'instagram carousel' => [Platform::Instagram, PublicationContentType::Carousel, ['reactions', 'comments', 'engagement_rate', 'views', 'shares', 'saves', 'follows', 'reach']],
     'instagram reel' => [Platform::Instagram, PublicationContentType::Reel, ['reactions', 'comments', 'engagement_rate', 'views', 'shares', 'saves', 'watch_time_milliseconds', 'average_watch_time_milliseconds', 'reach']],
-    'x text' => [Platform::X, PublicationContentType::Text, ['reactions', 'comments', 'engagement_rate', 'views', 'shares', 'saves', 'follows', 'reach', 'reposts', 'quotes', 'bookmarks', 'impressions']],
+    'x text' => [Platform::X, PublicationContentType::Text, ['reactions', 'comments', 'engagement_rate', 'impressions', 'shares', 'quotes', 'bookmarks']],
+    'facebook image' => [Platform::Facebook, PublicationContentType::Image, ['reactions', 'comments', 'engagement_rate', 'impressions', 'shares']],
+    'threads text' => [Platform::Threads, PublicationContentType::Text, ['reactions', 'comments', 'engagement_rate', 'views', 'quotes', 'shares']],
+    'mastodon text' => [Platform::Mastodon, PublicationContentType::Text, ['reactions', 'comments', 'shares']],
+    'pinterest image' => [Platform::Pinterest, PublicationContentType::Image, ['saves', 'comments', 'engagement_rate', 'impressions', 'reactions']],
+    'youtube short' => [Platform::YouTube, PublicationContentType::Short, ['reactions', 'comments', 'engagement_rate', 'views', 'shares', 'saves', 'watch_time_milliseconds', 'average_watch_time_milliseconds']],
+    'tiktok video' => [Platform::TikTok, PublicationContentType::Video, ['reactions', 'comments', 'engagement_rate', 'views', 'shares', 'reach', 'watch_time_milliseconds', 'average_watch_time_milliseconds']],
 ]);
 
 function postDetailsDialogMetricsBandState(mixed $page, string $band): array

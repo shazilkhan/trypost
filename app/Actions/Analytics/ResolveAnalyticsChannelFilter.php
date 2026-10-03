@@ -16,7 +16,7 @@ class ResolveAnalyticsChannelFilter
 
     /**
      * @param  Collection<int, mixed>  $requested
-     * @return array{channels: list<array{id: string, platform: string, display_label: string, username: ?string, avatar_url: ?string, analytics_key: string}>, selected: EloquentCollection<int, SocialAccount>, keys: array<string, string>|null}
+     * @return array{channels: list<array{id: string, platform: string, display_label: string, username: ?string, avatar_url: ?string, status: string, analytics_key: string}>, selected: EloquentCollection<int, SocialAccount>, keys: array<string, string>|null}
      */
     public function execute(Workspace $workspace, Collection $requested): array
     {
@@ -33,6 +33,7 @@ class ResolveAnalyticsChannelFilter
                 'display_label' => $account->display_label,
                 'username' => $account->username,
                 'avatar_url' => $account->avatar_url,
+                'status' => $account->status->value,
                 'analytics_key' => $keys[$account->id],
             ])->values()->all(),
             'selected' => $accounts->whereIn('id', $selectedIds)->values(),

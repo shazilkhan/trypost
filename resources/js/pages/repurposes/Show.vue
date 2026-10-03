@@ -32,10 +32,10 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageErrors } from '@/composables/usePageErrors';
-import { getPlatformMetaIssue } from '@/composables/usePostCompliance';
 import debounce from '@/debounce';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { MediaType } from '@/lib/mediaType';
+import { getPlatformMetaIssue } from '@/lib/platformMeta';
 import {
     destroy,
     index as repurposesIndex,

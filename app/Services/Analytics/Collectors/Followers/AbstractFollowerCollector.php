@@ -9,6 +9,7 @@ use App\Enums\Analytics\MetricPrecision;
 use App\Enums\Analytics\ObservationProvenance;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\SocialAccount;
+use App\Support\Analytics\AnalyticsAccessToken;
 use App\Support\Analytics\MetaAnalyticsResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Response;
@@ -25,7 +26,7 @@ abstract class AbstractFollowerCollector
         bool $meta = false,
     ): Response {
         $response = Http::acceptJson()
-            ->withToken($account->access_token)
+            ->withToken(AnalyticsAccessToken::for($account))
             ->timeout(120)
             ->get($url, $query);
 

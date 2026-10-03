@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\Post;
 
 use App\Enums\PostPlatform\ContentType;
+use App\Rules\PostContentFitsMaxLength;
 use App\Support\PostMediaRules;
 use App\Support\PostStatusRules;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,7 +24,7 @@ class StorePostsRequest extends FormRequest
 
         return [
             'status' => ['required', 'string', Rule::in(['draft', 'scheduled', 'publishing'])],
-            'content' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
             ...PostMediaRules::rules(),
             'scheduled_at' => ['nullable', 'date', 'after:now', 'before:2038-01-19'],
             'queue' => PostStatusRules::queueRules(),
@@ -36,7 +37,7 @@ class StorePostsRequest extends FormRequest
                 Rule::exists('social_accounts', 'id')->where('workspace_id', $workspaceId),
             ],
             'destinations.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
-            'destinations.*.content' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'destinations.*.content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
             ...PostMediaRules::rules('destinations.*.media'),
             'destinations.*.meta' => ['sometimes', 'array'],
         ];

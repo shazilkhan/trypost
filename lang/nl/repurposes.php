@@ -166,6 +166,7 @@ return [
         'source_unusable' => 'Verbind het gevolgde account opnieuw voordat je deze automatisering start.',
         'destinations_required' => 'Kies minstens één bestemming voordat je activeert.',
         'destination_needs_video' => 'Dat formaat kan geen video bevatten.',
+        'destination_not_supported' => 'Google Business kan geen bestemming zijn: de berichten ondersteunen geen video.',
         'only_paused_resumes' => 'Alleen een gepauzeerde repurpose kan worden hervat.',
         'only_active_pauses' => 'Alleen een actieve repurpose kan worden gepauzeerd.',
         'only_running_disables' => 'Alleen een lopende repurpose kan worden uitgeschakeld.',

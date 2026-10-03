@@ -6,6 +6,7 @@ namespace App\Http\Requests\App\Ai;
 
 use App\Enums\Ai\PostAssistantMode;
 use App\Enums\SocialAccount\Platform;
+use App\Rules\PostContentFitsMaxLength;
 use App\Rules\PromptHasMinimumWords;
 use App\Support\AiPromptRules;
 use Illuminate\Foundation\Http\FormRequest;
@@ -38,10 +39,15 @@ class AssistPostContentRequest extends FormRequest
                 Rule::requiredIf(fn (): bool => $mode?->requiresContent() ?? false),
                 'nullable',
                 'string',
-                'max:10000',
+                new PostContentFitsMaxLength,
             ],
-            'previous_content' => ['nullable', 'string', 'max:10000'],
+            'previous_content' => ['nullable', 'string', new PostContentFitsMaxLength],
             'platform' => ['nullable', Rule::enum(Platform::class)],
+            'social_account_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('social_accounts', 'id')->where('workspace_id', $this->user()->currentWorkspace->id),
+            ],
         ];
     }
 }

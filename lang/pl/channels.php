@@ -242,7 +242,11 @@ return [
 
         'all' => 'Wszystkie strefy czasowe',
 
-        'detected' => 'Strefa czasowa wykryta przez przeglądarkę',
+        'yours' => 'Twoja strefa czasowa',
+
+        'browser' => 'Wykryta w przeglądarce',
+
+        'more' => '+:count więcej…',
         'placeholder' => 'Szukaj miast lub stref czasowych',
         'empty' => 'Nie znaleziono strefy czasowej',
     ],

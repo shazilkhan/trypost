@@ -7,6 +7,7 @@ use App\Ai\Agents\PostWritingAssistant;
 use App\Enums\Ai\PostAssistantMode;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\User\Locale;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Social\ContentSanitizer;
@@ -147,6 +148,54 @@ test('a suggestion for X is shortened to fit what X counts', function () {
         ->and(Platform::X->contentOverflow(app(ContentSanitizer::class)->displayText($content, Platform::X)))->toBe(0);
 
     PostContentShortener::assertPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->prompt, 'Great news for everyone.'));
+});
+
+test('the assistant writes for the account limit of the card it serves', function (array $meta, int $limit, bool $shortened) {
+    config()->set('trypost.self_hosted', true);
+    $account = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id, 'meta' => $meta]);
+    $long = trim(str_repeat('Great news for everyone. ', 16));
+    PostWritingAssistant::fake([$long]);
+    PostContentShortener::fake(['Great news, short and sweet.']);
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.assist'), [
+            'mode' => 'generate',
+            'prompt' => 'announce our summer launch today',
+            'platform' => Platform::X->value,
+            'social_account_id' => $account->id,
+        ])
+        ->assertOk()
+        ->assertJsonPath('content', $shortened ? 'Great news, short and sweet.' : $long);
+
+    PostWritingAssistant::assertPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->agent->instructions(), "Hard limit: {$limit} characters"));
+})->with([
+    'premium account' => [['x_subscription_type' => 'Premium'], 25000, false],
+    'free account' => [[], 280, true],
+]);
+
+test('the assistant rewrites a post as long as the longest post', function () {
+    PostWritingAssistant::fake(['Shorter']);
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.assist'), [
+            'mode' => 'shorten',
+            'current_content' => str_repeat('a', 20000),
+            'previous_content' => str_repeat('b', 20000),
+        ])
+        ->assertOk();
+});
+
+test('the assistant only accepts an account of the current workspace', function () {
+    $foreign = SocialAccount::factory()->x()->create();
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.assist'), [
+            'mode' => 'generate',
+            'prompt' => 'announce our summer launch today',
+            'social_account_id' => $foreign->id,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['social_account_id']);
 });
 
 test('a suggestion without a platform is returned unchanged', function () {

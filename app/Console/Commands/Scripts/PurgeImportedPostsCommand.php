@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\Scripts;
 
 use App\Actions\Media\DeleteOwnedMedia;
 use App\Actions\Post\PruneExpiredPostHistory;

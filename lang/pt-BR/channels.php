@@ -242,7 +242,11 @@ return [
 
         'all' => 'Todos os fusos horários',
 
-        'detected' => 'Fuso detectado pelo navegador',
+        'yours' => 'Seu fuso',
+
+        'browser' => 'Detectado no navegador',
+
+        'more' => '+:count mais…',
         'placeholder' => 'Buscar cidades ou fusos horários',
         'empty' => 'Nenhum fuso horário encontrado',
     ],

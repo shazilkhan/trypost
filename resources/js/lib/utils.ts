@@ -87,3 +87,18 @@ export const copyToClipboard = async (
 
     return true;
 };
+
+/** Mirrors ContentSanitizer::stripHtml(): the text a network receives for an HTML caption. */
+export const htmlToPlainText = (html: string): string => {
+    const withBreaks = html
+        .replace(/<p[^>]*>/gi, '')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<li[^>]*>/gi, '- ')
+        .replace(/<\/li>/gi, '\n');
+    const text =
+        new DOMParser().parseFromString(withBreaks, 'text/html').body
+            .textContent ?? '';
+
+    return text.replace(/\n{3,}/g, '\n\n').trim();
+};

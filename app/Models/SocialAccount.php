@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\Analytics\DispatchAccountAnalytics;
-use App\Actions\SocialAccount\GeneratePostingSchedule;
+use App\Actions\SocialAccount\ApplyChannelDefaults;
 use App\Casts\PostingScheduleCast;
 use App\Enums\Notification\Type;
 use App\Enums\PostPlatform\ContentType;
@@ -18,7 +18,6 @@ use App\Mail\AccountDisconnected;
 use App\Models\Scopes\SocialAccountOrderScope;
 use App\Observers\SocialAccountObserver;
 use App\Support\GoogleBusinessResourceName;
-use App\Support\Timezone;
 use Database\Factories\SocialAccountFactory;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -41,6 +40,13 @@ class SocialAccount extends Model
 {
     /** @use HasFactory<SocialAccountFactory> */
     use HasFactory, HasUuids;
+
+    public const int X_LONG_POST_LENGTH = 25000;
+
+    /**
+     * @var list<string>
+     */
+    public const array X_LONG_POST_SUBSCRIPTIONS = ['Basic', 'Premium', 'PremiumPlus'];
 
     protected $fillable = [
         'workspace_id',
@@ -97,6 +103,31 @@ class SocialAccount extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    /**
+     * Whether this X account may publish posts longer than 280 characters:
+     * any paid subscription, or a verified organization.
+     */
+    public function hasXLongPosts(): bool
+    {
+        return $this->platform === SocialPlatform::X
+            && (in_array(data_get($this->meta, 'x_subscription_type'), self::X_LONG_POST_SUBSCRIPTIONS, true)
+                || data_get($this->meta, 'x_verified_type') === 'business');
+    }
+
+    /**
+     * The hard character cap for this account's posts. Same as the platform's,
+     * except an X account with long posts.
+     */
+    public function maxContentLength(): int
+    {
+        return $this->hasXLongPosts() ? self::X_LONG_POST_LENGTH : $this->platform->maxContentLength();
+    }
+
+    public function contentOverflow(string $content, int $reserved = 0): int
+    {
+        return max(0, mb_strlen($content) + $reserved - $this->maxContentLength());
     }
 
     /**
@@ -205,13 +236,7 @@ class SocialAccount extends Model
      */
     private static function applyChannelDefaults(self $account, Workspace $workspace): void
     {
-        $goal = 3;
-
-        $account->forceFill([
-            'timezone' => Timezone::normalize(auth()->user()?->timezone ?? $workspace->owner?->timezone),
-            'posting_goal' => $goal,
-            'posting_schedule' => app(GeneratePostingSchedule::class)->handle($account->platform, $goal),
-        ])->saveQuietly();
+        ApplyChannelDefaults::execute($account, auth()->user()?->timezone ?? $workspace->owner?->timezone);
     }
 
     /**

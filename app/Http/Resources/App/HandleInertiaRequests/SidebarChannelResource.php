@@ -7,12 +7,13 @@ namespace App\Http\Resources\App\HandleInertiaRequests;
 use App\Enums\Post\Status as PostStatus;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
+use App\Support\Timezone;
 use Illuminate\Database\Eloquent\Builder;
 
 class SidebarChannelResource
 {
     /**
-     * @return list<array{id: string, platform: string, network: string, username: string, display_name: ?string, avatar_url: ?string, status: ?string, scheduled_posts_count: int}>
+     * @return list<array{id: string, platform: string, network: string, username: string, display_name: ?string, avatar_url: ?string, status: ?string, timezone: string, scheduled_posts_count: int}>
      */
     public static function collection(Workspace $workspace): array
     {
@@ -31,6 +32,7 @@ class SidebarChannelResource
                 'display_name' => $account->display_name,
                 'avatar_url' => $account->avatar_url,
                 'status' => $account->status?->value,
+                'timezone' => Timezone::normalize($account->timezone),
                 'scheduled_posts_count' => (int) $account->scheduled_posts_count,
             ])
             ->values()

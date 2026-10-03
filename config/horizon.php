@@ -286,6 +286,21 @@ return [
             'nice' => 0,
         ],
 
+        'media-adoption' => [
+            'connection' => 'redis',
+            'queue' => ['media-adoption'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'size',
+            'minProcesses' => 1,
+            'maxProcesses' => 2,
+            'timeout' => 630,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 1,
+            'nice' => 0,
+        ],
+
         'rss-feeds' => [
             'connection' => 'redis',
             'queue' => ['rss-feeds'],
@@ -334,6 +349,12 @@ return [
                 'balanceCooldown' => 3,
             ],
 
+            'media-adoption' => [
+                'maxProcesses' => (int) env('HORIZON_MEDIA_ADOPTION_PROCESSES', 20),
+                'balanceMaxShift' => 5,
+                'balanceCooldown' => 1,
+            ],
+
             'rss-feeds' => [
                 'maxProcesses' => 3,
                 'balanceMaxShift' => 1,
@@ -360,6 +381,10 @@ return [
 
             'media-imports' => [
                 'maxProcesses' => 1,
+            ],
+
+            'media-adoption' => [
+                'maxProcesses' => 2,
             ],
 
             'rss-feeds' => [

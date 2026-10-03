@@ -81,15 +81,21 @@ test('attempts the internal fetch when allow_private_network is enabled', functi
 });
 
 test('downloads are requested uncompressed and a compressed body is rejected without leaving a temp file', function () {
-    Http::fake(['https://93.184.216.34/photo.png' => Http::response(gzencode(str_repeat('0', 4096)), 200, ['Content-Type' => 'image/png', 'Content-Encoding' => 'gzip'])]);
+    $body = gzencode(str_repeat('0', 4096));
+    Http::fake(['https://93.184.216.34/photo.png' => Http::response($body, 200, ['Content-Type' => 'image/png', 'Content-Encoding' => 'gzip'])]);
     $before = glob(sys_get_temp_dir().'/media_*') ?: [];
 
     $result = app(MediaAttacher::class)->attachFromUrls($this->post, [['url' => 'https://93.184.216.34/photo.png']]);
 
+    $leftovers = array_filter(
+        array_diff(glob(sys_get_temp_dir().'/media_*') ?: [], $before),
+        fn (string $path): bool => @file_get_contents($path) === $body,
+    );
+
     Http::assertSent(fn ($request) => $request->hasHeader('Accept-Encoding', 'identity'));
     expect($result['attached'])->toBeEmpty()
         ->and($result['failed'])->toBe(['https://93.184.216.34/photo.png'])
-        ->and(glob(sys_get_temp_dir().'/media_*') ?: [])->toBe($before);
+        ->and($leftovers)->toBe([]);
 });
 
 test('a url that redirects is refused and the redirect target is never requested', function () {

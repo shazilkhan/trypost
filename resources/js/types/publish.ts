@@ -7,6 +7,7 @@ import type {
     QueuePositionValue,
     ScheduleModeValue,
 } from '@/types/post';
+import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 export type PublishTab = 'queue' | 'approvals' | 'drafts' | 'sent';
 
@@ -24,6 +25,7 @@ export interface PublishSocialAccount {
     handle_label?: string;
     has_posting_schedule?: boolean;
     timezone?: string;
+    status?: SocialAccountStatusValue | null;
 }
 
 export interface PublishChannel extends PublishSocialAccount {
@@ -40,6 +42,8 @@ export interface PostCardPlatform {
     platform: string;
     status: string;
     platform_url?: string | null;
+    error_message?: string | null;
+    error_context?: { category?: string | null; failed_at?: string | null } | null;
     social_account: PublishSocialAccount | null;
     content_type?: string;
     meta?: Record<string, any>;
@@ -106,7 +110,6 @@ export interface QueuePostPosition {
 
 export interface PublishQueue {
     days: QueueDay[];
-    needsAttention: PostCard[];
     pending: PostCard[];
     queueDays: number;
     maxQueueDays: number;

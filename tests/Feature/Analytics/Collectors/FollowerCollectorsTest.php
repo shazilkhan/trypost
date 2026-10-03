@@ -142,3 +142,24 @@ test('excluded platforms have no collector and make no provider request', functi
     Platform::Discord,
     Platform::GoogleBusiness,
 ]);
+
+test('an expired youtube token is refreshed before the subscriber count is requested', function () {
+    Http::fake([
+        config('trypost.platforms.youtube.oauth_api').'/token' => Http::response(['access_token' => 'fresh-token', 'expires_in' => 3599]),
+        config('trypost.platforms.youtube.data_api').'/channels*' => Http::response(['items' => [[
+            'statistics' => ['subscriberCount' => '42', 'hiddenSubscriberCount' => false],
+        ]]]),
+    ]);
+    $account = SocialAccount::factory()->youtube()->createQuietly([
+        'access_token' => 'stale-token',
+        'token_expires_at' => now()->subMinute(),
+    ]);
+
+    $observation = app(FollowerCollectorFactory::class)
+        ->for($account->platform)
+        ->collect($account, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect($observation->followers)->toBe(42);
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/channels')
+        && $request->hasHeader('Authorization', 'Bearer fresh-token'));
+});

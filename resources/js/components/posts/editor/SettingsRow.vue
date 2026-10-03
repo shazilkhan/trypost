@@ -26,7 +26,7 @@ withDefaults(
             v-else
             class="text-[13px] font-medium text-foreground"
             :class="{ 'sm:pt-1.5': alignTop, 'max-sm:hidden': !label }"
-            >{{ label }}</span
+            ><slot name="label">{{ label }}</slot></span
         >
         <div class="min-w-0 space-y-1.5">
             <slot />

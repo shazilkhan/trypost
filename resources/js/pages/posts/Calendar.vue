@@ -19,8 +19,8 @@ import CalendarSlotChip from '@/components/publish/CalendarSlotChip.vue';
 import CalendarStatusFilter from '@/components/publish/CalendarStatusFilter.vue';
 import CalendarTimeGrid from '@/components/publish/CalendarTimeGrid.vue';
 import CalendarUndatedPanel from '@/components/publish/CalendarUndatedPanel.vue';
-import DisplayTimezoneSelect from '@/components/publish/DisplayTimezoneSelect.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
+import TimezoneSelect from '@/components/TimezoneSelect.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -70,7 +70,6 @@ interface Props {
     view: CalendarView;
     displayTimezone: string;
     timezones: TimezoneOption[];
-    channelTimezones: string[];
     labels: PostCardLabel[];
     filters: {
         labels: string[];
@@ -96,7 +95,6 @@ const RELOAD_PROPS = [
     'currentMonth',
     'view',
     'displayTimezone',
-    'channelTimezones',
     'filters',
     'slots',
 ];
@@ -530,13 +528,21 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                         class="h-5 w-px shrink-0 bg-border-strong"
                         aria-hidden="true"
                     />
-                    <DisplayTimezoneSelect
-                        :model-value="timezone"
-                        :options="timezones"
-                        :user-timezone="userTimezone"
-                        :channel-timezones="channelTimezones"
-                        @update:model-value="setTimezone"
-                    />
+                    <div
+                        class="shrink-0"
+                        data-testid="publish-timezone-select"
+                        role="group"
+                        :aria-label="$t('posts.publish.timezone.label')"
+                    >
+                        <TimezoneSelect
+                            :model-value="timezone"
+                            :options="timezones"
+                            testid="publish-timezone"
+                            variant="ghost"
+                            compact
+                            @update:model-value="setTimezone"
+                        />
+                    </div>
                     <DropdownMenu>
                         <DropdownMenuTrigger as-child>
                             <Button

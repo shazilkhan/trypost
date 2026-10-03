@@ -73,14 +73,14 @@ test('one channel opens its own editor directly and a second channel returns to 
         ->click("@composer-account-option-{$youtube->id}")
         ->assertVisible('@composer-customization')
         ->assertValue("@composer-caption-{$youtube->id}", 'Typed before choosing')
-        ->assertVisible('@youtube-description-0')
+        ->assertVisible('@youtube-title')
         ->assertVisible('@composer-submit')
         ->assertMissing('@composer-next')
         ->assertMissing('@composer-back')
         ->assertMissing('@composer-base-content');
     expect($page->script('document.querySelectorAll("[data-testid=composer-preview-frame]").length'))->toBe(1);
 
-    $page->fill('@youtube-description-0', 'Only for YouTube')
+    $page->fill('@youtube-title', 'Only for YouTube')
         ->fill("@composer-caption-{$youtube->id}", 'Edited for one channel')
         ->click('@composer-add-account')
         ->click("@composer-account-option-{$linkedin->id}")
@@ -92,7 +92,7 @@ test('one channel opens its own editor directly and a second channel returns to 
     $page->click('@composer-next')
         ->click("@composer-account-{$youtube->id}")
         ->assertValue("@composer-caption-{$youtube->id}", 'Edited for one channel')
-        ->assertValue('@youtube-description-0', 'Only for YouTube')
+        ->assertValue('@youtube-title', 'Only for YouTube')
         ->click("@composer-account-{$linkedin->id}")
         ->fill("@composer-caption-{$linkedin->id}", 'Only for LinkedIn')
         ->click("@composer-remove-account-{$youtube->id}")
@@ -118,7 +118,7 @@ test('saving a single channel draft keeps its network fields on the post platfor
     $page->click('@composer-add-account')
         ->click("@composer-account-option-{$youtube->id}")
         ->fill("@composer-caption-{$youtube->id}", 'A short about the launch')
-        ->fill('@youtube-description-0', 'Launch description')
+        ->fill('@youtube-title', 'Launch title')
         ->click('@composer-save-draft');
     waitForSingleChannelComposerClosed($page);
 
@@ -128,7 +128,51 @@ test('saving a single channel draft keeps its network fields on the post platfor
         ->and($post->content)->toBe('A short about the launch')
         ->and($platform->social_account_id)->toBe($youtube->id)
         ->and($platform->content_type)->toBe(ContentType::YouTubeShort)
-        ->and(data_get($platform->meta, 'description'))->toBe('Launch description');
+        ->and(data_get($platform->meta, 'title'))->toBe('Launch title');
+});
+
+test('picking youtube after typing the caption pre-fills the title from it', function () {
+    [$user, $workspace] = singleChannelComposerWorkspace();
+    $youtube = SocialAccount::factory()->youtube()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    waitForSingleChannelComposerTestId($page, 'composer-add-account');
+    $page->fill('@composer-base-content', 'Behind the scenes of our launch')
+        ->click('@composer-add-account')
+        ->click("@composer-account-option-{$youtube->id}")
+        ->assertValue('@youtube-title', 'Behind the scenes of our launch')
+        ->assertNoJavaScriptErrors();
+});
+
+test('the youtube title follows the caption until the title is edited', function () {
+    [$user, $workspace] = singleChannelComposerWorkspace();
+    $youtube = SocialAccount::factory()->youtube()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    waitForSingleChannelComposerTestId($page, 'composer-add-account');
+    $page->fill('@composer-base-content', "Typed first\nMore details below")
+        ->click('@composer-add-account')
+        ->click("@composer-account-option-{$youtube->id}")
+        ->assertValue('@youtube-title', 'Typed first')
+        ->fill("@composer-caption-{$youtube->id}", "\n\nLaunch day\nMore details below")
+        ->assertValue('@youtube-title', 'Launch day')
+        ->fill("@composer-caption-{$youtube->id}", str_repeat('a', 120))
+        ->assertValue('@youtube-title', str_repeat('a', 100))
+        ->fill("@composer-caption-{$youtube->id}", 'Video <b>tips</b>')
+        ->assertValue('@youtube-title', 'Video tips')
+        ->fill("@composer-caption-{$youtube->id}", '<p></p><p>First &amp; best</p><p>Second</p>')
+        ->assertValue('@youtube-title', 'First & best')
+        ->fill('@youtube-title', 'My own title')
+        ->fill("@composer-caption-{$youtube->id}", 'Changed caption')
+        ->assertValue('@youtube-title', 'My own title')
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft');
+    waitForSingleChannelComposerClosed($page);
+
+    $platform = Post::where('workspace_id', $workspace->id)->sole()->postPlatforms()->sole();
+    expect(data_get($platform->meta, 'title'))->toBe('My own title');
 });
 
 test('scheduling a single channel saves its post platform with the chosen format', function () {
@@ -191,7 +235,7 @@ test('editing a single channel post opens its own editor', function () {
         ->assertNoJavaScriptErrors();
 });
 
-test('text only channels without shared media open one card per network directly', function () {
+test('text only channels start on the shared step and every card starts from the shared text', function () {
     [$user, $workspace] = singleChannelComposerWorkspace();
     $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
     $linkedin = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
@@ -202,29 +246,34 @@ test('text only channels without shared media open one card per network directly
     waitForSingleChannelComposerTestId($page, 'composer-add-account');
     $page->fill('@composer-base-content', 'Shared idea')
         ->click('@composer-add-account')
-        ->click("@composer-account-option-{$x->id}")
-        ->click("@composer-account-option-{$linkedin->id}")
         ->click("@composer-account-option-{$facebook->id}")
-        ->assertVisible('@composer-customization')
-        ->assertValue("@composer-caption-{$facebook->id}", 'Shared idea')
-        ->assertSeeIn("@composer-expand-{$x->id}", 'Shared idea')
-        ->assertSeeIn("@composer-expand-{$linkedin->id}", 'Shared idea')
-        ->assertVisible('@composer-schedule-trigger')
-        ->assertSeeIn('@composer-submit', 'Publish posts')
+        ->click("@composer-account-option-{$linkedin->id}")
+        ->click("@composer-account-option-{$x->id}")
+        ->assertValue('@composer-base-content', 'Shared idea')
+        ->assertMissing('@composer-customization')
         ->assertSeeIn('@composer-save-draft', 'Save drafts')
+        ->assertMissing('@composer-submit')
+        ->assertMissing('@composer-back');
+    expect($page->script('document.querySelectorAll("[data-testid=composer-preview-card]").length'))->toBe(3);
+
+    $page->click('@composer-next');
+    waitForSingleChannelComposerTestId($page, "composer-caption-{$x->id}");
+    $page->assertValue("@composer-caption-{$x->id}", 'Shared idea')
+        ->assertSeeIn("@composer-expand-{$linkedin->id}", 'Shared idea')
+        ->assertSeeIn("@composer-expand-{$facebook->id}", 'Shared idea')
+        ->assertSeeIn('@composer-submit', 'Publish posts')
+        ->assertVisible('@composer-back')
         ->assertMissing('@composer-next')
-        ->assertMissing('@composer-back')
         ->assertMissing('@composer-base-content');
     expect($page->script('document.querySelectorAll("[data-testid=composer-preview-frame]").length'))->toBe(1);
 
-    $page->click("@composer-expand-{$x->id}")
-        ->assertValue("@composer-caption-{$x->id}", 'Shared idea')
-        ->fill("@composer-caption-{$x->id}", 'Only on X')
+    $page->fill("@composer-caption-{$x->id}", 'Only on X')
         ->assertSeeIn("@composer-expand-{$linkedin->id}", 'Shared idea')
         ->click("@composer-remove-account-{$facebook->id}")
         ->assertValue("@composer-caption-{$x->id}", 'Only on X')
         ->click("@composer-remove-account-{$x->id}")
         ->assertValue("@composer-caption-{$linkedin->id}", 'Shared idea')
+        ->assertMissing('@composer-back')
         ->assertNoJavaScriptErrors();
 });
 

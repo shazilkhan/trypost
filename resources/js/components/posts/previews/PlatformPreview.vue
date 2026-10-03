@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import type { MediaItem } from '@/types/media';
+import { THREAD_PLATFORMS } from '@/types/network-options';
 
 import BlueskyPreview from './BlueskyPreview.vue';
 import DiscordPreview from './DiscordPreview.vue';
@@ -41,6 +42,15 @@ const { contentFor } = useXLinkDefuser();
  * keeps the rewrite in one place on the client just as it is on the server.
  */
 const previewContent = computed((): string => contentFor(props.content, props.platform));
+
+const threadReplies = computed((): string[] =>
+    THREAD_PLATFORMS.includes(props.platform) &&
+    Array.isArray(props.meta?.thread_replies)
+        ? props.meta.thread_replies.filter(
+              (reply: string) => reply.trim() !== '',
+          )
+        : [],
+);
 
 const resolvedSocialAccount = computed((): PreviewAccount => props.socialAccount ?? {
     id: '',
@@ -92,14 +102,37 @@ const previewComponent = computed(() => {
     <div
         class="overflow-hidden rounded-lg border bg-card text-card-foreground"
     >
-        <component
-            :is="previewComponent"
-            :social-account="resolvedSocialAccount"
-            :content="previewContent"
-            :media="media"
-            :content-type="contentType"
-            :meta="meta"
-            :posted-at="postedAt"
-        />
+        <div
+            :data-testid="threadReplies.length ? 'preview-thread' : undefined"
+        >
+            <component
+                :is="previewComponent"
+                :social-account="resolvedSocialAccount"
+                :content="previewContent"
+                :media="media"
+                :content-type="contentType"
+                :meta="meta"
+                :posted-at="postedAt"
+                :thread-position="threadReplies.length ? 'first' : undefined"
+            />
+            <div
+                v-for="(reply, index) in threadReplies"
+                :key="index"
+                :data-testid="`preview-thread-reply-${index}`"
+            >
+                <component
+                    :is="previewComponent"
+                    :social-account="resolvedSocialAccount"
+                    :content="contentFor(reply, platform)"
+                    :media="[]"
+                    :content-type="contentType"
+                    :meta="{ spoiler_text: meta?.spoiler_text }"
+                    :posted-at="postedAt"
+                    :thread-position="
+                        index === threadReplies.length - 1 ? 'last' : 'middle'
+                    "
+                />
+            </div>
+        </div>
     </div>
 </template>

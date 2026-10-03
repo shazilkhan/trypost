@@ -40,6 +40,8 @@ const title = (value: CommandPaletteTitle, translate: Translate): string =>
         @select="emit('select', entry)"
     >
         <ChannelAvatar
+            :status="entry.channel.status"
+            :account-id="entry.channel.id"
             v-if="entry.channel"
             :platform="entry.channel.platform"
             :src="entry.channel.avatar_url"

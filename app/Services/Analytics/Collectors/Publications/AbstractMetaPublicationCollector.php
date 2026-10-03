@@ -8,6 +8,7 @@ use App\Dto\Analytics\DiscoveredPublication;
 use App\Dto\Analytics\PublicationPage;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\SocialAccount;
+use App\Support\Analytics\AnalyticsAccessToken;
 use App\Support\Analytics\InvalidPublicationCursor;
 use App\Support\Analytics\MetaAnalyticsResponse;
 use Carbon\CarbonImmutable;
@@ -22,7 +23,7 @@ abstract class AbstractMetaPublicationCollector extends AbstractPublicationHisto
     protected function get(SocialAccount $account, string $url, array $query = [], bool $authenticated = true): Response
     {
         $response = Http::acceptJson()
-            ->withToken($account->access_token)
+            ->withToken(AnalyticsAccessToken::for($account))
             ->timeout(120)
             ->get($url, array_filter($query, fn (mixed $value): bool => $value !== null && $value !== ''));
 

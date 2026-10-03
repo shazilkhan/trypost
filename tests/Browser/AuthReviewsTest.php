@@ -83,5 +83,5 @@ test('the auth column keeps a 16px gutter without overflow on phones', function 
         })()
     JS);
 
-    expect($layout)->toBe(['overflow' => false, 'left' => 16, 'right' => 16, 'height' => 40]);
+    expect($layout)->toBe(['overflow' => false, 'left' => 16, 'right' => 16, 'height' => 32]);
 })->with(['login', 'register', 'password.request']);

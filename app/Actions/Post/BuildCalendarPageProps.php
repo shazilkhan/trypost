@@ -98,12 +98,6 @@ class BuildCalendarPageProps
             'view' => $view,
             'displayTimezone' => $timezone,
             'timezones' => fn (): array => Timezone::options(),
-            'channelTimezones' => fn (): array => ($channel ? collect([$channel]) : $filterAccounts())
-                ->map(fn (SocialAccount $account): string => Timezone::normalize($account->timezone))
-                ->reject(fn (string $zone): bool => $zone === $userTimezone)
-                ->unique()
-                ->values()
-                ->all(),
             'labels' => fn () => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
             'filters' => [
                 'labels' => $labelIds,

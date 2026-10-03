@@ -105,11 +105,6 @@ const allowStitch = computed({
     set: (value: boolean) => updateMeta({ allow_stitch: value }),
 });
 
-const isAigc = computed({
-    get: () => props.meta?.is_aigc ?? false,
-    set: (value: boolean) => updateMeta({ is_aigc: value }),
-});
-
 const discloseOpen = computed({
     get: () => props.meta?.disclose ?? false,
     set: (value: boolean) => {
@@ -401,13 +396,6 @@ watch(
                     </label>
                 </template>
             </div>
-        </SettingsRow>
-
-        <SettingsRow v-if="!isPhotoPost">
-            <label class="flex min-h-8 items-center gap-2 text-sm">
-                <Checkbox v-model="isAigc" :disabled="props.disabled" />
-                {{ $t('posts.form.tiktok.is_aigc') }}
-            </label>
         </SettingsRow>
 
         <SettingsRow>

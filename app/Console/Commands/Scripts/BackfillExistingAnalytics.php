@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Analytics;
+namespace App\Console\Commands\Scripts;
 
 use App\Enums\Analytics\SyncCollector;
 use App\Enums\Analytics\SyncStatus;

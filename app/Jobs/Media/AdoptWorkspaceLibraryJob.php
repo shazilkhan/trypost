@@ -21,6 +21,12 @@ class AdoptWorkspaceLibraryJob implements ShouldBeUnique, ShouldQueue
 {
     use Queueable;
 
+    /**
+     * Its own queue and Horizon supervisor, so the release can adopt many
+     * workspaces in parallel without holding up the `default` queue.
+     */
+    public const string QUEUE = 'media-adoption';
+
     public const int RETRY_PUBLISHING_AFTER = 300;
 
     public const int RETRY_DEFERRED_AFTER = 5;
@@ -48,7 +54,10 @@ class AdoptWorkspaceLibraryJob implements ShouldBeUnique, ShouldQueue
     /**
      * @param  array<string, list<string>>|null  $foreignReferences  this workspace's slice of `AdoptWorkspaceLibrary::foreignReferences()`; null computes it within the budget
      */
-    public function __construct(public Workspace $workspace, public ?array $foreignReferences = null) {}
+    public function __construct(public Workspace $workspace, public ?array $foreignReferences = null)
+    {
+        $this->onQueue(self::QUEUE);
+    }
 
     public function uniqueId(): string
     {

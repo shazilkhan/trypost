@@ -90,6 +90,13 @@ test('a row whose file is missing is reported', function () {
     expect(AuditMedia::execute()['missing_files'])->toBe([['media_id' => $seed['itemMedia']->id, 'path' => $seed['itemMedia']->path]]);
 });
 
+test('the audit can skip the per-row file check', function () {
+    $seed = auditSeedClean();
+    Storage::delete($seed['itemMedia']->path);
+
+    expect(AuditMedia::execute(checkMissingFiles: false))->toBe([...AuditMedia::execute(), 'missing_files' => []]);
+});
+
 test('a row with two owners or none is reported', function () {
     $seed = auditSeedClean();
     $two = auditInsertRaw(['workspace_id' => $seed['post']->workspace_id, 'post_id' => $seed['post']->id, 'idea_id' => $seed['idea']->id]);

@@ -122,3 +122,26 @@ test('an empty workspace shows the empty state with a connect button', function 
         ->assertVisible('@channels-connect')
         ->assertNoJavaScriptErrors();
 });
+
+test('a channel with a lost connection shows the disconnected dot in the list and the channel header', function () {
+    $user = channelsSettingsAdmin();
+    $lost = SocialAccount::factory()->linkedin()->tokenExpired()->create(['workspace_id' => $user->current_workspace_id]);
+    $healthy = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.workspace.channels'));
+    waitForChannelsSettingsTestId($page, "channel-row-{$lost->id}");
+
+    $page->assertVisible("@channel-avatar-disconnected-{$lost->id}")
+        ->assertMissing("@channel-avatar-disconnected-{$healthy->id}")
+        ->assertSeeIn("@channel-connection-lost-{$lost->id}", __('channels.connection_lost_hint'))
+        ->assertVisible("@channel-reconnect-{$lost->id}")
+        ->assertMissing("@channel-connection-lost-{$healthy->id}")
+        ->assertMissing("@channel-reconnect-{$healthy->id}")
+        ->assertNoJavaScriptErrors();
+
+    $page = visit(route('app.channels.publish', $lost));
+    waitForChannelsSettingsTestId($page, 'header-title');
+
+    $page->assertVisible("@channel-avatar-disconnected-{$lost->id}")->assertNoJavaScriptErrors();
+});

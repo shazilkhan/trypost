@@ -534,3 +534,27 @@ test('the activity list exposes each replicated post status', function () {
                 ->values()
                 ->all() === [PostPlatformStatus::Failed->value, PostPlatformStatus::Published->value]));
 });
+
+test('google business is never a repurpose destination', function () {
+    $googleBusiness = SocialAccount::factory()->for($this->workspace)->create(['platform' => Platform::GoogleBusiness]);
+    $repurpose = Repurpose::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'source_social_account_id' => $this->source->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.repurposes.show', $repurpose))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->has('destinationAccounts', 2)
+            ->where('destinationAccounts', fn ($accounts) => collect($accounts)->doesntContain('id', $googleBusiness->id)));
+
+    $this->actingAs($this->user)
+        ->put(route('app.repurposes.update', $repurpose), ['destinations' => [[
+            'social_account_id' => $googleBusiness->id,
+            'content_type' => ContentType::GoogleBusinessPost->value,
+            'meta' => [],
+        ]]])
+        ->assertSessionHasErrors(['destinations.0.social_account_id' => __('repurposes.errors.destination_not_supported')]);
+
+    expect($repurpose->fresh()->destinations)->toBe([]);
+});

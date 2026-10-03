@@ -242,7 +242,11 @@ return [
 
         'all' => 'Todas las zonas horarias',
 
-        'detected' => 'Zona horaria detectada por el navegador',
+        'yours' => 'Tu zona horaria',
+
+        'browser' => 'Detectada en tu navegador',
+
+        'more' => '+:count más…',
         'placeholder' => 'Busca ciudades o zonas horarias',
         'empty' => 'No se encontró ninguna zona horaria',
     ],

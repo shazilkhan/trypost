@@ -345,8 +345,10 @@ Depois de mudar variáveis: `php artisan config:clear`.
 ### 7.3 No deploy (Laravel Cloud)
 
 1. **Comando de deploy, só neste release**, depois das migrations:
-   `php artisan media:adopt-library --force`
-   (no Docker isso já roda no `docker/entrypoint.sh` a cada boot e não faz nada depois que tudo foi migrado).
+   `php artisan release:trypost-2 --force` (a adoção da biblioteca é o passo 3 dele e termina no próprio processo;
+   roteiro em [`DEPLOYMENT.md` §3](DEPLOYMENT.md)). O `media:adopt-library` avulso fica em
+   `app/Console/Commands/Scripts/` (no Docker ele roda no `docker/entrypoint.sh` a cada boot e não faz nada depois
+   que tudo foi migrado).
 2. **Filas novas.** Os workers/Horizon precisam consumir `media-imports` e `rss-feeds` (supervisores novos em
    `config/horizon.php`). Em quem usa `queue:work`: `--queue=default,media-imports,rss-feeds,...`. Sem isso, Google
    Drive, Google Photos e Canva nunca importam e os feeds RSS não atualizam.
@@ -355,9 +357,11 @@ Depois de mudar variáveis: `php artisan config:clear`.
 
 ### 7.4 Depois do deploy
 
-1. Acompanhe os jobs `AdoptWorkspaceLibraryJob` no Horizon até zerarem. Se algum workspace falhar de vez, aparece
-   um erro no log; rode `php artisan media:adopt-library --force` de novo.
-2. Rode `php artisan media:audit` (só leitura) e confira que todas as checagens dão 0.
+1. Se o `release:trypost-2` deixou algum workspace para a fila, acompanhe os jobs `AdoptWorkspaceLibraryJob` no
+   Horizon até zerarem. Se algum workspace falhar de vez, aparece um erro no log; rode
+   `php artisan release:trypost-2 --force` de novo.
+2. O `release:trypost-2` termina com `media:audit` (só leitura); confira que todas as checagens dão 0, ou rode
+   `php artisan media:audit` de novo depois que a fila drenar.
 3. **Janela até a migração terminar:** duplicar um post ou recuperar um rascunho pode manter a mídia antiga da
    biblioteca até ela ser migrada, e o texto alternativo por IA dá 404 nessas mídias. Some sozinho quando a adoção
    termina.

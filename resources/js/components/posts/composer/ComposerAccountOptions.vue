@@ -70,6 +70,8 @@ const allSelected = (): boolean => props.accounts.every(isSelected);
                     @click="emit('toggle', account)"
                 >
                     <ChannelAvatar
+                        :status="account.status"
+                        :account-id="account.id"
                         :platform="account.platform"
                         :src="account.avatar_url"
                         :name="account.display_name || account.username"

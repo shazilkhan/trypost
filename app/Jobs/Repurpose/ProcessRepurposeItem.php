@@ -96,7 +96,7 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
         foreach ($repurpose->destinations as $destination) {
             $account = $workspace->socialAccounts()->find(data_get($destination, 'social_account_id'));
 
-            if ($account !== null) {
+            if ($account !== null && $account->platform->acceptsRepurposeDestination()) {
                 $targets[] = [
                     'account' => $account,
                     'destination' => $destination,

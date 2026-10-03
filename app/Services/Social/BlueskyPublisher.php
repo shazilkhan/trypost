@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Social;
 
+use App\Dto\MediaItem;
 use App\Enums\Media\Type as MediaType;
 use App\Enums\SocialAccount\Platform;
 use App\Exceptions\Social\BlueskyPublishException;
@@ -12,8 +13,10 @@ use App\Models\SocialAccount;
 use App\Services\Http\SafeHttpFetcher;
 use App\Services\Media\MediaOptimizer;
 use App\Services\Social\Concerns\HasSocialHttpClient;
+use App\Services\Social\Concerns\PublishesThreads;
 use App\Services\Social\LinkCard\LinkCardFetcher;
 use App\Services\Social\LinkCard\LinkCardMetadata;
+use App\Support\Social\ThreadProgress;
 use App\Support\UrlDetector;
 use Carbon\CarbonInterface;
 use Exception;
@@ -26,6 +29,7 @@ use Throwable;
 class BlueskyPublisher
 {
     use HasSocialHttpClient;
+    use PublishesThreads;
 
     /** Seconds allowed for a remote media download (large videos need time). */
     private const DOWNLOAD_TIMEOUT = 600;
@@ -60,6 +64,65 @@ class BlueskyPublisher
             app(ConnectionVerifier::class)->refreshToken($account);
         }
 
+        $lookForLiveReply = ThreadProgress::rootHash($postPlatform->error_context) !== null;
+
+        return $this->publishThread(
+            $postPlatform,
+            ThreadProgress::hash((string) $content, $postPlatform->post->mediaItems->map(fn (MediaItem $item): string => $item->id)->all()),
+            fn (): array => $this->publishRoot($postPlatform, $account, $service, $content),
+            function (string $text, array $parent, array $root) use ($account, $service, &$lookForLiveReply): array {
+                $live = $lookForLiveReply ? $this->liveReply($account, $text, $parent) : null;
+                $lookForLiveReply = false;
+
+                return $live ?? $this->publishReply($account, $service, $text, $parent, $root);
+            },
+        );
+    }
+
+    /**
+     * A resumed thread may have posted its next reply before the response was
+     * lost. Our own reply with the same text under the parent is that reply.
+     *
+     * @param  array<string, mixed>  $parent
+     * @return array{id: string, url: string, uri: string, cid: string}|null
+     */
+    private function liveReply(SocialAccount $account, string $text, array $parent): ?array
+    {
+        try {
+            $response = $this->socialHttp()->get(config('trypost.platforms.bluesky.public_appview').'/xrpc/'.BlueskyLexicon::GET_POST_THREAD, [
+                'uri' => (string) data_get($parent, 'uri'),
+                'depth' => 1,
+                'parentHeight' => 0,
+            ]);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $reply = collect($response->successful() ? (array) data_get($response->json(), 'thread.replies', []) : [])
+            ->first(fn (mixed $reply): bool => data_get($reply, 'post.author.did') === $account->platform_user_id
+                && data_get($reply, 'post.record.text') === $text
+                && is_string(data_get($reply, 'post.uri'))
+                && is_string(data_get($reply, 'post.cid')));
+
+        if ($reply === null) {
+            return null;
+        }
+
+        $postId = basename((string) data_get($reply, 'post.uri'));
+
+        return [
+            'id' => $postId,
+            'url' => $this->buildPostUrl($account->username, $postId),
+            'uri' => (string) data_get($reply, 'post.uri'),
+            'cid' => (string) data_get($reply, 'post.cid'),
+        ];
+    }
+
+    /**
+     * @return array{id: string, url: string, uri: string, cid: string}
+     */
+    private function publishRoot(PostPlatform $postPlatform, SocialAccount $account, string $service, ?string $content): array
+    {
         $medias = $postPlatform->post->mediaItems;
         $embed = null;
 
@@ -106,7 +169,7 @@ class BlueskyPublisher
         // No image or video embed, so a bare link can carry a preview card.
         // Bluesky does not hydrate cards server-side: the client must attach an
         // app.bsky.embed.external built from the page's OpenGraph metadata.
-        if ($embed === null && $medias->isEmpty() && $content !== null) {
+        if ($embed === null && $medias->isEmpty() && $content !== null && $postPlatform->attachesLinkPreview()) {
             $embed = $this->buildExternalEmbed($postPlatform->socialAccount, $service, $content);
         }
 
@@ -129,6 +192,44 @@ class BlueskyPublisher
             $record['facets'] = $facets;
         }
 
+        return $this->createPostRecord($account, $service, $record);
+    }
+
+    /**
+     * A reply points at the thread's first post (root) and the post it answers
+     * (parent), each as a strong ref (uri + cid).
+     *
+     * @param  array<string, mixed>  $parent
+     * @param  array<string, mixed>  $root
+     * @return array{id: string, url: string, uri: string, cid: string}
+     */
+    private function publishReply(SocialAccount $account, string $service, string $text, array $parent, array $root): array
+    {
+        $record = [
+            '$type' => BlueskyLexicon::FEED_POST,
+            'text' => $text,
+            'createdAt' => now()->toIso8601ZuluString(),
+            'reply' => [
+                'root' => ['uri' => (string) data_get($root, 'uri'), 'cid' => (string) data_get($root, 'cid')],
+                'parent' => ['uri' => (string) data_get($parent, 'uri'), 'cid' => (string) data_get($parent, 'cid')],
+            ],
+        ];
+
+        $facets = $this->parseFacets($text);
+
+        if ($facets !== []) {
+            $record['facets'] = $facets;
+        }
+
+        return $this->createPostRecord($account, $service, $record);
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array{id: string, url: string, uri: string, cid: string}
+     */
+    private function createPostRecord(SocialAccount $account, string $service, array $record): array
+    {
         $response = $this->socialHttp()->withToken($account->access_token)
             ->post("{$service}/xrpc/".BlueskyLexicon::CREATE_RECORD, [
                 'repo' => $account->platform_user_id,
@@ -145,15 +246,14 @@ class BlueskyPublisher
             $this->handleApiError($response);
         }
 
-        $data = $response->json();
-
-        // Extract post ID from URI (at://did/app.bsky.feed.post/xxx)
-        $uri = data_get($data, 'uri');
+        $uri = (string) data_get($response->json(), 'uri');
         $postId = basename($uri);
 
         return [
             'id' => $postId,
             'url' => $this->buildPostUrl($account->username, $postId),
+            'uri' => $uri,
+            'cid' => (string) data_get($response->json(), 'cid'),
         ];
     }
 

@@ -15,6 +15,7 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Rules\ContentTypeMatchesPlatform;
+use App\Rules\PostContentFitsMaxLength;
 use App\Support\PostMediaRules;
 use App\Support\PostPlatformMetaRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -45,7 +46,7 @@ class CreatePostTool extends Tool
 
         $validated = $request->validate(
             [
-                'content' => ['nullable', 'string', 'max:10000'],
+                'content' => ['nullable', 'string', new PostContentFitsMaxLength],
                 ...PostMediaRules::rules(),
                 'scheduled_at' => ['nullable', 'date', 'after:now', 'before:2038-01-19'],
                 'label_ids' => ['sometimes', 'array'],
@@ -98,7 +99,7 @@ class CreatePostTool extends Tool
                 ->items($schema->object(fn ($p) => [
                     'social_account_id' => $p->string()->required()->description('UUID of the connected social account.'),
                     'content_type' => $p->string()->required()->description('Format for this platform (e.g. linkedin_post, x_post, instagram_feed).'),
-                    'meta' => $p->object()->description('Per-platform metadata. Instagram/Facebook: aspect_ratio (1:1|4:5|16:9|original). TikTok: privacy_level PUBLIC_TO_EVERYONE|MUTUAL_FOLLOW_FRIENDS|FOLLOWER_OF_CREATOR|SELF_ONLY (required to publish) + flags (allow_comments, allow_duet, allow_stitch, disclose, brand_content_toggle, brand_organic_toggle, is_aigc, auto_add_music). SELF_ONLY cannot be combined with brand_content_toggle. Pinterest: board_id (required to publish — call ListPinterestBoardsTool first), title (≤100), link (destination URL). Pin description comes from the post content. Discord: channel_id (required to publish — call ListDiscordChannelsTool first), mentions ([{token,label}]), embeds ([{title,description,url,image,color}]). YouTube Shorts: description (optional plain text, at most 5000 bytes). Post content remains the title source, limited to 100 characters. Omit description or pass null to use the post content as description.'),
+                    'meta' => $p->object()->description(PostPlatformMetaRules::documentation()),
                 ]))
                 ->required()
                 ->description('Exactly one social account. Use create-posts-tool for multiple accounts.'),

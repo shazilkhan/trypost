@@ -1204,6 +1204,25 @@ test('linkedin publisher sends an article card for a text post that contains a l
     });
 });
 
+test('linkedin publisher sends no article when the user dropped the link preview', function () {
+    $this->post->update(['content' => 'Read this https://example.com/article today.']);
+    $this->postPlatform->update(['meta' => ['link_preview' => false]]);
+
+    $this->mock(LinkCardFetcher::class)->shouldReceive('fetch')->never();
+
+    Http::fake([
+        config('trypost.platforms.linkedin.api').'/rest/posts' => Http::response(null, 201, [
+            'x-restli-id' => 'urn:li:share:1234567890',
+        ]),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/rest/posts')
+        && $request['commentary'] === 'Read this https://example.com/article today.'
+        && ! isset($request['content']));
+});
+
 test('linkedin publisher skips the article card when the page has no title', function () {
     $this->post->update(['content' => 'Read this https://example.com/article']);
 

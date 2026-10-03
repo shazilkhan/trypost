@@ -311,6 +311,7 @@ class BuildPublicationAnalyticsReport
                 'platform' => $row->platform,
                 'name' => $row->account_display_name,
                 'username' => $row->account_username,
+                'avatar_url' => $row->account_avatar_url,
                 'origin' => $row->origin,
                 'content_type' => $row->content_type,
                 'availability' => $row->availability,
