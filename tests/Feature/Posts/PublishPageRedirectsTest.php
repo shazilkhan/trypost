@@ -146,10 +146,24 @@ test('deleting from outside the publish page falls back to the all channels page
     $post = publishRedirectPost($this->channel);
 
     $this->actingAs($this->user)
-        ->from(route('app.calendar'))
+        ->from(route('app.settings.preferences'))
         ->delete(route('app.posts.destroy', $post))
         ->assertRedirect(route('app.posts.index'));
 });
+
+test('deleting from a calendar returns to that calendar as it was', function (string $route) {
+    $post = publishRedirectPost($this->channel);
+    $calendar = $route === 'app.calendar'
+        ? route($route, ['view' => 'month', 'month' => '2026-11-01', 'status' => 'scheduled'])
+        : route($route, ['account' => $this->channel, 'view' => 'month', 'month' => '2026-11-01']);
+
+    $this->actingAs($this->user)
+        ->from($calendar)
+        ->delete(route('app.posts.destroy', $post))
+        ->assertRedirect($calendar);
+
+    expect(Post::find($post->id))->toBeNull();
+})->with(['app.calendar', 'app.channels.calendar']);
 
 test('duplicating from the channel page opens the copy on that page', function () {
     $post = publishRedirectPost($this->channel, PostStatus::Scheduled);

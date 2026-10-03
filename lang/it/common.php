@@ -43,6 +43,16 @@ return [
     'date_range_picker' => [
         'placeholder' => 'Scegli un intervallo di date',
         'today' => 'Oggi',
+        'yesterday' => 'Ieri',
+        'last_7_days' => 'Ultimi 7 giorni',
+        'last_30_days' => 'Ultimi 30 giorni',
+        'last_3_months' => 'Ultimi 3 mesi',
+        'last_6_months' => 'Ultimi 6 mesi',
+        'last_12_months' => 'Ultimi 12 mesi',
+        'this_month' => 'Questo mese',
+        'last_month' => 'Mese scorso',
+        'year_to_date' => 'Da inizio anno',
+        'last_year' => 'Anno scorso',
     ],
 
     'cancel' => 'Annulla',

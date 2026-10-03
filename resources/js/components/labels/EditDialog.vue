@@ -29,6 +29,10 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const form = useForm({
     name: '',
     color: '',
@@ -98,7 +102,7 @@ const submit = () => {
                         type="button"
                         variant="ghost"
                         data-testid="cancel-edit-label"
-                        @click="open = false"
+                        @click="closeDialog"
                     >
                         {{ $t('common.cancel') }}
                     </Button>

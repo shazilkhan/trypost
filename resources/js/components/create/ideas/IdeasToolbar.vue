@@ -24,6 +24,10 @@ const labelIds = defineModel<string[]>('labelIds', { required: true });
 const untagged = defineModel<boolean>('untagged', { required: true });
 const unassigned = defineModel<boolean>('unassigned', { required: true });
 
+const clearUnassigned = (): void => {
+    unassigned.value = false;
+};
+
 const matches = (text: string, search: string): boolean =>
     text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
 
@@ -52,7 +56,7 @@ const views: { key: IdeasView; label: string; icon: typeof IconColumns3 }[] = [
             checkbox-position="start"
             :extra-count="unassigned ? 1 : 0"
             compact
-            @clear="unassigned = false"
+            @clear="clearUnassigned"
         >
             <template #icon>
                 <IconLayoutCards class="size-4" />

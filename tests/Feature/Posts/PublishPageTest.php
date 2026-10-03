@@ -373,6 +373,30 @@ test("sent this week starts on the viewer's week start in the channel time zone"
     'sunday' => [WeekStart::Sunday, 2],
 ]);
 
+test('scheduled this week counts the posts still to go out before the week ends in the channel time zone', function () {
+    $this->travelTo(CarbonImmutable::parse('2026-09-30 12:00:00', 'America/Sao_Paulo'));
+    $this->channel->update(['timezone' => 'America/Sao_Paulo']);
+    $this->user->update(['week_starts_on' => WeekStart::Monday]);
+
+    publishPagePost($this->channel, PostStatus::Scheduled, [
+        'scheduled_at' => CarbonImmutable::parse('2026-10-02 09:00:00', 'America/Sao_Paulo')->utc(),
+    ]);
+    publishPagePost($this->channel, PostStatus::Scheduled, [
+        'scheduled_at' => CarbonImmutable::parse('2026-10-04 23:30:00', 'America/Sao_Paulo')->utc(),
+    ]);
+    publishPagePost($this->channel, PostStatus::Scheduled, [
+        'scheduled_at' => CarbonImmutable::parse('2026-10-05 00:30:00', 'America/Sao_Paulo')->utc(),
+    ]);
+    publishPagePost($this->channel, PostStatus::Scheduled, [
+        'scheduled_at' => CarbonImmutable::parse('2026-10-03 10:00:00', 'America/Sao_Paulo')->utc(),
+    ], ['enabled' => false]);
+    publishPagePost($this->channel, PostStatus::Draft);
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.publish', $this->channel))
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('channel.scheduled_this_week', 2));
+});
+
 test('the publish page of another workspace channel is not found', function () {
     $foreign = SocialAccount::factory()->linkedin()->create();
 

@@ -29,6 +29,10 @@ const emit = defineEmits<{
 
 const activeKey = ref<RssFeedDirectoryCategoryKey>('favorites');
 
+const selectCategory = (key: RssFeedDirectoryCategoryKey): void => {
+    activeKey.value = key;
+};
+
 const entries = computed(
     () =>
         props.directory?.find((category) => category.key === activeKey.value)
@@ -108,7 +112,7 @@ const onOpenChange = (open: boolean): void => {
                                 ? 'border-transparent bg-primary-selected text-primary-text'
                                 : 'border-border-strong bg-card text-foreground hover:bg-accent'
                         "
-                        @click="activeKey = category.key"
+                        @click="selectCategory(category.key)"
                         @keydown.right.prevent="moveCategory(1)"
                         @keydown.left.prevent="moveCategory(-1)"
                     >

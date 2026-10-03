@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { IconPlus } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
-import {
-    getPlatformLabel,
-    getPlatformLogo,
-} from '@/composables/usePlatformLogo';
+import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import type { CalendarSlot, PublishSocialAccount } from '@/types/publish';
@@ -38,7 +35,7 @@ const newPost = (): void => {
     <component
         :is="canCreatePost ? 'button' : 'div'"
         :type="canCreatePost ? 'button' : undefined"
-        class="flex h-7 min-w-0 shrink-0 items-center gap-1 rounded-lg border border-dashed border-border-strong px-1 text-xs font-medium text-muted-foreground transition-control enabled:hover:bg-secondary enabled:hover:text-foreground"
+        class="group/slot flex h-7 w-full min-w-0 shrink-0 items-center gap-1.5 rounded-lg border border-dashed border-border-strong px-1.5 text-xs font-medium text-muted-foreground transition-control enabled:hover:bg-secondary enabled:hover:text-foreground enabled:focus-visible:bg-secondary enabled:focus-visible:text-foreground"
         :title="channel?.display_label"
         :aria-label="
             channel
@@ -52,16 +49,25 @@ const newPost = (): void => {
         :data-testid="`calendar-posting-slot-${testKey}`"
         @click="canCreatePost ? newPost() : undefined"
     >
-        <img
+        <PlatformBrandIcon
             v-if="channel"
-            :src="getPlatformLogo(channel.platform)"
-            alt=""
-            class="size-4 shrink-0 rounded-sm"
+            :platform="channel.platform"
+            class="shrink-0"
+            :data-testid="`calendar-posting-slot-icon-${testKey}`"
         />
-        <span class="shrink-0">{{ time }}</span>
-        <template v-if="canCreatePost">
-            <IconPlus class="size-3.5 shrink-0" />
-            <span class="truncate">{{ $t('posts.publish.new_in_slot') }}</span>
-        </template>
+        <span
+            :class="[
+                'truncate',
+                canCreatePost
+                    ? 'group-hover/slot:hidden group-focus-visible/slot:hidden'
+                    : '',
+            ]"
+            >{{ time }}</span
+        >
+        <span
+            v-if="canCreatePost"
+            class="hidden truncate group-hover/slot:inline group-focus-visible/slot:inline"
+            >{{ $t('posts.publish.add_post_in_slot') }}</span
+        >
     </component>
 </template>

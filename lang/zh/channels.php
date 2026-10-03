@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => '频道',
-    'description' => '管理已连接到此工作区的社交频道。',
+    'description' => '管理此工作区的频道。',
     'connect' => '连接频道',
     'settings' => '频道设置',
     'publish' => '发布',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => '连接已断开',
     'connection_lost_hint' => '请重新连接此频道以继续发布。',
     'reconnect' => '重新连接',
+    'refresh_connection' => '刷新连接',
     'view_profile' => '查看主页',
     'disconnect' => '断开连接',
     'actions' => '频道操作',
@@ -161,6 +162,11 @@ return [
 
     'disconnect_modal' => [
         'title' => '断开频道连接',
+        'title_named' => '断开 :name',
+        'refresh_before' => '连接有问题？请先尝试',
+        'refresh_after' => '。',
+        'irreversible' => '此操作无法撤销。',
+        'type_to_confirm' => '输入“:keyword”以确认。',
         'description' => '这会删除此频道在 TryPost 中的所有帖子，包括草稿、已排期的帖子和已发布历史。已在社交网络上的帖子会保留。',
         'confirm' => '断开连接',
         'keyword' => '断开连接',

@@ -2,13 +2,17 @@
 
 return [
     'title' => 'Labels',
-    'description' => 'Maak labels aan om je posts te organiseren en te categoriseren',
+    'description' => 'Organiseer je posts met labels.',
     'search' => 'Labels zoeken...',
     'new_label' => 'Nieuw label',
     'no_labels_yet' => 'Nog geen labels',
     'no_search_results' => 'Geen labels komen overeen met je zoekopdracht',
     'try_different_search' => 'Probeer een ander zoekwoord of wis de zoekopdracht.',
     'create_first_label' => 'Maak je eerste label aan',
+
+    'meta' => [
+        'posts' => '{0} Geen posts|{1} :count post|[2,*] :count posts',
+    ],
 
     'actions' => [
         'edit' => 'Label bewerken',

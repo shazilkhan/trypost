@@ -2,7 +2,7 @@
 
 return [
     'title' => 'Assinaturas',
-    'description' => 'Crie assinaturas reutilizáveis pra anexar rapidamente nos seus posts',
+    'description' => 'Textos reutilizáveis para seus posts.',
     'save_failed' => 'Não foi possível salvar a assinatura. Tente novamente.',
     'search' => 'Buscar assinaturas...',
     'new' => 'Nova assinatura',
@@ -16,6 +16,7 @@ return [
         'created_at' => 'Criado em',
     ],
 
+    'row_actions' => 'Ações da assinatura',
     'actions' => [
         'edit' => 'Editar assinatura',
         'delete' => 'Excluir assinatura',
@@ -23,24 +24,22 @@ return [
 
     'create' => [
         'title' => 'Criar assinatura',
-        'description' => 'Dê um nome à sua assinatura e o conteúdo pra anexar (hashtags, links, texto livre — o que você reutiliza).',
+        'description' => 'Salve textos que você usa sempre nos posts, como hashtags, links ou uma assinatura.',
         'name' => 'Nome',
         'name_placeholder' => 'ex: Marketing, Viagem, Encerramento da marca',
         'content' => 'Conteúdo',
         'content_placeholder' => "#marketing #socialmedia\nSaiba mais: https://suamarca.com",
-        'content_hint' => 'Hashtags, links, intros, assinaturas — qualquer coisa que você anexa nos posts.',
         'submit' => 'Criar assinatura',
         'submitting' => 'Criando...',
     ],
 
     'edit' => [
         'title' => 'Editar assinatura',
-        'description' => 'Atualize o nome e o conteúdo desta assinatura.',
+        'description' => 'Altere o nome ou o texto que esta assinatura adiciona aos posts.',
         'name' => 'Nome',
         'name_placeholder' => 'ex: Marketing, Viagem, Encerramento da marca',
         'content' => 'Conteúdo',
         'content_placeholder' => "#marketing #socialmedia\nSaiba mais: https://suamarca.com",
-        'content_hint' => 'Hashtags, links, intros, assinaturas — qualquer coisa que você anexa nos posts.',
         'submit' => 'Salvar alterações',
         'submitting' => 'Salvando...',
     ],

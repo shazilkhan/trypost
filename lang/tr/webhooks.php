@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Webhooks',
-    'description' => 'Gönderiler oluşturulduğunda, zamanlandığında, zamanlaması kaldırıldığında, yayınlandığında veya başarısız olduğunda anlık bildirim alın.',
+    'description' => 'Gönderileriniz değiştiğinde anında bildirim alın.',
     'new' => 'Webhook oluştur',
     'empty_title' => 'Henüz webhook yok',
     'empty_description' => 'Anlık olay bildirimleri almak için bir webhook oluşturun.',
@@ -19,9 +19,9 @@ return [
         'disabled' => 'Devre dışı',
         'paused' => 'Duraklatıldı',
     ],
+    'row_actions' => 'Webhook işlemleri',
     'actions' => [
         'view' => 'Ayrıntıları gör',
-        'copy_id' => 'Webhook kimliğini kopyala',
         'delete' => 'Sil',
         'edit' => 'Endpointi düzenle',
         'enable' => 'Endpointi etkinleştir',
@@ -38,11 +38,9 @@ return [
         'description' => 'Webhook bildirimleri almak için bir endpoint yapılandırın.',
         'endpoint' => 'Endpoint URL\'si',
         'endpoint_placeholder' => 'https://example.com/webhooks',
+        'endpoint_help' => 'Bu URL\'ye JSON içeren bir POST isteği göndereceğiz.',
         'events' => 'Olaylar',
-        'events_placeholder' => 'Olay seçin...',
-        'events_selected' => '{1} :count olay seçildi|[2,*] :count olay seçildi',
-        'search_events' => 'Olay ara...',
-        'no_events' => 'Olay bulunamadı',
+        'events_count_selected' => ':count / :total seçildi',
         'submit' => 'Webhook oluştur',
         'cancel' => 'İptal',
     ],
@@ -66,8 +64,7 @@ return [
     ],
     'show' => [
         'signing_secret' => 'İmza secreti',
-        'last_sent' => 'Son gönderim :time',
-        'listening_for' => 'Dinlenenler',
+        'edit' => 'Düzenle',
         'http_status' => 'HTTP durumu',
         'status_code' => ':code - :reason',
         'attempts' => 'Denemeler',
@@ -77,8 +74,12 @@ return [
         'no_response_body' => 'Yanıt gövdesi yok',
         'no_response' => 'Yanıt yok',
         'payload' => 'Mesaj payloadı',
-        'empty_title' => 'Henüz webhook olayı yok',
-        'empty_description' => 'Gönderiler oluşturulduğunda, zamanlandığında, zamanlaması kaldırıldığında veya yayınlandığında webhook olaylarını burada görürsünüz.',
+    ],
+    'deliveries' => [
+        'title' => 'Teslimatlar',
+        'empty_title' => 'Henüz teslimat yok',
+        'empty_description' => 'Burada görmek için bir test olayı gönderin.',
+        'pending' => 'Bekliyor',
     ],
     'events' => [
         'group_posts' => 'Gönderiler',
@@ -89,6 +90,15 @@ return [
         'post_partially_published' => 'Gönderi kısmen yayınlandı',
         'post_failed' => 'Gönderi başarısız',
         'post_deleted' => 'Gönderi silindi',
+    ],
+    'event_descriptions' => [
+        'post_created' => 'Yeni bir gönderi oluşturulduğunda.',
+        'post_scheduled' => 'Bir gönderi yayın için zamanlandığında.',
+        'post_unscheduled' => 'Zamanlanmış bir gönderi taslaklara döndüğünde.',
+        'post_published' => 'Bir gönderi bir kanalda yayınlandığında.',
+        'post_partially_published' => 'Bazı kanallar yayınlayıp diğerleri başarısız olduğunda.',
+        'post_failed' => 'Bir gönderi yayınlanamadığında.',
+        'post_deleted' => 'Bir gönderi silindiğinde.',
     ],
     'http_reasons' => [
         'unknown' => 'Bilinmiyor',
@@ -109,7 +119,6 @@ return [
         '504' => 'Ağ geçidi zaman aşımı',
     ],
     'copied' => [
-        'id' => 'Webhook kimliği panoya kopyalandı',
         'secret' => 'İmza secreti panoya kopyalandı',
         'response' => 'Yanıt gövdesi kopyalandı',
         'payload' => 'Payload kopyalandı',

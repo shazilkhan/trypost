@@ -84,6 +84,30 @@ export const detectTimeFormat = (language: string): TimeFormat | null => {
     }
 };
 
+export const detectBrowserLanguage = (
+    codes: string[],
+    browserLanguages: readonly string[] = navigator.languages ?? [navigator.language],
+): string | null => {
+    const lower = codes.map((code) => code.toLowerCase());
+    const base = (tag: string): string => tag.toLowerCase().split('-')[0];
+
+    for (const tag of browserLanguages) {
+        const exact = lower.indexOf(tag.toLowerCase());
+
+        if (exact !== -1) {
+            return codes[exact];
+        }
+
+        const sameBase = lower.findIndex((code) => base(code) === base(tag));
+
+        if (sameBase !== -1) {
+            return codes[sameBase];
+        }
+    }
+
+    return null;
+};
+
 export const detectPreferences = (): DetectedPreferences => {
     const language = navigator.language || 'en-US';
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';

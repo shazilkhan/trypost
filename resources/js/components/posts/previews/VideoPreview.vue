@@ -15,6 +15,14 @@ const props = withDefaults(
 const videoRef = ref<HTMLVideoElement | null>(null);
 const isPlaying = ref(false);
 
+const markPlaying = (): void => {
+    isPlaying.value = true;
+};
+
+const markPaused = (): void => {
+    isPlaying.value = false;
+};
+
 const toggle = () => {
     const el = videoRef.value;
     if (!el) return;
@@ -34,9 +42,9 @@ const toggle = () => {
             :class="props.videoClass"
             playsinline
             preload="metadata"
-            @play="isPlaying = true"
-            @pause="isPlaying = false"
-            @ended="isPlaying = false"
+            @play="markPlaying"
+            @pause="markPaused"
+            @ended="markPaused"
         />
         <button
             v-show="!isPlaying"

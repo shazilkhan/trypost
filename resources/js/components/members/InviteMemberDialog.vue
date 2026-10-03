@@ -19,6 +19,10 @@ import { store as storeInvite } from '@/routes/app/invites';
 
 const open = defineModel<boolean>('open', { default: false });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const isAdmin = ref(false);
 const requiresApproval = ref(false);
 
@@ -75,7 +79,7 @@ const onSuccess = (): void => {
                         variant="ghost"
                         type="button"
                         data-testid="invite-member-cancel"
-                        @click="open = false"
+                        @click="closeDialog"
                     >
                         {{ $t('settings.members.cancel') }}
                     </Button>

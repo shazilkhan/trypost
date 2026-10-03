@@ -74,9 +74,18 @@ const {
 const { open: openConnectDialog } = useConnectChannelDialog();
 
 const inviteMemberDialogOpen = ref(false);
+
+const openInviteMemberDialog = (): void => {
+    inviteMemberDialogOpen.value = true;
+};
+
 const { isMobile, state: sidebarState } = useSidebar();
 
 const workspaceUpgradeDialogOpen = ref(false);
+
+const openWorkspaceUpgradeDialog = (): void => {
+    workspaceUpgradeDialogOpen.value = true;
+};
 
 const scheduledPostsCount = computed(() =>
     ((page.props.channels as SidebarChannel[] | undefined) ?? []).reduce(
@@ -239,7 +248,7 @@ const mainNavItems = computed<NavItem[]>(() => [
                             <DropdownMenuItem
                                 v-if="canManageTeam"
                                 data-testid="sidebar-new-member"
-                                @select="inviteMemberDialogOpen = true"
+                                @select="openInviteMemberDialog"
                             >
                                 <IconUsers class="size-4 text-muted-foreground" />
                                 {{ $t('sidebar.new_menu.member') }}
@@ -323,9 +332,7 @@ const mainNavItems = computed<NavItem[]>(() => [
                             :current-workspace="currentWorkspace"
                             :workspaces="workspaces"
                             :can-create-workspace="canCreateWorkspace"
-                            @upgrade-required="
-                                workspaceUpgradeDialogOpen = true
-                            "
+                            @upgrade-required="openWorkspaceUpgradeDialog"
                         />
                     </DropdownMenuContent>
                 </DropdownMenu>

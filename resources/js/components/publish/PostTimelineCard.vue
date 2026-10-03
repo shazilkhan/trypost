@@ -83,6 +83,7 @@ const props = withDefaults(
         draggable?: boolean;
         gutterHandle?: boolean;
         movable?: boolean;
+        popover?: boolean;
     }>(),
     {
         canMoveUp: false,
@@ -90,10 +91,14 @@ const props = withDefaults(
         draggable: false,
         gutterHandle: false,
         movable: true,
+        popover: false,
     },
 );
 
-const emit = defineEmits<{ move: [direction: PostCardMove] }>();
+const emit = defineEmits<{
+    move: [direction: PostCardMove];
+    details: [open: boolean];
+}>();
 
 const MAX_THUMBNAILS = 4;
 
@@ -268,7 +273,14 @@ const recurrence = computed(() =>
 );
 
 const detailsOpen = ref(openPostDetailsId.value === props.post.id);
+
+const openDetails = (): void => {
+    detailsOpen.value = true;
+};
+
 const recurrenceOpen = ref(false);
+
+watch(detailsOpen, (open) => emit('details', open));
 const recurrencePost = ref<PostCard>(props.post);
 
 const edit = (post: PostCard = props.post): void => {
@@ -320,10 +332,20 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
     <div
         :data-testid="`post-card-${testKey}`"
         :data-post-id="post.id"
-        class="group/post relative grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-3 gap-y-2 md:grid-cols-[71px_minmax(0,1fr)] md:gap-x-8"
+        class="group/post relative"
+        :class="
+            popover
+                ? 'flex flex-col'
+                : 'grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-3 gap-y-2 md:grid-cols-[71px_minmax(0,1fr)] md:gap-x-8'
+        "
     >
         <div
-            class="col-span-2 flex flex-wrap items-center gap-2 md:col-span-1 md:flex-col md:flex-nowrap md:items-start"
+            class="flex flex-wrap items-center gap-2"
+            :class="
+                popover
+                    ? 'border-b border-border-strong px-4 py-3'
+                    : 'col-span-2 md:col-span-1 md:flex-col md:flex-nowrap md:items-start'
+            "
         >
             <span class="inline-flex items-center gap-1">
                 <IconGripVertical
@@ -339,11 +361,16 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 />
                 <time
                     v-if="time"
-                    class="text-sm font-medium text-foreground"
+                    class="text-sm text-foreground"
+                    :class="popover ? 'font-emphasis' : 'font-medium'"
                     :datetime="time"
                     :data-testid="`post-time-${testKey}`"
                 >
-                    {{ formatTime(time) }}
+                    {{
+                        popover
+                            ? date.formatDateTimeInTimezone(time, timezone)
+                            : formatTime(time)
+                    }}
                 </time>
                 <span v-else class="text-sm font-medium text-muted-foreground">
                     {{ $t('posts.publish.no_time') }}
@@ -400,10 +427,24 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 <component :is="getPostStatusConfig(post.status).icon" />
                 {{ $t(`posts.status.${post.status}`) }}
             </Badge>
+            <Button
+                v-if="popover && canCreatePost"
+                variant="ghost"
+                size="icon"
+                class="-my-1 ms-auto -me-2"
+                :aria-label="$t('posts.show.title')"
+                :data-testid="`post-details-expand-${testKey}`"
+                @click="openDetails"
+            >
+                <IconArrowsMaximize class="size-4" />
+            </Button>
         </div>
 
         <article
-            class="min-w-0 overflow-hidden rounded-xl border border-border-strong bg-card"
+            class="min-w-0 overflow-hidden"
+            :class="{
+                'rounded-xl border border-border-strong bg-card': !popover,
+            }"
         >
             <p
                 v-if="recurrence && post.scheduled_at"
@@ -441,14 +482,22 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                             ring="card"
                             @dragstart="draggable ? $event.preventDefault() : undefined"
                         />
-                        <p
-                            class="min-w-0 truncate text-sm leading-tight font-emphasis text-foreground"
-                        >
-                            {{
-                                account?.display_label ??
-                                getPlatformLabel(primaryTarget?.platform ?? '')
-                            }}
-                        </p>
+                        <div class="min-w-0">
+                            <p
+                                class="truncate text-sm leading-tight font-emphasis text-foreground"
+                            >
+                                {{
+                                    account?.display_label ??
+                                    getPlatformLabel(primaryTarget?.platform ?? '')
+                                }}
+                            </p>
+                            <p
+                                v-if="popover && account?.handle_label"
+                                class="truncate text-xs text-muted-foreground"
+                            >
+                                {{ account.handle_label }}
+                            </p>
+                        </div>
                         <span
                             v-if="targets.length > 1"
                             class="text-xs font-medium text-muted-foreground"
@@ -471,15 +520,21 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                     </div>
                     <p
                         class="line-clamp-4 text-sm whitespace-pre-line text-foreground"
-                        :class="{ 'text-muted-foreground': !preview }"
+                        :class="{
+                            'text-muted-foreground': !preview,
+                            'leading-relaxed': popover,
+                        }"
                     >
                         {{ preview || $t('calendar.no_content') }}
                     </p>
                 </component>
                 <div
                     v-if="thumbnails.length"
-                    class="relative z-10 grid w-24 shrink-0 content-start gap-2 md:w-[180px]"
-                    :class="thumbnails.length > 1 ? 'grid-cols-2' : ''"
+                    class="relative z-10 grid w-24 shrink-0 content-start gap-2"
+                    :class="[
+                        thumbnails.length > 1 ? 'grid-cols-2' : '',
+                        popover ? 'w-36' : 'md:w-[180px]',
+                    ]"
                 >
                     <button
                         v-for="(thumbnail, index) in thumbnails"
@@ -557,9 +612,10 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             />
 
             <div
-                class="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border-strong px-4 py-3"
+                class="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-strong px-4 py-3"
+                :class="popover ? 'justify-end' : 'justify-between'"
             >
-                <p class="min-w-0 truncate text-sm text-foreground">
+                <p v-if="!popover" class="min-w-0 truncate text-sm text-foreground">
                     <TooltipProvider
                         v-if="post.origin === PostOrigin.Network && primaryTarget"
                         :delay-duration="200"
@@ -662,18 +718,32 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                             </Tooltip>
                         </TooltipProvider>
                     </template>
-                    <Button
-                        v-if="permalink"
-                        as="a"
-                        :href="permalink"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="outline"
-                        :data-testid="`post-view-${testKey}`"
-                    >
-                        <IconExternalLink class="size-4" />
-                        {{ $t('posts.publish.actions.view_post') }}
-                    </Button>
+                    <Tooltip v-if="permalink && primaryTarget">
+                        <TooltipTrigger as-child>
+                            <Button
+                                as="a"
+                                :href="permalink"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="outline"
+                                :data-testid="`post-view-${testKey}`"
+                            >
+                                <IconExternalLink class="size-4" />
+                                {{ $t('posts.publish.actions.view_post') }}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent
+                            :data-testid="`post-view-tooltip-${testKey}`"
+                        >
+                            {{
+                                $t('posts.publish.actions.open_on_network', {
+                                    network: getPlatformLabel(
+                                        primaryTarget.platform,
+                                    ),
+                                })
+                            }}
+                        </TooltipContent>
+                    </Tooltip>
                     <Button
                         v-if="canPublishDirectly && post.status === PostStatus.Scheduled"
                         variant="outline"
@@ -683,16 +753,22 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         <IconSend class="size-4" />
                         {{ $t('posts.publish.actions.publish_now') }}
                     </Button>
-                    <Button
-                        v-if="canCreatePost && isEditable"
-                        variant="outline"
-                        size="icon"
-                        :aria-label="$t('posts.publish.actions.edit')"
-                        :data-testid="`post-edit-${testKey}`"
-                        @click="edit()"
-                    >
-                        <IconPencil class="size-4" />
-                    </Button>
+                    <Tooltip v-if="canCreatePost && isEditable">
+                        <TooltipTrigger as-child>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                :aria-label="$t('posts.publish.actions.edit')"
+                                :data-testid="`post-edit-${testKey}`"
+                                @click="edit()"
+                            >
+                                <IconPencil class="size-4" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {{ $t('posts.publish.actions.edit') }}
+                        </TooltipContent>
+                    </Tooltip>
                     <PostCardMenu
                         v-if="canCreatePost"
                         :post="post"
@@ -724,7 +800,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             </div>
         </article>
 
-        <div class="md:absolute md:top-0 md:left-full md:ms-1">
+        <div v-if="!popover" class="md:absolute md:top-0 md:left-full md:ms-1">
             <PostNotesPopover
                 :post-id="post.id"
                 :count="post.notes_count"

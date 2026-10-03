@@ -2,12 +2,10 @@
 import { IconPlus } from '@tabler/icons-vue';
 import { computed, watch } from 'vue';
 
+import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
-import {
-    getPlatformLabel,
-    getPlatformLogo,
-} from '@/composables/usePlatformLogo';
+import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import dayjs from '@/dayjs';
 import type { PublishSocialAccount, QueueItem } from '@/types/publish';
@@ -70,11 +68,12 @@ const newPost = (): void => {
             :data-testid="canCreatePost ? `queue-slot-new-${testKey}` : undefined"
             @click="canCreatePost ? newPost() : undefined"
         >
-            <img
+            <PlatformBrandIcon
                 v-if="channel"
-                :src="getPlatformLogo(channel.platform)"
-                alt=""
-                class="size-4 shrink-0 rounded-sm"
+                :platform="channel.platform"
+                colored
+                class="shrink-0"
+                :data-testid="`queue-slot-icon-${testKey}`"
             />
             <template v-if="canCreatePost">
                 <IconPlus class="size-4 shrink-0" />

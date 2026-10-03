@@ -25,6 +25,10 @@ const props = defineProps<{
 
 const pickerOpen = ref(false);
 
+const closePicker = (): void => {
+    pickerOpen.value = false;
+};
+
 const isQueued = computed(
     () => props.post.schedule_mode === ScheduleMode.Queue,
 );
@@ -90,7 +94,7 @@ const confirmTime = (value: string): void => {
             <ComposerSchedulePicker
                 model-value=""
                 :timezone="postTimezone"
-                @back="pickerOpen = false"
+                @back="closePicker"
                 @confirm="confirmTime"
             />
             <div class="border-t border-border-strong p-3">

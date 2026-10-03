@@ -3,7 +3,6 @@ import AppHeader from '@/components/AppHeader.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import ConnectChannelDialog from '@/components/channels/ConnectChannelDialog.vue';
 import CommandPalette from '@/components/command-palette/CommandPalette.vue';
-import HelpMenu from '@/components/HelpMenu.vue';
 import GlobalPostComposer from '@/components/posts/composer/GlobalPostComposer.vue';
 import Toast from '@/components/Toast.vue';
 import {
@@ -67,7 +66,6 @@ withDefaults(defineProps<Props>(), {
             </div>
         </SidebarInset>
     </SidebarProvider>
-    <HelpMenu />
     <GlobalPostComposer />
     <ConnectChannelDialog />
     <CommandPalette />

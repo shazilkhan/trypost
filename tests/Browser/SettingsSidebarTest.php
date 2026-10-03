@@ -95,3 +95,21 @@ test('the back link returns to the app', function () {
 
     $page->assertVisible('@sidebar-new')->assertNoJavaScriptErrors();
 });
+
+test('the back to app link in the settings sidebar highlights on hover', function () {
+    $this->actingAs(settingsSidebarUser('admin'));
+
+    $page = visit(route('app.profile.edit'));
+    waitForSettingsSidebarTestId($page, 'settings-back');
+
+    $background = fn (): string => $page->script('getComputedStyle(document.querySelector(\'[data-testid="settings-back"]\')).backgroundColor');
+
+    expect($background())->toBe('rgba(0, 0, 0, 0)');
+
+    $page->hover('@settings-back');
+    $page->script('new Promise((resolve) => setTimeout(resolve, 300))');
+
+    expect($background())->not->toBe('rgba(0, 0, 0, 0)');
+
+    $page->assertNoJavaScriptErrors();
+});

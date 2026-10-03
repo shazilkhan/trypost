@@ -7,12 +7,15 @@ namespace App\Http\Controllers\App;
 use App\Actions\Signature\CreateSignature;
 use App\Actions\Signature\DeleteSignature;
 use App\Actions\Signature\UpdateSignature;
+use App\Http\Requests\App\Signature\StoreSignatureRequest;
+use App\Http\Requests\App\Signature\UpdateSignatureRequest;
 use App\Models\WorkspaceSignature;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class WorkspaceSignatureController extends Controller
 {
@@ -34,13 +37,14 @@ class WorkspaceSignatureController extends Controller
         return Inertia::render('signatures/Index', [
             'workspace' => $workspace,
             'signatures' => Inertia::scroll(fn () => $signatures),
+            'hasData' => $workspace->signatures()->exists(),
             'filters' => [
                 'search' => $request->input('search', ''),
             ],
         ]);
     }
 
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(StoreSignatureRequest $request): RedirectResponse|JsonResponse
     {
         $workspace = $request->user()->currentWorkspace;
 
@@ -50,21 +54,16 @@ class WorkspaceSignatureController extends Controller
 
         $this->authorize('createPost', $workspace);
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'string'],
-        ]);
-
-        $signature = CreateSignature::execute($workspace, $validated);
+        $signature = CreateSignature::execute($workspace, $request->validated());
 
         if ($request->expectsJson()) {
-            return response()->json($signature->only(['id', 'name', 'content']), 201);
+            return response()->json($signature->only(['id', 'name', 'content']), SymfonyResponse::HTTP_CREATED);
         }
 
-        return redirect()->route('app.signatures.index');
+        return back();
     }
 
-    public function update(Request $request, WorkspaceSignature $signature): RedirectResponse|JsonResponse
+    public function update(UpdateSignatureRequest $request, WorkspaceSignature $signature): RedirectResponse|JsonResponse
     {
         $workspace = $request->user()->currentWorkspace;
 
@@ -78,18 +77,13 @@ class WorkspaceSignatureController extends Controller
             abort(404);
         }
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'content' => ['required', 'string'],
-        ]);
-
-        $signature = UpdateSignature::execute($signature, $validated);
+        $signature = UpdateSignature::execute($signature, $request->validated());
 
         if ($request->expectsJson()) {
             return response()->json($signature->only(['id', 'name', 'content']));
         }
 
-        return redirect()->route('app.signatures.index');
+        return back();
     }
 
     public function destroy(Request $request, WorkspaceSignature $signature): RedirectResponse
@@ -108,6 +102,6 @@ class WorkspaceSignatureController extends Controller
 
         DeleteSignature::execute($signature);
 
-        return redirect()->route('app.signatures.index');
+        return back();
     }
 }

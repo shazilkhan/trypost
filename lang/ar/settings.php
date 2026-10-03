@@ -62,6 +62,9 @@ return [
             'description' => 'لغة واجهة TryPost.',
             'search' => 'ابحث عن لغة',
             'empty' => 'لم يتم العثور على لغة',
+            'suggestions' => 'اقتراحات',
+            'all' => 'كل اللغات',
+            'browser' => 'مكتشفة في متصفحك',
         ],
         'timezone' => [
             'heading' => 'المنطقة الزمنية',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'مفاتيح API',
         'page_title' => 'مفاتيح API',
-        'description' => 'إدارة مفاتيح API للوصول البرمجي إلى مساحة عملك.',
+        'description' => 'الوصول إلى مساحة العمل عبر API.',
         'create' => 'توليد مفتاح API',
         'copy' => 'نسخ',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => 'حافظ على أمان مفتاح API.',
             'warning_body' => 'تعامل مع مفتاح API كما تتعامل مع كلمة المرور. لا تشاركه علنًا ولا تضفه إلى Git ولا تضمّنه في كود جهة العميل. لن تتمكن من رؤيته مرة أخرى. إذا تم تسريبه، فاحذفه وأنشئ مفتاحًا جديدًا.',
             'done' => 'تم',
+        ],
+        'meta' => [
+            'expires' => 'تنتهي في :date',
+            'expired' => 'انتهت في :date',
+            'never_expires' => 'لا تنتهي',
+            'last_used' => 'آخر استخدام :time',
+            'never_used' => 'لم تُستخدم',
+            'created' => 'أُنشئت في :date',
         ],
         'table' => [
             'expires' => 'ينتهي في',

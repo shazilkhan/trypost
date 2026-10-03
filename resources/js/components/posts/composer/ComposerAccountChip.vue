@@ -27,6 +27,11 @@ const emit = defineEmits<{
 
 const tooltipOpen = ref(false);
 
+const focusAccount = (): void => {
+    tooltipOpen.value = true;
+    emit('focus');
+};
+
 const remove = (): void => {
     tooltipOpen.value = false;
     emit('remove');
@@ -43,10 +48,7 @@ const remove = (): void => {
                         :data-testid="`composer-account-${account.id}`"
                         :aria-pressed="active"
                         class="relative block rounded-xl transition-shadow outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                        @click="
-                            tooltipOpen = true;
-                            emit('focus');
-                        "
+                        @click="focusAccount"
                     >
                         <ChannelAvatar
                             :status="account.status"

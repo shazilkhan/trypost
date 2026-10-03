@@ -102,6 +102,7 @@ test('workspace dashboard separates accounts and switches follower and post char
         ->click('@top-comments')
         ->assertScript('(() => { const scroller = document.querySelector("[data-testid=app-layout-scroller]"); return ["auto", "scroll"].includes(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight; })()', true)
         ->assertScript('(() => { const scroller = document.querySelector("[data-testid=app-layout-scroller]"); const lastSection = Array.from(document.querySelectorAll("[data-testid=analytics-section]")).at(-1); return scroller.scrollHeight - (lastSection.getBoundingClientRect().bottom - scroller.getBoundingClientRect().top + scroller.scrollTop) >= 24; })()', true)
+        ->assertScript('(() => { const scroller = document.querySelector("[data-testid=app-layout-scroller]"); scroller.scrollTop = scroller.scrollHeight; const header = document.querySelector("[data-testid=analytics-page-header]"); const toolbar = document.querySelector("[data-testid=analytics-toolbar]"); const top = scroller.getBoundingClientRect().top; const stuck = scroller.scrollTop > 0 && Math.abs(header.getBoundingClientRect().top - top) <= 1 && toolbar.getBoundingClientRect().bottom > top; scroller.scrollTop = 0; return stuck; })()', true)
         ->resize(375, 812)
         ->assertScript('document.querySelector("[data-testid=analytics-page-header]")?.getBoundingClientRect().top > document.querySelector("[data-testid=app-sidebar-trigger]")?.getBoundingClientRect().bottom', true)
         ->assertScript('document.documentElement.scrollWidth <= window.innerWidth + 2', true)
@@ -118,15 +119,72 @@ test('workspace dashboard explains the empty state without inventing follower to
 
     $this->actingAs($user);
     $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'analytics-empty-state');
 
     $page->assertVisible('@analytics-empty-state')
         ->assertPresent('@app-layout-content')
+        ->assertPresent('@analytics-toolbar')
         ->assertMissing('@analytics-summary')
+        ->assertSee('Turn your posts into insights')
+        ->assertSee('Understand your performance and spot opportunities without the guesswork.')
+        ->assertScript('document.querySelectorAll("[data-testid=analytics-empty-tile]").length', 7)
+        ->assertPresent('@analytics-empty-summary')
+        ->assertPresent('@analytics-empty-top-posts')
+        ->assertPresent('@analytics-empty-metrics')
+        ->assertScript('Array.from(document.querySelectorAll("[data-testid=analytics-empty-preview] [data-testid=analytics-section-title]")).map((heading) => heading.textContent.trim()).join("|")', 'Summary|Top 5 Posts|Metrics')
+        ->assertScript('document.querySelector("[data-testid=analytics-empty-summary]").innerText.replace(/\\s+/g, " ").trim()', 'Likes Comments Impressions Engagement rate')
+        ->assertScript('document.querySelector("[data-testid=analytics-empty-top-posts]").children.length', 5)
+        ->click('@analytics-empty-connect');
+
+    waitForWorkspaceInsightsTestId($page, 'connect-channel-dialog');
+
+    $page->assertVisible('@connect-channel-dialog')
+        ->resize(375, 812)
+        ->assertScript('document.documentElement.scrollWidth <= window.innerWidth + 2', true)
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 });
 
-test('the custom preset opens the calendar without a second trigger or quick presets', function () {
+test('the empty insights hero has no connect button for members who cannot manage channels', function () {
+    $owner = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $owner->id, 'account_id' => $owner->account_id]);
+    subscribeAccount($owner->account);
+    $member = workspaceMember($workspace);
+
+    $this->actingAs($member);
+    $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'analytics-empty-state');
+
+    $page->assertVisible('@analytics-empty-state')
+        ->assertSee('Turn your posts into insights')
+        ->assertMissing('@analytics-empty-connect')
+        ->assertNoJavaScriptErrors()
+        ->assertNoConsoleLogs();
+});
+
+test('the empty insights hero explains pending data once a channel is connected', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'analytics-empty-state');
+
+    $page->assertVisible('@analytics-empty-state')
+        ->assertSee('Your analytics history is being prepared')
+        ->assertDontSee('Turn your posts into insights')
+        ->assertMissing('@analytics-empty-connect')
+        ->assertPresent('@analytics-empty-metrics')
+        ->assertNoJavaScriptErrors()
+        ->assertNoConsoleLogs();
+});
+
+test('the custom preset opens the calendar with quick ranges that apply a custom range', function () {
     Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
     $user = User::factory()->create(['locale' => Locale::PortugueseBrazil]);
     $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
@@ -166,6 +224,18 @@ test('the custom preset opens the calendar without a second trigger or quick pre
     JS);
 
     $page->assertScript('document.querySelector("[role=dialog]") !== null', true)
+        ->assertSeeIn('@date-range-preset-last_7_days', __('common.date_range_picker.last_7_days', [], 'pt-BR'))
+        ->click('@date-range-preset-last_7_days');
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (location.search.includes('start=2026-06-25')) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+
+    $page->assertScript('location.search.includes("range=custom") && location.search.includes("start=2026-06-25") && location.search.includes("end=2026-07-01")', true)
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
 });
@@ -369,3 +439,24 @@ test('workspace dashboard abbreviates large percentage changes in the user local
     'English' => [Locale::English, '+186.5K%'],
     'Portuguese' => [Locale::PortugueseBrazil, "+186,5\u{00A0}mil%"],
 ]);
+
+test('the channel filter offers to connect a channel when the workspace has none', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'analytics-channel-filter');
+
+    $page->click('@analytics-channel-filter');
+    waitForWorkspaceInsightsTestId($page, 'analytics-channel-connect');
+
+    $page->assertSeeIn('@analytics-channel-connect', __('channels.connect'))
+        ->click('@analytics-channel-connect');
+    waitForWorkspaceInsightsTestId($page, 'connect-channel-dialog');
+
+    $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
+});

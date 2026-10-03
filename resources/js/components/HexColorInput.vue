@@ -238,13 +238,14 @@ const huePointerStyle = computed(() => ({
 </script>
 
 <template>
-    <div class="relative">
+    <div class="flex items-center gap-2">
         <Popover v-model:open="open">
             <PopoverTrigger as-child>
                 <button
                     type="button"
                     :disabled="disabled"
-                    class="absolute top-1/2 left-2 z-10 size-4 -translate-y-1/2 cursor-pointer rounded-sm border border-border bg-card disabled:cursor-not-allowed disabled:opacity-50"
+                    class="size-8 shrink-0 cursor-pointer rounded-md border border-border-strong bg-card transition-control hover:ring-2 hover:ring-ring/30 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    data-testid="hex-color-swatch"
                     :style="
                         swatchColor
                             ? { backgroundColor: swatchColor }
@@ -332,7 +333,7 @@ const huePointerStyle = computed(() => ({
             :name="name"
             :placeholder="placeholder"
             :disabled="disabled"
-            class="pl-8 font-mono"
+            class="min-w-0 flex-1 font-mono"
             :class="!isValid ? 'border-destructive' : ''"
             spellcheck="false"
             @input="onTextInput"

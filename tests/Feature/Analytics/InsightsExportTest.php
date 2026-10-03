@@ -19,6 +19,7 @@ use App\Support\Analytics\SyncCadence;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -270,4 +271,26 @@ test('the sync cadence follows the discovery settings the scheduler uses', funct
         'metrics_days' => 30,
         'x_metrics_days' => 20,
     ]);
+});
+
+test('the export of a workspace without connected channels has no past analytics', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => null,
+        'social_account_key' => (string) Str::uuid(),
+        'platform' => Platform::Instagram,
+        'network' => Platform::Instagram->network(),
+        'platform_user_id' => 'disconnected',
+        'date' => '2026-09-20',
+        'followers_count' => 4242,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->get(route('app.insights.download', ['format' => 'csv', 'start' => '2026-01-01', 'end' => '2026-12-31']));
+
+    $response->assertOk();
+    expect($response->streamedContent())->not->toContain('4242');
 });

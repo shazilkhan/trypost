@@ -16,6 +16,11 @@ defineProps<{
 }>();
 
 const mode = defineModel<RepurposePublishMode>({ required: true });
+
+const selectMode = (value: RepurposePublishMode): void => {
+    mode.value = value;
+};
+
 </script>
 
 <template>
@@ -39,7 +44,7 @@ const mode = defineModel<RepurposePublishMode>({ required: true });
                         : 'border-border-strong bg-card hover:bg-accent'
                 "
                 :data-testid="`publish-mode-${option.value}`"
-                @click="mode = option.value"
+                @click="selectMode(option.value)"
             >
                 <span
                     class="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full border"

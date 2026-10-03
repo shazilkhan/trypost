@@ -37,7 +37,11 @@ class ResolveAnalyticsChannelFilter
                 'analytics_key' => $keys[$account->id],
             ])->values()->all(),
             'selected' => $accounts->whereIn('id', $selectedIds)->values(),
-            'keys' => $selectedIds === [] ? null : array_intersect_key($keys, array_flip($selectedIds)),
+            'keys' => match (true) {
+                $accounts->isEmpty() => [],
+                $selectedIds === [] => null,
+                default => array_intersect_key($keys, array_flip($selectedIds)),
+            },
         ];
     }
 }

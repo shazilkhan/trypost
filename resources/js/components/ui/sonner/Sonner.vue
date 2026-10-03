@@ -1,5 +1,12 @@
 <script lang="ts" setup>
 import type { ToasterProps } from "vue-sonner"
+import {
+  IconAlertCircleFilled,
+  IconAlertTriangleFilled,
+  IconCircleCheckFilled,
+  IconInfoCircleFilled,
+  IconLoader2,
+} from "@tabler/icons-vue"
 import { Toaster as Sonner } from "vue-sonner"
 
 const props = defineProps<ToasterProps>()
@@ -26,14 +33,50 @@ const props = defineProps<ToasterProps>()
       '--info-text': 'var(--popover-foreground)',
       '--info-border': 'var(--border)',
     }"
-  />
+  >
+    <template #success-icon>
+      <IconCircleCheckFilled class="size-5" />
+    </template>
+    <template #error-icon>
+      <IconAlertCircleFilled class="size-5" />
+    </template>
+    <template #warning-icon>
+      <IconAlertTriangleFilled class="size-5" />
+    </template>
+    <template #info-icon>
+      <IconInfoCircleFilled class="size-5" />
+    </template>
+    <template #loading-icon>
+      <IconLoader2 class="size-5 animate-spin" />
+    </template>
+  </Sonner>
 </template>
 
 <style>
-[data-sonner-toaster] [data-sonner-toast] {
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  gap: 10px;
+  padding: 14px 16px;
+  border-color: transparent;
   border-radius: 12px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.dark [data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  border-color: var(--border);
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-icon] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+[data-sonner-toaster] [data-sonner-toast] [data-description] {
+  font-weight: 400;
+  color: var(--muted-foreground);
 }
 
 @media (prefers-reduced-motion: no-preference) {

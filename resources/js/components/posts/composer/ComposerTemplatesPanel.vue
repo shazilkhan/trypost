@@ -32,6 +32,11 @@ const emit = defineEmits<{
 const SCOPES: TemplateScope[] = ['discover', 'team', 'personal'];
 
 const scope = ref<TemplateScope>('discover');
+
+const selectScope = (option: TemplateScope): void => {
+    scope.value = option;
+};
+
 const search = ref('');
 const types = ref<string[]>([]);
 const audiences = ref<string[]>([]);
@@ -247,7 +252,7 @@ const openDelete = (template: PostTemplate): void => {
                         : 'text-muted-foreground hover:text-foreground'
                 "
                 :data-testid="`composer-templates-tab-${option}`"
-                @click="scope = option"
+                @click="selectScope(option)"
                 @keydown.right.prevent="moveScope(1)"
                 @keydown.left.prevent="moveScope(-1)"
             >

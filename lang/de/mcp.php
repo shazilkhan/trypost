@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => 'Verbinde KI-Assistenten mit deinem TryPost-Workspace. Sie nutzen dieselben Berechtigungen wie jeder angemeldete Nutzer.',
+    'subtitle' => 'Verbinde KI-Assistenten mit deinem Workspace.',
     'copy_step' => 'Kopiere deine TryPost-Server-URL',
     'open_step' => 'Öffne deinen KI-Assistenten',
     'copy' => 'URL kopieren',

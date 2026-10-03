@@ -29,7 +29,16 @@ const props = withDefaults(
 );
 
 const open = ref(props.initialOpen);
+
+const closePopover = (): void => {
+    open.value = false;
+};
+
 const noteCount = ref(props.count);
+
+const changeNoteCount = (delta: number): void => {
+    noteCount.value = Math.max(0, noteCount.value + delta);
+};
 
 watch(
     () => props.count,
@@ -93,7 +102,7 @@ watch(
                     size="icon"
                     class="ms-auto size-8 text-muted-foreground"
                     :aria-label="$t('common.close')"
-                    @click="open = false"
+                    @click="closePopover"
                 >
                     <IconX class="size-4" />
                 </Button>
@@ -103,7 +112,7 @@ watch(
                 :post-id="postId"
                 :current-user-id="currentUserId"
                 :highlight-note-id="highlightNoteId"
-                @count-change="noteCount = Math.max(0, noteCount + $event)"
+                @count-change="changeNoteCount($event)"
             />
         </PopoverContent>
     </Popover>

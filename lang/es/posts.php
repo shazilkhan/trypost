@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Publicar publicaciones',
         'destination_issues' => '{1} :count problema por corregir|[0,*] :count problemas por corregir',
         'create_another' => 'Crear otro',
+        'connect_to_post' => 'Conecta un canal para publicar',
         'request_approval' => 'Guardar y pedir aprobación',
         'templates' => 'Plantillas',
         'expand' => 'Ampliar diálogo',
@@ -889,6 +890,7 @@ return [
         'slot_aria' => 'Añadir una publicación a :channel en :network a las :time',
         'no_time' => 'Sin hora',
         'new_in_slot' => 'Nuevo',
+        'add_post_in_slot' => 'Añadir post',
         'more_times' => 'Más horarios',
         'failure' => [
             'title' => 'Por qué falló',
@@ -907,6 +909,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal publicaciones enviadas esta semana',
+        'goal_popover' => [
+            'title' => 'Meta de publicación',
+            'per_week' => ':count publicación por semana|:count publicaciones por semana',
+            'sent' => 'Enviadas',
+            'scheduled' => 'Programadas',
+            'to_do' => 'Pendientes',
+            'edit' => 'Editar meta de publicación',
+        ],
         'menu' => [
             'show_posting_times' => 'Mostrar horarios de publicación',
             'manage_posting_times' => 'Gestionar horarios de publicación',
@@ -925,11 +935,20 @@ return [
             'delete' => 'Eliminar post',
             'add_to_queue' => 'Añadir a la cola',
             'add_to_queue_disabled' => 'Añade horarios de publicación a este canal para usar la cola.',
+            'more' => 'Más acciones',
+            'open_on_network' => 'Abrir publicación en :network',
+            'see_insights' => 'Ver insights de la publicación',
             'view_post' => 'Ver publicación',
             'edit_labels' => 'Editar etiquetas',
             'edit_labels_failed' => 'No se pudieron actualizar las etiquetas. Inténtalo de nuevo.',
         ],
         'created_by' => 'Creado por :name :when',
+        'welcome' => [
+            'title' => 'Bienvenido a TryPost 👋',
+            'description' => 'Conecta un canal para empezar a planificar y publicar tus posts.',
+            'invite' => 'Invita a tu equipo',
+            'connect_more' => 'Conectar más canales',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'No hay publicaciones programadas',

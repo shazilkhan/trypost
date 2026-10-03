@@ -62,6 +62,9 @@ return [
             'description' => 'TryPost 界面显示的语言。',
             'search' => '搜索语言',
             'empty' => '未找到语言',
+            'suggestions' => '建议',
+            'all' => '所有语言',
+            'browser' => '在你的浏览器中检测到',
         ],
         'timezone' => [
             'heading' => '时区',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'API 密钥',
         'page_title' => 'API 密钥',
-        'description' => '管理用于以编程方式访问你工作区的 API 密钥。',
+        'description' => '通过 API 访问你的工作区。',
         'create' => '生成 API 密钥',
         'copy' => '复制',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => '请妥善保管你的 API 密钥。',
             'warning_body' => '请像对待密码一样对待 API 密钥。不要公开分享、提交到 Git，或放入客户端代码中。你将无法再次查看它。如果密钥泄露，请删除并创建新的密钥。',
             'done' => '完成',
+        ],
+        'meta' => [
+            'expires' => ':date 到期',
+            'expired' => '已于 :date 到期',
+            'never_expires' => '永不过期',
+            'last_used' => '上次使用 :time',
+            'never_used' => '从未使用',
+            'created' => '创建于 :date',
         ],
         'table' => [
             'expires' => '过期时间',

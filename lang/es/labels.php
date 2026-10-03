@@ -2,13 +2,17 @@
 
 return [
     'title' => 'Etiquetas',
-    'description' => 'Crea etiquetas para organizar y categorizar tus posts',
+    'description' => 'Organiza y filtra tus posts con etiquetas.',
     'search' => 'Buscar etiquetas...',
     'new_label' => 'Nueva etiqueta',
     'no_labels_yet' => 'Aún no hay etiquetas',
     'no_search_results' => 'Ninguna etiqueta coincide con tu búsqueda',
     'try_different_search' => 'Prueba otra palabra clave o limpia la búsqueda.',
     'create_first_label' => 'Crea tu primera etiqueta',
+
+    'meta' => [
+        'posts' => '{0} Sin posts|{1} :count post|[2,*] :count posts',
+    ],
 
     'actions' => [
         'edit' => 'Editar etiqueta',

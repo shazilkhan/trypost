@@ -69,7 +69,20 @@ const { canPublishDirectly } = useWorkspaceAbilities();
 const http = useHttp<Record<string, never>, PostCard[]>({});
 const group = ref<PostCard[] | null>(null);
 const selectedId = ref(props.post.id);
+
+const selectSibling = (id: typeof selectedId.value): void => {
+    selectedId.value = id;
+};
+
 const railCollapsed = ref(false);
+
+const collapseRail = (): void => {
+    railCollapsed.value = true;
+};
+
+const expandRail = (): void => {
+    railCollapsed.value = false;
+};
 
 const loadGroup = async (): Promise<void> => {
     try {
@@ -163,6 +176,11 @@ const media = computed<MediaItem[]>(() => current.value.media ?? []);
 
 const textElement = ref<HTMLElement | null>(null);
 const textExpanded = ref(false);
+
+const expandText = (): void => {
+    textExpanded.value = true;
+};
+
 const textClamped = ref(false);
 
 const measureText = (): void => {
@@ -242,7 +260,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             size="icon"
                             :aria-label="$t('posts.group.collapse')"
                             :data-testid="`post-details-rail-collapse-${testKey}`"
-                            @click="railCollapsed = true"
+                            @click="collapseRail"
                         >
                             <IconLayoutSidebarLeftCollapse class="size-4" />
                         </Button>
@@ -255,7 +273,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         :class="sibling.id === current.id ? 'bg-secondary' : ''"
                         :aria-current="sibling.id === current.id ? 'true' : undefined"
                         :data-testid="`post-details-rail-item-${sibling.id}`"
-                        @click="selectedId = sibling.id"
+                        @click="selectSibling(sibling.id)"
                     >
                         <ChannelAvatar
                             :status="siblingAccount(sibling)?.status"
@@ -312,7 +330,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                                 size="icon"
                                 :aria-label="$t('posts.group.expand')"
                                 :data-testid="`post-details-rail-expand-${testKey}`"
-                                @click="railCollapsed = false"
+                                @click="expandRail"
                             >
                                 <IconLayoutSidebarLeftExpand class="size-4" />
                             </Button>
@@ -417,7 +435,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             type="button"
                             class="text-sm font-medium text-muted-foreground hover:text-foreground"
                             :data-testid="`post-details-see-more-${currentKey}`"
-                            @click="textExpanded = true"
+                            @click="expandText"
                         >
                             {{ $t('posts.composer.preview.see_more') }}
                         </button>

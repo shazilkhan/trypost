@@ -62,6 +62,9 @@ return [
             'description' => 'De taal van de TryPost-interface.',
             'search' => 'Talen zoeken',
             'empty' => 'Geen taal gevonden',
+            'suggestions' => 'Suggesties',
+            'all' => 'Alle talen',
+            'browser' => 'Gedetecteerd in je browser',
         ],
         'timezone' => [
             'heading' => 'Tijdzone',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'API-sleutels',
         'page_title' => 'API-sleutels',
-        'description' => 'Beheer API-sleutels voor programmatische toegang tot je workspace.',
+        'description' => 'Krijg toegang tot je workspace via de API.',
         'create' => 'API-sleutel genereren',
         'copy' => 'Kopiëren',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => 'Bewaar je API-sleutel veilig.',
             'warning_body' => 'Behandel je API-sleutel als een wachtwoord. Deel hem niet openbaar, voeg hem niet toe aan Git en gebruik hem niet in code aan de clientzijde. Je kunt hem niet opnieuw zien. Als hij openbaar is geworden, verwijder hem dan en maak een nieuwe aan.',
             'done' => 'Klaar',
+        ],
+        'meta' => [
+            'expires' => 'Verloopt op :date',
+            'expired' => 'Verlopen op :date',
+            'never_expires' => 'Verloopt nooit',
+            'last_used' => 'Gebruikt :time',
+            'never_used' => 'Nooit gebruikt',
+            'created' => 'Gemaakt op :date',
         ],
         'table' => [
             'expires' => 'Verloopt',

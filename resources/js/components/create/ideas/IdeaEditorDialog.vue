@@ -96,6 +96,11 @@ const uploader = useMediaUpload({
     onReady: appendMedia,
 });
 const unsplashOpen = ref(false);
+
+const openUnsplash = (): void => {
+    unsplashOpen.value = true;
+};
+
 const mediaImport = useMediaImport();
 const onImportStarted = (started: MediaImportStarted): void =>
     mediaImport.track(uploader, started);
@@ -147,6 +152,19 @@ form.transform((data) => ({
 }));
 const open = ref(true);
 const assistantOpen = ref(false);
+
+const closeAssistant = (): void => {
+    assistantOpen.value = false;
+};
+
+const openAssistant = (): void => {
+    assistantOpen.value = true;
+};
+
+const toggleAssistant = (): void => {
+    assistantOpen.value = !assistantOpen.value;
+};
+
 const stageOpen = ref(false);
 const stageSearch = ref('');
 const labelsOpen = ref(false);
@@ -357,7 +375,7 @@ const iconButtonClass =
                         :class="iconButtonClass"
                         :aria-label="$t('common.close')"
                         data-testid="idea-editor-assistant-close"
-                        @click="assistantOpen = false"
+                        @click="closeAssistant"
                     >
                         <IconX class="size-4" />
                     </button>
@@ -613,7 +631,7 @@ const iconButtonClass =
                                 type="button"
                                 class="pointer-events-auto inline-flex h-6 items-center gap-1 rounded-md bg-primary-subtle px-2 text-xs font-medium text-primary-text transition-control hover:brightness-95"
                                 data-testid="idea-editor-use-assistant"
-                                @click="assistantOpen = true"
+                                @click="openAssistant"
                             >
                                 <IconSparkles class="size-3.5" />
                                 {{ $t('create.ideas.editor.use_assistant') }}
@@ -666,7 +684,7 @@ const iconButtonClass =
                     <MediaSourceMenu
                         test-id-prefix="idea-editor"
                         @import-started="onImportStarted"
-                        @open-unsplash="unsplashOpen = true"
+                        @open-unsplash="openUnsplash"
                     />
                     <span
                         class="mx-1 h-6 w-px bg-border"
@@ -694,7 +712,7 @@ const iconButtonClass =
                         size="sm"
                         :aria-pressed="assistantOpen"
                         data-testid="idea-editor-ai"
-                        @click="assistantOpen = !assistantOpen"
+                        @click="toggleAssistant"
                     >
                         <IconSparkles class="size-4" />
                         {{ $t('posts.composer.assistant_title') }}

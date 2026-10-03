@@ -113,11 +113,20 @@ onUnmounted(() => {
 });
 
 const step = ref<'goal' | 'recommended'>('goal');
+
+const showGoalStep = (): void => {
+    step.value = 'goal';
+};
+
 const choice = ref<Choice>(3);
 const custom = ref(CUSTOM_START);
 const schedule = ref<PostingSchedule | null>(null);
 const saving = ref(false);
 const helpOpen = ref(false);
+
+const closeHelp = (): void => {
+    helpOpen.value = false;
+};
 
 const http = useHttp<Record<string, any>, ChannelScheduleState>({});
 
@@ -404,7 +413,7 @@ const rows = computed(() =>
                             >
                                 {{ $t('channels.goal_dialog.learn_more') }}
                             </Button>
-                            <Button data-testid="goal-help-close" @click="helpOpen = false">
+                            <Button data-testid="goal-help-close" @click="closeHelp">
                                 {{ $t('channels.goal_dialog.done') }}
                             </Button>
                         </div>
@@ -423,7 +432,7 @@ const rows = computed(() =>
                     size="lg"
                     class="-ms-2 px-2 font-normal sm:text-[15px]"
                     data-testid="goal-change"
-                    @click="step = 'goal'"
+                    @click="showGoalStep"
                 >
                     <IconArrowLeft class="size-4 rtl:rotate-180" />
                     {{ $t('channels.goal_dialog.change_goal') }}

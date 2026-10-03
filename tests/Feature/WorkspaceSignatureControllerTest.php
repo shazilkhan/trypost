@@ -52,12 +52,12 @@ test('store signature requires authentication', function () {
 });
 
 test('store signature creates signature', function () {
-    $response = $this->actingAs($this->user)->post(route('app.signatures.store'), [
+    $response = $this->actingAs($this->user)->from(route('app.signatures.index', ['search' => 'Mar']))->post(route('app.signatures.store'), [
         'name' => 'Marketing',
         'content' => '#marketing #digital #growth',
     ]);
 
-    $response->assertRedirect(route('app.signatures.index'))
+    $response->assertRedirect(route('app.signatures.index', ['search' => 'Mar']))
         ->assertSessionMissing('flash.banner');
 
     $this->assertDatabaseHas('workspace_signatures', [
@@ -115,12 +115,12 @@ test('update signature requires authentication', function () {
 test('update signature updates the signature', function () {
     $signature = WorkspaceSignature::factory()->create(['workspace_id' => $this->workspace->id]);
 
-    $response = $this->actingAs($this->user)->put(route('app.signatures.update', $signature), [
+    $response = $this->actingAs($this->user)->from(route('app.signatures.index', ['search' => 'Upd']))->put(route('app.signatures.update', $signature), [
         'name' => 'Updated Name',
         'content' => '#updated #content',
     ]);
 
-    $response->assertRedirect(route('app.signatures.index'))
+    $response->assertRedirect(route('app.signatures.index', ['search' => 'Upd']))
         ->assertSessionMissing('flash.banner');
 
     $signature->refresh();
@@ -177,9 +177,9 @@ test('destroy signature requires authentication', function () {
 test('destroy signature deletes the signature', function () {
     $signature = WorkspaceSignature::factory()->create(['workspace_id' => $this->workspace->id]);
 
-    $response = $this->actingAs($this->user)->delete(route('app.signatures.destroy', $signature));
+    $response = $this->actingAs($this->user)->from(route('app.signatures.index', ['search' => 'Del']))->delete(route('app.signatures.destroy', $signature));
 
-    $response->assertRedirect(route('app.signatures.index'))
+    $response->assertRedirect(route('app.signatures.index', ['search' => 'Del']))
         ->assertSessionMissing('flash.banner');
     expect(WorkspaceSignature::find($signature->id))->toBeNull();
 });
@@ -254,4 +254,35 @@ test('update signature validates required fields', function () {
     $response = $this->actingAs($this->user)->put(route('app.signatures.update', $signature), []);
 
     $response->assertSessionHasErrors(['name', 'content']);
+});
+
+test('a signature that fails validation returns to the page it came from with the errors', function () {
+    $this->actingAs($this->user)
+        ->from(route('app.signatures.index', ['search' => 'New']))
+        ->post(route('app.signatures.store'), ['name' => '', 'content' => ''])
+        ->assertRedirect(route('app.signatures.index', ['search' => 'New']))
+        ->assertSessionHasErrors(['name', 'content']);
+
+    $signature = WorkspaceSignature::factory()->create(['workspace_id' => $this->workspace->id]);
+
+    $this->actingAs($this->user)
+        ->from(route('app.signatures.index', ['search' => 'Upd']))
+        ->put(route('app.signatures.update', $signature), ['name' => '', 'content' => ''])
+        ->assertRedirect(route('app.signatures.index', ['search' => 'Upd']))
+        ->assertSessionHasErrors(['name', 'content']);
+
+    $this->assertDatabaseCount('workspace_signatures', 1);
+});
+
+test('signatures index says whether the workspace has any signature, independent of the search', function () {
+    $this->actingAs($this->user)
+        ->get(route('app.signatures.index'))
+        ->assertInertia(fn ($page) => $page->where('hasData', false)->has('signatures.data', 0));
+
+    WorkspaceSignature::factory()->create(['workspace_id' => $this->workspace->id, 'name' => 'Marketing']);
+    WorkspaceSignature::factory()->create(['workspace_id' => Workspace::factory()->create()->id, 'name' => 'Foreign']);
+
+    $this->actingAs($this->user)
+        ->get(route('app.signatures.index', ['search' => 'nothing-matches']))
+        ->assertInertia(fn ($page) => $page->where('hasData', true)->has('signatures.data', 0));
 });

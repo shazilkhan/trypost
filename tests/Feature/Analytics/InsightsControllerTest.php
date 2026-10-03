@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -135,5 +136,31 @@ test('empty dashboard ignores an unbounded requested date range', function () {
             ->where('report.bounds.min', null)
             ->where('report.range.start', now('UTC')->startOfDay()->subDays(29)->toDateString())
             ->where('report.range.end', now('UTC')->startOfDay()->toDateString())
+            ->etc());
+});
+
+test('a workspace without connected channels shows no past analytics', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $user->update(['current_workspace_id' => $workspace->id]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => null,
+        'social_account_key' => (string) Str::uuid(),
+        'platform' => Platform::Instagram,
+        'network' => Platform::Instagram->network(),
+        'platform_user_id' => 'disconnected',
+        'date' => '2026-09-20',
+        'followers_count' => 42,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('app.insights', ['start' => '2026-01-01', 'end' => '2026-12-31']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('insights/Index')
+            ->where('channelOptions', [])
+            ->where('report.bounds.min', null)
+            ->where('report.followers.accounts', [])
             ->etc());
 });

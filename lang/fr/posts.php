@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Publier les publications',
         'destination_issues' => '{1} :count problème à corriger|[0,*] :count problèmes à corriger',
         'create_another' => 'En créer un autre',
+        'connect_to_post' => 'Connectez un canal pour publier',
         'request_approval' => 'Enregistrer et demander l\'approbation',
         'templates' => 'Modèles',
         'expand' => 'Agrandir la fenêtre',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'Ajouter une publication à :channel sur :network à :time',
         'no_time' => 'Sans heure',
         'new_in_slot' => 'Nouveau',
+        'add_post_in_slot' => 'Ajouter un post',
         'more_times' => 'Plus d\'horaires',
         'failure' => [
             'title' => 'Pourquoi l\'échec',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal posts envoyés cette semaine',
+        'goal_popover' => [
+            'title' => 'Objectif de publication',
+            'per_week' => ':count publication par semaine|:count publications par semaine',
+            'sent' => 'Envoyées',
+            'scheduled' => 'Planifiées',
+            'to_do' => 'À faire',
+            'edit' => 'Modifier l\'objectif',
+        ],
         'menu' => [
             'show_posting_times' => 'Afficher les horaires de publication',
             'manage_posting_times' => 'Gérer les horaires de publication',
@@ -924,11 +934,20 @@ return [
             'delete' => 'Supprimer la publication',
             'add_to_queue' => 'Ajouter à la file d\'attente',
             'add_to_queue_disabled' => 'Ajoutez des horaires de publication à ce canal pour utiliser la file d\'attente.',
+            'more' => 'Plus d\'actions',
+            'open_on_network' => 'Ouvrir le post sur :network',
+            'see_insights' => 'Voir les statistiques du post',
             'view_post' => 'Voir le post',
             'edit_labels' => 'Modifier les étiquettes',
             'edit_labels_failed' => 'Impossible de mettre à jour les étiquettes. Réessayez.',
         ],
         'created_by' => 'Créé par :name :when',
+        'welcome' => [
+            'title' => 'Bienvenue sur TryPost 👋',
+            'description' => 'Connectez un canal pour commencer à planifier et publier vos posts.',
+            'invite' => 'Inviter votre équipe',
+            'connect_more' => 'Connecter d\'autres canaux',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Aucune publication programmée',

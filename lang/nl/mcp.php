@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => 'Koppel AI-assistenten aan je TryPost-workspace. Ze gebruiken dezelfde rechten als elke ingelogde gebruiker.',
+    'subtitle' => 'Koppel AI-assistenten aan je workspace.',
     'copy_step' => 'Kopieer je TryPost-server-URL',
     'open_step' => 'Open je AI-assistent',
     'copy' => 'URL kopiëren',

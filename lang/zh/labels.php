@@ -2,13 +2,17 @@
 
 return [
     'title' => '标签',
-    'description' => '创建标签，用于整理和分类你的帖子',
+    'description' => '用标签整理你的帖子。',
     'search' => '搜索标签…',
     'new_label' => '新建标签',
     'no_labels_yet' => '暂无标签',
     'no_search_results' => '没有与搜索匹配的标签',
     'try_different_search' => '换一个关键词，或清除搜索。',
     'create_first_label' => '创建你的第一个标签',
+
+    'meta' => [
+        'posts' => '{0} 没有帖子|[1,*] :count 篇帖子',
+    ],
 
     'actions' => [
         'edit' => '编辑标签',

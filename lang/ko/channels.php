@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => '채널',
-    'description' => '이 워크스페이스에 연결된 소셜 채널을 관리합니다.',
+    'description' => '이 워크스페이스의 채널을 관리하세요.',
     'connect' => '채널 연결',
     'settings' => '채널 설정',
     'publish' => '게시',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => '연결 끊김',
     'connection_lost_hint' => '계속 게시하려면 이 채널을 다시 연결하세요.',
     'reconnect' => '재연결',
+    'refresh_connection' => '연결 새로고침',
     'view_profile' => '프로필 보기',
     'disconnect' => '연결 해제',
     'actions' => '채널 작업',
@@ -161,6 +162,11 @@ return [
 
     'disconnect_modal' => [
         'title' => '채널 연결 해제',
+        'title_named' => ':name 연결 해제',
+        'refresh_before' => '연결에 문제가 있나요? 먼저',
+        'refresh_after' => '을(를) 시도해 보세요.',
+        'irreversible' => '이 작업은 되돌릴 수 없습니다.',
+        'type_to_confirm' => '확인하려면 ":keyword"을(를) 입력하세요.',
         'description' => 'TryPost에 있는 이 채널의 모든 게시물이 임시 저장, 예약 게시물, 게시 기록을 포함해 삭제됩니다. 네트워크에 이미 올라간 게시물은 그대로 남습니다.',
         'confirm' => '연결 해제',
         'keyword' => '연결 해제',

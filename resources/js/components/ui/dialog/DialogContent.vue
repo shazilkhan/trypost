@@ -9,6 +9,7 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from "reka-ui"
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import DialogOverlay from "./DialogOverlay.vue"
 
@@ -45,9 +46,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
         data-slot="dialog-close"
         data-testid="dialog-close"
         :aria-label="$t('common.close')"
-        class="absolute top-3 right-3 inline-flex size-8 cursor-pointer items-center justify-center rounded-full border border-border bg-background text-foreground shadow-xs transition-all hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+        :class="cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'absolute top-4 end-4')"
       >
-        <IconX class="size-4" stroke-width="2.5" />
+        <IconX class="size-4" />
         <span class="sr-only">{{ $t('common.close') }}</span>
       </DialogClose>
     </DialogContent>

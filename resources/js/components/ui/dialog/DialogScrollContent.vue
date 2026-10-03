@@ -10,6 +10,7 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from "reka-ui"
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 defineOptions({
@@ -50,7 +51,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
         <DialogClose
           data-slot="dialog-close"
           data-testid="dialog-close"
-          class="absolute top-4 right-4 inline-flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-strong bg-card text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:right-6 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+          :class="cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'absolute top-4 end-4')"
         >
           <IconX class="size-4" />
           <span class="sr-only">{{ $t('common.close') }}</span>

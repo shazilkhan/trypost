@@ -43,6 +43,16 @@ return [
     'date_range_picker' => [
         'placeholder' => '选择日期范围',
         'today' => '今天',
+        'yesterday' => '昨天',
+        'last_7_days' => '过去 7 天',
+        'last_30_days' => '过去 30 天',
+        'last_3_months' => '过去 3 个月',
+        'last_6_months' => '过去 6 个月',
+        'last_12_months' => '过去 12 个月',
+        'this_month' => '本月',
+        'last_month' => '上月',
+        'year_to_date' => '今年至今',
+        'last_year' => '去年',
     ],
 
     'cancel' => '取消',

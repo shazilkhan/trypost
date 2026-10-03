@@ -53,6 +53,10 @@ defineProps<{
 
 const logoutDialogOpen = ref(false);
 
+const closeLogoutDialog = (): void => {
+    logoutDialogOpen.value = false;
+};
+
 const page = usePage();
 const providerEnabled = (provider: SocialProvider): boolean =>
     Boolean(
@@ -140,7 +144,7 @@ const providerEnabled = (provider: SocialProvider): boolean =>
                             "
                             :options="{ preserveScroll: true }"
                             reset-on-success
-                            @success="logoutDialogOpen = false"
+                            @success="closeLogoutDialog"
                             class="flex flex-col gap-6"
                             v-slot="{ errors, processing }"
                         >

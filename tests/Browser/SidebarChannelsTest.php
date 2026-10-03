@@ -121,6 +121,16 @@ test('an empty workspace offers to connect a channel', function () {
     $page = visit(route('app.posts.index'));
     waitForSidebarChannelsTestId($page, 'sidebar-channels-empty');
 
+    $page->assertSeeIn('@sidebar-channels-label', __('sidebar.connect_channels'))
+        ->assertVisible('@sidebar-channels-empty-connect-instagram')
+        ->assertVisible('@sidebar-channels-empty-connect-tiktok')
+        ->assertVisible('@sidebar-channels-empty-connect-linkedin')
+        ->assertVisible('@sidebar-channels-settings')
+        ->assertVisible('@sidebar-channels-connect');
+
+    expect($page->script("(() => { const button = document.querySelector('[data-testid=\"sidebar-channels-empty-connect-instagram\"]'); return [button.querySelector('svg') !== null, button.querySelector('img') === null, getComputedStyle(button).backgroundImage.startsWith('linear-gradient')]; })()"))
+        ->toBe([true, true, true]);
+
     $page->click('@sidebar-channels-empty');
     waitForSidebarChannelsTestId($page, 'connect-channel-dialog');
 

@@ -173,6 +173,10 @@ const timezoneConfirmOpen = computed({
     },
 });
 
+const closeTimezoneConfirmDialog = (): void => {
+    timezoneConfirmOpen.value = false;
+};
+
 const confirmTimezone = (): void => {
     const value = pendingTimezone.value;
     pendingTimezone.value = null;
@@ -197,6 +201,11 @@ type PendingGenerate =
     | { kind: 'copy'; from: string };
 
 const pending = ref<PendingGenerate | null>(null);
+
+const requestGenerate = (action: PendingGenerate): void => {
+    pending.value = action;
+};
+
 const confirmOpen = computed({
     get: () => pending.value !== null,
     set: (open: boolean) => {
@@ -205,6 +214,10 @@ const confirmOpen = computed({
         }
     },
 });
+
+const closeConfirmDialog = (): void => {
+    confirmOpen.value = false;
+};
 
 const runPending = (): void => {
     const action = pending.value;
@@ -232,6 +245,14 @@ const runPending = (): void => {
 };
 
 const clearOpen = ref(false);
+
+const openClearDialog = (): void => {
+    clearOpen.value = true;
+};
+
+const closeClearDialog = (): void => {
+    clearOpen.value = false;
+};
 
 const clearAll = (): void => {
     clearOpen.value = false;
@@ -479,11 +500,7 @@ const addSlot = (): void => {
                                                         :disabled="goalMet"
                                                         class="ps-3"
                                                         data-testid="schedule-generate-goal"
-                                                        @select="
-                                                            pending = {
-                                                                kind: 'goal',
-                                                            }
-                                                        "
+                                                        @select="requestGenerate({ kind: 'goal' })"
                                                     >
                                                         {{
                                                             $t(
@@ -508,9 +525,7 @@ const addSlot = (): void => {
                                     <DropdownMenuItem
                                         class="ps-3"
                                         data-testid="schedule-generate-recommended"
-                                        @select="
-                                            pending = { kind: 'recommended' }
-                                        "
+                                        @select="requestGenerate({ kind: 'recommended' })"
                                     >
                                         {{
                                             $t(
@@ -539,12 +554,7 @@ const addSlot = (): void => {
                                                     :key="other.id"
                                                     class="gap-3 ps-3"
                                                     :data-testid="`schedule-generate-copy-${other.id}`"
-                                                    @select="
-                                                        pending = {
-                                                            kind: 'copy',
-                                                            from: other.id,
-                                                        }
-                                                    "
+                                                    @select="requestGenerate({ kind: 'copy', from: other.id })"
                                                 >
                                                     <ChannelAvatar
                                                         :platform="other.platform"
@@ -691,7 +701,7 @@ const addSlot = (): void => {
                                 size="lg"
                                 class="ms-auto text-destructive-text hover:text-destructive-text"
                                 data-testid="schedule-clear"
-                                @click="clearOpen = true"
+                                @click="openClearDialog"
                             >
                                 <IconTrash class="size-4 text-destructive-text" />
                                 {{ $t('channels.settings_page.clear_all') }}
@@ -720,7 +730,7 @@ const addSlot = (): void => {
                     <Button
                         type="button"
                         variant="outline"
-                        @click="confirmOpen = false"
+                        @click="closeConfirmDialog"
                     >
                         {{ $t('channels.settings_page.cancel') }}
                     </Button>
@@ -753,7 +763,7 @@ const addSlot = (): void => {
                     <Button
                         type="button"
                         variant="outline"
-                        @click="clearOpen = false"
+                        @click="closeClearDialog"
                     >
                         {{ $t('channels.settings_page.cancel') }}
                     </Button>
@@ -792,7 +802,7 @@ const addSlot = (): void => {
                         type="button"
                         variant="outline"
                         data-testid="channel-timezone-confirm-cancel"
-                        @click="timezoneConfirmOpen = false"
+                        @click="closeTimezoneConfirmDialog"
                     >
                         {{ $t('channels.settings_page.cancel') }}
                     </Button>

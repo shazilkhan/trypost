@@ -6,6 +6,7 @@ import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Spinner } from '@/components/ui/spinner';
 import WorkspaceUpgradeDialog from '@/components/workspaces/WorkspaceUpgradeDialog.vue';
 import { useWorkspaceLimit } from '@/composables/useWorkspaceLimit';
 import AuthLayout from '@/layouts/AuthLayout.vue';
@@ -39,9 +40,8 @@ const submit = (): void => {
     <AuthLayout
         :title="$t('workspaces.create.title')"
         :description="$t('workspaces.create.description')"
-        width="md"
     >
-        <form class="flex flex-col gap-6" @submit.prevent="submit">
+        <form class="flex flex-col gap-4" @submit.prevent="submit">
             <div class="grid gap-2">
                 <Label for="name">{{ $t('workspaces.create.name') }}</Label>
                 <Input
@@ -49,6 +49,7 @@ const submit = (): void => {
                     v-model="form.name"
                     type="text"
                     name="name"
+                    autofocus
                     data-testid="workspaces-create-name"
                     :placeholder="$t('workspaces.create.name_placeholder')"
                 />
@@ -57,11 +58,11 @@ const submit = (): void => {
 
             <Button
                 type="submit"
-                size="lg"
-                class="w-full text-base"
+                class="w-full"
                 data-testid="workspaces-create-submit"
                 :disabled="form.processing"
             >
+                <Spinner v-if="form.processing" />
                 {{ $t('workspaces.create.submit') }}
             </Button>
         </form>

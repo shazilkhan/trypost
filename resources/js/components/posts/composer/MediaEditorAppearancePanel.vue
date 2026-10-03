@@ -13,6 +13,10 @@ defineProps<{
 
 const edit = defineModel<MediaEdit>('edit', { required: true });
 
+const selectFilter = (filter: MediaEdit['filter']): void => {
+    edit.value.filter = filter;
+};
+
 const previewFilter = (filter: MediaEdit['filter']): string =>
     cssFilter({ ...blankMediaEdit(), filter });
 </script>
@@ -38,7 +42,7 @@ const previewFilter = (filter: MediaEdit['filter']): string =>
                             ? 'bg-primary-selected ring-1 ring-primary-strong'
                             : 'hover:bg-muted'
                     "
-                    @click="edit.filter = filter"
+                    @click="selectFilter(filter)"
                 >
                     <img
                         :src="src"

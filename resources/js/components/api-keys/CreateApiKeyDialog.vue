@@ -19,6 +19,10 @@ import { Label } from '@/components/ui/label';
 
 const open = defineModel<boolean>('open', { default: false });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const expiresAt = ref('');
 
 const onSuccess = () => {
@@ -81,7 +85,7 @@ const onSuccess = () => {
                     <Button
                         type="button"
                         variant="ghost"
-                        @click="open = false"
+                        @click="closeDialog"
                     >
                         {{ $t('settings.api_keys.create_dialog.cancel') }}
                     </Button>

@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Publicar posts',
         'destination_issues' => '{1} :count problema para corrigir|[0,*] :count problemas para corrigir',
         'create_another' => 'Criar outro',
+        'connect_to_post' => 'Conecte um canal para publicar',
         'request_approval' => 'Salvar e pedir aprovação',
         'templates' => 'Modelos',
         'expand' => 'Expandir diálogo',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'Adicionar um post em :channel no :network às :time',
         'no_time' => 'Sem horário',
         'new_in_slot' => 'Novo',
+        'add_post_in_slot' => 'Adicionar post',
         'more_times' => 'Mais horários',
         'failure' => [
             'title' => 'Por que falhou',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal posts enviados nesta semana',
+        'goal_popover' => [
+            'title' => 'Meta de posts',
+            'per_week' => ':count post por semana|:count posts por semana',
+            'sent' => 'Enviados',
+            'scheduled' => 'Agendados',
+            'to_do' => 'A fazer',
+            'edit' => 'Editar meta de posts',
+        ],
         'menu' => [
             'show_posting_times' => 'Mostrar horários de postagem',
             'manage_posting_times' => 'Gerenciar horários',
@@ -924,11 +934,20 @@ return [
             'delete' => 'Excluir post',
             'add_to_queue' => 'Adicionar à fila',
             'add_to_queue_disabled' => 'Adicione horários de postagem a este canal para usar a fila.',
+            'more' => 'Mais ações',
+            'open_on_network' => 'Abrir post no :network',
+            'see_insights' => 'Ver insights do post',
             'view_post' => 'Ver post',
             'edit_labels' => 'Editar labels',
             'edit_labels_failed' => 'Não foi possível atualizar as labels. Tente novamente.',
         ],
         'created_by' => 'Criado por :name :when',
+        'welcome' => [
+            'title' => 'Boas-vindas ao TryPost 👋',
+            'description' => 'Conecte um canal para começar a planejar e publicar seus posts.',
+            'invite' => 'Convidar sua equipe',
+            'connect_more' => 'Conectar mais canais',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Nenhum post agendado',

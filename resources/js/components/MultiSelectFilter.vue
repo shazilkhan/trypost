@@ -155,12 +155,15 @@ const toggleAll = (): void => {
                 role="group"
                 :aria-label="label"
             >
-                <p
-                    v-if="!visibleOptions.length"
-                    class="px-2 py-6 text-center text-sm text-muted-foreground"
-                >
-                    {{ emptyMessage }}
-                </p>
+                <template v-if="!visibleOptions.length">
+                    <slot name="empty">
+                        <p
+                            class="px-2 py-6 text-center text-sm text-muted-foreground"
+                        >
+                            {{ emptyMessage }}
+                        </p>
+                    </slot>
+                </template>
                 <div
                     v-for="option in visibleOptions"
                     :key="option.id"

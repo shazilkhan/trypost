@@ -226,6 +226,8 @@ test('composer can search channels, preview a selected account, and expand to th
 
     $page = visit(route('app.posts.create'));
     $page->assertVisible('@composer-empty-preview')
+        ->assertVisible('[data-testid="composer-empty-preview"] [data-testid="publish-empty-illustration"]')
+        ->assertSeeIn('@composer-empty-preview', __('posts.composer.preview_empty'))
         ->assertVisible('@composer-all-accounts')
         ->click('@composer-preview-toggle')
         ->click('@composer-preview-toggle')
@@ -453,23 +455,17 @@ test('composer searches and selects multiple labels and exposes emoji and signat
     waitForComposerReady($page);
     $page->click('@composer-tags-trigger')
         ->fill('@composer-label-search', 'Mark')
-        ->assertVisible("@composer-label-{$firstLabel->id}")
-        ->assertMissing("@composer-label-{$secondLabel->id}")
-        ->click("@composer-label-{$firstLabel->id}")
+        ->assertVisible("@composer-label-option-{$firstLabel->id}")
+        ->assertMissing("@composer-label-option-{$secondLabel->id}")
+        ->click("@composer-label-option-{$firstLabel->id}")
         ->assertVisible('@composer-label-search')
         ->fill('@composer-label-search', 'Prod')
-        ->click("@composer-label-{$secondLabel->id}")
-        ->assertVisible('@composer-label-search');
-
-    expect($page->script(<<<'JS'
-        [...document.querySelectorAll('[data-testid^="composer-label-"][role="option"]')].map((option) => [option.dataset.testid, option.getAttribute('aria-selected')])
-    JS))->toEqual([["composer-label-{$secondLabel->id}", 'true']]);
-
-    $page->fill('@composer-label-search', '')
-        ->assertVisible("@composer-label-{$firstLabel->id}");
-    expect($page->script(<<<'JS'
-        [...document.querySelectorAll('[data-testid^="composer-label-"][role="option"]')].filter((option) => option.getAttribute('aria-selected') === 'true').length
-    JS))->toBe(2);
+        ->click("@composer-label-option-{$secondLabel->id}")
+        ->assertVisible('@composer-label-search')
+        ->assertAttribute("@composer-label-checkbox-{$secondLabel->id}", 'data-state', 'checked')
+        ->fill('@composer-label-search', '')
+        ->assertAttribute("@composer-label-checkbox-{$firstLabel->id}", 'data-state', 'checked')
+        ->assertAttribute("@composer-label-checkbox-{$secondLabel->id}", 'data-state', 'checked');
 
     $page->click('@composer-tags-trigger')
         ->click('@composer-base-emoji')
@@ -518,7 +514,9 @@ test('composer creates and edits signatures in the popover without losing the dr
     $page->fill('@composer-base-content', 'Draft text')
         ->click('@composer-base-signature')
         ->assertVisible('@composer-signatures-popover')
-        ->click('@composer-create-signature')
+        ->assertSeeIn('@composer-signatures-empty', __('signatures.empty_title'))
+        ->assertMissing('@composer-create-signature')
+        ->click('@composer-signatures-empty-create')
         ->click('@submit-composer-signature')
         ->assertVisible('@composer-signature-name')
         ->assertValue('@composer-base-content', 'Draft text')
@@ -542,6 +540,87 @@ test('composer creates and edits signatures in the popover without losing the dr
         ->assertNoJavaScriptErrors();
 
     expect($signature->fresh()->content)->toBe('#launch #updated');
+});
+
+test('a label created from the empty label picker of the global composer is listed and selected without losing the draft', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.insights'));
+    $page->click('@sidebar-new')->click('@sidebar-new-post');
+    waitForComposerReady($page);
+    $page->fill('@composer-base-content', 'Draft text')
+        ->click('@composer-add-account')
+        ->click("@composer-account-option-{$account->id}")
+        ->click('@composer-tags-trigger')
+        ->click('@composer-label-create');
+    waitForComposerReady($page, 'create-label-name');
+    $page->fill('@create-label-name', 'Launch')
+        ->click('@submit-create-label')
+        ->assertSeeIn('@composer-tags-trigger', 'Launch')
+        ->assertValue("@composer-caption-{$account->id}", 'Draft text');
+
+    $label = $workspace->labels()->sole();
+
+    $page->click('@composer-tags-trigger')
+        ->assertAttribute("@composer-label-checkbox-{$label->id}", 'data-state', 'checked')
+        ->assertNoJavaScriptErrors();
+});
+
+test('a label created while editing a post on the publish page is listed and selected without losing the draft', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+    $post = Post::factory()->draft()->create(['workspace_id' => $workspace->id, 'user_id' => $user->id]);
+    PostPlatform::factory()->linkedin()->create(['post_id' => $post->id, 'social_account_id' => $account->id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForComposerReady($page, 'composer-tags-trigger');
+    $page->fill("@composer-caption-{$account->id}", 'Edited text')
+        ->click('@composer-tags-trigger')
+        ->click('@composer-label-create');
+    waitForComposerReady($page, 'create-label-name');
+    $page->fill('@create-label-name', 'Launch')
+        ->click('@submit-create-label')
+        ->assertSeeIn('@composer-tags-trigger', 'Launch')
+        ->assertValue("@composer-caption-{$account->id}", 'Edited text')
+        ->assertNoJavaScriptErrors();
+});
+
+test('the composer channel picker offers to connect a channel when the workspace has none', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    waitForComposerReady($page);
+    $page->click('@composer-add-account')
+        ->assertSeeIn('@composer-accounts-empty', __('posts.no_channels'))
+        ->click('@composer-accounts-connect');
+    waitForComposerReady($page, 'connect-channel-dialog');
+
+    $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 
 test('creating a four account draft keeps composition in the browser until save', function () {
@@ -1236,4 +1315,27 @@ test('a persisted image in the composer offers no AI image adjustment', function
     $page->assertVisible("@composer-{$account->id}-edit-0")
         ->assertMissing("@composer-ai-regenerate-{$account->id}-0")
         ->assertNoJavaScriptErrors();
+});
+
+test('the composer asks to connect a channel when the workspace has none', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    waitForComposerReady($page, 'composer-connect-channel');
+
+    $page->assertSeeIn('@composer-connect-channel', __('posts.composer.connect_to_post'))
+        ->assertMissing('@composer-submit')
+        ->assertMissing('@composer-schedule-trigger')
+        ->click('@composer-connect-channel');
+    waitForComposerReady($page, 'connect-channel-dialog');
+
+    $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });

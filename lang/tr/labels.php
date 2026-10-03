@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 return [
     'title' => 'Etiketler',
-    'description' => 'Gönderilerinizi düzenlemek ve kategorilere ayırmak için etiketler oluşturun',
+    'description' => 'Gönderilerinizi etiketlerle düzenleyin.',
     'search' => 'Etiket ara...',
     'new_label' => 'Yeni Etiket',
     'no_labels_yet' => 'Henüz etiket yok',
     'no_search_results' => 'Aramanızla eşleşen etiket yok',
     'try_different_search' => 'Farklı bir anahtar kelime deneyin veya aramayı temizleyin.',
     'create_first_label' => 'İlk etiketinizi oluşturun',
+
+    'meta' => [
+        'posts' => '{0} Gönderi yok|[1,*] :count gönderi',
+    ],
 
     'actions' => [
         'edit' => 'Etiketi düzenle',

@@ -245,7 +245,7 @@ class PostController extends Controller
             }
         }
 
-        return redirect($this->publishPageReturnUrl() ?? route('app.posts.index'));
+        return redirect($this->publishPageReturnUrl() ?? $this->calendarReturnUrl() ?? route('app.posts.index'));
     }
 
     public function duplicate(Request $request, Post $post): RedirectResponse

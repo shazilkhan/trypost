@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Kanäle',
-    'description' => 'Verwalte die Social-Media-Kanäle, die mit diesem Workspace verbunden sind.',
+    'description' => 'Verwalte die Kanäle dieses Workspace.',
     'connect' => 'Kanal verbinden',
     'settings' => 'Kanaleinstellungen',
     'publish' => 'Veröffentlichen',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Verbindung verloren',
     'connection_lost_hint' => 'Verbinde diesen Kanal erneut, um weiter zu veröffentlichen.',
     'reconnect' => 'Erneut verbinden',
+    'refresh_connection' => 'Verbindung aktualisieren',
     'view_profile' => 'Profil ansehen',
     'disconnect' => 'Trennen',
     'actions' => 'Kanalaktionen',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Kanal trennen',
+        'title_named' => ':name trennen',
+        'refresh_before' => 'Probleme mit der Verbindung? Versuche zuerst',
+        'refresh_after' => '.',
+        'irreversible' => 'Das kann nicht rückgängig gemacht werden.',
+        'type_to_confirm' => 'Gib „:keyword“ zur Bestätigung ein.',
         'description' => 'Dadurch werden alle Beiträge dieses Kanals in TryPost gelöscht, einschließlich Entwürfen, geplanten Beiträgen und dem Veröffentlichungsverlauf. Beiträge, die bereits im Netzwerk sind, bleiben dort.',
         'confirm' => 'Trennen',
-        'keyword' => 'TRENNEN',
+        'keyword' => 'trennen',
         'cancel' => 'Abbrechen',
     ],
 

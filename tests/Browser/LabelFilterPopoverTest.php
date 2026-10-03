@@ -65,3 +65,44 @@ test('the label filter offers untagged, clears the selection and links to the la
         ->assertMissing('@posts-label-count')
         ->assertNoJavaScriptErrors();
 });
+
+test('the label filter offers to create a label when the workspace has none', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => 'drafts']));
+    waitForLabelPopoverTestId($page, 'posts-label-filter');
+    $page->click('@posts-label-filter');
+    waitForLabelPopoverTestId($page, 'posts-label-empty');
+
+    $page->assertMissing('@posts-label-untagged')
+        ->assertMissing('@posts-label-settings')
+        ->assertSeeIn('@posts-label-empty', __('posts.no_labels'))
+        ->click('@posts-label-create');
+    waitForLabelPopoverTestId($page, 'create-label-sheet');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const swatch = document.querySelector('[data-testid="create-label-sheet"] [data-testid="hex-color-swatch"]');
+            const input = swatch.parentElement.querySelector('input');
+            const s = swatch.getBoundingClientRect();
+            const i = input.getBoundingClientRect();
+            return [Math.round(s.width) === Math.round(s.height), Math.round(s.height) === Math.round(i.height), i.left - s.right >= 6];
+        })()
+    JS))->toBe([true, true, true]);
+
+    $page->fill('@create-label-name', 'Launch')
+        ->click('@submit-create-label');
+
+    for ($attempt = 0; $attempt < 40 && ! WorkspaceLabel::query()->where('workspace_id', $workspace->id)->where('name', 'Launch')->exists(); $attempt++) {
+        $page->script('new Promise((resolve) => setTimeout(resolve, 100))');
+    }
+
+    expect(WorkspaceLabel::query()->where('workspace_id', $workspace->id)->where('name', 'Launch')->exists())->toBeTrue();
+
+    $page->assertNoJavaScriptErrors();
+});

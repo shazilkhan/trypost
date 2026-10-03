@@ -61,6 +61,7 @@ export interface FlashData {
     warning?: string;
     info?: string;
     plainToken?: string;
+    createdLabel?: { id: string; name: string; color: string };
     [key: string]: unknown;
 }
 

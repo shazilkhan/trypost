@@ -18,6 +18,11 @@ const props = defineProps<{
 }>();
 
 const open = defineModel<boolean>('open', { default: false });
+
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const rotating = ref(false);
 
 const handleRotate = () => {
@@ -46,7 +51,7 @@ const handleRotate = () => {
                 </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-                <Button variant="ghost" @click="open = false">
+                <Button variant="ghost" @click="closeDialog">
                     {{ $t('webhooks.rotate.cancel') }}
                 </Button>
                 <Button

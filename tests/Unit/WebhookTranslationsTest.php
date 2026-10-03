@@ -82,7 +82,7 @@ test('non-english locales translate webhook chrome instead of leaving english co
         'never',
         'create.cancel',
         'actions.delete',
-        'show.empty_title',
+        'deliveries.empty_title',
         'errors.endpoint_not_allowed',
     ];
 

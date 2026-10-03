@@ -22,6 +22,11 @@ const STATUSES: readonly CalendarStatus[] = [
 ];
 
 const status = defineModel<CalendarStatus>({ required: true });
+
+const selectStatus = (option: CalendarStatus): void => {
+    status.value = option;
+};
+
 </script>
 
 <template>
@@ -43,7 +48,7 @@ const status = defineModel<CalendarStatus>({ required: true });
                 v-for="option in STATUSES"
                 :key="option"
                 :data-testid="`calendar-status-${option}`"
-                @click="status = option"
+                @click="selectStatus(option)"
             >
                 <IconCheck
                     class="size-4"

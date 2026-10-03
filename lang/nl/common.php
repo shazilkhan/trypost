@@ -43,6 +43,16 @@ return [
     'date_range_picker' => [
         'placeholder' => 'Kies een datumbereik',
         'today' => 'Vandaag',
+        'yesterday' => 'Gisteren',
+        'last_7_days' => 'Laatste 7 dagen',
+        'last_30_days' => 'Laatste 30 dagen',
+        'last_3_months' => 'Laatste 3 maanden',
+        'last_6_months' => 'Laatste 6 maanden',
+        'last_12_months' => 'Laatste 12 maanden',
+        'this_month' => 'Deze maand',
+        'last_month' => 'Vorige maand',
+        'year_to_date' => 'Dit jaar tot nu toe',
+        'last_year' => 'Vorig jaar',
     ],
 
     'cancel' => 'Annuleren',

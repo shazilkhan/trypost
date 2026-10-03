@@ -96,7 +96,45 @@ test('the channel page shows the weekly goal progress', function () {
 
     expect($page->script('new URL(document.querySelector(\'[data-testid="schedule-view-calendar"]\').href).search'))->toBe('');
     $page->assertSeeIn('@publish-goal-progress', '0/3')
+        ->assertAttribute('@publish-goal-pie', 'data-percent', '0')
         ->assertNoJavaScriptErrors();
+});
+
+test('the weekly goal pie fills with the posts sent this week', function () {
+    [$user, $workspace, $channel] = publishPageSetup();
+    $post = publishPagePost($user, $workspace, $channel);
+    $post->postPlatforms()->update(['status' => 'published', 'published_at' => now()]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channel));
+    waitForPublishPageTestId($page, 'publish-goal-pie');
+
+    $page->assertSeeIn('@publish-goal-progress', '1/3')
+        ->assertAttribute('@publish-goal-pie', 'data-percent', '33')
+        ->assertNoJavaScriptErrors();
+
+    expect($page->script("document.querySelectorAll('[data-testid=\"publish-goal-pie\"] circle').length"))->toBe(2);
+});
+
+test('clicking the weekly goal opens a popover with sent, scheduled and to do', function () {
+    [$user, $workspace, $channel] = publishPageSetup();
+    $sent = publishPagePost($user, $workspace, $channel);
+    $sent->update(['status' => PostStatus::Published]);
+    $sent->postPlatforms()->update(['status' => 'published', 'published_at' => now()]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channel));
+    waitForPublishPageTestId($page, 'publish-goal-progress');
+
+    $page->click('@publish-goal-progress');
+    waitForPublishPageTestId($page, 'publish-goal-popover');
+
+    $page->assertSeeIn('@publish-goal-popover', trans_choice('posts.publish.goal_popover.per_week', 3, ['count' => 3]))
+        ->assertVisible('@publish-goal-edit')
+        ->assertNoJavaScriptErrors();
+
+    expect($page->script("document.querySelector('[data-testid=\"publish-goal-summary\"]').textContent.replace(/\\s+/g, ' ').trim()"))
+        ->toBe('1 '.__('posts.publish.goal_popover.sent').'·0 '.__('posts.publish.goal_popover.scheduled').'·2 '.__('posts.publish.goal_popover.to_do'));
 });
 
 test('a draft is added to the queue from the drafts tab', function () {
@@ -352,11 +390,55 @@ test('an empty tab shows its illustration, copy and a new post button that opens
 
     $page->assertSeeIn('@empty-state', __("posts.publish.empty.{$tab}.title"))
         ->assertSeeIn('@empty-state', __("posts.publish.empty.{$tab}.description"))
+        ->assertSeeIn('@publish-empty-connect-more', __('posts.publish.welcome.connect_more'))
+        ->assertMissing('@publish-welcome')
         ->click("@publish-empty-new-post-{$tab}");
     waitForPublishPageTestId($page, 'post-composer-dialog');
 
     $page->assertVisible('@post-composer-dialog')->assertNoJavaScriptErrors();
 })->with(['approvals', 'drafts', 'sent']);
+
+test('an empty tab on a channel page offers a new post, not the welcome', function () {
+    [$user, , $channel] = publishPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', ['account' => $channel, 'tab' => 'drafts']));
+    waitForPublishPageTestId($page, 'publish-empty-new-post-drafts');
+
+    $page->assertMissing('@publish-welcome')
+        ->assertVisible('@publish-empty-connect-more')
+        ->assertNoJavaScriptErrors();
+});
+
+test('a workspace without channels is welcomed with connect and invite actions', function () {
+    $user = User::factory()->create(['timezone' => 'UTC']);
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['tab' => 'drafts']));
+    waitForPublishPageTestId($page, 'publish-welcome');
+
+    $page->assertSeeIn('@publish-welcome', __('posts.publish.welcome.title'))
+        ->assertSeeIn('@publish-welcome-invite', __('posts.publish.welcome.invite'))
+        ->assertMissing('@publish-empty-new-post-drafts')
+        ->click('@publish-welcome-invite');
+    waitForPublishPageTestId($page, 'invite-member-dialog');
+
+    $page->assertVisible('@invite-email')
+        ->click('@invite-member-cancel');
+    waitForPublishPageTestId($page, 'publish-welcome-connect');
+
+    $page->click('@publish-welcome-connect');
+    waitForPublishPageTestId($page, 'connect-channel-dialog');
+
+    $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
+});
 
 test('the queue tab shows the empty state when there are no posts and no posting times', function () {
     [$user, , $channel] = publishPageSetup();

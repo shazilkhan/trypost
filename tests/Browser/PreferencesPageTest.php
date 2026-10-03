@@ -280,3 +280,25 @@ test('saving a preference shows no success toast', function () {
     $page->assertNoJavaScriptErrors();
     expect($user->fresh()->time_format)->toBe(TimeFormat::TwentyFourHour);
 });
+
+test('the language select suggests the language detected in the browser', function () {
+    $user = preferencesUser();
+    $this->actingAs($user);
+
+    $page = visit(route('app.settings.preferences'))->withLocale('pt-PT');
+    waitForPreferencesTestId($page, 'preferences-language-trigger');
+
+    $page->click('@preferences-language-trigger');
+    waitForPreferencesTestId($page, 'preferences-language-suggestions');
+
+    $page->assertVisible('[data-testid="preferences-language-suggestions"] [data-testid="preferences-language-option-pt-BR"]')
+        ->assertVisible('@preferences-language-detected')
+        ->assertSeeIn('@preferences-language-suggestions', __('settings.preferences.language.suggestions'));
+
+    expect($page->script("document.querySelectorAll('[data-testid=\"preferences-language-option-pt-BR\"]').length"))->toBe(1);
+
+    $page->fill('@preferences-language-search', 'Deutsch');
+    $page->assertMissing('@preferences-language-suggestions')
+        ->assertVisible('@preferences-language-option-de')
+        ->assertNoJavaScriptErrors();
+});

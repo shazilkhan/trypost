@@ -29,6 +29,10 @@ const emit = defineEmits<{
 
 const imageFailed = ref(false);
 
+const markImageFailed = (): void => {
+    imageFailed.value = true;
+};
+
 watch(
     () => props.item.image_url,
     () => {
@@ -52,7 +56,7 @@ watch(
                 loading="lazy"
                 referrerpolicy="no-referrer"
                 class="size-full object-cover"
-                @error="imageFailed = true"
+                @error="markImageFailed"
             />
             <div
                 v-else

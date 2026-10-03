@@ -207,6 +207,7 @@ Vue components must have a single root element.
 ## Frontend (Vue/TypeScript)
 
 - Always use arrow functions in Vue components and TypeScript files. Never use `function` declarations.
+- Template event handlers call a named function (`@click="openCreateDialog"`), never an inline statement that mutates state (`@click="isCreateDialogOpen = true"`). Opening something usually grows a second step later (reset a form, focus, track an event), and a named function is where that goes. Passing an argument through is fine: `@click="openEditDialog(label)"`.
 
 ## Inertia SSR
 
@@ -234,7 +235,8 @@ Typing the exact name is the stronger guard for the identity-bound ones, on purp
 - The keyword is translated and **always fully uppercase** in every locale (`DELETE`, `EXCLUIR`, `ELIMINAR`, …), shown uppercase in the helper text, and compared **case-sensitively** after trimming: `delete` or `excluir` must not confirm.
 - It comes from one shared lang key in all 16 locales — never a literal, and never a per-feature copy of the word.
 - Resolve it with `$t` in the template, not `trans()` in script (see `.ai/rules/js.md`).
-- Regenerating an API key uses its own keyword, `settings.api_keys.regenerate_modal.keyword` (`REGENERATE`, `REGENERAR`, …), and disconnecting a channel uses `channels.disconnect_modal.keyword` (`DISCONNECT`, `DESCONECTAR`, …), under the same rules.
+- Regenerating an API key uses its own keyword, `settings.api_keys.regenerate_modal.keyword` (`REGENERATE`, `REGENERAR`, …), under the same rules.
+- **Exception — disconnecting a channel** (`DisconnectChannelDialog`, user decision October 2026): its keyword, `channels.disconnect_modal.keyword`, is translated and **lowercase** (`disconnect`, `desconectar`, …), shown as the input placeholder and in `Type "disconnect" to confirm.`, and still compared case-sensitively after trimming (`DISCONNECT` must not confirm). The dialog ends its description with a bold `This cannot be undone.` and offers **Refresh connection** before disconnecting. Do not carry either into the other dialogs.
 
 ## Translated copy must fit its UI slot
 
@@ -243,6 +245,7 @@ Every lang string is rendered in all 16 locales, and the longest one decides the
 - When adding or changing a key, check the longest translations (French, German, Ukrainian, Russian, Polish and Portuguese usually run longest) against the slot, and shorten the copy in that locale rather than letting it wrap. A shorter natural phrase beats a literal one (`Ajustes do workspace`, not `Configurações do workspace`).
 - Never fix a wrap by truncating the text or widening one locale's layout; the label has to stay readable everywhere.
 - Cover dense menus with a browser test that renders every `Locale` case and fails on wrapped items — `tests/Browser/SidebarMenuTest.php` ("no sidebar menu item wraps onto a second line in any language") is the pattern.
+- A settings page description (the line under the page title in `SettingsLayout`) stays on one line in every locale, next to the header action. When adding a settings page with a description, add it to the dataset in `tests/Browser/SettingsDescriptionTest.php`, which measures all 16 translations in place.
 
 ## AI agents (`app/Ai/Agents`)
 
@@ -654,6 +657,15 @@ view turns a forgotten variable into a runtime-only failure.
 - All paginated lists must use Inertia's scroll pagination (`Inertia::scroll()` on the backend with `<InfiniteScroll>` on the frontend). NEVER use traditional page-based pagination with page links/buttons.
 - The page size ALWAYS comes from `config('app.pagination.default')` — never a magic number, and never a `perPage`/`per_page` value supplied by the request or frontend. Action/service list methods must NOT accept a `$perPage` parameter; call `->paginate((int) config('app.pagination.default'))` directly.
     - **This includes the public REST API** (`app/Http/Controllers/Api`). It used to pin its own page size of 15 as a stable contract; that exception is gone, so a list endpoint reads the same config as everything else. Changing `app.pagination.default` therefore changes the API's page size too — deliberate, and the reason a list response always carries `meta.per_page` for clients to read rather than assume.
+
+## Empty states on list pages
+
+A list page answers two different questions, and each needs its own data:
+
+- **Is there anything at all?** The controller sends `hasData`, read from the database without the search or filters (`$workspace->labels()->exists()`). `false` shows the first-use empty state: illustration and create button only, with no header or search (`SettingsLayout :centered`).
+- **Did this search or page return anything?** The paginated list decides it. Empty while `hasData` is `true` means no results: header and search stay, and the empty state shows the same illustration without the create button.
+
+Never derive the first-use state from the list or from the search box. A paginator's `total()` counts the filtered query, the scroll metadata carries no total at all, and the search input changes before the reload arrives, so any of them flashes or shows the wrong state while a search is active. `labels/Index.vue` is the reference.
 
 ## Form Validation
 

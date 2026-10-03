@@ -27,7 +27,7 @@ function waitForSidebarTestId(mixed $page, string $testId): void
     JS);
 }
 
-test('account owners see account and workspace settings in the sidebar menu', function () {
+test('account owners see settings, channels and plans and billing in the sidebar menu', function () {
     config(['trypost.self_hosted' => false]);
 
     $user = User::factory()->create();
@@ -51,11 +51,31 @@ test('account owners see account and workspace settings in the sidebar menu', fu
 
     waitForSidebarTestId($page, 'logout-button');
 
-    $page->assertVisible('@sidebar-menu-my-account')
-        ->assertVisible('@sidebar-menu-account-settings')
-        ->assertVisible('@sidebar-menu-workspace-settings')
+    $page->assertVisible('@sidebar-menu-settings')
+        ->assertVisible('@sidebar-menu-billing')
+        ->assertVisible('@sidebar-menu-channels')
         ->assertVisible('@sidebar-menu-manage-team')
         ->assertVisible('@logout-button');
+
+    expect($page->script('document.querySelector(\'[data-testid="sidebar-menu-settings"]\').getAttribute("href")'))
+        ->toBe(route('app.profile.edit', absolute: false))
+        ->and($page->script('document.querySelector(\'[data-testid="sidebar-menu-channels"]\').getAttribute("href")'))
+        ->toBe(route('app.workspace.channels', absolute: false))
+        ->and($page->script('document.querySelector(\'[data-testid="sidebar-menu-billing"]\').getAttribute("href")'))
+        ->toBe(route('app.billing.index', absolute: false));
+
+    expect($page->script(<<<'JS'
+        [...document.querySelectorAll('[data-testid^="sidebar-menu-section-"], [data-testid="sidebar-workspaces-trigger"], [data-testid="sidebar-menu-settings"], [data-testid="sidebar-theme-trigger"], [data-testid="sidebar-support-trigger"], [data-testid="logout-button"]')]
+            .map((element) => element.dataset.testid)
+    JS))->toBe([
+        'sidebar-menu-section-workspace',
+        'sidebar-workspaces-trigger',
+        'sidebar-menu-settings',
+        'sidebar-menu-section-preferences',
+        'sidebar-theme-trigger',
+        'sidebar-support-trigger',
+        'logout-button',
+    ]);
 });
 
 test('the sidebar menu header shows the user, plan and channel count', function () {
@@ -82,7 +102,8 @@ test('the sidebar menu header shows the user, plan and channel count', function 
     $page->click('@sidebar-workspace-menu');
     waitForSidebarTestId($page, 'sidebar-menu-plan');
 
-    $page->assertSeeIn('@sidebar-menu-email', 'ada@example.com')
+    $page->assertMissing('@sidebar-menu-email')
+        ->assertVisible('@sidebar-menu-avatar')
         ->assertSeeIn('@sidebar-menu-name', 'Ada Lovelace')
         ->assertSeeIn('@sidebar-menu-plan', "{$plan->name} · 2 channels")
         ->assertVisible('@sidebar-menu-manage-team')
@@ -141,15 +162,15 @@ test('account billing is hidden in the sidebar menu when self-hosted', function 
 
     waitForSidebarTestId($page, 'logout-button');
 
-    $page->assertVisible('@sidebar-menu-my-account')
-        ->assertMissing('@sidebar-menu-account-settings')
-        ->assertVisible('@sidebar-menu-workspace-settings');
+    $page->assertVisible('@sidebar-menu-settings')
+        ->assertMissing('@sidebar-menu-billing')
+        ->assertVisible('@sidebar-menu-channels');
 
     expect(trim((string) $page->script('document.querySelector(\'[data-testid="sidebar-menu-plan"]\').textContent')))
         ->toBe('0 channels');
 });
 
-test('workspace admins see workspace settings but not account billing', function () {
+test('workspace admins see channels but not plans and billing', function () {
     config(['trypost.self_hosted' => false]);
 
     [
@@ -177,14 +198,14 @@ test('workspace admins see workspace settings but not account billing', function
 
     waitForSidebarTestId($page, 'logout-button');
 
-    $page->assertVisible('@sidebar-menu-my-account')
-        ->assertVisible('@sidebar-menu-workspace-settings')
-        ->assertMissing('@sidebar-menu-account-settings')
+    $page->assertVisible('@sidebar-menu-settings')
+        ->assertVisible('@sidebar-menu-channels')
+        ->assertMissing('@sidebar-menu-billing')
         ->assertVisible('@sidebar-menu-manage-team')
         ->assertVisible('@logout-button');
 });
 
-test('workspace members do not see account or workspace settings in the sidebar menu', function () {
+test('workspace members do not see channels or plans and billing in the sidebar menu', function () {
     config(['trypost.self_hosted' => false]);
 
     [
@@ -212,14 +233,14 @@ test('workspace members do not see account or workspace settings in the sidebar 
 
     waitForSidebarTestId($page, 'logout-button');
 
-    $page->assertVisible('@sidebar-menu-my-account')
-        ->assertMissing('@sidebar-menu-account-settings')
-        ->assertMissing('@sidebar-menu-workspace-settings')
+    $page->assertVisible('@sidebar-menu-settings')
+        ->assertMissing('@sidebar-menu-billing')
+        ->assertMissing('@sidebar-menu-channels')
         ->assertMissing('@sidebar-menu-manage-team')
         ->assertVisible('@logout-button');
 });
 
-test('members whose posts need approval do not see account or workspace settings in the sidebar menu', function () {
+test('members whose posts need approval do not see channels or plans and billing in the sidebar menu', function () {
     config(['trypost.self_hosted' => false]);
 
     [
@@ -247,9 +268,9 @@ test('members whose posts need approval do not see account or workspace settings
 
     waitForSidebarTestId($page, 'logout-button');
 
-    $page->assertVisible('@sidebar-menu-my-account')
-        ->assertMissing('@sidebar-menu-account-settings')
-        ->assertMissing('@sidebar-menu-workspace-settings')
+    $page->assertVisible('@sidebar-menu-settings')
+        ->assertMissing('@sidebar-menu-billing')
+        ->assertMissing('@sidebar-menu-channels')
         ->assertMissing('@sidebar-menu-manage-team')
         ->assertVisible('@logout-button');
 });
@@ -329,17 +350,21 @@ test('workspaces without a logo use the brand colors in the workspace menu', fun
 
     waitForSidebarTestId($page, 'sidebar-workspace-menu');
 
-    $colors = $page->script(<<<'JS'
+    $colors = $page->script(<<<JS
         (async () => {
+            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
             document.querySelector('[data-testid="sidebar-workspace-menu"]').click();
+            await wait(400);
+            const trigger = document.querySelector('[data-testid="sidebar-workspaces-trigger"]');
+            trigger.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+            trigger.click();
             for (let i = 0; i < 60; i++) {
-                const fallback = [...document.querySelectorAll('[role="menuitem"] [data-slot="avatar"] > div')]
-                    .find((el) => el.textContent.trim() === 'A');
+                const fallback = document.querySelector('[data-testid="sidebar-workspace-{$workspace->id}"] [data-slot="avatar"] > div');
                 if (fallback) {
                     const style = getComputedStyle(fallback);
                     return [style.backgroundColor, style.color];
                 }
-                await new Promise((r) => setTimeout(r, 50));
+                await wait(50);
             }
             return null;
         })()
@@ -460,4 +485,27 @@ test('the main sidebar navigation is ordered create, publish, insights, repurpos
     expect($page->script(<<<'JS'
         Array.from(document.querySelectorAll('[data-testid^="nav-"]')).map((link) => new URL(link.href).pathname)
     JS))->toBe($paths);
+});
+
+test('the sidebar menu opens right to left for a right-to-left language', function () {
+    $user = User::factory()->create(['locale' => Locale::Arabic]);
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar'));
+    waitForSidebarTestId($page, 'sidebar-workspace-menu');
+
+    $page->click('@sidebar-workspace-menu');
+    waitForSidebarTestId($page, 'logout-button');
+
+    expect($page->script('document.querySelector(\'[data-testid="logout-button"]\').closest(\'[role="menu"]\').getAttribute("dir")'))
+        ->toBe('rtl');
+
+    $page->assertNoJavaScriptErrors();
 });

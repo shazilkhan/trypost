@@ -114,6 +114,10 @@ const seeAll = (type: string): void => {
 
 const duplicateSource = ref<DuplicateSource | null>(null);
 
+const clearDuplicateSource = (): void => {
+    duplicateSource.value = null;
+};
+
 const duplicateTemplate = (template: LibraryTemplate | PostTemplate): void => {
     duplicateSource.value = isLibraryTemplate(template)
         ? { kind: 'library', key: template.key, title: template.title }
@@ -398,7 +402,7 @@ const emptyKey = computed(() => (props.view === 'team' ? 'team' : 'personal'));
         mode="page"
         :source="duplicateSource"
         :default-visibility="view === 'team' ? 'team' : 'personal'"
-        @close="duplicateSource = null"
+        @close="clearDuplicateSource"
     />
 
     <ConfirmDeleteModal

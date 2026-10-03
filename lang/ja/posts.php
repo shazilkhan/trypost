@@ -112,6 +112,7 @@ return [
         'publish_posts' => '投稿を公開',
         'destination_issues' => '修正が必要な問題: :count件',
         'create_another' => '続けて作成',
+        'connect_to_post' => '投稿するにはチャンネルを接続',
         'request_approval' => '保存して承認を依頼',
         'templates' => 'テンプレート',
         'expand' => 'ダイアログを拡大',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => ':network の :channel に :time の投稿を追加',
         'no_time' => '時間なし',
         'new_in_slot' => '新規',
+        'add_post_in_slot' => '投稿を追加',
         'more_times' => 'その他の時間',
         'failure' => [
             'title' => '失敗した理由',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal 件の投稿を今週送信済み',
+        'goal_popover' => [
+            'title' => '投稿目標',
+            'per_week' => '週:count件の投稿|週:count件の投稿',
+            'sent' => '送信済み',
+            'scheduled' => '予約済み',
+            'to_do' => '残り',
+            'edit' => '投稿目標を編集',
+        ],
         'menu' => [
             'show_posting_times' => '投稿時間を表示',
             'manage_posting_times' => '投稿時間を管理',
@@ -924,11 +934,20 @@ return [
             'delete' => '投稿を削除',
             'add_to_queue' => 'キューに追加',
             'add_to_queue_disabled' => 'キューを使用するには、このチャンネルに投稿時間を追加してください。',
+            'more' => 'その他の操作',
+            'open_on_network' => ':networkで投稿を開く',
+            'see_insights' => '投稿のインサイトを見る',
             'view_post' => '投稿を表示',
             'edit_labels' => 'ラベルを編集',
             'edit_labels_failed' => 'ラベルを更新できませんでした。もう一度お試しください。',
         ],
         'created_by' => '作成者: :name :when',
+        'welcome' => [
+            'title' => 'TryPostへようこそ 👋',
+            'description' => 'チャンネルを接続して、投稿の計画と公開を始めましょう。',
+            'invite' => 'チームを招待',
+            'connect_more' => 'チャンネルを追加接続',
+        ],
         'empty' => [
             'queue' => [
                 'title' => '予約済みの投稿はありません',

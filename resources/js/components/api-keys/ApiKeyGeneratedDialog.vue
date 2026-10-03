@@ -22,6 +22,10 @@ const props = defineProps<Props>();
 
 const open = defineModel<boolean>('open', { default: false });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const copied = ref(false);
 let copiedTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -131,7 +135,7 @@ onBeforeUnmount(() => {
                 <Button
                     type="button"
                     data-testid="api-key-generated-done"
-                    @click="open = false"
+                    @click="closeDialog"
                 >
                     {{ $t('settings.api_keys.generated_dialog.done') }}
                 </Button>

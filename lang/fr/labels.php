@@ -2,13 +2,17 @@
 
 return [
     'title' => 'Étiquettes',
-    'description' => 'Créez des étiquettes pour organiser et catégoriser vos publications',
+    'description' => 'Organisez vos publications avec des étiquettes.',
     'search' => 'Rechercher des étiquettes...',
     'new_label' => 'Nouvelle étiquette',
     'no_labels_yet' => 'Aucune étiquette pour le moment',
     'no_search_results' => 'Aucune étiquette ne correspond à votre recherche',
     'try_different_search' => 'Essayez un autre mot-clé ou effacez la recherche.',
     'create_first_label' => 'Créez votre première étiquette',
+
+    'meta' => [
+        'posts' => '{0} Aucune publication|{1} :count publication|[2,*] :count publications',
+    ],
 
     'actions' => [
         'edit' => 'Modifier l\'étiquette',

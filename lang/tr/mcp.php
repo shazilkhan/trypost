@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => 'TryPost hesabınızla gönderi oluşturup yönetmeleri için yapay zeka asistanlarını bağlayın.',
+    'subtitle' => 'Yapay zekâ asistanlarını bağlayın.',
     'copy_step' => 'TryPost sunucu URL’ini kopyala',
     'open_step' => 'AI asistanını aç',
     'copy' => 'URL’yi kopyala',

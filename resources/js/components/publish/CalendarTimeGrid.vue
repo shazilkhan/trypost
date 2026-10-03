@@ -81,12 +81,6 @@ const isPastSlot = (key: string, hour: number): boolean =>
 const hourLabel = (hour: number): string =>
     `${String(hour).padStart(2, '0')}`;
 
-const nowOffset = computed(
-    () =>
-        ((nowInZone.value.hour() * 60 + nowInZone.value.minute()) / 60) *
-        ROW_HEIGHT,
-);
-
 const compose = (key: string, hour: number): void => {
     emit('compose', slotStart(key, hour).utc().format());
 };
@@ -189,6 +183,7 @@ watch(
                                 v-if="item.post"
                                 :post="item.post"
                                 :timezone="timezone"
+                                layout="week"
                                 class="flex-1"
                                 :class="{
                                     'min-h-7 grow-0': isExpanded(
@@ -241,17 +236,6 @@ watch(
                     >
                         <IconPlus class="size-3.5" />
                     </button>
-                </div>
-
-                <div
-                    v-if="column.isToday"
-                    class="pointer-events-none absolute inset-x-0 z-10 flex h-0 items-center"
-                    :style="{ top: `${nowOffset}px` }"
-                    data-testid="calendar-now-line"
-                    aria-hidden="true"
-                >
-                    <span class="-ms-1 size-2 shrink-0 rounded-full bg-primary-text" />
-                    <span class="h-px flex-1 bg-primary-text" />
                 </div>
             </div>
         </div>

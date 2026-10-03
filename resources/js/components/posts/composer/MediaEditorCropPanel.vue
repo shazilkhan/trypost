@@ -21,6 +21,14 @@ defineProps<{
 
 const edit = defineModel<MediaEdit>('edit', { required: true });
 
+const toggleFlipX = (): void => {
+    edit.value.flipX = !edit.value.flipX;
+};
+
+const toggleFlipY = (): void => {
+    edit.value.flipY = !edit.value.flipY;
+};
+
 const emit = defineEmits<{
     (e: 'center'): void;
     (e: 'reset'): void;
@@ -136,7 +144,7 @@ const rotate = (direction: 1 | -1): void => {
                         $t('posts.composer.media_editor.flip_horizontal')
                     "
                     :aria-pressed="edit.flipX"
-                    @click="edit.flipX = !edit.flipX"
+                    @click="toggleFlipX"
                 >
                     <IconFlipVertical class="size-4" />
                 </button>
@@ -146,7 +154,7 @@ const rotate = (direction: 1 | -1): void => {
                     :class="ICON_BUTTON"
                     :aria-label="$t('posts.composer.media_editor.flip_vertical')"
                     :aria-pressed="edit.flipY"
-                    @click="edit.flipY = !edit.flipY"
+                    @click="toggleFlipY"
                 >
                     <IconFlipHorizontal class="size-4" />
                 </button>

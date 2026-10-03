@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Webhooks',
-    'description' => 'Recevez des notifications en temps réel lorsque des publications sont créées, programmées, déprogrammées, publiées ou échouent.',
+    'description' => 'Alertes en temps réel sur vos publications.',
     'new' => 'Créer un webhook',
     'empty_title' => 'Aucun webhook pour le moment',
     'empty_description' => 'Créez un webhook pour recevoir des notifications d\'événements en temps réel.',
@@ -19,9 +19,9 @@ return [
         'disabled' => 'Désactivé',
         'paused' => 'En pause',
     ],
+    'row_actions' => 'Actions du webhook',
     'actions' => [
         'view' => 'Voir les détails',
-        'copy_id' => 'Copier l\'ID du webhook',
         'delete' => 'Supprimer',
         'edit' => 'Modifier l\'endpoint',
         'enable' => 'Activer l\'endpoint',
@@ -38,11 +38,9 @@ return [
         'description' => 'Configurez un endpoint pour recevoir les notifications de webhook.',
         'endpoint' => 'URL de l\'endpoint',
         'endpoint_placeholder' => 'https://example.com/webhooks',
+        'endpoint_help' => 'Nous enverrons une requête POST avec un JSON à cette URL.',
         'events' => 'Événements',
-        'events_placeholder' => 'Sélectionner des événements...',
-        'events_selected' => '{1} :count événement sélectionné|[2,*] :count événements sélectionnés',
-        'search_events' => 'Rechercher des événements...',
-        'no_events' => 'Aucun événement trouvé',
+        'events_count_selected' => '{0} :count sur :total sélectionné|{1} :count sur :total sélectionné|[2,*] :count sur :total sélectionnés',
         'submit' => 'Créer un webhook',
         'cancel' => 'Annuler',
     ],
@@ -66,8 +64,7 @@ return [
     ],
     'show' => [
         'signing_secret' => 'Secret de signature',
-        'last_sent' => 'Dernier envoi :time',
-        'listening_for' => 'Écoute',
+        'edit' => 'Modifier',
         'http_status' => 'Statut HTTP',
         'status_code' => ':code - :reason',
         'attempts' => 'Tentatives',
@@ -77,8 +74,12 @@ return [
         'no_response_body' => 'Aucun corps de réponse',
         'no_response' => 'Aucune réponse',
         'payload' => 'Payload du message',
-        'empty_title' => 'Aucun événement pour le moment',
-        'empty_description' => 'Lorsque des publications sont créées, programmées, déprogrammées ou publiées, les événements du webhook apparaissent ici.',
+    ],
+    'deliveries' => [
+        'title' => 'Envois',
+        'empty_title' => 'Aucun envoi pour le moment',
+        'empty_description' => 'Envoyez un événement de test pour le voir ici.',
+        'pending' => 'En attente',
     ],
     'events' => [
         'group_posts' => 'Publications',
@@ -89,6 +90,15 @@ return [
         'post_partially_published' => 'Publication partiellement publiée',
         'post_failed' => 'Échec de publication',
         'post_deleted' => 'Publication supprimée',
+    ],
+    'event_descriptions' => [
+        'post_created' => 'Quand une publication est créée.',
+        'post_scheduled' => 'Quand une publication est programmée.',
+        'post_unscheduled' => 'Quand une publication programmée repasse en brouillon.',
+        'post_published' => 'Quand une publication est en ligne sur un canal.',
+        'post_partially_published' => 'Quand certains canaux publient et d’autres échouent.',
+        'post_failed' => 'Quand une publication échoue.',
+        'post_deleted' => 'Quand une publication est supprimée.',
     ],
     'http_reasons' => [
         'unknown' => 'Inconnu',
@@ -109,7 +119,6 @@ return [
         '504' => 'Délai d\'attente de la passerelle',
     ],
     'copied' => [
-        'id' => 'ID du webhook copié dans le presse-papiers',
         'secret' => 'Secret de signature copié dans le presse-papiers',
         'response' => 'Corps de la réponse copié',
         'payload' => 'Payload copié',

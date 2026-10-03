@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Opublikuj posty',
         'destination_issues' => '{1} Problemy do poprawienia: :count|[0,*] Problemy do poprawienia: :count',
         'create_another' => 'Utwórz kolejny',
+        'connect_to_post' => 'Połącz kanał, aby publikować',
         'request_approval' => 'Zapisz i poproś o zatwierdzenie',
         'templates' => 'Szablony',
         'expand' => 'Powiększ okno',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'Dodaj post do :channel w :network o :time',
         'no_time' => 'Bez godziny',
         'new_in_slot' => 'Nowy',
+        'add_post_in_slot' => 'Dodaj post',
         'more_times' => 'Więcej godzin',
         'failure' => [
             'title' => 'Dlaczego się nie udało',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal postów wysłanych w tym tygodniu',
+        'goal_popover' => [
+            'title' => 'Cel publikacji',
+            'per_week' => ':count post tygodniowo|:count posty tygodniowo|:count postów tygodniowo',
+            'sent' => 'Wysłane',
+            'scheduled' => 'Zaplanowane',
+            'to_do' => 'Do zrobienia',
+            'edit' => 'Edytuj cel publikacji',
+        ],
         'menu' => [
             'show_posting_times' => 'Pokaż godziny publikacji',
             'manage_posting_times' => 'Zarządzaj godzinami publikacji',
@@ -924,11 +934,20 @@ return [
             'delete' => 'Usuń post',
             'add_to_queue' => 'Dodaj do kolejki',
             'add_to_queue_disabled' => 'Dodaj godziny publikacji do tego kanału, aby korzystać z kolejki.',
+            'more' => 'Więcej działań',
+            'open_on_network' => 'Otwórz post w :network',
+            'see_insights' => 'Zobacz statystyki posta',
             'view_post' => 'Zobacz post',
             'edit_labels' => 'Edytuj etykiety',
             'edit_labels_failed' => 'Nie udało się zaktualizować etykiet. Spróbuj ponownie.',
         ],
         'created_by' => 'Utworzone przez :name :when',
+        'welcome' => [
+            'title' => 'Witaj w TryPost 👋',
+            'description' => 'Połącz kanał, aby zacząć planować i publikować posty.',
+            'invite' => 'Zaproś zespół',
+            'connect_more' => 'Połącz więcej kanałów',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Brak zaplanowanych postów',

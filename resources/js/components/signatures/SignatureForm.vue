@@ -58,9 +58,6 @@ const emit = defineEmits<{
                     :aria-invalid="Boolean(props.errors.content)"
                     rows="4"
                 />
-                <p class="text-xs text-muted-foreground">
-                    {{ $t(`signatures.${mode}.content_hint`) }}
-                </p>
                 <p v-if="props.errors.content" class="text-sm text-destructive-text">
                     {{ props.errors.content }}
                 </p>
@@ -70,7 +67,7 @@ const emit = defineEmits<{
             :class="
                 compact
                     ? 'mt-auto flex justify-end gap-2 pt-4'
-                    : 'mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end [&>[data-slot=button]]:h-10 [&>[data-slot=button]]:px-4'
+                    : 'mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end'
             "
         >
             <Button

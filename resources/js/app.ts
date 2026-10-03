@@ -4,11 +4,12 @@ import './echo';
 import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { i18nVue } from 'laravel-vue-i18n';
+import { ConfigProvider } from 'reka-ui';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 
 import { initializeDataLayer } from './datalayer';
-import { bootLocale, i18nConfig, syncLocale } from './language';
+import { bootLocale, i18nConfig, syncLocale, textDirection } from './language';
 import { syncContentTypeMediaRules } from './lib/contentTypeMediaRules';
 import { capturePageview, initializePostHog, syncPostHogContext } from './posthog';
 import { syncPreferences } from './preferences';
@@ -62,7 +63,12 @@ createInertiaApp({
             capturePageview();
         });
 
-        createApp({ render: () => h(App, props) })
+        createApp({
+            render: () =>
+                h(ConfigProvider, { dir: textDirection.value }, () =>
+                    h(App, props),
+                ),
+        })
             .use(i18nVue, i18nConfig(locale))
             .use(plugin)
             .mount(el);

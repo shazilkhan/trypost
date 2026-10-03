@@ -35,6 +35,10 @@ const { chosen } = useGuestLocale();
 
 const showPassword = ref(false);
 
+const togglePasswordVisibility = (): void => {
+    showPassword.value = !showPassword.value;
+};
+
 const page = usePage();
 const isSelfHosted = computed(() => Boolean(page.props.selfHosted));
 const pageErrors = usePageErrors();
@@ -116,7 +120,7 @@ const pageErrors = usePageErrors();
                                             :tabindex="-1"
                                             class="cursor-pointer text-muted-foreground hover:text-foreground"
                                             data-testid="login-password-toggle"
-                                            @click="showPassword = !showPassword"
+                                            @click="togglePasswordVisibility"
                                         >
                                             <IconEyeOff
                                                 v-if="showPassword"

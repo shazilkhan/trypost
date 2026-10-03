@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { useHttp } from '@inertiajs/vue3';
-import { IconPencil, IconPlus } from '@tabler/icons-vue';
+import { IconPencil, IconPlus, IconSignature } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
+import FilterEmptyState from '@/components/FilterEmptyState.vue';
 import SignatureForm from '@/components/signatures/SignatureForm.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,11 @@ const emit = defineEmits<{
 const search = ref('');
 const editing = ref<Signature | null>(null);
 const view = ref<'list' | 'create' | 'edit'>('list');
+
+const showList = (): void => {
+    view.value = 'list';
+};
+
 const form = useHttp({ name: '', content: '' });
 const saveError = ref(false);
 
@@ -79,7 +85,24 @@ const save = async (): Promise<void> => {
         class="w-80 max-w-[calc(100vw-2rem)] p-3"
         data-testid="composer-signatures-popover"
     >
-        <template v-if="view === 'list'">
+        <FilterEmptyState
+            v-if="view === 'list' && signatures.length === 0"
+            :icon="IconSignature"
+            :title="$t('signatures.empty_title')"
+            :description="$t('signatures.empty_description')"
+            test-id="composer-signatures-empty"
+        >
+            <Button
+                type="button"
+                size="sm"
+                data-testid="composer-signatures-empty-create"
+                @click="startCreate"
+            >
+                <IconPlus class="size-4" />
+                {{ $t('signatures.create.title') }}
+            </Button>
+        </FilterEmptyState>
+        <template v-else-if="view === 'list'">
             <div class="mb-3 flex items-center justify-between gap-2">
                 <h3 class="text-sm font-semibold">
                     {{ $t('signatures.title') }}
@@ -149,7 +172,7 @@ const save = async (): Promise<void> => {
                 :errors="form.errors"
                 :processing="form.processing"
                 @submit="save"
-                @cancel="view = 'list'"
+                @cancel="showList"
             />
             <p
                 v-if="saveError"

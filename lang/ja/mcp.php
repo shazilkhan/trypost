@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => 'TryPostアカウントで投稿の作成・管理ができるよう、AIアシスタントを接続します。',
+    'subtitle' => 'AI アシスタントを接続します。',
     'copy_step' => 'TryPostサーバーURLをコピー',
     'open_step' => 'AIアシスタントを開く',
     'copy' => 'URLをコピー',

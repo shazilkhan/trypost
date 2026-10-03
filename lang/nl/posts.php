@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Berichten publiceren',
         'destination_issues' => '{1} :count probleem om op te lossen|[0,*] :count problemen om op te lossen',
         'create_another' => 'Nog een maken',
+        'connect_to_post' => 'Koppel een kanaal om te posten',
         'request_approval' => 'Opslaan en goedkeuring vragen',
         'templates' => 'Sjablonen',
         'expand' => 'Venster vergroten',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'Bericht toevoegen aan :channel op :network om :time',
         'no_time' => 'Geen tijd',
         'new_in_slot' => 'Nieuw',
+        'add_post_in_slot' => 'Post toevoegen',
         'more_times' => 'Meer tijden',
         'failure' => [
             'title' => 'Waarom het mislukte',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal berichten deze week verzonden',
+        'goal_popover' => [
+            'title' => 'Postdoel',
+            'per_week' => ':count post per week|:count posts per week',
+            'sent' => 'Verzonden',
+            'scheduled' => 'Gepland',
+            'to_do' => 'Te doen',
+            'edit' => 'Postdoel bewerken',
+        ],
         'menu' => [
             'show_posting_times' => 'Publicatietijden tonen',
             'manage_posting_times' => 'Publicatietijden beheren',
@@ -924,11 +934,20 @@ return [
             'delete' => 'Post verwijderen',
             'add_to_queue' => 'Aan wachtrij toevoegen',
             'add_to_queue_disabled' => 'Voeg publicatietijden toe aan dit kanaal om de wachtrij te gebruiken.',
+            'more' => 'Meer acties',
+            'open_on_network' => 'Bericht openen op :network',
+            'see_insights' => 'Berichtinzichten bekijken',
             'view_post' => 'Bericht bekijken',
             'edit_labels' => 'Labels bewerken',
             'edit_labels_failed' => 'Labels konden niet worden bijgewerkt. Probeer het opnieuw.',
         ],
         'created_by' => 'Gemaakt door :name :when',
+        'welcome' => [
+            'title' => 'Welkom bij TryPost 👋',
+            'description' => 'Koppel een kanaal om je posts te plannen en te publiceren.',
+            'invite' => 'Nodig je team uit',
+            'connect_more' => 'Meer kanalen koppelen',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Geen geplande berichten',

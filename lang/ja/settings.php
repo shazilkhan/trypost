@@ -62,6 +62,9 @@ return [
             'description' => 'TryPost の画面に表示する言語です。',
             'search' => '言語を検索',
             'empty' => '言語が見つかりません',
+            'suggestions' => 'おすすめ',
+            'all' => 'すべての言語',
+            'browser' => 'ブラウザで検出',
         ],
         'timezone' => [
             'heading' => 'タイムゾーン',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'API キー',
         'page_title' => 'API キー',
-        'description' => 'ワークスペースへのプログラムによるアクセス用の API キーを管理します。',
+        'description' => 'API でワークスペースにアクセスします。',
         'create' => 'API キーを生成',
         'copy' => 'コピー',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => 'API キーを安全に保管してください。',
             'warning_body' => 'API キーはパスワードと同じように扱ってください。公開したり、Git に追加したり、クライアント側のコードに含めたりしないでください。再表示はできません。漏えいした場合は、削除して新しいキーを作成してください。',
             'done' => '完了',
+        ],
+        'meta' => [
+            'expires' => ':date に期限切れ',
+            'expired' => ':date に期限切れ済み',
+            'never_expires' => '無期限',
+            'last_used' => '最終使用 :time',
+            'never_used' => '未使用',
+            'created' => '作成日 :date',
         ],
         'table' => [
             'expires' => '有効期限',

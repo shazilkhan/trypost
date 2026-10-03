@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { IconLayoutGrid } from '@tabler/icons-vue';
+import { IconLayoutGrid, IconPlus } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
+import FilterEmptyState from '@/components/FilterEmptyState.vue';
 import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
-import {
-    getPlatformLabel,
-} from '@/composables/usePlatformLogo';
+import { Button } from '@/components/ui/button';
+import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
+import { getPlatformLabel } from '@/composables/usePlatformLogo';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 interface Channel {
@@ -38,6 +40,9 @@ const channelsById = computed(
 );
 
 const channelFor = (id: string): Channel => channelsById.value.get(id)!;
+
+const { canManageAccounts } = useWorkspaceAbilities();
+const { open: openConnectDialog } = useConnectChannelDialog();
 </script>
 
 <template>
@@ -67,6 +72,24 @@ const channelFor = (id: string): Channel => channelsById.value.get(id)!;
                 />
                 <span class="min-w-0 truncate">{{ option.label }}</span>
             </span>
+        </template>
+        <template v-if="channels.length === 0" #empty>
+            <FilterEmptyState
+                :icon="IconLayoutGrid"
+                :title="$t('posts.no_channels')"
+                :test-id="`${testId}-empty`"
+            >
+                <Button
+                    v-if="canManageAccounts"
+                    type="button"
+                    size="sm"
+                    :data-testid="`${testId}-connect`"
+                    @click="openConnectDialog()"
+                >
+                    <IconPlus class="size-4" />
+                    {{ $t('channels.connect') }}
+                </Button>
+            </FilterEmptyState>
         </template>
     </MultiSelectFilter>
 </template>

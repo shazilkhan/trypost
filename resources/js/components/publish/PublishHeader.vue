@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { IconLayoutList, IconSettings } from '@tabler/icons-vue';
+import { IconCalendarEvent, IconSettings } from '@tabler/icons-vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
@@ -56,6 +56,7 @@ const { canManageAccounts } = useWorkspaceAbilities();
                 v-if="channel.posting_goal !== null"
                 :channel-id="channel.id"
                 :sent="channel.sent_this_week"
+                :scheduled="channel.scheduled_this_week"
                 :goal="channel.posting_goal"
             />
         </div>
@@ -63,6 +64,6 @@ const { canManageAccounts } = useWorkspaceAbilities();
     <HeaderTitle
         v-else
         :title="$t('posts.publish.all_channels')"
-        :icon="IconLayoutList"
+        :icon="IconCalendarEvent"
     />
 </template>

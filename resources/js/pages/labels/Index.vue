@@ -1,26 +1,29 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router } from '@inertiajs/vue3';
 import {
-    IconChartBar,
     IconDotsVertical,
     IconLayoutGrid,
     IconPencil,
     IconPlus,
     IconTag,
     IconTrash,
+    IconTrendingUp,
 } from '@tabler/icons-vue';
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import CreateDialog from '@/components/labels/CreateDialog.vue';
 import EditDialog from '@/components/labels/EditDialog.vue';
+import LabelsEmptyIllustration from '@/components/labels/LabelsEmptyIllustration.vue';
+import SettingsListRow from '@/components/settings/SettingsListRow.vue';
 import SettingsSearch from '@/components/settings/SettingsSearch.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TableLoadMore } from '@/components/ui/table';
@@ -37,6 +40,7 @@ interface Label {
     id: string;
     name: string;
     color: string;
+    posts_count: number;
 }
 
 interface ScrollLabels {
@@ -46,6 +50,7 @@ interface ScrollLabels {
 
 interface Props {
     labels: ScrollLabels;
+    hasData: boolean;
     filters: { search: string };
 }
 
@@ -68,6 +73,10 @@ const isCreateDialogOpen = ref(false);
 const isEditDialogOpen = ref(false);
 const editingLabel = ref<Label | null>(null);
 
+const openCreateDialog = (): void => {
+    isCreateDialogOpen.value = true;
+};
+
 const openEditDialog = (label: Label) => {
     editingLabel.value = label;
     isEditDialogOpen.value = true;
@@ -81,7 +90,7 @@ const handleDelete = (label: Label) => {
 
 const labelQuery = (label: Label) => ({ query: { labels: [label.id] } });
 
-const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
+
 </script>
 
 <template>
@@ -89,43 +98,56 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 
     <SettingsLayout
         :title="$t('labels.title')"
+        :centered="!hasData"
         :description="$t('labels.description')"
     >
         <template #actions>
             <Button
                 data-testid="create-label-button"
                 :aria-label="$t('labels.new_label')"
-                @click="isCreateDialogOpen = true"
+                @click="openCreateDialog"
             >
                 <IconPlus class="size-4" />
                 <span class="hidden sm:inline">{{ $t('labels.new_label') }}</span>
             </Button>
         </template>
 
-        <div class="flex flex-col gap-3">
+        <EmptyState
+            v-if="!hasData"
+            :title="$t('labels.no_labels_yet')"
+            :description="$t('labels.description')"
+            data-testid="labels-empty"
+        >
+            <template #illustration>
+                <LabelsEmptyIllustration />
+            </template>
+            <template #action>
+                <Button
+                    data-testid="labels-empty-create"
+                    @click="openCreateDialog"
+                >
+                    <IconPlus class="size-4" />
+                    {{ $t('labels.create.title') }}
+                </Button>
+            </template>
+        </EmptyState>
+
+        <div v-else class="flex flex-col gap-3">
             <SettingsSearch
                 v-model="searchQuery"
                 :placeholder="$t('labels.search')"
             />
 
-            <div
+            <EmptyState
                 v-if="labels.data.length === 0"
-                class="rounded-xl border border-dashed border-border-strong"
+                :title="$t('labels.no_search_results')"
+                :description="$t('labels.try_different_search')"
             >
-                <EmptyState
-                    :icon="IconTag"
-                    :title="
-                        hasActiveSearch
-                            ? $t('labels.no_search_results')
-                            : $t('labels.no_labels_yet')
-                    "
-                    :description="
-                        hasActiveSearch
-                            ? $t('labels.try_different_search')
-                            : $t('labels.description')
-                    "
-                />
-            </div>
+                <template #illustration>
+                    <LabelsEmptyIllustration />
+                </template>
+            </EmptyState>
+
 
             <div v-else>
                 <InfiniteScroll
@@ -134,101 +156,96 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                     preserve-url
                 >
                     <ul id="labels-body" class="flex flex-col gap-2">
-                        <li
+                        <SettingsListRow
                             v-for="label in labels.data"
                             :key="label.id"
-                            class="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-card p-4"
+                            class="cursor-pointer"
                             :data-testid="`label-row-${label.id}`"
                             @click="openEditDialog(label)"
                         >
-                            <span
-                                class="flex size-5 shrink-0 items-center justify-center"
-                            >
+                            <template #media>
                                 <span
-                                    class="size-4 rounded-full"
-                                    :style="{ backgroundColor: label.color }"
-                                />
-                            </span>
+                                    class="relative inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                                    :style="{ color: label.color }"
+                                    :data-testid="`label-swatch-${label.id}`"
+                                >
+                                    <span
+                                        class="absolute inset-0 bg-current opacity-15"
+                                    />
+                                    <IconTag class="relative size-5" />
+                                </span>
+                            </template>
                             <p
-                                class="min-w-0 flex-1 truncate text-sm font-strong text-foreground"
+                                class="truncate text-sm leading-tight font-emphasis text-foreground"
                             >
                                 {{ label.name }}
                             </p>
-                            <div class="flex shrink-0 gap-1" @click.stop>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="text-muted-foreground"
-                                    :aria-label="$t('labels.actions.edit')"
-                                    @click="openEditDialog(label)"
-                                >
-                                    <IconPencil class="size-4" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    class="text-destructive-text"
-                                    :aria-label="$t('labels.actions.delete')"
-                                    :data-testid="`delete-label-${label.id}`"
-                                    @click="handleDelete(label)"
-                                >
-                                    <IconTrash class="size-4" />
-                                </Button>
+                            <p
+                                class="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground"
+                            >
+                                <span :data-testid="`label-posts-count-${label.id}`">{{
+                                    $tChoice('labels.meta.posts', label.posts_count, {
+                                        count: String(label.posts_count),
+                                    })
+                                }}</span>
+                            </p>
+                            <template #actions>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger as-child>
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            class="text-muted-foreground data-[state=open]:bg-accent"
+                                            class="shrink-0 text-muted-foreground data-[state=open]:bg-accent"
                                             :aria-label="$t('labels.actions.more')"
                                             :data-testid="`label-menu-${label.id}`"
+                                            @click.stop
                                         >
                                             <IconDotsVertical class="size-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuContent align="end" @click.stop>
+                                        <DropdownMenuItem
+                                            :data-testid="`edit-label-${label.id}`"
+                                            @click="openEditDialog(label)"
+                                        >
+                                            <IconPencil class="size-4" />
+                                            {{ $t('labels.actions.edit') }}
+                                        </DropdownMenuItem>
                                         <DropdownMenuItem as-child>
                                             <a
-                                                :href="
-                                                    postsIndex.url(
-                                                        labelQuery(label),
-                                                    )
-                                                "
+                                                :href="postsIndex.url(labelQuery(label))"
                                                 target="_blank"
                                                 rel="noopener"
                                                 :data-testid="`label-view-posts-${label.id}`"
                                             >
                                                 <IconLayoutGrid class="size-4" />
-                                                {{
-                                                    $t(
-                                                        'labels.actions.view_posts',
-                                                    )
-                                                }}
+                                                {{ $t('labels.actions.view_posts') }}
                                             </a>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem as-child>
                                             <a
-                                                :href="
-                                                    insights.url(
-                                                        labelQuery(label),
-                                                    )
-                                                "
+                                                :href="insights.url(labelQuery(label))"
                                                 target="_blank"
                                                 rel="noopener"
                                                 :data-testid="`label-open-reporting-${label.id}`"
                                             >
-                                                <IconChartBar class="size-4" />
-                                                {{
-                                                    $t(
-                                                        'labels.actions.open_reporting',
-                                                    )
-                                                }}
+                                                <IconTrendingUp class="size-4" />
+                                                {{ $t('labels.actions.open_reporting') }}
                                             </a>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            variant="destructive"
+                                            :data-testid="`delete-label-${label.id}`"
+                                            @click="handleDelete(label)"
+                                        >
+                                            <IconTrash class="size-4" />
+                                            {{ $t('labels.actions.delete') }}
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
-                            </div>
-                        </li>
+                            </template>
+                        </SettingsListRow>
                     </ul>
 
                     <template #next="{ loading }">

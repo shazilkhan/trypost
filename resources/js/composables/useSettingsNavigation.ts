@@ -2,8 +2,8 @@ import { usePage } from '@inertiajs/vue3';
 import {
     IconLayoutGrid,
     IconBell,
-    IconCreditCard,
-    IconHash,
+    IconCoin,
+    IconSignature,
     IconKey,
     IconLock,
     IconPlugConnected,
@@ -131,7 +131,7 @@ export const useSettingsNavigation = () => {
                     ...item(
                         'signatures',
                         signatures.url(),
-                        IconHash,
+                        IconSignature,
                         workspace && canCreatePost.value,
                     ),
                     ...item(
@@ -174,7 +174,7 @@ export const useSettingsNavigation = () => {
                     ...item(
                         'billing',
                         billing.url(),
-                        IconCreditCard,
+                        IconCoin,
                         canManageBilling.value && !selfHosted.value,
                     ),
                 ],

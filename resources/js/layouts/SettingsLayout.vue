@@ -4,19 +4,21 @@ import AppSidebarLayout from '@/layouts/app/AppSidebarLayout.vue';
 
 type Props = {
     fullWidth?: boolean;
+    centered?: boolean;
     title?: string;
     description?: string;
 };
 
 withDefaults(defineProps<Props>(), {
     fullWidth: false,
+    centered: false,
     title: undefined,
     description: undefined,
 });
 </script>
 
 <template>
-    <AppSidebarLayout :full-width="fullWidth">
+    <AppSidebarLayout :full-width="fullWidth || centered">
         <template #sidebar>
             <SettingsSidebar />
         </template>
@@ -28,7 +30,17 @@ withDefaults(defineProps<Props>(), {
         </template>
 
         <div
-            v-if="title"
+            v-if="centered"
+            class="flex flex-1 flex-col items-center px-4 py-16"
+            data-testid="settings-centered"
+        >
+            <div class="my-auto w-full max-w-[664px]">
+                <slot />
+            </div>
+        </div>
+
+        <div
+            v-else-if="title"
             class="mx-auto flex w-full max-w-[664px] flex-col gap-8 px-4 pt-2 pb-16 md:px-8 md:pt-10"
             data-testid="settings-page"
         >
@@ -43,6 +55,7 @@ withDefaults(defineProps<Props>(), {
                     <p
                         v-if="description"
                         class="mt-1 text-sm text-muted-foreground"
+                        data-testid="settings-page-description"
                     >
                         {{ description }}
                     </p>

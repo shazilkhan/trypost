@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { IconChartBar } from '@tabler/icons-vue';
+import { IconTrendingUp } from '@tabler/icons-vue';
 import { computed, ref, watch } from 'vue';
 
 import AnalyticsRangePresets from '@/components/analytics/AnalyticsRangePresets.vue';
@@ -8,6 +8,7 @@ import InsightsExportMenu from '@/components/analytics/InsightsExportMenu.vue';
 import InsightsSyncStatus from '@/components/analytics/InsightsSyncStatus.vue';
 import FollowersChart from '@/components/analytics/workspace/FollowersChart.vue';
 import ImportCoverage from '@/components/analytics/workspace/ImportCoverage.vue';
+import InsightsEmptyState from '@/components/analytics/workspace/InsightsEmptyState.vue';
 import PerformanceTable from '@/components/analytics/workspace/PerformanceTable.vue';
 import PostsChart from '@/components/analytics/workspace/PostsChart.vue';
 import SummaryCards from '@/components/analytics/workspace/SummaryCards.vue';
@@ -132,13 +133,13 @@ const accountColors = computed<Record<string, string>>(() => {
             class="flex min-h-full min-w-0 shrink-0 flex-col gap-6 px-4 pt-6 pb-10 md:px-8"
         >
             <header
-                class="-mb-2 flex min-w-0 flex-col gap-2"
+                class="sticky top-0 z-20 -mx-4 -mt-6 flex min-w-0 flex-col gap-2 border-b border-border bg-card px-4 pt-6 md:-mx-8 md:px-8"
                 data-testid="analytics-page-header"
             >
                 <div class="flex min-w-0 items-center justify-between gap-4">
                     <HeaderTitle
                         :title="$t('analytics.title')"
-                        :icon="IconChartBar"
+                        :icon="IconTrendingUp"
                     />
                     <div class="flex shrink-0 items-center gap-2">
                         <InsightsSyncStatus
@@ -151,7 +152,7 @@ const accountColors = computed<Record<string, string>>(() => {
                     </div>
                 </div>
                 <div
-                    class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 pt-2 pb-4"
+                    class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 pt-2 pb-3"
                     data-testid="analytics-toolbar"
                 >
                     <AnalyticsRangePresets
@@ -187,16 +188,13 @@ const accountColors = computed<Record<string, string>>(() => {
             <EmptyState
                 v-if="!report.bounds.min && report.filters.channels.length"
                 data-testid="analytics-filtered-empty-state"
-                :icon="IconChartBar"
+                :icon="IconTrendingUp"
                 :title="$t('analytics.dashboard.filtered_no_data_title')"
                 :description="$t('analytics.dashboard.filtered_no_data_body')"
             />
-            <EmptyState
+            <InsightsEmptyState
                 v-else-if="!report.bounds.min"
-                data-testid="analytics-empty-state"
-                :icon="IconChartBar"
-                :title="$t('analytics.dashboard.no_data_title')"
-                :description="$t('analytics.dashboard.no_data_body')"
+                :has-channels="channelOptions.length > 0"
             />
 
             <template v-else>

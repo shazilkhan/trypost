@@ -62,6 +62,9 @@ return [
             'description' => 'TryPost 인터페이스에 표시되는 언어입니다.',
             'search' => '언어 검색',
             'empty' => '언어를 찾을 수 없습니다',
+            'suggestions' => '추천',
+            'all' => '모든 언어',
+            'browser' => '브라우저에서 감지됨',
         ],
         'timezone' => [
             'heading' => '시간대',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'API 키',
         'page_title' => 'API 키',
-        'description' => '워크스페이스에 프로그래밍 방식으로 접근하기 위한 API 키를 관리하세요.',
+        'description' => 'API로 워크스페이스에 접근하세요.',
         'create' => 'API 키 생성',
         'copy' => '복사',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => 'API 키를 안전하게 보관하세요.',
             'warning_body' => 'API 키는 비밀번호처럼 다루세요. 공개적으로 공유하거나 Git에 추가하거나 클라이언트 측 코드에 포함하지 마세요. 다시 볼 수 없습니다. 노출되었다면 삭제하고 새로 만드세요.',
             'done' => '완료',
+        ],
+        'meta' => [
+            'expires' => ':date 만료',
+            'expired' => ':date 만료됨',
+            'never_expires' => '만료 없음',
+            'last_used' => '마지막 사용 :time',
+            'never_used' => '사용 안 함',
+            'created' => '생성일 :date',
         ],
         'table' => [
             'expires' => '만료',

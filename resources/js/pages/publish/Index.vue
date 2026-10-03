@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
-import { IconDotsVertical, IconFileText, IconPlus } from '@tabler/icons-vue';
+import {
+    IconDotsVertical,
+    IconFileText,
+    IconLayoutGrid,
+    IconPlus,
+    IconUsers,
+} from '@tabler/icons-vue';
 import { trans, transChoice } from 'laravel-vue-i18n';
 import { computed, provide, ref, shallowRef, watch } from 'vue';
 import { toast } from 'vue-sonner';
@@ -17,6 +23,7 @@ import {
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
+import InviteMemberDialog from '@/components/members/InviteMemberDialog.vue';
 import PostComposerDialog from '@/components/posts/composer/PostComposerDialog.vue';
 import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
@@ -37,6 +44,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useWorkspaceEcho } from '@/composables/echo/useWorkspaceEcho';
+import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import {
@@ -125,7 +133,8 @@ const SENT_STATUSES: readonly string[] = [
 
 const props = defineProps<Props>();
 const page = usePage();
-const { canManageAccounts, canPublishDirectly } = useWorkspaceAbilities();
+const { canManageAccounts, canManageTeam, canPublishDirectly } =
+    useWorkspaceAbilities();
 
 const userTimezone = computed(
     () => (page.props.auth.user as User).timezone || props.displayTimezone,
@@ -614,6 +623,17 @@ const hasActiveFilters = computed(
         selectedChannelIds.value.length > 0,
 );
 
+const hasChannels = computed(
+    () => props.channel !== null || props.filterAccounts.length > 0,
+);
+
+const { open: openConnectDialog } = useConnectChannelDialog();
+const inviteMemberDialogOpen = ref(false);
+
+const openInviteMemberDialog = (): void => {
+    inviteMemberDialogOpen.value = true;
+};
+
 const isEmpty = computed(() =>
     props.tab === 'queue'
         ? visibleQueueDays.value.length === 0
@@ -886,6 +906,37 @@ const submitComposition = (
             />
 
             <EmptyState
+                v-else-if="isEmpty && !hasChannels"
+                :title="$t('posts.publish.welcome.title')"
+                :description="$t('posts.publish.welcome.description')"
+                data-testid="publish-welcome"
+            >
+                <template #illustration>
+                    <PublishEmptyIllustration />
+                </template>
+                <template v-if="canManageAccounts" #action>
+                    <div class="flex flex-wrap items-center justify-center gap-2">
+                        <Button
+                            data-testid="publish-welcome-connect"
+                            @click="openConnectDialog()"
+                        >
+                            <IconPlus class="size-4" />
+                            {{ $t('channels.connect') }}
+                        </Button>
+                        <Button
+                            v-if="canManageTeam"
+                            variant="outline"
+                            data-testid="publish-welcome-invite"
+                            @click="openInviteMemberDialog"
+                        >
+                            <IconUsers class="size-4" />
+                            {{ $t('posts.publish.welcome.invite') }}
+                        </Button>
+                    </div>
+                </template>
+            </EmptyState>
+
+            <EmptyState
                 v-else-if="isEmpty"
                 :title="$t(`posts.publish.empty.${tab}.title`)"
                 :description="$t(`posts.publish.empty.${tab}.description`)"
@@ -894,13 +945,24 @@ const submitComposition = (
                     <PublishEmptyIllustration />
                 </template>
                 <template #action>
-                    <Button
-                        :data-testid="`publish-empty-new-post-${tab}`"
-                        @click="newPost"
-                    >
-                        <IconPlus class="size-4" />
-                        {{ $t('posts.publish.new_post') }}
-                    </Button>
+                    <div class="flex flex-wrap items-center justify-center gap-2">
+                        <Button
+                            :data-testid="`publish-empty-new-post-${tab}`"
+                            @click="newPost"
+                        >
+                            <IconPlus class="size-4" />
+                            {{ $t('posts.publish.new_post') }}
+                        </Button>
+                        <Button
+                            v-if="canManageAccounts"
+                            variant="outline"
+                            data-testid="publish-empty-connect-more"
+                            @click="openConnectDialog()"
+                        >
+                            <IconLayoutGrid class="size-4" />
+                            {{ $t('posts.publish.welcome.connect_more') }}
+                        </Button>
+                    </div>
                 </template>
             </EmptyState>
 
@@ -1010,6 +1072,10 @@ const submitComposition = (
                 </InfiniteScroll>
             </div>
         </div>
+        <InviteMemberDialog
+            v-if="canManageTeam"
+            v-model:open="inviteMemberDialogOpen"
+        />
     </AppLayout>
 
     <ConfirmDeleteModal

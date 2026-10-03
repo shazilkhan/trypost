@@ -2,13 +2,17 @@
 
 return [
     'title' => 'Etichette',
-    'description' => 'Crea etichette per organizzare e categorizzare i tuoi post',
+    'description' => 'Organizza i tuoi post con le etichette.',
     'search' => 'Cerca etichette...',
     'new_label' => 'Nuova etichetta',
     'no_labels_yet' => 'Ancora nessuna etichetta',
     'no_search_results' => 'Nessuna etichetta corrisponde alla ricerca',
     'try_different_search' => 'Prova con un\'altra parola chiave o cancella la ricerca.',
     'create_first_label' => 'Crea la tua prima etichetta',
+
+    'meta' => [
+        'posts' => '{0} Nessun post|{1} :count post|[2,*] :count post',
+    ],
 
     'actions' => [
         'edit' => 'Modifica etichetta',

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'القنوات',
-    'description' => 'أدر القنوات الاجتماعية المتصلة بمساحة العمل هذه.',
+    'description' => 'أدر قنوات مساحة العمل هذه.',
     'connect' => 'ربط قناة',
     'settings' => 'إعدادات القناة',
     'publish' => 'نشر',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'انقطع الاتصال',
     'connection_lost_hint' => 'أعد ربط هذه القناة لمتابعة النشر.',
     'reconnect' => 'إعادة الربط',
+    'refresh_connection' => 'تحديث الاتصال',
     'view_profile' => 'عرض الملف الشخصي',
     'disconnect' => 'فصل',
     'actions' => 'إجراءات القناة',
@@ -161,6 +162,11 @@ return [
 
     'disconnect_modal' => [
         'title' => 'فصل القناة',
+        'title_named' => 'فصل :name',
+        'refresh_before' => 'هل تواجه مشكلة في الاتصال؟ جرّب',
+        'refresh_after' => 'أولًا.',
+        'irreversible' => 'لا يمكن التراجع عن هذا الإجراء.',
+        'type_to_confirm' => 'اكتب ":keyword" للتأكيد.',
         'description' => 'سيؤدي هذا إلى حذف جميع منشورات هذه القناة في TryPost، بما في ذلك المسودات والمنشورات المجدولة وسجل المنشورات المنشورة. تبقى المنشورات الموجودة على الشبكة كما هي.',
         'confirm' => 'فصل',
         'keyword' => 'فصل',

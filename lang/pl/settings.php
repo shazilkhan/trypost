@@ -62,6 +62,9 @@ return [
             'description' => 'Język interfejsu TryPost.',
             'search' => 'Szukaj języków',
             'empty' => 'Nie znaleziono języka',
+            'suggestions' => 'Sugestie',
+            'all' => 'Wszystkie języki',
+            'browser' => 'Wykryty w przeglądarce',
         ],
         'timezone' => [
             'heading' => 'Strefa czasowa',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'Klucze API',
         'page_title' => 'Klucze API',
-        'description' => 'Zarządzaj kluczami API zapewniającymi programowy dostęp do Twojej przestrzeni roboczej.',
+        'description' => 'Dostęp do workspace\'u przez API.',
         'create' => 'Wygeneruj klucz API',
         'copy' => 'Kopiuj',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => 'Chroń swój klucz API.',
             'warning_body' => 'Traktuj klucz API jak hasło. Nie udostępniaj go publicznie, nie dodawaj do Gita ani nie umieszczaj w kodzie po stronie klienta. Nie zobaczysz go ponownie. Jeśli zostanie ujawniony, usuń go i utwórz nowy.',
             'done' => 'Gotowe',
+        ],
+        'meta' => [
+            'expires' => 'Wygasa :date',
+            'expired' => 'Wygasł :date',
+            'never_expires' => 'Nie wygasa',
+            'last_used' => 'Użyty :time',
+            'never_used' => 'Nigdy nieużyty',
+            'created' => 'Utworzony :date',
         ],
         'table' => [
             'expires' => 'Wygasa',

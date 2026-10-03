@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconHash, IconMoodSmile } from '@tabler/icons-vue';
+import { IconSignature, IconMoodSmile } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
 import MediaSourceMenu from '@/components/posts/composer/MediaSourceMenu.vue';
@@ -32,6 +32,15 @@ const emit = defineEmits<{
 
 const emojiOpen = ref(false);
 const signaturesOpen = ref(false);
+
+const selectSignature = (signature: {
+    id: string;
+    name: string;
+    content: string;
+}): void => {
+    emit('select-signature', signature);
+    signaturesOpen.value = false;
+};
 
 const selectEmoji = (emoji: string): void => {
     emit('select-emoji', emoji);
@@ -75,16 +84,13 @@ const selectEmoji = (emoji: string): void => {
                     :title="$t('posts.edit.signatures')"
                     class="flex size-8 items-center justify-center rounded-lg text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
                 >
-                    <IconHash class="size-4" />
+                    <IconSignature class="size-4" />
                 </button>
             </PopoverTrigger>
             <PopoverContent class="w-auto p-0" align="start">
                 <SignaturePicker
                     :signatures="signatures"
-                    @select="
-                        emit('select-signature', $event);
-                        signaturesOpen = false;
-                    "
+                    @select="selectSignature"
                     @saved="emit('save-signature', $event)"
                 />
             </PopoverContent>

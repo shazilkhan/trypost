@@ -15,10 +15,24 @@ const pendingPoint = defineModel<{ x: number; y: number } | null>(
     'pendingPoint',
     { required: true },
 );
+
+const clearPendingPoint = (): void => {
+    pendingPoint.value = null;
+};
+
 const tagging = defineModel<boolean>('tagging', { required: true });
+
+const toggleTagging = (): void => {
+    tagging.value = !tagging.value;
+};
 
 const username = ref('');
 const invalid = ref(false);
+
+const clearInvalid = (): void => {
+    invalid.value = false;
+};
+
 const input = ref<HTMLInputElement | null>(null);
 
 const atLimit = computed(() => edit.value.userTags.length >= USER_TAGS_MAX);
@@ -71,7 +85,7 @@ const removeTag = (index: number): void => {
                     tagging ? 'media-editor-tags-finish' : 'media-editor-tags-start'
                 "
                 :disabled="!tagging && atLimit"
-                @click="tagging = !tagging"
+                @click="toggleTagging"
             >
                 <IconUserPlus class="size-4" />
                 {{
@@ -117,7 +131,7 @@ const removeTag = (index: number): void => {
                         $t('posts.composer.media_editor.tags_placeholder')
                     "
                     :aria-invalid="invalid"
-                    @input="invalid = false"
+                    @input="clearInvalid"
                 />
             </div>
             <p v-if="invalid" class="text-xs text-destructive">
@@ -128,7 +142,7 @@ const removeTag = (index: number): void => {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    @click="pendingPoint = null"
+                    @click="clearPendingPoint"
                 >
                     {{ $t('posts.composer.media_editor.tags_cancel') }}
                 </Button>

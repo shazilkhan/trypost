@@ -32,7 +32,16 @@ const { locale } = useGuestLocale();
 const detected = detectPreferences();
 
 const showPassword = ref(false);
+
+const togglePasswordVisibility = (): void => {
+    showPassword.value = !showPassword.value;
+};
+
 const showEmailForm = ref(false);
+
+const revealEmailForm = (): void => {
+    showEmailForm.value = true;
+};
 
 const page = usePage();
 const hasSocial = computed(
@@ -64,7 +73,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                     variant="outline"
                     class="w-full bg-card"
                     data-testid="register-email-toggle"
-                    @click="showEmailForm = true"
+                    @click="revealEmailForm"
                 >
                     <IconMail />
                     {{ $t('auth.register.signup_with_email') }}
@@ -150,7 +159,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                                     type="button"
                                                     :tabindex="-1"
                                                     class="cursor-pointer text-muted-foreground hover:text-foreground"
-                                                    @click="showPassword = !showPassword"
+                                                    @click="togglePasswordVisibility"
                                                 >
                                                     <IconEyeOff v-if="showPassword" class="size-4" />
                                                     <IconEye v-else class="size-4" />

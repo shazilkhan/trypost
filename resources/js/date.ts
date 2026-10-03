@@ -314,6 +314,10 @@ export default {
         return localized(new Date(year, month - 1, 1)).format('MMM YYYY');
     },
 
+    formatShortMonth(month: number): string {
+        return localized(new Date(2026, month - 1, 1)).format('MMM');
+    },
+
     formatAge(birthDate: string): string {
         return dayjs().from(dayjs(birthDate), true);
     },

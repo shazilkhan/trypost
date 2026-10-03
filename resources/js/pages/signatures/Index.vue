@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, router } from '@inertiajs/vue3';
-import { IconHash, IconPencil, IconPlus, IconTrash } from '@tabler/icons-vue';
-import { computed, ref, watch } from 'vue';
+import {
+    IconDotsVertical,
+    IconPencil,
+    IconPlus,
+    IconSignature,
+    IconTrash,
+} from '@tabler/icons-vue';
+import { ref, watch } from 'vue';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -9,7 +15,15 @@ import SettingsListRow from '@/components/settings/SettingsListRow.vue';
 import SettingsSearch from '@/components/settings/SettingsSearch.vue';
 import CreateDialog from '@/components/signatures/CreateDialog.vue';
 import EditDialog from '@/components/signatures/EditDialog.vue';
+import SignaturesEmptyIllustration from '@/components/signatures/SignaturesEmptyIllustration.vue';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { TableLoadMore } from '@/components/ui/table';
 import debounce from '@/debounce';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
@@ -37,6 +51,7 @@ interface ScrollSignatures {
 interface Props {
     workspace: Workspace;
     signatures: ScrollSignatures;
+    hasData: boolean;
     filters: { search: string };
 }
 
@@ -56,6 +71,11 @@ watch(searchQuery, () => search());
 
 const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 const isCreateDialogOpen = ref(false);
+
+const openCreateDialog = (): void => {
+    isCreateDialogOpen.value = true;
+};
+
 const isEditDialogOpen = ref(false);
 const editingSignature = ref<Signature | null>(null);
 
@@ -70,8 +90,6 @@ const handleDelete = (signature: Signature) => {
     });
 };
 
-
-const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
 </script>
 
 <template>
@@ -80,42 +98,54 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
     <SettingsLayout
         :title="$t('signatures.title')"
         :description="$t('signatures.description')"
+        :centered="!hasData"
     >
         <template #actions>
             <Button
                 data-testid="create-signature-button"
                 :aria-label="$t('signatures.new')"
-                @click="isCreateDialogOpen = true"
+                @click="openCreateDialog"
             >
                 <IconPlus class="size-4" />
                 <span class="hidden sm:inline">{{ $t('signatures.new') }}</span>
             </Button>
         </template>
 
-        <div class="flex flex-col gap-3">
+        <EmptyState
+            v-if="!hasData"
+            :title="$t('signatures.empty_title')"
+            :description="$t('signatures.empty_description')"
+            data-testid="signatures-empty"
+        >
+            <template #illustration>
+                <SignaturesEmptyIllustration />
+            </template>
+            <template #action>
+                <Button
+                    data-testid="signatures-empty-create"
+                    @click="openCreateDialog"
+                >
+                    <IconPlus class="size-4" />
+                    {{ $t('signatures.create.title') }}
+                </Button>
+            </template>
+        </EmptyState>
+
+        <div v-else class="flex flex-col gap-3">
             <SettingsSearch
                 v-model="searchQuery"
                 :placeholder="$t('signatures.search')"
             />
 
-            <div
+            <EmptyState
                 v-if="signatures.data.length === 0"
-                class="rounded-xl border border-dashed border-border-strong"
+                :title="$t('signatures.no_search_results')"
+                :description="$t('signatures.try_different_search')"
             >
-                <EmptyState
-                    :icon="IconHash"
-                    :title="
-                        hasActiveSearch
-                            ? $t('signatures.no_search_results')
-                            : $t('signatures.empty_title')
-                    "
-                    :description="
-                        hasActiveSearch
-                            ? $t('signatures.try_different_search')
-                            : $t('signatures.empty_description')
-                    "
-                />
-            </div>
+                <template #illustration>
+                    <SignaturesEmptyIllustration />
+                </template>
+            </EmptyState>
 
             <div v-else>
                 <InfiniteScroll
@@ -131,36 +161,58 @@ const hasActiveSearch = computed(() => Boolean(searchQuery.value?.trim()));
                             :data-testid="`signature-row-${signature.id}`"
                             @click="openEditDialog(signature)"
                         >
+                            <template #media>
+                                <span
+                                    class="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-text"
+                                >
+                                    <IconSignature class="size-5" />
+                                </span>
+                            </template>
                             <p
-                                class="truncate text-sm font-strong text-foreground"
+                                class="truncate text-sm leading-tight font-emphasis text-foreground"
                             >
                                 {{ signature.name }}
                             </p>
-                            <p class="truncate text-sm text-muted-foreground">
+                            <p
+                                class="truncate text-sm text-muted-foreground"
+                                :title="signature.content"
+                                :data-testid="`signature-preview-${signature.id}`"
+                            >
                                 {{ signature.content }}
                             </p>
                             <template #actions>
-                                <div class="flex shrink-0 gap-1" @click.stop>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="text-muted-foreground"
-                                        :aria-label="$t('signatures.actions.edit')"
-                                        @click="openEditDialog(signature)"
-                                    >
-                                        <IconPencil class="size-4" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        class="text-destructive-text"
-                                        :aria-label="$t('signatures.actions.delete')"
-                                        :data-testid="`delete-signature-${signature.id}`"
-                                        @click="handleDelete(signature)"
-                                    >
-                                        <IconTrash class="size-4" />
-                                    </Button>
-                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger as-child>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="shrink-0 text-muted-foreground data-[state=open]:bg-accent"
+                                            :aria-label="$t('signatures.row_actions')"
+                                            :data-testid="`signature-menu-${signature.id}`"
+                                            @click.stop
+                                        >
+                                            <IconDotsVertical class="size-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" @click.stop>
+                                        <DropdownMenuItem
+                                            :data-testid="`edit-signature-${signature.id}`"
+                                            @click="openEditDialog(signature)"
+                                        >
+                                            <IconPencil class="size-4" />
+                                            {{ $t('signatures.actions.edit') }}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            variant="destructive"
+                                            :data-testid="`delete-signature-${signature.id}`"
+                                            @click="handleDelete(signature)"
+                                        >
+                                            <IconTrash class="size-4" />
+                                            {{ $t('signatures.actions.delete') }}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </template>
                         </SettingsListRow>
                     </ul>

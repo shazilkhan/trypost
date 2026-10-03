@@ -29,6 +29,10 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { default: false });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const form = useForm({
     source_social_account_id: '',
 });
@@ -84,7 +88,7 @@ const submit = () => {
                 </div>
 
                 <DialogFooter>
-                    <Button type="button" variant="ghost" @click="open = false">
+                    <Button type="button" variant="ghost" @click="closeDialog">
                         {{ $t('common.cancel') }}
                     </Button>
                     <Button as-child data-testid="connect-account-cta">
@@ -156,7 +160,7 @@ const submit = () => {
                 </div>
 
                 <DialogFooter>
-                    <Button type="button" variant="ghost" @click="open = false">
+                    <Button type="button" variant="ghost" @click="closeDialog">
                         {{ $t('common.cancel') }}
                     </Button>
                     <Button

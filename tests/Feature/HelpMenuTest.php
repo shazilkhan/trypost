@@ -24,11 +24,12 @@ test('english community group copy is community', function () {
     expect(__('sidebar.support.community'))->toBe('Community');
 });
 
-test('help menu opens crisp only on cloud', function () {
-    $source = file_get_contents(resource_path('js/components/HelpMenu.vue'));
-
-    expect($source)
+test('the support menu opens crisp only on cloud', function () {
+    expect(file_get_contents(resource_path('js/components/WorkspaceMenuContent.vue')))
         ->toContain('page.props.selfHosted === false')
+        ->toContain('openSupportChat');
+
+    expect(file_get_contents(resource_path('js/lib/supportChat.ts')))
         ->toContain("['do', 'chat:show']")
         ->toContain("['do', 'chat:open']");
 });

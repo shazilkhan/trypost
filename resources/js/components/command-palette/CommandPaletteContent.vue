@@ -5,7 +5,7 @@ import {
     IconArrowUp,
     IconBulb,
     IconCalendarEvent,
-    IconChartBar,
+    IconTrendingUp,
     IconCornerDownLeft,
     IconFileText,
     IconPlus,
@@ -178,7 +178,7 @@ const navigation = computed<CommandPaletteEntry[]>(() => {
                   id: 'nav-insights',
                   group: 'navigation',
                   title: { key: 'channels.insights' },
-                  icon: IconChartBar,
+                  icon: IconTrendingUp,
                   run: visit(insightsIndex.url()),
               },
               ...(canManageRepurposes.value

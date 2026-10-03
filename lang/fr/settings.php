@@ -62,6 +62,9 @@ return [
             'description' => 'La langue de l\'interface de TryPost.',
             'search' => 'Rechercher une langue',
             'empty' => 'Aucune langue trouvée',
+            'suggestions' => 'Suggestions',
+            'all' => 'Toutes les langues',
+            'browser' => 'Détectée dans votre navigateur',
         ],
         'timezone' => [
             'heading' => 'Fuseau horaire',
@@ -295,7 +298,7 @@ return [
     'api_keys' => [
         'title' => 'Clés API',
         'page_title' => 'Clés API',
-        'description' => 'Gérez les clés API pour l\'accès programmatique à votre espace de travail.',
+        'description' => 'Accédez à votre espace via l\'API.',
         'create' => 'Générer une clé API',
         'copy' => 'Copier',
         'generated_dialog' => [
@@ -304,6 +307,14 @@ return [
             'warning_title' => 'Gardez votre clé API en sécurité.',
             'warning_body' => 'Traitez votre clé API comme un mot de passe. Ne la partagez pas publiquement, ne l\'ajoutez pas à Git et ne l\'incluez pas dans du code côté client. Vous ne pourrez plus la voir. Si elle est exposée, supprimez-la et créez-en une nouvelle.',
             'done' => 'Terminé',
+        ],
+        'meta' => [
+            'expires' => 'Expire le :date',
+            'expired' => 'Expirée le :date',
+            'never_expires' => 'N\'expire jamais',
+            'last_used' => 'Utilisée :time',
+            'never_used' => 'Jamais utilisée',
+            'created' => 'Créée le :date',
         ],
         'table' => [
             'expires' => 'Expire le',

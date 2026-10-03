@@ -72,6 +72,8 @@ test('insights rows carry the live connection status and the top post avatar of 
         ->get(route('app.insights', ['start' => '2026-09-01', 'end' => '2026-09-30']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('report.performance.0.status', null)
+            ->where('channelOptions', [])
+            ->where('report.performance', [])
+            ->where('report.bounds.min', null)
             ->etc());
 });

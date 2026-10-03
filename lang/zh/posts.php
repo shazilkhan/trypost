@@ -112,6 +112,7 @@ return [
         'publish_posts' => '发布帖子',
         'destination_issues' => '需要修复的问题：:count 个',
         'create_another' => '再创建一条',
+        'connect_to_post' => '连接频道以发布',
         'request_approval' => '保存并请求审批',
         'templates' => '模板',
         'expand' => '展开对话框',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => '在 :time 为 :network 上的 :channel 添加帖子',
         'no_time' => '无时间',
         'new_in_slot' => '新建',
+        'add_post_in_slot' => '添加帖子',
         'more_times' => '更多时间',
         'failure' => [
             'title' => '失败原因',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => '本周已发送 :sent/:goal 篇帖子',
+        'goal_popover' => [
+            'title' => '发布目标',
+            'per_week' => '每周 :count 篇帖子|每周 :count 篇帖子',
+            'sent' => '已发送',
+            'scheduled' => '已排期',
+            'to_do' => '待完成',
+            'edit' => '编辑发布目标',
+        ],
         'menu' => [
             'show_posting_times' => '显示发布时间',
             'manage_posting_times' => '管理发布时间',
@@ -924,11 +934,20 @@ return [
             'delete' => '删除帖子',
             'add_to_queue' => '加入队列',
             'add_to_queue_disabled' => '请先为此频道添加发布时间，以使用队列。',
+            'more' => '更多操作',
+            'open_on_network' => '在 :network 上打开帖子',
+            'see_insights' => '查看帖子洞察',
             'view_post' => '查看帖子',
             'edit_labels' => '编辑标签',
             'edit_labels_failed' => '无法更新标签。请重试。',
         ],
         'created_by' => '创建者：:name :when',
+        'welcome' => [
+            'title' => '欢迎使用 TryPost 👋',
+            'description' => '连接一个频道，开始规划和发布你的帖子。',
+            'invite' => '邀请你的团队',
+            'connect_more' => '连接更多频道',
+        ],
         'empty' => [
             'queue' => [
                 'title' => '没有已排期的帖子',

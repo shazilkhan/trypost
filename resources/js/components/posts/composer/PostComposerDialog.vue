@@ -12,11 +12,10 @@ import {
     IconChevronUp,
     IconCirclePlus,
     IconEye,
-    IconLibraryPhoto,
+    IconLayoutGrid,
     IconLoader2,
     IconPin,
     IconPlus,
-    IconSearch,
     IconSend,
     IconStar,
     IconStarFilled,
@@ -39,6 +38,9 @@ import { toast } from 'vue-sonner';
 import WritingAssistantPanel, {
     type AssistantChannel,
 } from '@/components/ai/WritingAssistantPanel.vue';
+import EmptyState from '@/components/EmptyState.vue';
+import FilterEmptyState from '@/components/FilterEmptyState.vue';
+import LabelFilter from '@/components/labels/LabelFilter.vue';
 import MediaTray from '@/components/media/MediaTray.vue';
 import UnsplashDialog from '@/components/media/UnsplashDialog.vue';
 import PlatformLogo from '@/components/PlatformLogo.vue';
@@ -61,6 +63,7 @@ import GoogleBusinessTopicTypeRadios from '@/components/posts/editor/GoogleBusin
 import ThreadRepliesField from '@/components/posts/editor/ThreadRepliesField.vue';
 import PlatformPreview from '@/components/posts/previews/PlatformPreview.vue';
 import PreviewPanelTitle from '@/components/posts/previews/PreviewPanelTitle.vue';
+import PublishEmptyIllustration from '@/components/publish/PublishEmptyIllustration.vue';
 import {
     AlertDialog,
     AlertDialogCancel,
@@ -99,6 +102,7 @@ import {
     useComposerAutosave,
 } from '@/composables/useComposerAutosave';
 import { useComposerTimezone } from '@/composables/useComposerTimezone';
+import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { firstHttpUrl, useLinkCard } from '@/composables/useLinkCard';
 import {
     getMediaValidationWarning,
@@ -244,6 +248,15 @@ if (!props.initialPost && props.initialDate) {
         composition.scheduledAt.value = props.initialDate;
     }
 }
+
+const updateContent = (value: string): void => {
+    composition.content.value = value;
+};
+
+const updateMedia = (items: MediaItem[]): void => {
+    composition.media.value = items;
+};
+
 if (!props.initialPost) {
     props.initialAccountIds.forEach((id) => composition.toggleAccount(id));
 }
@@ -288,21 +301,34 @@ if (
     composition.scheduledAt.value = date.nextFullHour(composerTimezone.value);
 }
 const { contentFor } = useXLinkDefuser();
-const { requiresApproval } = useWorkspaceAbilities();
+const { requiresApproval, canManageAccounts } = useWorkspaceAbilities();
 const errors = usePageErrors();
 type ComposerSidePanel = 'templates' | 'assistant' | 'preview';
 const sidePanel = ref<ComposerSidePanel>(
     props.openAssistant ? 'assistant' : 'preview',
 );
 const expandedDialog = ref(false);
+
+const toggleExpandedDialog = (): void => {
+    expandedDialog.value = !expandedDialog.value;
+};
+
 const mobilePanelOpen = ref(false);
+
+const closeMobilePanel = (): void => {
+    mobilePanelOpen.value = false;
+};
+
 const accountPickerOpen = ref(false);
 const accountSearch = ref('');
-const labelSearch = ref('');
-const labelsOpen = ref(false);
 const lastUsedAccountIds = ref<string[]>([]);
 const scheduleMenuOpen = ref(false);
 const schedulePanel = ref<'menu' | 'picker'>('menu');
+
+const showScheduleMenu = (): void => {
+    schedulePanel.value = 'menu';
+};
+
 const createAnother = ref(false);
 type ComposerScheduleMode = QueuePositionValue | 'now' | 'custom';
 const scheduleModeChosen = ref(
@@ -335,6 +361,11 @@ const sharedStep = computed(
     () => networkGroups.value.length > 1 && !customizing.value,
 );
 const confirmingBack = ref(false);
+
+const requestBackConfirmation = (): void => {
+    confirmingBack.value = true;
+};
+
 const openGroupKey = ref<string | null>(null);
 const findGroup = (groupKey: string | null): NetworkGroup | undefined =>
     groupKey === null
@@ -629,6 +660,7 @@ const openUnsplash = (groupKey: string | null): void => {
     unsplashGroupKey.value = groupKey;
     unsplashOpen.value = true;
 };
+
 const mediaImport = useMediaImport();
 const onImportStarted = (
     started: MediaImportStarted,
@@ -840,25 +872,28 @@ const setDefaultPostAction = (action: User['default_post_action']): void => {
 };
 const isInstagramPlatform = (platform: string): boolean =>
     platform === Platform.Instagram || platform === Platform.InstagramFacebook;
+const availableLabels = ref([...props.labels]);
+watch(
+    () => props.labels,
+    (labels) => {
+        availableLabels.value = [...labels];
+    },
+);
 const selectedLabels = computed(() =>
-    props.labels.filter((label) =>
+    availableLabels.value.filter((label) =>
         composition.labelIds.value.includes(label.id),
     ),
 );
-const filteredLabels = computed(() => {
-    const query = labelSearch.value.trim().toLocaleLowerCase();
-
-    return query
-        ? props.labels.filter((label) =>
-              label.name.toLocaleLowerCase().includes(query),
-          )
-        : props.labels;
-});
-watch(labelsOpen, (isOpen) => {
-    if (!isOpen) {
-        labelSearch.value = '';
+const addLabel = (label: {
+    id: string;
+    name: string;
+    color: string;
+}): void => {
+    if (!availableLabels.value.some(({ id }) => id === label.id)) {
+        availableLabels.value = [...availableLabels.value, label];
     }
-});
+    composition.labelIds.value = [...composition.labelIds.value, label.id];
+};
 const filteredAccounts = computed(() => {
     const query = accountSearch.value.trim().toLocaleLowerCase();
 
@@ -945,6 +980,8 @@ const assistantChannel = computed<AssistantChannel | null>(() => {
         limit: typeof limit === 'number' ? limit : null,
     };
 });
+const { open: openConnectDialog } = useConnectChannelDialog();
+
 const canSubmit = computed(
     () =>
         selectedAccounts.value.length > 0 &&
@@ -982,6 +1019,11 @@ const groupRemaining = (group: NetworkGroup): number | null => {
     return values.length ? Math.min(...values) : null;
 };
 const threadActive = ref(-1);
+
+const deselectThread = (): void => {
+    threadActive.value = -1;
+};
+
 watch(openGroupKey, () => {
     threadActive.value = -1;
 });
@@ -1277,12 +1319,6 @@ const selectAccounts = (accounts: ComposerAccount[]): void => {
             selectAccount(account);
         }
     }
-};
-
-const toggleLabel = (id: string): void => {
-    composition.labelIds.value = composition.labelIds.value.includes(id)
-        ? composition.labelIds.value.filter((selected) => selected !== id)
-        : [...composition.labelIds.value, id];
 };
 
 const saveSignature = (signature: {
@@ -1606,6 +1642,12 @@ const resumeUnfinishedPost = (): void => {
         scheduleMode.value = 'custom';
     }
 };
+const updateResumeOpen = (open: boolean): void => {
+    if (!open) {
+        resumeOpen.value = false;
+    }
+};
+
 const discardUnfinishedPost = (): void => {
     autosave.clear();
     resumeOpen.value = false;
@@ -1641,7 +1683,7 @@ const close = (): void => emit('update:open', false);
                         size="icon"
                         data-testid="composer-back"
                         :aria-label="$t('common.back')"
-                        @click="confirmingBack = true"
+                        @click="requestBackConfirmation"
                         ><IconArrowLeft class="size-4"
                     /></Button>
                     <DialogTitle class="font-sans">{{
@@ -1649,8 +1691,15 @@ const close = (): void => emit('update:open', false);
                             ? $t('posts.edit.title')
                             : $t('posts.create.title')
                     }}</DialogTitle>
-                    <Popover v-model:open="labelsOpen">
-                        <PopoverTrigger as-child>
+                    <LabelFilter
+                        v-model="composition.labelIds.value"
+                        :labels="availableLabels"
+                        :show-untagged="false"
+                        test-id="composer-label"
+                        align="start"
+                        @created="addLabel"
+                    >
+                        <template #trigger>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -1697,86 +1746,8 @@ const close = (): void => emit('update:open', false);
                                     class="size-4 shrink-0 text-muted-foreground"
                                 />
                             </Button>
-                        </PopoverTrigger>
-                        <PopoverContent class="w-72 p-3" align="start">
-                            <div class="relative mb-2">
-                                <IconSearch
-                                    class="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground"
-                                />
-                                <input
-                                    v-model="labelSearch"
-                                    type="search"
-                                    role="combobox"
-                                    aria-controls="composer-label-options"
-                                    :aria-expanded="labelsOpen"
-                                    :aria-label="
-                                        $t('posts.label_search_placeholder')
-                                    "
-                                    :placeholder="
-                                        $t('posts.label_search_placeholder')
-                                    "
-                                    data-testid="composer-label-search"
-                                    class="h-8 w-full rounded-lg border border-input bg-background pr-2 pl-8 text-sm transition-control outline-none placeholder:text-subtle-foreground focus-visible:border-primary-text"
-                                />
-                            </div>
-                            <p
-                                v-if="!filteredLabels.length"
-                                class="px-2 py-3 text-sm text-muted-foreground"
-                            >
-                                {{ $t('posts.no_labels') }}
-                            </p>
-                            <div
-                                id="composer-label-options"
-                                role="listbox"
-                                aria-multiselectable="true"
-                                class="max-h-60 space-y-0.5 overflow-y-auto"
-                            >
-                                <button
-                                    v-for="label in filteredLabels"
-                                    :key="label.id"
-                                    type="button"
-                                    role="option"
-                                    :data-testid="`composer-label-${label.id}`"
-                                    :aria-selected="
-                                        composition.labelIds.value.includes(
-                                            label.id,
-                                        )
-                                    "
-                                    class="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-control hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                    @click.stop="toggleLabel(label.id)"
-                                >
-                                    <span
-                                        class="flex size-4 shrink-0 items-center justify-center rounded-sm border"
-                                        :class="
-                                            composition.labelIds.value.includes(
-                                                label.id,
-                                            )
-                                                ? 'border-primary-strong bg-primary-strong text-primary-strong-foreground'
-                                                : 'border-input'
-                                        "
-                                    >
-                                        <IconCheck
-                                            v-if="
-                                                composition.labelIds.value.includes(
-                                                    label.id,
-                                                )
-                                            "
-                                            class="size-3"
-                                        />
-                                    </span>
-                                    <span
-                                        class="size-2.5 shrink-0 rounded-full"
-                                        :style="{
-                                            backgroundColor: label.color,
-                                        }"
-                                    />
-                                    <span class="truncate">{{
-                                        label.name
-                                    }}</span>
-                                </button>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                        </template>
+                    </LabelFilter>
                 </div>
                 <div
                     class="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto"
@@ -1839,7 +1810,7 @@ const close = (): void => emit('update:open', false);
                                 : $t('posts.composer.expand')
                         "
                         data-testid="composer-expand-dialog"
-                        @click="expandedDialog = !expandedDialog"
+                        @click="toggleExpandedDialog"
                     >
                         <IconArrowsMinimize
                             v-if="expandedDialog"
@@ -1931,7 +1902,25 @@ const close = (): void => emit('update:open', false);
                                 :side-offset="8"
                                 align="start"
                             >
+                                <FilterEmptyState
+                                    v-if="!socialAccounts.length"
+                                    :icon="IconLayoutGrid"
+                                    :title="$t('posts.no_channels')"
+                                    test-id="composer-accounts-empty"
+                                >
+                                    <Button
+                                        v-if="canManageAccounts"
+                                        type="button"
+                                        size="sm"
+                                        data-testid="composer-accounts-connect"
+                                        @click="openConnectDialog()"
+                                    >
+                                        <IconPlus class="size-4" />
+                                        {{ $t('channels.connect') }}
+                                    </Button>
+                                </FilterEmptyState>
                                 <ComposerAccountOptions
+                                    v-else
                                     v-model:search="accountSearch"
                                     :accounts="filteredAccounts"
                                     :selected-ids="
@@ -1987,7 +1976,7 @@ const close = (): void => emit('update:open', false);
                             test-id-prefix="composer-base"
                             caption-test-id="composer-base-content"
                             :content="composition.content.value"
-                            @update:content="composition.content.value = $event"
+                            @update:content="updateContent"
                             @paste="onMediaPasted($event, null)"
                             @drop="onMediaDropped($event, null)"
                             @open-templates="showSidePanel('templates')"
@@ -2003,7 +1992,7 @@ const close = (): void => emit('update:open', false);
                                     :content-types="editorContentTypes(null)"
                                     :disabled="cropUploading"
                                     @update:suggested="setSuggestions(null, $event)"
-                                    @update:items="composition.media.value = $event"
+                                    @update:items="updateMedia"
                                     @import-started="onImportStarted($event, null)"
                                     @edit="
                                         openEditor(
@@ -2055,7 +2044,7 @@ const close = (): void => emit('update:open', false);
                                 :caption-collapsed="
                                     threadReplies(group)[threadActive] !== undefined
                                 "
-                                @expand-caption="threadActive = -1"
+                                @expand-caption="deselectThread"
                                 @update:content="
                                     composition.setGroupOverride(
                                         group.key,
@@ -2437,7 +2426,7 @@ const close = (): void => emit('update:open', false);
                             variant="ghost"
                             size="sm"
                             data-testid="composer-mobile-compose"
-                            @click="mobilePanelOpen = false"
+                            @click="closeMobilePanel"
                         >
                             <IconArrowLeft class="size-4" />
                             {{ $t('posts.edit.tabs.compose') }}
@@ -2539,43 +2528,16 @@ const close = (): void => emit('update:open', false);
                                     :meta="previewDestination.meta"
                                 />
                             </div>
-                            <div
+                            <EmptyState
                                 v-else
-                                class="flex h-full min-h-64 flex-col items-center justify-center gap-5 text-center text-muted-foreground"
+                                class="h-full min-h-64"
                                 data-testid="composer-empty-preview"
+                                :title="$t('posts.composer.preview_empty')"
                             >
-                                <div
-                                    class="w-36 overflow-hidden rounded-xl border bg-background"
-                                >
-                                    <div
-                                        class="flex items-center gap-2 border-b bg-background p-3"
-                                    >
-                                        <span
-                                            class="size-4 rounded-full bg-muted"
-                                        />
-                                        <span
-                                            class="h-1.5 w-16 rounded-full bg-muted"
-                                        />
-                                    </div>
-                                    <div
-                                        class="flex h-24 items-center justify-center bg-secondary"
-                                    >
-                                        <IconLibraryPhoto
-                                            class="size-7 text-muted-foreground/40"
-                                        />
-                                    </div>
-                                    <div class="space-y-2 bg-background p-3">
-                                        <span
-                                            class="block h-1.5 w-full rounded-full bg-muted"
-                                        /><span
-                                            class="block h-1.5 w-2/3 rounded-full bg-muted"
-                                        />
-                                    </div>
-                                </div>
-                                <p class="text-base">
-                                    {{ $t('posts.composer.preview_empty') }}
-                                </p>
-                            </div>
+                                <template #illustration>
+                                    <PublishEmptyIllustration />
+                                </template>
+                            </EmptyState>
                         </div>
                     </template>
                 </aside>
@@ -2619,7 +2581,16 @@ const close = (): void => emit('update:open', false);
                         {{ $t('posts.composer.upload_blocked') }}
                     </p>
                 </div>
-                <Popover v-model:open="scheduleMenuOpen">
+                <Button
+                    v-if="socialAccounts.length === 0"
+                    type="button"
+                    size="lg"
+                    class="rounded-xl"
+                    data-testid="composer-connect-channel"
+                    @click="openConnectDialog()"
+                    >{{ $t('posts.composer.connect_to_post') }}</Button
+                >
+                <Popover v-else v-model:open="scheduleMenuOpen">
                     <PopoverAnchor as-child>
                         <div class="flex items-center gap-0">
                             <PopoverTrigger as-child>
@@ -2660,7 +2631,7 @@ const close = (): void => emit('update:open', false);
                                     :timezone="composerTimezone"
                                     :posting-schedule="slotSchedule"
                                     :taken-slots="takenSlots"
-                                    @back="schedulePanel = 'menu'"
+                                    @back="showScheduleMenu"
                                     @confirm="confirmScheduledAt"
                                 />
                                 <template v-else>
@@ -2986,7 +2957,7 @@ const close = (): void => emit('update:open', false);
         :accounts="resumeAccounts"
         :preview="resumePreview"
         :media-count="resumeMediaCount"
-        @update:open="if (!$event) resumeOpen = false;"
+        @update:open="updateResumeOpen"
         @discard="discardUnfinishedPost"
         @resume="resumeUnfinishedPost"
     />

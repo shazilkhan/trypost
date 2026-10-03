@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'نشر المنشورات',
         'destination_issues' => '{1} مشكلات تحتاج إلى إصلاح: :count|[0,*] مشكلات تحتاج إلى إصلاح: :count',
         'create_another' => 'إنشاء منشور آخر',
+        'connect_to_post' => 'اربط قناة للنشر',
         'request_approval' => 'حفظ وطلب الموافقة',
         'templates' => 'القوالب',
         'expand' => 'توسيع النافذة',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'أضف منشورًا إلى :channel على :network في :time',
         'no_time' => 'بدون وقت',
         'new_in_slot' => 'جديد',
+        'add_post_in_slot' => 'إضافة منشور',
         'more_times' => 'المزيد من الأوقات',
         'failure' => [
             'title' => 'سبب الفشل',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal منشورات أُرسلت هذا الأسبوع',
+        'goal_popover' => [
+            'title' => 'هدف النشر',
+            'per_week' => ':count منشور أسبوعيًا|:count منشورات أسبوعيًا',
+            'sent' => 'مرسلة',
+            'scheduled' => 'مجدولة',
+            'to_do' => 'متبقية',
+            'edit' => 'تعديل هدف النشر',
+        ],
         'menu' => [
             'show_posting_times' => 'عرض أوقات النشر',
             'manage_posting_times' => 'إدارة أوقات النشر',
@@ -924,11 +934,20 @@ return [
             'delete' => 'حذف المنشور',
             'add_to_queue' => 'إضافة إلى قائمة الانتظار',
             'add_to_queue_disabled' => 'أضف أوقات نشر إلى هذه القناة لاستخدام قائمة الانتظار.',
+            'more' => 'إجراءات أخرى',
+            'open_on_network' => 'فتح المنشور على :network',
+            'see_insights' => 'عرض إحصاءات المنشور',
             'view_post' => 'عرض المنشور',
             'edit_labels' => 'تعديل التسميات',
             'edit_labels_failed' => 'تعذّر تحديث التسميات. حاول مرة أخرى.',
         ],
         'created_by' => 'أنشأه :name :when',
+        'welcome' => [
+            'title' => 'مرحبًا بك في TryPost 👋',
+            'description' => 'اربط قناة لتبدأ في تخطيط منشوراتك ونشرها.',
+            'invite' => 'ادعُ فريقك',
+            'connect_more' => 'ربط المزيد من القنوات',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'لا توجد منشورات مجدولة',

@@ -255,3 +255,51 @@ test('the sidebar menu header pluralizes the channel count in the user language'
         ->assertSeeIn('@sidebar-menu-manage-team', __('sidebar.manage_team', [], 'pl'))
         ->assertNoJavaScriptErrors();
 })->with([1, 3, 5]);
+
+test('the user menu has a help and support submenu with the support links', function (bool $selfHosted) {
+    config(['trypost.self_hosted' => $selfHosted]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'account_id' => $user->account_id,
+        'user_id' => $user->id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar'));
+    waitForSidebarLanguageTestId($page, 'sidebar-workspace-menu');
+
+    $links = $page->script(<<<'JS'
+        (async () => {
+            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+            document.querySelector('[data-testid="sidebar-workspace-menu"]').click();
+            await wait(400);
+            const trigger = document.querySelector('[data-testid="sidebar-support-trigger"]');
+            trigger.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+            trigger.click();
+            await wait(600);
+            return {
+                links: ['help-center', 'discord', 'feature-requests', 'github']
+                    .map((key) => document.querySelector(`[data-testid="sidebar-support-${key}"]`)?.getAttribute('href')),
+                chat: document.querySelector('[data-testid="sidebar-support-chat"]') !== null,
+                status: document.querySelector('[data-testid="sidebar-support-status"] iframe')?.getAttribute('src') ?? null,
+                titles: ['help', 'community', 'status']
+                    .filter((key) => document.querySelector(`[data-testid="sidebar-support-${key}-title"]`) !== null),
+            };
+        })();
+    JS);
+
+    expect($links['titles'])->toBe($selfHosted ? ['help', 'community'] : ['help', 'community', 'status'])
+        ->and($links['chat'])->toBe(! $selfHosted)
+        ->and($links['status'])->toBe($selfHosted ? null : 'https://status.trypost.it/badge?theme=light')
+        ->and($links['links'])->toBe([
+            'https://docs.trypost.it',
+            'https://trypost.it/discord',
+            'https://github.com/orgs/trypostit/discussions/categories/feature-requests',
+            'https://github.com/trypostit',
+        ]);
+
+    $page->assertNoJavaScriptErrors();
+})->with(['cloud' => false, 'self-hosted' => true]);

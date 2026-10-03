@@ -4,13 +4,14 @@ import { IconGripVertical, IconPlus } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import ChannelListItem from '@/components/channels/ChannelListItem.vue';
-import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
+import ChannelsEmptyIllustration from '@/components/channels/ChannelsEmptyIllustration.vue';
+import DisconnectChannelDialog from '@/components/channels/DisconnectChannelDialog.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import { Button } from '@/components/ui/button';
 import { orderChannels, useChannelOrder } from '@/composables/useChannelOrder';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { useNetworkConnect } from '@/composables/useNetworkConnect';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
-import { disconnect } from '@/routes/app/channels';
 import type {
     AvailablePlatform,
     ConnectedAccount,
@@ -37,22 +38,15 @@ const platforms = computed<AvailablePlatform[]>(
 const { open: openConnectDialog } = useConnectChannelDialog();
 const { startConnect } = useNetworkConnect(platforms);
 
-const disconnectModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
-    null,
-);
+const disconnectDialog = ref<InstanceType<
+    typeof DisconnectChannelDialog
+> | null>(null);
 
 const reconnectChannel = (channel: ConnectedAccount): void =>
     startConnect(channel.platform, channel.id);
 
-const disconnectChannel = (
-    channel: ConnectedAccount,
-    keyword: string,
-): void => {
-    disconnectModal.value?.open({
-        url: disconnect.url(channel.id),
-        confirmText: keyword,
-    });
-};
+const disconnectChannel = (channel: ConnectedAccount): void =>
+    disconnectDialog.value?.open(channel);
 </script>
 
 <template>
@@ -61,6 +55,7 @@ const disconnectChannel = (
     <SettingsLayout
         :title="$t('channels.title')"
         :description="$t('channels.description')"
+        :centered="channels.length === 0"
     >
         <template #actions>
             <Button data-testid="channels-connect" @click="openConnectDialog()">
@@ -88,13 +83,7 @@ const disconnectChannel = (
                         :can-move-up="reorderable && index > 0"
                         :can-move-down="reorderable && index < channels.length - 1"
                         @reconnect="reconnectChannel"
-                        @disconnect="
-                            (disconnected) =>
-                                disconnectChannel(
-                                    disconnected,
-                                    $t('channels.disconnect_modal.keyword'),
-                                )
-                        "
+                        @disconnect="disconnectChannel"
                         @move="(moved, offset) => move(moved.id, offset)"
                     >
                         <template v-if="reorderable" #handle>
@@ -114,23 +103,30 @@ const disconnectChannel = (
                 </li>
             </ul>
 
-            <div
+            <EmptyState
                 v-else
-                class="rounded-xl border border-dashed border-border-strong px-6 py-12 text-center"
+                :title="$t('channels.empty')"
+                :description="$t('channels.empty_description')"
                 data-testid="channels-empty"
             >
-                <p class="text-sm font-medium">{{ $t('channels.empty') }}</p>
-                <p class="mt-1 text-sm text-muted-foreground">
-                    {{ $t('channels.empty_description') }}
-                </p>
-            </div>
+                <template #illustration>
+                    <ChannelsEmptyIllustration />
+                </template>
+                <template #action>
+                    <Button
+                        data-testid="channels-empty-connect"
+                        @click="openConnectDialog()"
+                    >
+                        <IconPlus class="size-4" />
+                        {{ $t('channels.connect') }}
+                    </Button>
+                </template>
+            </EmptyState>
 
-        <ConfirmDeleteModal
-            ref="disconnectModal"
-            :title="$t('channels.disconnect_modal.title')"
-            :description="$t('channels.disconnect_modal.description')"
-            :action="$t('channels.disconnect_modal.confirm')"
-            :cancel="$t('channels.disconnect_modal.cancel')"
+        <DisconnectChannelDialog
+            ref="disconnectDialog"
+            :keyword="$t('channels.disconnect_modal.keyword')"
+            @refresh="reconnectChannel"
         />
     </SettingsLayout>
 </template>

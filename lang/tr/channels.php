@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Kanallar',
-    'description' => 'Bu çalışma alanına bağlı sosyal kanalları yönetin.',
+    'description' => 'Bu çalışma alanının kanallarını yönetin.',
     'connect' => 'Kanal bağla',
     'settings' => 'Kanal ayarları',
     'publish' => 'Yayınla',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Bağlantı koptu',
     'connection_lost_hint' => 'Yayın yapmaya devam etmek için bu kanalı yeniden bağlayın.',
     'reconnect' => 'Yeniden bağla',
+    'refresh_connection' => 'Bağlantıyı yenile',
     'view_profile' => 'Profili görüntüle',
     'disconnect' => 'Bağlantıyı kes',
     'actions' => 'Kanal işlemleri',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Kanal bağlantısını kes',
+        'title_named' => ':name bağlantısını kes',
+        'refresh_before' => 'Bağlantıyla ilgili sorun mu var? Önce',
+        'refresh_after' => 'deneyin.',
+        'irreversible' => 'Bu işlem geri alınamaz.',
+        'type_to_confirm' => 'Onaylamak için ":keyword" yazın.',
         'description' => 'Bu işlem, taslaklar, zamanlanmış gönderiler ve yayın geçmişi dahil olmak üzere bu kanalın TryPost’taki tüm gönderilerini siler. Ağda zaten bulunan gönderiler orada kalır.',
         'confirm' => 'Bağlantıyı kes',
-        'keyword' => 'BAĞLANTIYI KES',
+        'keyword' => 'bağlantıyı kes',
         'cancel' => 'İptal',
     ],
 

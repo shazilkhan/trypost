@@ -12,6 +12,7 @@ return [
     'new_post' => 'Yeni Gönderi',
     'no_content' => 'İçerik yok',
     'more' => '+:count daha',
+    'less' => 'Daha az göster',
     'status' => [
         'label' => 'Durum',
         'all' => 'Tüm gönderiler',

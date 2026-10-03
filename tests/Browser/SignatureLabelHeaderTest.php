@@ -22,6 +22,8 @@ test('signature and label pages keep the title and create action in the settings
     ]);
     $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
+    WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
+    WorkspaceSignature::factory()->create(['workspace_id' => $workspace->id]);
 
     $this->actingAs($user);
 
@@ -61,13 +63,13 @@ test('signature edit uses a centered dialog and resets canceled changes', functi
 
     $page = visit(route('app.signatures.index'));
     $page
-        ->click('button[aria-label="Edit signature"]')
+        ->click("@signature-row-{$signature->id}")
         ->assertVisible('@edit-signature-sheet')
         ->assertVisible('@edit-signature-name')
         ->fill('@edit-signature-name', 'Unsaved name')
         ->click('@cancel-edit-signature')
         ->assertMissing('@edit-signature-sheet')
-        ->click('button[aria-label="Edit signature"]')
+        ->click("@signature-row-{$signature->id}")
         ->assertValue('@edit-signature-name', 'Original signature');
 
     $layout = $page->script(<<<'JS'
@@ -172,6 +174,7 @@ test('label and signature deletion use a plain confirmation without typing', fun
     $this->actingAs($user);
 
     visit(route('app.labels.index'))
+        ->click("@label-menu-{$label->id}")
         ->click("@delete-label-{$label->id}")
         ->assertVisible('@confirm-delete-modal')
         ->assertMissing('@confirm-delete-input')
@@ -180,6 +183,7 @@ test('label and signature deletion use a plain confirmation without typing', fun
         ->assertNoJavaScriptErrors();
 
     visit(route('app.signatures.index'))
+        ->click("@signature-menu-{$signature->id}")
         ->click("@delete-signature-{$signature->id}")
         ->assertVisible('@confirm-delete-modal')
         ->assertMissing('@confirm-delete-input')

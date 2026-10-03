@@ -49,18 +49,12 @@ trait RendersPublishPage
      */
     private function publishPageReturnUrl(array $extraQuery = []): ?string
     {
+        if (! in_array($this->previousRouteName(), ['app.posts.index', 'app.channels.publish'], true)) {
+            return null;
+        }
+
         $previous = parse_url(url()->previous());
         $path = data_get($previous, 'path', '/');
-
-        try {
-            $route = Route::getRoutes()->match(Request::create($path));
-        } catch (HttpExceptionInterface) {
-            return null;
-        }
-
-        if (! in_array($route->getName(), ['app.posts.index', 'app.channels.publish'], true)) {
-            return null;
-        }
 
         parse_str(data_get($previous, 'query', ''), $query);
 
@@ -78,6 +72,25 @@ trait RendersPublishPage
         $queryString = Arr::query($query);
 
         return "{$url}?{$queryString}";
+    }
+
+    /**
+     * The calendar (all channels or one channel) the request was sent from, as it was.
+     */
+    private function calendarReturnUrl(): ?string
+    {
+        return in_array($this->previousRouteName(), ['app.calendar', 'app.channels.calendar'], true)
+            ? url()->previous()
+            : null;
+    }
+
+    private function previousRouteName(): ?string
+    {
+        try {
+            return Route::getRoutes()->match(Request::create(data_get(parse_url(url()->previous()), 'path', '/')))->getName();
+        } catch (HttpExceptionInterface) {
+            return null;
+        }
     }
 
     /**

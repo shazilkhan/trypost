@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { IconSettings, IconTag } from '@tabler/icons-vue';
-import { computed } from 'vue';
+import { IconPlus, IconSettings, IconTag } from '@tabler/icons-vue';
+import { computed, ref } from 'vue';
 
+import FilterEmptyState from '@/components/FilterEmptyState.vue';
+import CreateDialog from '@/components/labels/CreateDialog.vue';
 import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -23,6 +25,7 @@ const props = withDefaults(
     }>(),
     { testId: 'posts-label', showUntagged: true, align: 'end' },
 );
+const emit = defineEmits<{ created: [label: Label] }>();
 const selectedIds = defineModel<string[]>({ required: true });
 const untagged = defineModel<boolean>('untagged', { default: false });
 
@@ -38,6 +41,12 @@ const labelFor = (id: string): Label => labelsById.value.get(id)!;
 
 const matches = (text: string, search: string): boolean =>
     text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
+
+const createDialogOpen = ref(false);
+
+const openCreateDialog = (): void => {
+    createDialogOpen.value = true;
+};
 
 const clear = (): void => {
     selectedIds.value = [];
@@ -69,12 +78,9 @@ const clear = (): void => {
             <IconTag class="size-4" />
         </template>
         <template #before-options="{ search }">
-            <div class="pt-2">
+            <div v-if="showUntagged && labels.length > 0" class="pt-2">
                 <label
-                    v-if="
-                        showUntagged &&
-                        matches($t('posts.label_filter_untagged'), search)
-                    "
+                    v-if="matches($t('posts.label_filter_untagged'), search)"
                     class="flex min-h-8 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 text-sm leading-5 transition-control hover:bg-accent"
                     :class="{ 'bg-accent': untagged }"
                     :data-testid="`${testId}-untagged`"
@@ -109,7 +115,24 @@ const clear = (): void => {
                 <span class="truncate">{{ labelFor(option.id).name }}</span>
             </span>
         </template>
-        <template #footer>
+        <template v-if="labels.length === 0" #empty>
+            <FilterEmptyState
+                :icon="IconTag"
+                :title="$t('posts.no_labels')"
+                :test-id="`${testId}-empty`"
+            >
+                <Button
+                    type="button"
+                    size="sm"
+                    :data-testid="`${testId}-create`"
+                    @click="openCreateDialog"
+                >
+                    <IconPlus class="size-4" />
+                    {{ $t('labels.create.submit') }}
+                </Button>
+            </FilterEmptyState>
+        </template>
+        <template v-if="labels.length > 0" #footer>
             <div
                 class="-mx-3 mt-2 flex items-center justify-between border-t border-border px-3 pt-2"
             >
@@ -138,4 +161,8 @@ const clear = (): void => {
             </div>
         </template>
     </MultiSelectFilter>
+    <CreateDialog
+        v-model:open="createDialogOpen"
+        @created="emit('created', $event)"
+    />
 </template>

@@ -60,7 +60,7 @@ test('webhook rows open the webhook when clicked', function () {
     waitForSettingsListRowTestId($page, "webhook-row-{$webhook->id}");
 
     $page
-        ->assertSeeIn("@webhook-row-{$webhook->id}", 'https://example.com/hooks/trypost')
+        ->assertSeeIn("@webhook-row-{$webhook->id}", 'example.com/hooks/trypost')
         ->click("@webhook-row-{$webhook->id}")
         ->assertPathIs(parse_url(route('app.webhooks.show', $webhook), PHP_URL_PATH))
         ->assertNoJavaScriptErrors();

@@ -26,6 +26,7 @@ import { useResizeObserver } from '@vueuse/core';
 import { computed, type HTMLAttributes, ref } from 'vue';
 
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import date from '@/date';
 import {
     compactPublicationMetrics,
@@ -223,21 +224,21 @@ useResizeObserver(
         <p v-else class="min-w-0 flex-1 py-3 text-sm text-muted-foreground">
             {{ $t('analytics.detail.awaiting_metrics') }}
         </p>
-        <Button
-            v-if="insightsUrl"
-            as-child
-            variant="outline"
-            size="icon"
-            class="shrink-0"
-        >
-            <Link
-                :href="insightsUrl"
-                :aria-label="$t('channels.insights')"
-                :title="$t('channels.insights')"
-                :data-testid="insightsTestId"
-            >
-                <IconChartBar class="size-4" />
-            </Link>
-        </Button>
+        <Tooltip v-if="insightsUrl">
+            <TooltipTrigger as-child>
+                <Button as-child variant="outline" size="icon" class="shrink-0">
+                    <Link
+                        :href="insightsUrl"
+                        :aria-label="$t('posts.publish.actions.see_insights')"
+                        :data-testid="insightsTestId"
+                    >
+                        <IconChartBar class="size-4" />
+                    </Link>
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+                {{ $t('posts.publish.actions.see_insights') }}
+            </TooltipContent>
+        </Tooltip>
     </div>
 </template>

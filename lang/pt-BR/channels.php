@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Canais',
-    'description' => 'Gerencie os canais sociais conectados a este workspace.',
+    'description' => 'Gerencie os canais deste workspace.',
     'connect' => 'Conectar canal',
     'settings' => 'Configurações do canal',
     'publish' => 'Publicar',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Conexão perdida',
     'connection_lost_hint' => 'Reconecte este canal para continuar publicando.',
     'reconnect' => 'Reconectar',
+    'refresh_connection' => 'Atualizar conexão',
     'view_profile' => 'Ver perfil',
     'disconnect' => 'Desconectar',
     'actions' => 'Ações do canal',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Desconectar canal',
+        'title_named' => 'Desconectar :name',
+        'refresh_before' => 'Problemas com a conexão? Tente',
+        'refresh_after' => 'primeiro.',
+        'irreversible' => 'Isso não pode ser desfeito.',
+        'type_to_confirm' => 'Digite ":keyword" para confirmar.',
         'description' => 'Isso apaga todos os posts deste canal no TryPost, incluindo rascunhos, agendados e o histórico de publicados. Os posts que já estão na rede continuam lá.',
         'confirm' => 'Desconectar',
-        'keyword' => 'DESCONECTAR',
+        'keyword' => 'desconectar',
         'cancel' => 'Cancelar',
     ],
 

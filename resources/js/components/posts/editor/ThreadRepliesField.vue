@@ -19,6 +19,10 @@ const props = withDefaults(
 const replies = defineModel<string[]>({ required: true });
 const active = defineModel<number>('active', { required: true });
 
+const activateReply = (index: number): void => {
+    active.value = index;
+};
+
 const { contentFor } = useXLinkDefuser();
 const editor = ref<HTMLTextAreaElement[]>([]);
 
@@ -96,7 +100,7 @@ watch(
                     type="button"
                     :data-testid="`thread-reply-collapsed-${index}`"
                     class="min-w-0 truncate px-[9px] text-start text-sm text-muted-foreground"
-                    @click="active = index"
+                    @click="activateReply(index)"
                 >
                     {{ reply || $t('posts.form.thread.reply_placeholder') }}
                 </button>

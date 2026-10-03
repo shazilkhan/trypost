@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Canaux',
-    'description' => 'Gérez les canaux sociaux connectés à cet espace de travail.',
+    'description' => 'Gérez les canaux de cet espace.',
     'connect' => 'Connecter un canal',
     'settings' => 'Paramètres du canal',
     'publish' => 'Publier',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Connexion perdue',
     'connection_lost_hint' => 'Reconnectez ce canal pour continuer à publier.',
     'reconnect' => 'Reconnecter',
+    'refresh_connection' => 'Actualiser la connexion',
     'view_profile' => 'Voir le profil',
     'disconnect' => 'Déconnecter',
     'actions' => 'Actions du canal',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Déconnecter le canal',
+        'title_named' => 'Déconnecter :name',
+        'refresh_before' => 'Un problème de connexion ? Essayez',
+        'refresh_after' => 'd\'abord.',
+        'irreversible' => 'Cette action est irréversible.',
+        'type_to_confirm' => 'Saisissez « :keyword » pour confirmer.',
         'description' => 'Cela supprime toutes les publications de ce canal dans TryPost, y compris les brouillons, les publications programmées et l’historique des publications. Les publications déjà en ligne sur le réseau y restent.',
         'confirm' => 'Déconnecter',
-        'keyword' => 'DÉCONNECTER',
+        'keyword' => 'déconnecter',
         'cancel' => 'Annuler',
     ],
 

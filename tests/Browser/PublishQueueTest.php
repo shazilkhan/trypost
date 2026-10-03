@@ -156,6 +156,9 @@ test('a member whose posts need approval can still open the composer from an emp
     $page = visit(route('app.posts.index'));
     waitForPublishQueueTestId($page, "queue-slot-new-{$slotKey}");
 
+    expect($page->script("(() => { const slot = document.querySelector('[data-testid=\"queue-slot-new-{$slotKey}\"]'); const icon = slot.querySelector('svg[data-testid=\"queue-slot-icon-{$slotKey}\"]'); return [icon !== null, slot.querySelector('img') === null, icon && getComputedStyle(icon).color]; })()"))
+        ->toBe([true, true, 'rgb(10, 102, 194)']);
+
     $page->assertSeeIn("@queue-slot-new-{$slotKey}", 'New')
         ->click("@queue-slot-new-{$slotKey}");
 

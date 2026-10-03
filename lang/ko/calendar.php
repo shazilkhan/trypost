@@ -10,6 +10,7 @@ return [
     'new_post' => '새 게시물',
     'no_content' => '내용 없음',
     'more' => '+:count개 더보기',
+    'less' => '접기',
     'status' => [
         'label' => '상태',
         'all' => '모든 게시물',

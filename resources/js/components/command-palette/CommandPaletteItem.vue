@@ -48,12 +48,16 @@ const title = (value: CommandPaletteTitle, translate: Translate): string =>
             :name="channelName(entry.channel)"
             :size="28"
             ring="popover"
-            class="self-center"
+            :class="entry.subtitle ? 'self-start' : 'self-center'"
         />
         <component
             :is="entry.icon"
             v-else-if="entry.icon"
-            class="size-4 shrink-0 self-center text-foreground"
+            :class="[
+                'size-4 shrink-0 text-foreground',
+                entry.subtitle ? 'mt-0.5 self-start' : 'self-center',
+            ]"
+            :data-testid="`${testId}-icon`"
         />
         <span class="grid min-w-0 flex-1">
             <span class="truncate text-sm leading-5 text-foreground">{{

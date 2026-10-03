@@ -2,13 +2,17 @@
 
 return [
     'title' => 'ラベル',
-    'description' => 'ラベルを作成して、投稿を整理・分類しましょう',
+    'description' => 'ラベルで投稿を整理しましょう。',
     'search' => 'ラベルを検索...',
     'new_label' => '新しいラベル',
     'no_labels_yet' => 'まだラベルがありません',
     'no_search_results' => '検索に一致するラベルがありません',
     'try_different_search' => '別のキーワードを試すか、検索をクリアしてください。',
     'create_first_label' => '最初のラベルを作成',
+
+    'meta' => [
+        'posts' => '{0} 投稿なし|[1,*] :count 件の投稿',
+    ],
 
     'actions' => [
         'edit' => 'ラベルを編集',

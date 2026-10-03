@@ -18,6 +18,11 @@ defineProps<{
 
 const { canManageTeam } = useWorkspaceAbilities();
 const inviteOpen = ref(false);
+
+const openInviteDialog = (): void => {
+    inviteOpen.value = true;
+};
+
 </script>
 
 <template>
@@ -28,7 +33,7 @@ const inviteOpen = ref(false);
         :description="$t('settings.workspace.members_description')"
     >
         <template v-if="canManageTeam" #actions>
-            <Button data-testid="invite-member-button" @click="inviteOpen = true">
+            <Button data-testid="invite-member-button" @click="openInviteDialog">
                 <IconPlus class="size-4" />
                 {{ $t('settings.members.invite.submit') }}
             </Button>

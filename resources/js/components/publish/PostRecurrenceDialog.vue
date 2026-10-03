@@ -41,6 +41,10 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { required: true });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const DEFAULT_RULE: RecurrenceRule = { interval: 1, frequency: 'week', times: 1 };
 
 const form = useForm<{
@@ -201,7 +205,7 @@ const stop = (): void => {
             </form>
 
             <DialogFooter>
-                <Button variant="ghost" @click="open = false">
+                <Button variant="ghost" @click="closeDialog">
                     {{ $t('posts.recurrence.cancel') }}
                 </Button>
                 <Button

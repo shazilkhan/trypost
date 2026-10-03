@@ -64,6 +64,9 @@ return [
             'description' => 'TryPost arayüzünün gösterildiği dil.',
             'search' => 'Dil ara',
             'empty' => 'Dil bulunamadı',
+            'suggestions' => 'Öneriler',
+            'all' => 'Tüm diller',
+            'browser' => 'Tarayıcınızda algılandı',
         ],
         'timezone' => [
             'heading' => 'Saat dilimi',
@@ -297,7 +300,7 @@ return [
     'api_keys' => [
         'title' => 'API Anahtarları',
         'page_title' => 'API Anahtarları',
-        'description' => 'Çalışma alanınıza programlı erişim için API anahtarlarını yönetin.',
+        'description' => 'Çalışma alanınıza API ile erişin.',
         'create' => 'API Anahtarı Üret',
         'copy' => 'Kopyala',
         'generated_dialog' => [
@@ -306,6 +309,14 @@ return [
             'warning_title' => 'API anahtarınızı güvende tutun.',
             'warning_body' => 'API anahtarınıza bir parola gibi davranın. Herkese açık paylaşmayın, Git\'e eklemeyin veya istemci tarafı koduna dahil etmeyin. Bir daha göremeyeceksiniz. Açığa çıkarsa silin ve yenisini oluşturun.',
             'done' => 'Tamam',
+        ],
+        'meta' => [
+            'expires' => ':date tarihinde sona erer',
+            'expired' => ':date tarihinde sona erdi',
+            'never_expires' => 'Süresiz',
+            'last_used' => 'Son kullanım :time',
+            'never_used' => 'Hiç kullanılmadı',
+            'created' => 'Oluşturulma :date',
         ],
         'table' => [
             'expires' => 'Son kullanma',

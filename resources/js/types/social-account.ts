@@ -1,4 +1,5 @@
 import type { MediaType } from '@/lib/mediaType';
+import { Platform } from '@/types/platform';
 import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 export interface AvailablePlatform {
@@ -28,3 +29,9 @@ export const isConnectionLost = (account: {
     status: SocialAccountStatusValue | null;
 }): boolean =>
     account.status === 'disconnected' || account.status === 'token_expired';
+
+export const accountTypeKey = (account: { platform: string }): string | null =>
+    account.platform === Platform.LinkedInPage ||
+    account.platform === Platform.InstagramFacebook
+        ? `channels.variants.${account.platform}`
+        : null;

@@ -77,7 +77,17 @@ const edits = ref<MediaEdit[]>([]);
 const naturals = ref<Record<number, ImageSize>>({});
 const activeIndex = ref(0);
 const tab = ref<EditorTab>('edit');
+
+const selectTab = (option: EditorTab): void => {
+    tab.value = option;
+};
+
 const section = ref<'crop' | 'appearance'>('crop');
+
+const selectSection = (option: typeof section.value): void => {
+    section.value = option;
+};
+
 const pendingPoint = ref<{ x: number; y: number } | null>(null);
 const tagging = ref(false);
 const applying = ref(false);
@@ -456,7 +466,7 @@ watch(tagging, (isTagging) => {
                                     ? 'bg-primary-selected font-medium text-primary-text'
                                     : 'text-muted-foreground hover:text-foreground'
                             "
-                            @click="tab = option"
+                            @click="selectTab(option)"
                         >
                             {{
                                 $t(`posts.composer.media_editor.${option}_tab`)
@@ -481,7 +491,7 @@ watch(tagging, (isTagging) => {
                                         ? 'border-primary-strong text-foreground'
                                         : 'border-transparent text-muted-foreground hover:text-foreground'
                                 "
-                                @click="section = option"
+                                @click="selectSection(option)"
                             >
                                 {{
                                     $t(

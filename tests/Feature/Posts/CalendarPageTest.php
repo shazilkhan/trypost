@@ -131,6 +131,25 @@ test('the day view no longer exists', function () {
         ->assertNotFound();
 });
 
+test('calendar posts carry the timeline card fields', function () {
+    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
+    calendarPost($this->linkedin, '2026-10-06 15:00:00', 'Card fields')->labels()->attach($label);
+    calendarPost($this->linkedin, '2026-10-05 08:00:00', 'Sent card', PostStatus::Published, ['published_at' => CarbonImmutable::parse('2026-10-05 08:00:00', 'UTC')]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.calendar', ['view' => 'week']))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('posts.2026-10-06.0.content', 'Card fields')
+            ->where('posts.2026-10-06.0.labels.0.id', $label->id)
+            ->where('posts.2026-10-06.0.notes_count', 0)
+            ->where('posts.2026-10-06.0.can_delete', true)
+            ->where('posts.2026-10-06.0.user.name', $this->user->name)
+            ->where('posts.2026-10-06.0.post_platforms.0.social_account.has_posting_schedule', false)
+            ->missing('posts.2026-10-06.0.metrics')
+            ->where('posts.2026-10-05.0.content', 'Sent card')
+            ->has('posts.2026-10-05.0.metrics'));
+});
+
 test('the calendar filters by channels and ignores ids that are not uuids', function () {
     calendarPost($this->linkedin, '2026-10-06 15:00:00', 'LinkedIn post');
     calendarPost($this->x, '2026-10-06 16:00:00', 'X post');

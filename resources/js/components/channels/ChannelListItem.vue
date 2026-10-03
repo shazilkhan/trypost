@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { settings as settingsRoute } from '@/routes/app/channels';
-import { Platform } from '@/types/platform';
 import {
+    accountTypeKey,
     isConnectionLost,
     type ConnectedAccount,
 } from '@/types/social-account';
@@ -47,12 +47,7 @@ const emit = defineEmits<{
 
 const lost = computed(() => isConnectionLost(props.channel));
 
-const accountTypeKey = computed((): string | null =>
-    props.channel.platform === Platform.LinkedInPage ||
-    props.channel.platform === Platform.InstagramFacebook
-        ? `channels.variants.${props.channel.platform}`
-        : null,
-);
+const typeKey = computed(() => accountTypeKey(props.channel));
 </script>
 
 <template>
@@ -89,8 +84,8 @@ const accountTypeKey = computed((): string | null =>
             </p>
             <p v-else class="truncate text-sm text-muted-foreground">
                 {{
-                    accountTypeKey
-                        ? $t(accountTypeKey)
+                    typeKey
+                        ? $t(typeKey)
                         : getPlatformLabel(channel.platform)
                 }}
             </p>
@@ -152,7 +147,7 @@ const accountTypeKey = computed((): string | null =>
                         @click="emit('reconnect', channel)"
                     >
                         <IconRefresh class="size-4" />
-                        {{ $t('channels.reconnect') }}
+                        {{ $t('channels.refresh_connection') }}
                     </DropdownMenuItem>
                     <template v-if="canMoveUp || canMoveDown">
                         <DropdownMenuSeparator />

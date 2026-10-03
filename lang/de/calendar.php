@@ -12,6 +12,7 @@ return [
     'new_post' => 'Neuer Beitrag',
     'no_content' => 'Kein Inhalt',
     'more' => '+:count weitere',
+    'less' => 'Weniger anzeigen',
     'status' => [
         'label' => 'Status',
         'all' => 'Alle Beiträge',

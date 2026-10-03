@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => 'Połącz asystentów AI, aby tworzyli i zarządzali postami na koncie TryPost.',
+    'subtitle' => 'Połącz asystentów AI z workspace\'em.',
     'copy_step' => 'Skopiuj URL serwera TryPost',
     'open_step' => 'Otwórz asystenta AI',
     'copy' => 'Kopiuj URL',

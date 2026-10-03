@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Kanały',
-    'description' => 'Zarządzaj kanałami społecznościowymi połączonymi z tą przestrzenią roboczą.',
+    'description' => 'Zarządzaj kanałami tego workspace\'u.',
     'connect' => 'Połącz kanał',
     'settings' => 'Ustawienia kanału',
     'publish' => 'Publikuj',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Utracono połączenie',
     'connection_lost_hint' => 'Połącz ten kanał ponownie, aby dalej publikować.',
     'reconnect' => 'Połącz ponownie',
+    'refresh_connection' => 'Odśwież połączenie',
     'view_profile' => 'Zobacz profil',
     'disconnect' => 'Rozłącz',
     'actions' => 'Akcje kanału',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Rozłącz kanał',
+        'title_named' => 'Odłącz :name',
+        'refresh_before' => 'Problemy z połączeniem? Najpierw spróbuj',
+        'refresh_after' => '.',
+        'irreversible' => 'Tej operacji nie można cofnąć.',
+        'type_to_confirm' => 'Wpisz „:keyword”, aby potwierdzić.',
         'description' => 'Spowoduje to usunięcie wszystkich postów tego kanału w TryPost, w tym wersji roboczych, zaplanowanych postów i historii publikacji. Posty, które są już w sieci, pozostaną tam.',
         'confirm' => 'Rozłącz',
-        'keyword' => 'ROZŁĄCZ',
+        'keyword' => 'odłącz',
         'cancel' => 'Anuluj',
     ],
 

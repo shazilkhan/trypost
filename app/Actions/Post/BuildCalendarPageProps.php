@@ -59,15 +59,11 @@ class BuildCalendarPageProps
             return $workspaceAccounts ??= $channel ? collect() : $workspace->socialAccounts()->get();
         };
 
-        $scopedPosts = fn (): Builder => $workspace->posts()->getQuery()
-            ->with(['postPlatforms' => fn ($query) => $query->enabled()
-                ->when($scopedChannelIds !== null, fn ($platforms) => $platforms->whereIn('social_account_id', $scopedChannelIds))
-                ->with('socialAccount')])
+        $scopedPosts = fn (): Builder => BuildPublishPageProps::cardQuery($workspace->posts(), $scopedChannelIds, $labelIds, $untagged)
             ->when($scopedChannelIds !== null, fn (Builder $query) => $query->whereHas(
                 'postPlatforms',
                 fn (Builder $platforms) => $platforms->enabled()->whereIn('social_account_id', $scopedChannelIds),
             ))
-            ->matchingLabelFilter($labelIds, $untagged)
             ->visiblePendingApprovalsFor(BuildPublishPageProps::pendingApprovalsRequester($request->user(), $workspace));
 
         $range = [$rangeStart->utc(), $rangeEnd->utc()];
@@ -83,7 +79,12 @@ class BuildCalendarPageProps
                     ->where(fn (Builder $unpublished): Builder => $unpublished->whereNotIn('status', $sent)->orWhereNull('published_at'))
                     ->whereBetween('scheduled_at', $range)))
             ->get()
-            ->each(fn (Post $post) => $post->setAttribute('calendar_at', self::calendarAt($post)->utc()->toIso8601ZuluString()))
+            ->each(fn (Post $post) => $post->setAttribute('calendar_at', self::calendarAt($post)->utc()->toIso8601ZuluString()));
+
+        BuildPublishPageProps::decorate($posts);
+        BuildPublishPageProps::attachMetrics($posts);
+
+        $posts = $posts
             ->sortBy('calendar_at')
             ->values()
             ->groupBy(fn (Post $post): string => CarbonImmutable::parse($post->calendar_at)->setTimezone($timezone)->format('Y-m-d'));

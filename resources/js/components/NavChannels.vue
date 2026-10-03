@@ -12,6 +12,7 @@ import {
 import { computed, ref } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
+import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import {
     SidebarGroup,
@@ -36,6 +37,7 @@ import { useCommandPalette } from '@/composables/useCommandPalette';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import { useNetworkConnect } from '@/composables/useNetworkConnect';
+import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { insights, publish } from '@/routes/app/channels';
 import { channels as channelsSettings } from '@/routes/app/workspace';
@@ -98,6 +100,25 @@ const { startConnect } = useNetworkConnect(
     () => (page.props.connectablePlatforms as AvailablePlatform[]) ?? [],
 );
 
+const SUGGESTED_PLATFORMS = ['instagram', 'tiktok', 'linkedin'];
+
+const SUGGESTED_BACKGROUNDS: Record<string, string> = {
+    instagram:
+        'bg-[linear-gradient(45deg,#FEDA75_0%,#FA7E1E_25%,#D62976_50%,#962FBF_75%,#4F5BD5_100%)]',
+    tiktok: 'bg-black',
+    linkedin: 'bg-[#0A66C2]',
+};
+
+const suggestedPlatforms = computed(() => {
+    const connectable = new Set(
+        ((page.props.connectablePlatforms as AvailablePlatform[]) ?? []).map(
+            (platform) => platform.value,
+        ),
+    );
+
+    return SUGGESTED_PLATFORMS.filter((platform) => connectable.has(platform));
+});
+
 const isCurrentChannel = (channel: SidebarChannel): boolean =>
     page.url.startsWith(`/channels/${channel.id}/`);
 
@@ -133,11 +154,21 @@ const reconnect = (channel: SidebarChannel): void => {
                 class="group-data-[collapsible=icon]:hidden"
                 data-testid="sidebar-channels-label"
             >
-                {{ $t('sidebar.channels')
-                }}<template v-if="channels.length > 0"> · {{ channels.length }}</template>
+                <template v-if="channels.length > 0"
+                    >{{ $t('sidebar.channels') }} · {{ channels.length }}</template
+                >
+                <template v-else-if="canManageAccounts">{{
+                    $t('sidebar.connect_channels')
+                }}</template>
+                <template v-else>{{ $t('sidebar.channels') }}</template>
             </SidebarGroupLabel>
             <div
-                class="absolute top-1 right-0 flex items-center gap-1 transition-opacity duration-(--motion-duration-sidebar-toggle) ease-(--motion-easing-sidebar-toggle) group-data-[collapsible=icon]:hidden focus-within:opacity-100 md:opacity-0 md:group-hover/channels-header:opacity-100"
+                :class="[
+                    'absolute top-1 right-0 flex items-center gap-1 transition-opacity duration-(--motion-duration-sidebar-toggle) ease-(--motion-easing-sidebar-toggle) group-data-[collapsible=icon]:hidden',
+                    channels.length > 0
+                        ? 'focus-within:opacity-100 md:opacity-0 md:group-hover/channels-header:opacity-100'
+                        : '',
+                ]"
                 data-testid="sidebar-channels-actions"
             >
                 <Tooltip>
@@ -208,14 +239,57 @@ const reconnect = (channel: SidebarChannel): void => {
                 v-if="channels.length === 0"
                 key="empty"
             >
-                <SidebarMenuButton
+                <div
                     v-if="canManageAccounts"
-                    data-testid="sidebar-channels-empty"
-                    @click="openConnectDialog()"
+                    class="flex items-center gap-2 px-2 pt-1 pb-2"
                 >
-                    <IconPlus />
-                    <span>{{ $t('channels.connect') }}</span>
-                </SidebarMenuButton>
+                    <Tooltip
+                        v-for="platform in suggestedPlatforms"
+                        :key="platform"
+                    >
+                        <TooltipTrigger as-child>
+                            <button
+                                type="button"
+                                :class="[
+                                    'flex size-8 items-center justify-center rounded-[10px] shadow-xs ring-1 ring-black/5 transition-transform duration-150 ease-out ring-inset group-data-[collapsible=icon]:hidden hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-0 motion-reduce:transition-none [&>svg]:size-[18px] [&>svg]:stroke-[2.25]',
+                                    SUGGESTED_BACKGROUNDS[platform],
+                                ]"
+                                :aria-label="
+                                    $t('channels.details.connect', {
+                                        network: getPlatformLabel(platform),
+                                    })
+                                "
+                                :data-testid="`sidebar-channels-empty-connect-${platform}`"
+                                @click="startConnect(platform)"
+                            >
+                                <PlatformBrandIcon :platform="platform" inverse />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            {{
+                                $t('channels.details.connect', {
+                                    network: getPlatformLabel(platform),
+                                })
+                            }}
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <button
+                                type="button"
+                                class="flex size-8 items-center justify-center rounded-[10px] border border-dashed border-border-strong text-muted-foreground transition-control hover:border-solid hover:bg-sidebar-action-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                                :aria-label="$t('channels.connect')"
+                                data-testid="sidebar-channels-empty"
+                                @click="openConnectDialog()"
+                            >
+                                <IconPlus class="size-4" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                            {{ $t('channels.connect') }}
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
                 <p
                     v-else
                     class="px-2 py-1.5 text-xs text-muted-foreground"

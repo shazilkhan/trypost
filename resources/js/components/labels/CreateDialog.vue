@@ -15,8 +15,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { store as labelsStore } from '@/routes/app/labels';
+import type { FlashData } from '@/types';
 
 const open = defineModel<boolean>('open', { default: false });
+
+const closeDialog = (): void => {
+    open.value = false;
+};
+
+const emit = defineEmits<{
+    created: [label: { id: string; name: string; color: string }];
+}>();
 
 const DEFAULT_COLOR = '#7c3aed';
 
@@ -27,6 +36,13 @@ const form = useForm({
 
 const submit = () => {
     form.post(labelsStore.url(), {
+        onFlash: (flash) => {
+            const { createdLabel } = flash as FlashData;
+
+            if (createdLabel) {
+                emit('created', createdLabel);
+            }
+        },
         onSuccess: () => {
             open.value = false;
             form.reset();
@@ -91,7 +107,7 @@ const handleOpenChange = (value: boolean) => {
                         type="button"
                         variant="ghost"
                         data-testid="cancel-create-label"
-                        @click="open = false"
+                        @click="closeDialog"
                     >
                         {{ $t('common.cancel') }}
                     </Button>

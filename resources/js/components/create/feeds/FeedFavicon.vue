@@ -33,6 +33,10 @@ const src = computed(() => {
 
 const failed = ref(false);
 
+const markFailed = (): void => {
+    failed.value = true;
+};
+
 watch(
     () => props.url,
     () => {
@@ -50,7 +54,7 @@ watch(
         referrerpolicy="no-referrer"
         class="shrink-0 rounded-full bg-muted object-cover"
         :class="sizeClass"
-        @error="failed = true"
+        @error="markFailed"
     />
     <span
         v-else

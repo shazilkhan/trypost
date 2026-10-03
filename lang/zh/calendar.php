@@ -10,6 +10,7 @@ return [
     'new_post' => '新建帖子',
     'no_content' => '无内容',
     'more' => '还有 :count 项',
+    'less' => '收起',
     'status' => [
         'label' => '状态',
         'all' => '所有帖子',

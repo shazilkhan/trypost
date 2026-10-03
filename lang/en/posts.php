@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Publish posts',
         'destination_issues' => '{1} :count issue to fix|[0,*] :count issues to fix',
         'create_another' => 'Create another',
+        'connect_to_post' => 'Connect a channel to post',
         'request_approval' => 'Save and request approval',
         'templates' => 'Templates',
         'expand' => 'Expand dialog',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'Add a post to :channel on :network at :time',
         'no_time' => 'No time',
         'new_in_slot' => 'New',
+        'add_post_in_slot' => 'Add a post',
         'more_times' => 'More times',
         'failure' => [
             'title' => 'Why it failed',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal posts sent this week',
+        'goal_popover' => [
+            'title' => 'Posting goal',
+            'per_week' => ':count post per week|:count posts per week',
+            'sent' => 'Sent',
+            'scheduled' => 'Scheduled',
+            'to_do' => 'To do',
+            'edit' => 'Edit posting goal',
+        ],
         'menu' => [
             'show_posting_times' => 'Show posting times',
             'manage_posting_times' => 'Manage posting times',
@@ -924,11 +934,20 @@ return [
             'delete' => 'Delete Post',
             'add_to_queue' => 'Add to queue',
             'add_to_queue_disabled' => 'Add posting times to this channel to use the queue.',
+            'more' => 'More actions',
+            'open_on_network' => 'Open post on :network',
+            'see_insights' => 'See post insights',
             'view_post' => 'View post',
             'edit_labels' => 'Edit labels',
             'edit_labels_failed' => 'Couldn\'t update labels. Try again.',
         ],
         'created_by' => 'Created by :name :when',
+        'welcome' => [
+            'title' => 'Welcome to TryPost 👋',
+            'description' => 'Connect a channel to start planning and publishing your posts.',
+            'invite' => 'Invite your team',
+            'connect_more' => 'Connect more channels',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'No scheduled posts',

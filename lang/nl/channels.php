@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Kanalen',
-    'description' => 'Beheer de sociale kanalen die met deze workspace zijn verbonden.',
+    'description' => 'Beheer de kanalen van deze workspace.',
     'connect' => 'Kanaal koppelen',
     'settings' => 'Kanaalinstellingen',
     'publish' => 'Publiceren',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Verbinding verbroken',
     'connection_lost_hint' => 'Koppel dit kanaal opnieuw om te blijven publiceren.',
     'reconnect' => 'Opnieuw koppelen',
+    'refresh_connection' => 'Verbinding vernieuwen',
     'view_profile' => 'Profiel bekijken',
     'disconnect' => 'Loskoppelen',
     'actions' => 'Kanaalacties',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Kanaal loskoppelen',
+        'title_named' => ':name ontkoppelen',
+        'refresh_before' => 'Problemen met de verbinding? Probeer eerst',
+        'refresh_after' => '.',
+        'irreversible' => 'Dit kan niet ongedaan worden gemaakt.',
+        'type_to_confirm' => 'Typ ":keyword" om te bevestigen.',
         'description' => 'Hiermee worden alle berichten van dit kanaal in TryPost verwijderd, inclusief concepten, ingeplande berichten en de publicatiegeschiedenis. Berichten die al op het netwerk staan, blijven daar.',
         'confirm' => 'Loskoppelen',
-        'keyword' => 'LOSKOPPELEN',
+        'keyword' => 'ontkoppelen',
         'cancel' => 'Annuleren',
     ],
 

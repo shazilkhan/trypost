@@ -27,11 +27,11 @@ const exactMatchItems = ['general', 'profile', 'account'];
         <SidebarHeader class="px-6 pt-6 pb-0">
             <Link
                 :href="postsIndex.url()"
-                class="flex h-6 items-center gap-2 rounded-md text-sidebar-foreground outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+                class="group/back -mx-2 -my-1.5 flex h-9 items-center gap-2 rounded-lg px-2 text-sidebar-foreground outline-hidden transition-control hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring active:translate-y-px"
                 data-testid="settings-back"
             >
                 <span
-                    class="flex size-6 items-center justify-center rounded-md text-muted-foreground"
+                    class="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-transform duration-150 ease-out group-hover/back:-translate-x-0.5 group-hover/back:text-foreground motion-reduce:transition-none"
                 >
                     <IconArrowLeft class="size-4" />
                 </span>

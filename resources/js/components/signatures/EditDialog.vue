@@ -20,6 +20,11 @@ interface Signature {
 
 const props = defineProps<{ signature: Signature | null }>();
 const open = defineModel<boolean>('open', { default: false });
+
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const form = useForm({ name: '', content: '' });
 
 watch(
@@ -61,7 +66,7 @@ const submit = (): void => {
                 :errors="form.errors"
                 :processing="form.processing"
                 @submit="submit"
-                @cancel="open = false"
+                @cancel="closeDialog"
             />
         </DialogContent>
     </Dialog>

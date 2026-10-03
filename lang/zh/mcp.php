@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => '连接 AI 助手，让它们用你的 TryPost 账户创建和管理帖子。',
+    'subtitle' => '将 AI 助手连接到你的工作区。',
     'copy_step' => '复制你的 TryPost 服务器 URL',
     'open_step' => '打开你的 AI 助手',
     'copy' => '复制 URL',

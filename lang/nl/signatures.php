@@ -2,7 +2,7 @@
 
 return [
     'title' => 'Handtekeningen',
-    'description' => 'Maak herbruikbare handtekeningen om snel aan je posts toe te voegen',
+    'description' => 'Herbruikbare teksten voor je posts.',
     'save_failed' => 'De handtekening kon niet worden opgeslagen. Probeer het opnieuw.',
     'search' => 'Handtekeningen zoeken...',
     'new' => 'Nieuwe handtekening',
@@ -16,6 +16,7 @@ return [
         'created_at' => 'Aangemaakt',
     ],
 
+    'row_actions' => 'Acties voor handtekening',
     'actions' => [
         'edit' => 'Handtekening bewerken',
         'delete' => 'Handtekening verwijderen',
@@ -23,24 +24,22 @@ return [
 
     'create' => [
         'title' => 'Handtekening aanmaken',
-        'description' => 'Geef je handtekening een naam en de inhoud om toe te voegen (hashtags, links, aangepaste tekst — alles wat je hergebruikt).',
+        'description' => 'Sla tekst op die je vaak toevoegt, zoals hashtags, links of een afsluiting.',
         'name' => 'Naam',
         'name_placeholder' => 'bijv. Marketing, Reizen, Merkafsluiting',
         'content' => 'Inhoud',
         'content_placeholder' => "#marketing #socialmedia\nMeer weten: https://jouwmerk.nl",
-        'content_hint' => 'Hashtags, links, aangepaste intro\'s, afsluitingen — alles wat je aan posts toevoegt.',
         'submit' => 'Handtekening aanmaken',
         'submitting' => 'Aanmaken...',
     ],
 
     'edit' => [
         'title' => 'Handtekening bewerken',
-        'description' => 'Werk de naam en inhoud van deze handtekening bij.',
+        'description' => 'Wijzig de naam of de tekst die deze handtekening aan je posts toevoegt.',
         'name' => 'Naam',
         'name_placeholder' => 'bijv. Marketing, Reizen, Merkafsluiting',
         'content' => 'Inhoud',
         'content_placeholder' => "#marketing #socialmedia\nMeer weten: https://jouwmerk.nl",
-        'content_hint' => 'Hashtags, links, aangepaste intro\'s, afsluitingen — alles wat je aan posts toevoegt.',
         'submit' => 'Wijzigingen opslaan',
         'submitting' => 'Opslaan...',
     ],

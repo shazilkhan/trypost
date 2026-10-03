@@ -2,13 +2,17 @@
 
 return [
     'title' => '라벨',
-    'description' => '라벨을 만들어 게시물을 정리하고 분류하세요',
+    'description' => '라벨로 게시물을 정리하세요.',
     'search' => '라벨 검색...',
     'new_label' => '새 라벨',
     'no_labels_yet' => '아직 라벨이 없습니다',
     'no_search_results' => '검색과 일치하는 라벨이 없습니다',
     'try_different_search' => '다른 키워드로 시도하거나 검색을 지우세요.',
     'create_first_label' => '첫 라벨 만들기',
+
+    'meta' => [
+        'posts' => '{0} 게시물 없음|[1,*] 게시물 :count개',
+    ],
 
     'actions' => [
         'edit' => '라벨 편집',

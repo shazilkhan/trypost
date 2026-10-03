@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Channels',
-    'description' => 'Manage the social channels connected to this workspace.',
+    'description' => 'Manage this workspace\'s connected channels.',
     'connect' => 'Connect channel',
     'settings' => 'Channel settings',
     'publish' => 'Publish',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Connection lost',
     'connection_lost_hint' => 'Reconnect this channel to keep publishing.',
     'reconnect' => 'Reconnect',
+    'refresh_connection' => 'Refresh connection',
     'view_profile' => 'View profile',
     'disconnect' => 'Disconnect',
     'actions' => 'Channel actions',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Disconnect channel',
+        'title_named' => 'Disconnect :name',
+        'refresh_before' => 'Having issues with your connection? Try',
+        'refresh_after' => 'first.',
+        'irreversible' => 'This cannot be undone.',
+        'type_to_confirm' => 'Type ":keyword" to confirm.',
         'description' => 'This deletes every post of this channel in TryPost, including drafts, scheduled posts and published history. Posts already on the network stay there.',
         'confirm' => 'Disconnect',
-        'keyword' => 'DISCONNECT',
+        'keyword' => 'disconnect',
         'cancel' => 'Cancel',
     ],
 

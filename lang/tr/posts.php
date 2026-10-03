@@ -114,6 +114,7 @@ return [
         'publish_posts' => 'Gönderileri yayınla',
         'destination_issues' => '{1} Düzeltilecek :count sorun|[0,*] Düzeltilecek :count sorun',
         'create_another' => 'Bir tane daha oluştur',
+        'connect_to_post' => 'Paylaşmak için kanal bağla',
         'request_approval' => 'Kaydet ve onay iste',
         'templates' => 'Şablonlar',
         'expand' => 'Pencereyi büyüt',
@@ -890,6 +891,7 @@ return [
         'slot_aria' => ':network üzerindeki :channel için :time saatine gönderi ekle',
         'no_time' => 'Saat yok',
         'new_in_slot' => 'Yeni',
+        'add_post_in_slot' => 'Gönderi ekle',
         'more_times' => 'Daha fazla saat',
         'failure' => [
             'title' => 'Neden başarısız oldu',
@@ -908,6 +910,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal gönderi bu hafta gönderildi',
+        'goal_popover' => [
+            'title' => 'Paylaşım hedefi',
+            'per_week' => 'Haftada :count gönderi|Haftada :count gönderi',
+            'sent' => 'Gönderildi',
+            'scheduled' => 'Planlandı',
+            'to_do' => 'Yapılacak',
+            'edit' => 'Paylaşım hedefini düzenle',
+        ],
         'menu' => [
             'show_posting_times' => 'Paylaşım saatlerini göster',
             'manage_posting_times' => 'Paylaşım saatlerini yönet',
@@ -926,11 +936,20 @@ return [
             'delete' => 'Gönderiyi sil',
             'add_to_queue' => 'Kuyruğa ekle',
             'add_to_queue_disabled' => 'Kuyruğu kullanmak için bu kanala paylaşım saatleri ekleyin.',
+            'more' => 'Diğer işlemler',
+            'open_on_network' => ':network üzerinde gönderiyi aç',
+            'see_insights' => 'Gönderi istatistiklerini gör',
             'view_post' => 'Gönderiyi görüntüle',
             'edit_labels' => 'Etiketleri düzenle',
             'edit_labels_failed' => 'Etiketler güncellenemedi. Tekrar deneyin.',
         ],
         'created_by' => 'Oluşturan: :name :when',
+        'welcome' => [
+            'title' => 'TryPost\'a hoş geldin 👋',
+            'description' => 'Gönderilerini planlamaya ve yayınlamaya başlamak için bir kanal bağla.',
+            'invite' => 'Ekibini davet et',
+            'connect_more' => 'Daha fazla kanal bağla',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Planlanmış gönderi yok',

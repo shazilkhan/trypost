@@ -64,6 +64,9 @@ return [
             'description' => 'Die Sprache der TryPost-Oberfläche.',
             'search' => 'Sprachen suchen',
             'empty' => 'Keine Sprache gefunden',
+            'suggestions' => 'Vorschläge',
+            'all' => 'Alle Sprachen',
+            'browser' => 'In deinem Browser erkannt',
         ],
         'timezone' => [
             'heading' => 'Zeitzone',
@@ -297,7 +300,7 @@ return [
     'api_keys' => [
         'title' => 'API-Keys',
         'page_title' => 'API-Keys',
-        'description' => 'Verwalte API-Keys für den programmatischen Zugriff auf deinen Workspace.',
+        'description' => 'Greife per API auf deinen Workspace zu.',
         'create' => 'API-Key generieren',
         'copy' => 'Kopieren',
         'generated_dialog' => [
@@ -306,6 +309,14 @@ return [
             'warning_title' => 'Bewahre deinen API-Key sicher auf.',
             'warning_body' => 'Behandle deinen API-Key wie ein Passwort. Teile ihn nicht öffentlich, füge ihn nicht zu Git hinzu und verwende ihn nicht in clientseitigem Code. Du kannst ihn nicht erneut ansehen. Wenn er offengelegt wurde, lösche ihn und erstelle einen neuen.',
             'done' => 'Fertig',
+        ],
+        'meta' => [
+            'expires' => 'Läuft ab am :date',
+            'expired' => 'Abgelaufen am :date',
+            'never_expires' => 'Läuft nie ab',
+            'last_used' => 'Zuletzt genutzt :time',
+            'never_used' => 'Nie genutzt',
+            'created' => 'Erstellt am :date',
         ],
         'table' => [
             'expires' => 'Läuft ab',

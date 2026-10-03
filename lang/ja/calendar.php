@@ -10,6 +10,7 @@ return [
     'new_post' => '新規投稿',
     'no_content' => 'コンテンツなし',
     'more' => '他 :count 件',
+    'less' => '閉じる',
     'status' => [
         'label' => 'ステータス',
         'all' => 'すべての投稿',

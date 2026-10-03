@@ -9,8 +9,10 @@ import {
     IconLayoutSidebarRight,
     IconPlus,
 } from '@tabler/icons-vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 
+import { destroy as destroyPost } from '@/actions/App/Http/Controllers/App/PostController';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
@@ -31,6 +33,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
+import {
+    deletePostCardKey,
+    postCardLabelsKey,
+} from '@/composables/usePostCardActions';
 import { useShowPostingSlots } from '@/composables/useShowPostingSlots';
 import { provideViewTimezone } from '@/composables/useViewTimezone';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
@@ -54,6 +60,7 @@ import type {
     CalendarSlot,
     CalendarStatus,
     CalendarView,
+    PostCard,
     PostCardLabel,
     PublishChannel,
     PublishScope,
@@ -98,6 +105,17 @@ const RELOAD_PROPS = [
     'filters',
     'slots',
 ];
+
+const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
+
+provide(deletePostCardKey, (post: PostCard) => {
+    deleteModal.value?.open({ url: destroyPost.url(post.id) });
+});
+
+provide(
+    postCardLabelsKey,
+    computed(() => props.labels),
+);
 
 const now = ref(dayjs());
 let clock: ReturnType<typeof setInterval> | undefined;
@@ -380,8 +398,10 @@ const composeOn = (day: dayjs.Dayjs): void =>
 
 const expandedDays = ref<string[]>([]);
 
-const expandDay = (key: string): void => {
-    expandedDays.value = [...expandedDays.value, key];
+const toggleDay = (key: string): void => {
+    expandedDays.value = expandedDays.value.includes(key)
+        ? expandedDays.value.filter((day) => day !== key)
+        : [...expandedDays.value, key];
 };
 
 const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
@@ -690,24 +710,37 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                                         </template>
                                         <button
                                             v-if="
-                                                !expandedDays.includes(
-                                                    dayKey(day),
-                                                ) &&
                                                 itemsFor(day).length > MONTH_CHIPS
                                             "
                                             type="button"
-                                            class="inline-flex h-6 items-center gap-1 self-end rounded-md px-2 text-sm font-medium text-foreground transition-control hover:bg-accent"
+                                            class="inline-flex h-6 items-center gap-1 self-end rounded-md px-2 text-xs font-medium text-foreground transition-control hover:bg-accent"
+                                            :aria-expanded="
+                                                expandedDays.includes(dayKey(day))
+                                            "
                                             :data-testid="`calendar-more-${dayKey(day)}`"
-                                            @click="expandDay(dayKey(day))"
+                                            @click="toggleDay(dayKey(day))"
                                         >
-                                            <IconChevronDown class="size-4" />
+                                            <IconChevronDown
+                                                class="size-3.5 transition-transform"
+                                                :class="{
+                                                    'rotate-180':
+                                                        expandedDays.includes(
+                                                            dayKey(day),
+                                                        ),
+                                                }"
+                                            />
                                             {{
-                                                $t('calendar.more', {
-                                                    count: String(
-                                                        itemsFor(day).length -
-                                                            MONTH_CHIPS,
-                                                    ),
-                                                })
+                                                expandedDays.includes(
+                                                    dayKey(day),
+                                                )
+                                                    ? $t('calendar.less')
+                                                    : $t('calendar.more', {
+                                                          count: String(
+                                                              itemsFor(day)
+                                                                  .length -
+                                                                  MONTH_CHIPS,
+                                                          ),
+                                                      })
                                             }}
                                         </button>
                                     </div>
@@ -725,4 +758,12 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
             </div>
         </div>
     </AppLayout>
+
+    <ConfirmDeleteModal
+        ref="deleteModal"
+        :title="$t('posts.edit.delete_modal.title')"
+        :description="$t('posts.edit.delete_modal.description')"
+        :action="$t('posts.edit.delete_modal.action')"
+        :cancel="$t('posts.edit.delete_modal.cancel')"
+    />
 </template>

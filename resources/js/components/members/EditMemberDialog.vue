@@ -21,6 +21,10 @@ const props = defineProps<{ member: WorkspaceMember | null }>();
 
 const open = defineModel<boolean>('open', { default: false });
 
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const isAdmin = ref(false);
 const requiresApproval = ref(false);
 
@@ -48,7 +52,7 @@ watch(
                 v-bind="updateMember.form(member.id)"
                 class="space-y-4"
                 v-slot="{ errors, processing }"
-                @success="open = false"
+                @success="closeDialog"
             >
                 <div
                     class="flex items-center gap-3 rounded-xl border border-border p-3"
@@ -82,7 +86,7 @@ watch(
                         variant="ghost"
                         type="button"
                         data-testid="edit-member-cancel"
-                        @click="open = false"
+                        @click="closeDialog"
                     >
                         {{ $t('settings.members.cancel') }}
                     </Button>

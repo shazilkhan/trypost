@@ -12,6 +12,11 @@ import {
 import { store as signaturesStore } from '@/routes/app/signatures';
 
 const open = defineModel<boolean>('open', { default: false });
+
+const closeDialog = (): void => {
+    open.value = false;
+};
+
 const form = useForm({ name: '', content: '' });
 
 const submit = (): void => {
@@ -49,7 +54,7 @@ const handleOpenChange = (value: boolean): void => {
                 :errors="form.errors"
                 :processing="form.processing"
                 @submit="submit"
-                @cancel="open = false"
+                @cancel="closeDialog"
             />
         </DialogContent>
     </Dialog>

@@ -139,7 +139,24 @@ const openModal = (
 };
 
 const creatingCollection = ref(false);
+
+const startCreatingCollection = (): void => {
+    creatingCollection.value = true;
+};
+
+const stopCreatingCollection = (): void => {
+    creatingCollection.value = false;
+};
+
 const renaming = ref(false);
+
+const startRenaming = (): void => {
+    renaming.value = true;
+};
+
+const stopRenaming = (): void => {
+    renaming.value = false;
+};
 
 const createCollection = (name: string): void => {
     creatingCollection.value = false;
@@ -430,7 +447,7 @@ const refresh = (): void => {
             <NewFeedSplitButton
                 @add="openModal('add')"
                 @explore="openModal('explore')"
-                @new-collection="creatingCollection = true"
+                @new-collection="startCreatingCollection"
             />
         </template>
 
@@ -480,7 +497,7 @@ const refresh = (): void => {
                         :collections="collections"
                         :last-refreshed-at="last_refreshed_at"
                         :refreshing="refreshing || refreshPending"
-                        @rename="renaming = true"
+                        @rename="startRenaming"
                         @add-feed="openFromCollection('add')"
                         @explore="openFromCollection('explore')"
                         @move="move"
@@ -574,7 +591,7 @@ const refresh = (): void => {
         :label="$t('create.feeds.collection_placeholder')"
         :submit-label="$t('create.feeds.create')"
         testid="feeds-new-collection-dialog"
-        @close="creatingCollection = false"
+        @close="stopCreatingCollection"
         @save="createCollection"
     />
 
@@ -593,7 +610,7 @@ const refresh = (): void => {
         :submit-label="$t('create.feeds.save')"
         :initial-name="scopeName"
         testid="feeds-rename-dialog"
-        @close="renaming = false"
+        @close="stopRenaming"
         @save="rename"
     />
 

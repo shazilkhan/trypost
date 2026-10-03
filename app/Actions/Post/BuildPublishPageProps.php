@@ -6,6 +6,7 @@ namespace App\Actions\Post;
 
 use App\Actions\Analytics\ReadPublicationAnalytics;
 use App\Actions\Post\Queue\BuildQueueTimeline;
+use App\Actions\SocialAccount\CountPostsScheduledThisWeek;
 use App\Actions\SocialAccount\CountPostsSentThisWeek;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
@@ -138,6 +139,7 @@ class BuildPublishPageProps
             ...SocialAccountResource::make($channel)->resolve(),
             'posting_goal' => $channel->posting_goal,
             'sent_this_week' => CountPostsSentThisWeek::handle($channel, $weekStart),
+            'scheduled_this_week' => CountPostsScheduledThisWeek::handle($channel, $weekStart),
             'has_grid' => $channel->platform->hasProfileGrid(),
         ];
     }
@@ -212,7 +214,7 @@ class BuildPublishPageProps
      * @param  list<string>|null  $channelIds
      * @param  list<string>  $labelIds
      */
-    private static function cardQuery(HasMany $basePosts, ?array $channelIds, array $labelIds, bool $untagged): Builder
+    public static function cardQuery(HasMany $basePosts, ?array $channelIds, array $labelIds, bool $untagged): Builder
     {
         return $basePosts->getQuery()
             ->with([

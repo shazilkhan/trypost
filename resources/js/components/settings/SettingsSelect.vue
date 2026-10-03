@@ -62,7 +62,7 @@ const choose = (value: unknown): void => {
                     v-else-if="selected?.image"
                     :src="selected.image"
                     alt=""
-                    class="h-3.5 w-5 shrink-0 rounded-xs object-cover ring-1 ring-border"
+                    class="h-3.5 w-5 shrink-0 rounded-xs object-cover"
                 />
                 <span class="truncate" :data-testid="`${testid}-value`">{{
                     selected?.labelKey
@@ -95,7 +95,7 @@ const choose = (value: unknown): void => {
                         v-else-if="option.image"
                         :src="option.image"
                         alt=""
-                        class="h-3.5 w-5 shrink-0 rounded-xs object-cover ring-1 ring-border"
+                        class="h-3.5 w-5 shrink-0 rounded-xs object-cover"
                     />
                     {{ option.labelKey ? $t(option.labelKey) : option.label }}
                 </DropdownMenuRadioItem>

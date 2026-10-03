@@ -286,3 +286,26 @@ it('member cannot delete api key', function () {
 it('api keys page requires authentication', function () {
     $this->get(route('app.api-keys.index'))->assertRedirect(route('login'));
 });
+
+it('marks each api key as active, expiring soon or expired', function () {
+    $this->travelTo(now()->startOfDay()->addHours(12));
+
+    $never = makeWorkspaceToken($this->user, $this->workspace);
+    $never->forceFill(['expires_at' => null])->saveQuietly();
+    $later = makeWorkspaceToken($this->user, $this->workspace);
+    $later->forceFill(['expires_at' => now()->addDays(30), 'created_at' => now()->subMinute()])->saveQuietly();
+    $soon = makeWorkspaceToken($this->user, $this->workspace);
+    $soon->forceFill(['expires_at' => now()->addDays(3), 'created_at' => now()->subMinutes(2)])->saveQuietly();
+    $expired = makeWorkspaceToken($this->user, $this->workspace);
+    $expired->forceFill(['expires_at' => now()->subDay(), 'created_at' => now()->subMinutes(3)])->saveQuietly();
+
+    $tokens = collect($this->actingAs($this->user)
+        ->get(route('app.api-keys.index'))
+        ->viewData('page')['props']['apiTokens'])
+        ->pluck('status', 'id');
+
+    expect($tokens[$never->id])->toBe('active')
+        ->and($tokens[$later->id])->toBe('active')
+        ->and($tokens[$soon->id])->toBe('expiring_soon')
+        ->and($tokens[$expired->id])->toBe('expired');
+});

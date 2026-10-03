@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'チャンネル',
-    'description' => 'このワークスペースに接続されているソーシャルチャンネルを管理します。',
+    'description' => 'このワークスペースのチャンネルを管理します。',
     'connect' => 'チャンネルを接続',
     'settings' => 'チャンネル設定',
     'publish' => '投稿する',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => '接続が切れました',
     'connection_lost_hint' => '投稿を続けるには、このチャンネルを再接続してください。',
     'reconnect' => '再接続',
+    'refresh_connection' => '接続を更新',
     'view_profile' => 'プロフィールを表示',
     'disconnect' => '接続解除',
     'actions' => 'チャンネルの操作',
@@ -161,6 +162,11 @@ return [
 
     'disconnect_modal' => [
         'title' => 'チャンネルの接続解除',
+        'title_named' => ':name の接続を解除',
+        'refresh_before' => '接続に問題がありますか？まず',
+        'refresh_after' => 'をお試しください。',
+        'irreversible' => 'この操作は元に戻せません。',
+        'type_to_confirm' => '確認のため「:keyword」と入力してください。',
         'description' => 'TryPost 内のこのチャンネルの投稿は、下書き、予約投稿、公開履歴を含めてすべて削除されます。ネットワーク上にすでにある投稿はそのまま残ります。',
         'confirm' => '接続解除',
         'keyword' => '接続解除',

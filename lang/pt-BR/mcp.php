@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'MCP',
-    'subtitle' => 'Conecte assistentes de IA ao seu workspace TryPost. Eles usam as mesmas permissões de cada usuário conectado.',
+    'subtitle' => 'Conecte assistentes de IA ao seu workspace.',
     'copy_step' => 'Copie a URL do servidor TryPost',
     'open_step' => 'Abra seu assistente de IA',
     'copy' => 'Copiar URL',

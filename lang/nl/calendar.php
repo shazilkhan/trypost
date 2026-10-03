@@ -10,6 +10,7 @@ return [
     'new_post' => 'Nieuwe post',
     'no_content' => 'Geen inhoud',
     'more' => '+:count meer',
+    'less' => 'Minder tonen',
     'status' => [
         'label' => 'Status',
         'all' => 'Alle berichten',

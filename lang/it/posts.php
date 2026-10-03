@@ -112,6 +112,7 @@ return [
         'publish_posts' => 'Pubblica post',
         'destination_issues' => '{1} :count problema da risolvere|[0,*] :count problemi da risolvere',
         'create_another' => 'Crea un altro',
+        'connect_to_post' => 'Collega un canale per pubblicare',
         'request_approval' => 'Salva e chiedi approvazione',
         'templates' => 'Modelli',
         'expand' => 'Espandi finestra',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => 'Aggiungi un post a :channel su :network alle :time',
         'no_time' => 'Nessun orario',
         'new_in_slot' => 'Nuovo',
+        'add_post_in_slot' => 'Aggiungi post',
         'more_times' => 'Altri orari',
         'failure' => [
             'title' => 'Perché non è riuscito',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal post inviati questa settimana',
+        'goal_popover' => [
+            'title' => 'Obiettivo di pubblicazione',
+            'per_week' => ':count post a settimana|:count post a settimana',
+            'sent' => 'Inviati',
+            'scheduled' => 'Programmati',
+            'to_do' => 'Da fare',
+            'edit' => 'Modifica l\'obiettivo',
+        ],
         'menu' => [
             'show_posting_times' => 'Mostra gli orari di pubblicazione',
             'manage_posting_times' => 'Gestisci gli orari di pubblicazione',
@@ -924,11 +934,20 @@ return [
             'delete' => 'Elimina post',
             'add_to_queue' => 'Aggiungi alla coda',
             'add_to_queue_disabled' => 'Aggiungi orari di pubblicazione a questo canale per usare la coda.',
+            'more' => 'Altre azioni',
+            'open_on_network' => 'Apri il post su :network',
+            'see_insights' => 'Vedi gli insight del post',
             'view_post' => 'Vedi post',
             'edit_labels' => 'Modifica etichette',
             'edit_labels_failed' => 'Impossibile aggiornare le etichette. Riprova.',
         ],
         'created_by' => 'Creato da :name :when',
+        'welcome' => [
+            'title' => 'Benvenuto su TryPost 👋',
+            'description' => 'Collega un canale per iniziare a pianificare e pubblicare i tuoi post.',
+            'invite' => 'Invita il tuo team',
+            'connect_more' => 'Collega altri canali',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Nessun post programmato',

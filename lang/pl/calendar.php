@@ -10,6 +10,7 @@ return [
     'new_post' => 'Nowy post',
     'no_content' => 'Brak treści',
     'more' => '+:count więcej',
+    'less' => 'Pokaż mniej',
     'status' => [
         'label' => 'Status',
         'all' => 'Wszystkie posty',

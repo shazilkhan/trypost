@@ -114,6 +114,7 @@ return [
         'publish_posts' => 'Beiträge veröffentlichen',
         'destination_issues' => '{1} :count Problem zu beheben|[0,*] :count Probleme zu beheben',
         'create_another' => 'Weiteren erstellen',
+        'connect_to_post' => 'Kanal verbinden, um zu posten',
         'request_approval' => 'Speichern und Freigabe anfragen',
         'templates' => 'Vorlagen',
         'expand' => 'Dialog vergrößern',
@@ -890,6 +891,7 @@ return [
         'slot_aria' => 'Beitrag für :channel auf :network um :time hinzufügen',
         'no_time' => 'Keine Uhrzeit',
         'new_in_slot' => 'Neu',
+        'add_post_in_slot' => 'Post hinzufügen',
         'more_times' => 'Weitere Zeiten',
         'failure' => [
             'title' => 'Warum es fehlschlug',
@@ -908,6 +910,14 @@ return [
             ],
         ],
         'goal' => ':sent/:goal Beiträge diese Woche gesendet',
+        'goal_popover' => [
+            'title' => 'Posting-Ziel',
+            'per_week' => ':count Beitrag pro Woche|:count Beiträge pro Woche',
+            'sent' => 'Gesendet',
+            'scheduled' => 'Geplant',
+            'to_do' => 'Offen',
+            'edit' => 'Posting-Ziel bearbeiten',
+        ],
         'menu' => [
             'show_posting_times' => 'Veröffentlichungszeiten anzeigen',
             'manage_posting_times' => 'Veröffentlichungszeiten verwalten',
@@ -926,11 +936,20 @@ return [
             'delete' => 'Beitrag löschen',
             'add_to_queue' => 'Zur Warteschlange hinzufügen',
             'add_to_queue_disabled' => 'Füge diesem Kanal Veröffentlichungszeiten hinzu, um die Warteschlange zu nutzen.',
+            'more' => 'Weitere Aktionen',
+            'open_on_network' => 'Beitrag auf :network öffnen',
+            'see_insights' => 'Beitragsstatistiken ansehen',
             'view_post' => 'Beitrag ansehen',
             'edit_labels' => 'Labels bearbeiten',
             'edit_labels_failed' => 'Labels konnten nicht aktualisiert werden. Versuche es erneut.',
         ],
         'created_by' => 'Erstellt von :name :when',
+        'welcome' => [
+            'title' => 'Willkommen bei TryPost 👋',
+            'description' => 'Verbinde einen Kanal, um deine Beiträge zu planen und zu veröffentlichen.',
+            'invite' => 'Team einladen',
+            'connect_more' => 'Weitere Kanäle verbinden',
+        ],
         'empty' => [
             'queue' => [
                 'title' => 'Keine geplanten Beiträge',

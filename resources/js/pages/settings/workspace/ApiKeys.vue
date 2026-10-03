@@ -14,6 +14,7 @@ import ApiKeyGeneratedDialog from '@/components/api-keys/ApiKeyGeneratedDialog.v
 import CreateApiKeyDialog from '@/components/api-keys/CreateApiKeyDialog.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import ApiKeysEmptyIllustration from '@/components/settings/ApiKeysEmptyIllustration.vue';
 import SettingsListRow from '@/components/settings/SettingsListRow.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,12 +27,15 @@ import {
 import date from '@/date';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
 
+type ApiTokenStatus = 'active' | 'expiring_soon' | 'expired';
+
 interface ApiToken {
     id: string;
     name: string;
     last_used_at: string | null;
     expires_at: string | null;
     created_at: string;
+    status: ApiTokenStatus;
 }
 
 interface Props {
@@ -39,6 +43,18 @@ interface Props {
 }
 
 defineProps<Props>();
+
+const STATUS_DOT: Record<ApiTokenStatus, string> = {
+    active: 'bg-success',
+    expiring_soon: 'bg-warning',
+    expired: 'bg-destructive',
+};
+
+const STATUS_TEXT: Record<ApiTokenStatus, string> = {
+    active: '',
+    expiring_soon: 'text-warning',
+    expired: 'text-destructive-text',
+};
 
 const page = usePage();
 const generatedKey = ref('');
@@ -66,6 +82,11 @@ const onGeneratedDialogChange = (isOpen: boolean) => {
 };
 
 const createDialogOpen = ref(false);
+
+const openCreateDialog = (): void => {
+    createDialogOpen.value = true;
+};
+
 const confirmDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
     null,
 );
@@ -80,11 +101,12 @@ const confirmRegenerateModal = ref<InstanceType<
     <SettingsLayout
         :title="$t('settings.api_keys.page_title')"
         :description="$t('settings.api_keys.description')"
+        :centered="apiTokens.length === 0"
     >
         <template #actions>
             <Button
                 data-testid="create-api-key-button"
-                @click="createDialogOpen = true"
+                @click="openCreateDialog"
             >
                 <IconPlus class="size-4" />
                 {{ $t('settings.api_keys.create') }}
@@ -96,34 +118,64 @@ const confirmRegenerateModal = ref<InstanceType<
                 <SettingsListRow
                     v-for="token in apiTokens"
                     :key="token.id"
-                    :icon="IconKey"
                     :data-testid="`api-key-row-${token.id}`"
                 >
+                    <template #media>
+                        <span
+                            class="relative inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+                        >
+                            <IconKey class="size-5" />
+                            <span
+                                :class="[
+                                    'absolute -end-0.5 -bottom-0.5 size-3 rounded-full ring-2 ring-card',
+                                    STATUS_DOT[token.status],
+                                ]"
+                                :data-testid="`api-key-status-dot-${token.id}`"
+                            />
+                        </span>
+                    </template>
                     <p
                         class="truncate text-sm leading-tight font-emphasis text-foreground"
                     >
                         {{ token.name }}
                     </p>
                     <p
-                        class="flex flex-wrap gap-x-1.5 text-sm text-muted-foreground"
+                        class="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground"
                     >
-                        <span>
-                            {{ $t('settings.api_keys.table.expires') }}:
-                            {{
+                        <span
+                            :class="STATUS_TEXT[token.status]"
+                            :data-testid="`api-key-expiry-${token.id}`"
+                            >{{
                                 token.expires_at
-                                    ? date.formatDate(token.expires_at)
-                                    : $t('settings.api_keys.table.never')
-                            }}
-                        </span>
+                                    ? $t(
+                                          token.status === 'expired'
+                                              ? 'settings.api_keys.meta.expired'
+                                              : 'settings.api_keys.meta.expires',
+                                          {
+                                              date: date.formatDate(
+                                                  token.expires_at,
+                                              ),
+                                          },
+                                      )
+                                    : $t('settings.api_keys.meta.never_expires')
+                            }}</span
+                        >
                         <span aria-hidden="true">·</span>
-                        <span>
-                            {{ $t('settings.api_keys.table.last_used') }}:
-                            {{
-                                token.last_used_at
-                                    ? date.diffForHumans(token.last_used_at)
-                                    : $t('settings.api_keys.table.never')
-                            }}
-                        </span>
+                        <span>{{
+                            token.last_used_at
+                                ? $t('settings.api_keys.meta.last_used', {
+                                      time: date.diffForHumans(
+                                          token.last_used_at,
+                                      ),
+                                  })
+                                : $t('settings.api_keys.meta.never_used')
+                        }}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{{
+                            $t('settings.api_keys.meta.created', {
+                                date: date.formatDate(token.created_at),
+                            })
+                        }}</span>
                     </p>
                     <template #actions>
                         <DropdownMenu>
@@ -181,16 +233,25 @@ const confirmRegenerateModal = ref<InstanceType<
                 </SettingsListRow>
             </ul>
 
-            <div
+            <EmptyState
                 v-else
-                class="rounded-xl border border-dashed border-border-strong"
+                :title="$t('settings.api_keys.empty.title')"
+                :description="$t('settings.api_keys.empty.description')"
+                data-testid="api-keys-empty"
             >
-                <EmptyState
-                    :icon="IconKey"
-                    :title="$t('settings.api_keys.empty.title')"
-                    :description="$t('settings.api_keys.empty.description')"
-                />
-            </div>
+                <template #illustration>
+                    <ApiKeysEmptyIllustration />
+                </template>
+                <template #action>
+                    <Button
+                        data-testid="api-keys-empty-create"
+                        @click="openCreateDialog"
+                    >
+                        <IconPlus class="size-4" />
+                        {{ $t('settings.api_keys.create') }}
+                    </Button>
+                </template>
+            </EmptyState>
         </div>
     </SettingsLayout>
 

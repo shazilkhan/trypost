@@ -112,6 +112,7 @@ return [
         'publish_posts' => '게시물 게시',
         'destination_issues' => '수정할 문제 :count개',
         'create_another' => '하나 더 만들기',
+        'connect_to_post' => '게시하려면 채널을 연결하세요',
         'request_approval' => '저장하고 승인 요청',
         'templates' => '템플릿',
         'expand' => '대화 상자 확장',
@@ -888,6 +889,7 @@ return [
         'slot_aria' => ':network의 :channel에 :time 게시물 추가',
         'no_time' => '시간 없음',
         'new_in_slot' => '신규',
+        'add_post_in_slot' => '게시물 추가',
         'more_times' => '더 많은 시간',
         'failure' => [
             'title' => '실패한 이유',
@@ -906,6 +908,14 @@ return [
             ],
         ],
         'goal' => '이번 주 게시물 :sent/:goal개 전송됨',
+        'goal_popover' => [
+            'title' => '게시 목표',
+            'per_week' => '주 :count개 게시물|주 :count개 게시물',
+            'sent' => '전송됨',
+            'scheduled' => '예약됨',
+            'to_do' => '남음',
+            'edit' => '게시 목표 편집',
+        ],
         'menu' => [
             'show_posting_times' => '게시 시간 표시',
             'manage_posting_times' => '게시 시간 관리',
@@ -924,11 +934,20 @@ return [
             'delete' => '게시물 삭제',
             'add_to_queue' => '대기열에 추가',
             'add_to_queue_disabled' => '대기열을 사용하려면 이 채널에 게시 시간을 추가하세요.',
+            'more' => '추가 작업',
+            'open_on_network' => ':network에서 게시물 열기',
+            'see_insights' => '게시물 인사이트 보기',
             'view_post' => '게시물 보기',
             'edit_labels' => '라벨 편집',
             'edit_labels_failed' => '라벨을 업데이트하지 못했습니다. 다시 시도해 주세요.',
         ],
         'created_by' => '작성자: :name :when',
+        'welcome' => [
+            'title' => 'TryPost에 오신 것을 환영합니다 👋',
+            'description' => '채널을 연결하고 게시물 계획과 게시를 시작하세요.',
+            'invite' => '팀 초대',
+            'connect_more' => '채널 더 연결',
+        ],
         'empty' => [
             'queue' => [
                 'title' => '예약된 게시물이 없습니다',

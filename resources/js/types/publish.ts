@@ -32,6 +32,7 @@ export interface PublishChannel extends PublishSocialAccount {
     has_posting_schedule: boolean;
     posting_goal: number | null;
     sent_this_week: number;
+    scheduled_this_week: number;
     has_grid: boolean;
 }
 
@@ -139,29 +140,8 @@ export type PostCardMenuAction =
     | 'details'
     | 'delete';
 
-export interface CalendarPostPlatform {
-    id: string;
-    platform: string;
-    status: string;
-    social_account: {
-        id: string;
-        platform: string;
-        display_name: string;
-        username: string | null;
-        display_label: string;
-    } | null;
-}
-
-export interface CalendarPost {
-    id: string;
-    status: string;
-    content: string | null;
-    scheduled_at: string | null;
+export interface CalendarPost extends PostCard {
     calendar_at: string;
-    schedule_mode?: ScheduleModeValue | null;
-    recurrence_frequency?: RecurrenceFrequency | null;
-    media?: MediaItem[] | null;
-    post_platforms: CalendarPostPlatform[];
 }
 
 export type CalendarView = 'week' | 'month';
@@ -173,7 +153,7 @@ export interface CalendarSlot {
     channel_id: string;
 }
 
-export interface UndatedDraft extends Omit<CalendarPost, 'scheduled_at' | 'calendar_at'> {
+export interface UndatedDraft extends Omit<PostCard, 'scheduled_at'> {
     scheduled_at: null;
 }
 

@@ -47,7 +47,7 @@ class WebhookController extends Controller
             'webhook' => $webhook->makeVisible('signing_secret'),
             'logs' => Inertia::scroll(
                 fn () => $webhook->logs()->orderByDesc('created_at')->paginate((int) config('app.pagination.default')),
-            ),
+            )->matchOn('data.id'),
         ]);
     }
 

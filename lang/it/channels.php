@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'title' => 'Canali',
-    'description' => 'Gestisci i canali social collegati a questo workspace.',
+    'description' => 'Gestisci i canali di questo workspace.',
     'connect' => 'Collega canale',
     'settings' => 'Impostazioni del canale',
     'publish' => 'Pubblica',
@@ -15,6 +15,7 @@ return [
     'connection_lost' => 'Connessione persa',
     'connection_lost_hint' => 'Ricollega questo canale per continuare a pubblicare.',
     'reconnect' => 'Ricollega',
+    'refresh_connection' => 'Aggiorna connessione',
     'view_profile' => 'Visualizza profilo',
     'disconnect' => 'Scollega',
     'actions' => 'Azioni del canale',
@@ -161,9 +162,14 @@ return [
 
     'disconnect_modal' => [
         'title' => 'Scollega canale',
+        'title_named' => 'Disconnetti :name',
+        'refresh_before' => 'Problemi con la connessione? Prova prima',
+        'refresh_after' => '.',
+        'irreversible' => 'Questa azione non può essere annullata.',
+        'type_to_confirm' => 'Digita ":keyword" per confermare.',
         'description' => 'Questo elimina tutti i post di questo canale in TryPost, compresi bozze, post programmati e la cronologia dei pubblicati. I post già presenti sul social restano lì.',
         'confirm' => 'Scollega',
-        'keyword' => 'SCOLLEGA',
+        'keyword' => 'disconnetti',
         'cancel' => 'Annulla',
     ],
 
