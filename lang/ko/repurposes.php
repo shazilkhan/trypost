@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => '소스',
         'description' => 'TryPost가 이 계정에서 아래 형식의 새 게시물을 지켜봅니다.',
-        'account_label' => '계정',
         'watch_label' => '감시할 형식',
+        'watch_description' => '리포스트를 시작하는 게시물 유형입니다.',
         'needs_reconnect' => '다시 연결해야 함',
     ],
 

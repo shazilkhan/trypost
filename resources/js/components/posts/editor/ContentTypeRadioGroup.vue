@@ -29,7 +29,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 </script>
 
 <template>
-    <div class="space-y-1.5" :data-testid="testIdPrefix">
+    <div class="flex flex-col gap-1.5" :data-testid="testIdPrefix">
         <RadioGroup
             :model-value="modelValue"
             :disabled="disabled"

@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => '来源',
         'description' => 'TryPost 会盯着这个账号，寻找下面所选格式的新内容。',
-        'account_label' => '账号',
         'watch_label' => '监控格式',
+        'watch_description' => '触发转发的帖子类型。',
         'needs_reconnect' => '需要重新连接',
     ],
 

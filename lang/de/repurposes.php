@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Quelle',
         'description' => 'TryPost beobachtet dieses Konto auf neue Beiträge im unten gewählten Format.',
-        'account_label' => 'Konto',
         'watch_label' => 'Beobachten',
+        'watch_description' => 'Die Art von Beitrag, die einen Repost auslöst.',
         'needs_reconnect' => 'Neu verbinden nötig',
     ],
 

@@ -10,7 +10,7 @@ export interface ChannelAccount {
     username: string;
     display_label: string;
     avatar_url: string | null;
-    status?: string;
+    status?: SocialAccountStatusValue;
 }
 
 export interface ChannelTikTokCreatorInfo {

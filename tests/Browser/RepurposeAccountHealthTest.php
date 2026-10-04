@@ -56,6 +56,6 @@ test('a repurpose whose source was deleted explains itself instead of rendering 
 
     $page->assertSee(__('repurposes.health.source_missing'))
         ->assertSee(__('repurposes.summary.no_source'))
-        ->assertPresent('@flow-source-missing')
+        ->assertMissing('@repurpose-source-avatar')
         ->assertNoJavaScriptErrors();
 });

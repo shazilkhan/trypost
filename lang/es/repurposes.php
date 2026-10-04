@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Origen',
         'description' => 'TryPost vigila esta cuenta en busca de publicaciones nuevas del formato de abajo.',
-        'account_label' => 'Cuenta',
         'watch_label' => 'Vigilar',
+        'watch_description' => 'El tipo de publicación que inicia un repost.',
         'needs_reconnect' => 'Necesita reconectarse',
     ],
 

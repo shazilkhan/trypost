@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Źródło',
         'description' => 'TryPost obserwuje to konto w poszukiwaniu nowych postów w formacie poniżej.',
-        'account_label' => 'Konto',
         'watch_label' => 'Obserwuj',
+        'watch_description' => 'Rodzaj posta, który uruchamia repost.',
         'needs_reconnect' => 'Wymaga ponownego połączenia',
     ],
 

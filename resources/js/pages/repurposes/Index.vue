@@ -2,25 +2,29 @@
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
 import {
     IconAlertTriangle,
+    IconArrowRight,
+    IconChevronRight,
     IconPlus,
     IconRepeat,
 } from '@tabler/icons-vue';
+import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
 import CreateRepurposeDialog from '@/components/repurpose/CreateRepurposeDialog.vue';
-import RepurposeFlow from '@/components/repurpose/RepurposeFlow.vue';
 import RepurposesEmptyIllustration from '@/components/repurpose/RepurposesEmptyIllustration.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
+import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show } from '@/routes/app/repurposes';
 import type { ChannelAccount } from '@/types/channel';
-import type { FlowNode, Repurpose } from '@/types/repurpose';
+import type { Repurpose } from '@/types/repurpose';
 import { repurposeStatusVariant } from '@/types/repurpose-status';
 
 const props = defineProps<{
@@ -44,22 +48,24 @@ const startBlank = () => {
     createDialogOpen.value = true;
 };
 
-const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
+const MAX_DESTINATION_AVATARS = 4;
+
+const destinationAccountsOf = (repurpose: Repurpose): ChannelAccount[] =>
     repurpose.destinations.flatMap((destination) => {
         const account = props.destinationAccounts.find(
             (item) => item.id === destination.social_account_id,
         );
 
-        return account
-            ? [
-                  {
-                      platform: account.platform,
-                      label: account.display_name,
-                      username: account.username,
-                  },
-              ]
-            : [];
+        return account ? [account] : [];
     });
+
+const sourceCaption = (repurpose: Repurpose): string => {
+    const format = trans(`repurposes.formats.${repurpose.source_format}`);
+
+    return repurpose.source_account
+        ? `${format} · ${getPlatformLabel(repurpose.source_account.platform)}`
+        : format;
+};
 </script>
 
 <template>
@@ -122,7 +128,7 @@ const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
             >
                 <ul
                     id="repurposes-body"
-                    class="flex flex-col gap-2"
+                    class="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
                     data-testid="repurposes-table"
                 >
                     <li
@@ -131,28 +137,88 @@ const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
                     >
                         <Link
                             :href="show.url(repurpose.id)"
-                            class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-card p-4 transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                            class="group grid min-w-0 items-center gap-x-6 gap-y-3 px-4 py-3.5 transition-control hover:bg-accent focus-visible:bg-accent focus-visible:outline-none md:grid-cols-[minmax(0,1fr)_11rem_auto] lg:grid-cols-[minmax(0,1fr)_12rem_24rem]"
                             :data-testid="`repurpose-row-${repurpose.id}`"
                         >
-                            <RepurposeFlow
-                                :source="{
-                                    platform:
-                                        repurpose.source_account?.platform ??
-                                        '',
-                                    label: repurpose.source_account
-                                        ?.display_name,
-                                    username:
-                                        repurpose.source_account?.username,
-                                }"
-                                :destinations="destinationNodes(repurpose)"
-                                size="sm"
-                                align="start"
-                            />
                             <div
-                                class="ms-auto flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1"
+                                class="flex min-w-0 items-center gap-3"
+                            >
+                                <ChannelAvatar
+                                    v-if="repurpose.source_account"
+                                    :platform="repurpose.source_account.platform"
+                                    :name="repurpose.source_account.display_name"
+                                    :src="repurpose.source_account.avatar_url"
+                                    :status="repurpose.source_account.status"
+                                    :size="40"
+                                    ring="card"
+                                    :data-testid="`repurpose-source-${repurpose.id}`"
+                                />
+                                <div class="min-w-0">
+                                    <p
+                                        class="truncate text-sm font-emphasis text-foreground"
+                                    >
+                                        {{
+                                            repurpose.source_account
+                                                ?.display_name ??
+                                            $t('repurposes.flow.no_source')
+                                        }}
+                                    </p>
+                                    <p
+                                        class="truncate text-xs text-muted-foreground"
+                                    >
+                                        {{ sourceCaption(repurpose) }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div
+                                class="flex min-w-0 items-center gap-3"
+                                :data-testid="`repurpose-destinations-${repurpose.id}`"
+                            >
+                                <IconArrowRight
+                                    class="size-4 shrink-0 text-subtle-foreground rtl:rotate-180"
+                                    aria-hidden="true"
+                                />
+                                <div
+                                    v-if="destinationAccountsOf(repurpose).length"
+                                    class="flex items-center gap-2"
+                                >
+                                    <ChannelAvatar
+                                        v-for="account in destinationAccountsOf(
+                                            repurpose,
+                                        ).slice(0, MAX_DESTINATION_AVATARS)"
+                                        :key="account.id"
+                                        :platform="account.platform"
+                                        :name="account.display_name"
+                                        :src="account.avatar_url"
+                                        :size="28"
+                                        ring="card"
+                                        :title="account.display_name"
+                                    />
+                                    <span
+                                        v-if="
+                                            destinationAccountsOf(repurpose)
+                                                .length > MAX_DESTINATION_AVATARS
+                                        "
+                                        class="text-xs text-muted-foreground tabular-nums"
+                                        >+{{
+                                            destinationAccountsOf(repurpose)
+                                                .length - MAX_DESTINATION_AVATARS
+                                        }}</span
+                                    >
+                                </div>
+                                <span
+                                    v-else
+                                    class="truncate text-xs text-muted-foreground"
+                                    >{{ $t('repurposes.flow.no_destinations') }}</span
+                                >
+                            </div>
+
+                            <div
+                                class="flex min-w-0 items-center justify-end gap-4"
                             >
                                 <p
-                                    class="text-sm text-muted-foreground tabular-nums"
+                                    class="hidden text-xs text-muted-foreground tabular-nums md:block"
                                 >
                                     {{ $t('repurposes.table.published') }}
                                     <span class="text-foreground">{{
@@ -169,6 +235,16 @@ const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
                                     }}</span>
                                 </p>
                                 <span class="flex items-center gap-1.5">
+                                    <IconAlertTriangle
+                                        v-if="repurpose.paused_reason"
+                                        class="size-4 text-amber-500"
+                                        :title="
+                                            $t(
+                                                'repurposes.health.stopped_itself',
+                                            )
+                                        "
+                                        data-testid="repurpose-stopped-itself"
+                                    />
                                     <Badge
                                         :variant="
                                             repurposeStatusVariant(
@@ -183,17 +259,11 @@ const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
                                             )
                                         }}
                                     </Badge>
-                                    <IconAlertTriangle
-                                        v-if="repurpose.paused_reason"
-                                        class="size-4 text-amber-500"
-                                        :title="
-                                            $t(
-                                                'repurposes.health.stopped_itself',
-                                            )
-                                        "
-                                        data-testid="repurpose-stopped-itself"
-                                    />
                                 </span>
+                                <IconChevronRight
+                                    class="size-4 shrink-0 text-subtle-foreground transition-transform group-hover:translate-x-0.5 rtl:rotate-180"
+                                    aria-hidden="true"
+                                />
                             </div>
                         </Link>
                     </li>

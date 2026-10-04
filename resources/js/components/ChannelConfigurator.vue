@@ -1,15 +1,8 @@
 <script setup lang="ts">
-import {
-    IconAlertCircle,
-    IconBan,
-    IconCircleCheck,
-    IconExternalLink,
-    IconHourglass,
-} from '@tabler/icons-vue';
+import { IconAlertCircle, IconExternalLink } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
-import PlatformLogo from '@/components/PlatformLogo.vue';
 import ChannelMediaWarnings from '@/components/posts/editor/ChannelMediaWarnings.vue';
 import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
@@ -17,13 +10,7 @@ import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
 import YouTubeSettings from '@/components/posts/editor/YouTubeSettings.vue';
-import { Badge } from '@/components/ui/badge';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 import { isDocumentMedia } from '@/composables/useMedia';
 import {
     getContentTypeOptions,
@@ -32,7 +19,6 @@ import {
 import type { Channel } from '@/types/channel';
 import type { MediaItem } from '@/types/media';
 import { Platform } from '@/types/platform';
-import { PostPlatformStatus } from '@/types/post';
 
 const props = withDefaults(
     defineProps<{
@@ -88,160 +74,86 @@ const hasSettingsCard = (channel: Channel): boolean =>
 
 const updateMeta = (channel: Channel, value: Record<string, any>) =>
     emit('update:meta', channel.id, value);
+
+const toggleChannel = (channel: Channel): void => {
+    emit('toggle', channel.id);
+};
+
+const settingsIndex = (channel: Channel): number =>
+    selectedChannels.value.findIndex((item) => item.id === channel.id);
 </script>
 
 <template>
-    <div class="space-y-6">
-        <div class="flex flex-wrap gap-3">
-            <TooltipProvider
+    <div class="flex flex-col gap-4">
+        <ul
+            class="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card"
+            data-testid="channel-configurator"
+        >
+            <li
                 v-for="channel in channels"
                 :key="channel.id"
-                :delay-duration="200"
+                :data-testid="`channel-row-${channel.id}`"
             >
-                <Tooltip>
-                    <TooltipTrigger as-child>
-                        <button
-                            type="button"
-                            class="flex w-20 cursor-pointer flex-col items-center gap-1.5 transition-opacity hover:opacity-90"
-                            :aria-pressed="isSelected(channel.id)"
-                            :data-testid="`channel-${channel.id}`"
-                            @click="emit('toggle', channel.id)"
+                <div class="flex items-center gap-3 px-4 py-3">
+                    <ChannelAvatar
+                        :platform="channel.platform"
+                        :src="channel.avatarUrl"
+                        :name="channel.displayName"
+                        :size="32"
+                        ring="card"
+                    />
+                    <div class="min-w-0 flex-1">
+                        <p
+                            class="truncate text-sm leading-5 font-emphasis text-foreground"
                         >
-                            <ChannelAvatar
-                                :platform="channel.platform"
-                                :src="channel.avatarUrl"
-                                :name="channel.displayName"
-                                :size="40"
-                                ring="card"
-                                :reserve-space="false"
-                                :avatar-class="[
-                                    'rounded-full border',
-                                    isSelected(channel.id)
-                                        ? [
-                                              'shadow-xs ring-2',
-                                              channel.issue
-                                                  ? 'border-rose-500 ring-rose-200'
-                                                  : 'border-primary-strong ring-primary-subtle',
-                                          ]
-                                        : 'border-border',
-                                ]"
+                            {{ channel.displayName }}
+                        </p>
+                        <p class="truncate text-xs text-muted-foreground">
+                            {{ getPlatformLabel(channel.platform)
+                            }}<template v-if="channel.username">
+                                · @{{ channel.username }}</template
                             >
-                                <Badge
-                                    v-if="
-                                        channel.status ===
-                                        PostPlatformStatus.Published
-                                    "
-                                    variant="success"
-                                    class="absolute -top-1 -right-1 h-4 w-4 p-0"
-                                >
-                                    <IconCircleCheck class="h-2.5 w-2.5" />
-                                </Badge>
-                                <Badge
-                                    v-else-if="
-                                        channel.status ===
-                                        PostPlatformStatus.PendingReview
-                                    "
-                                    variant="warning"
-                                    class="absolute -top-1 -right-1 h-4 w-4 p-0"
-                                >
-                                    <IconHourglass class="h-2.5 w-2.5" />
-                                </Badge>
-                                <Badge
-                                    v-else-if="
-                                        channel.status ===
-                                        PostPlatformStatus.Rejected
-                                    "
-                                    variant="destructive"
-                                    class="absolute -top-1 -right-1 h-4 w-4 p-0"
-                                >
-                                    <IconBan class="h-2.5 w-2.5" />
-                                </Badge>
-                                <Badge
-                                    v-else-if="
-                                        channel.status ===
-                                        PostPlatformStatus.Failed
-                                    "
-                                    variant="destructive"
-                                    class="absolute -top-1 -right-1 h-4 w-4 p-0 text-[9px]"
-                                    >!</Badge
-                                >
-                                <Badge
-                                    v-else-if="channel.issue"
-                                    variant="destructive"
-                                    class="absolute -top-1 -right-1 h-4 w-4 p-0"
-                                    :data-testid="`channel-issue-${channel.id}`"
-                                >
-                                    <IconAlertCircle class="h-2.5 w-2.5" />
-                                </Badge>
-                            </ChannelAvatar>
-                            <span
-                                class="line-clamp-2 text-center text-xs leading-tight"
-                                :class="
-                                    isSelected(channel.id)
-                                        ? 'font-bold text-foreground'
-                                        : 'font-medium text-foreground/70'
-                                "
-                            >
-                                {{ channel.displayName }}
-                            </span>
-                        </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <div class="space-y-0.5 text-xs">
-                            <p class="font-semibold">
-                                {{ channel.displayName
-                                }}<span
-                                    v-if="channel.username"
-                                    class="font-normal opacity-80"
-                                    >&nbsp;·&nbsp;@{{ channel.username }}</span
-                                >
-                            </p>
-                            <p class="opacity-70">
-                                {{ getPlatformLabel(channel.platform) }}
-                            </p>
-                            <p
-                                v-if="channel.issue"
-                                class="mt-1 max-w-xs text-destructive-foreground/90"
-                            >
+                        </p>
+                        <p
+                            v-if="isSelected(channel.id) && channel.issue"
+                            class="mt-1 flex items-start gap-1.5 text-xs text-destructive-text"
+                            :data-testid="`channel-issue-${channel.id}`"
+                        >
+                            <IconAlertCircle class="mt-px size-3.5 shrink-0" />
+                            <span class="min-w-0">
                                 {{ channel.issue }}
-                            </p>
-                            <a
-                                v-if="channel.issue && channel.issueDocsUrl"
-                                :href="channel.issueDocsUrl"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="mt-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2"
-                                :data-testid="`channel-issue-docs-${channel.id}`"
-                            >
-                                {{
-                                    $t(
-                                        'posts.edit.compliance.media_limits_docs',
-                                    )
-                                }}
-                                <IconExternalLink class="size-3" />
-                            </a>
-                        </div>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-        </div>
+                                <a
+                                    v-if="channel.issueDocsUrl"
+                                    :href="channel.issueDocsUrl"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="ms-1 inline-flex items-center gap-1 font-medium underline underline-offset-2"
+                                    :data-testid="`channel-issue-docs-${channel.id}`"
+                                >
+                                    {{
+                                        $t(
+                                            'posts.edit.compliance.media_limits_docs',
+                                        )
+                                    }}
+                                    <IconExternalLink class="size-3" />
+                                </a>
+                            </span>
+                        </p>
+                    </div>
+                    <Switch
+                        :model-value="isSelected(channel.id)"
+                        :disabled="disabled"
+                        :aria-label="channel.displayName"
+                        :data-testid="`channel-${channel.id}`"
+                        @update:model-value="toggleChannel(channel)"
+                    />
+                </div>
 
-        <slot />
-
-        <template
-            v-for="(channel, index) in selectedChannels"
-            :key="channel.id"
-        >
-            <div
-                v-if="hasSettingsCard(channel)"
-                class="flex gap-3 rounded-xl border border-border bg-card p-3"
-                :data-testid="`channel-settings-${channel.id}`"
-            >
-                <PlatformLogo :platform="channel.platform" :size="24" />
-                <div class="flex min-w-0 flex-1 flex-col gap-3">
-                    <p class="truncate text-sm font-medium text-foreground">
-                        {{ channel.displayName }}
-                    </p>
+                <div
+                    v-if="isSelected(channel.id) && hasSettingsCard(channel)"
+                    class="flex flex-col gap-3 border-t border-border bg-muted px-4 py-4 sm:ps-[60px] [&>[data-testid=channel-settings-rows]:first-child]:border-t-0 [&>[data-testid=channel-settings-rows]:first-child]:pt-0"
+                    :data-testid="`channel-settings-${channel.id}`"
+                >
                     <ContentTypeRadioGroup
                         v-if="getContentTypeOptions(channel.platform).length > 1"
                         :options="getContentTypeOptions(channel.platform)"
@@ -295,7 +207,7 @@ const updateMeta = (channel: Channel, value: Record<string, any>) =>
                     />
                     <YouTubeSettings
                         v-else-if="channel.platform === Platform.YouTube"
-                        :platform-index="index"
+                        :platform-index="settingsIndex(channel)"
                         :publish-config="channel.publishConfig ?? null"
                         :meta="channel.meta"
                         :disabled="disabled"
@@ -309,7 +221,9 @@ const updateMeta = (channel: Channel, value: Record<string, any>) =>
                         @update:meta="updateMeta(channel, $event)"
                     />
                 </div>
-            </div>
-        </template>
+            </li>
+        </ul>
+
+        <slot />
     </div>
 </template>

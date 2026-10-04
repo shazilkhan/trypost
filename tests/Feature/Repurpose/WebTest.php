@@ -9,6 +9,7 @@ use App\Enums\Repurpose\SourceFormat;
 use App\Enums\Repurpose\Status;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\TikTok\PrivacyLevel;
+use App\Http\Resources\Api\RepurposeResource as ApiRepurposeResource;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\Post;
@@ -21,6 +22,7 @@ use App\Models\Workspace;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Testing\AssertableInertia;
 
@@ -557,4 +559,37 @@ test('google business is never a repurpose destination', function () {
         ->assertSessionHasErrors(['destinations.0.social_account_id' => __('repurposes.errors.destination_not_supported')]);
 
     expect($repurpose->fresh()->destinations)->toBe([]);
+});
+
+test('the list and the edit page send the source account with its avatar', function () {
+    $this->source->update(['avatar_url' => 'avatars/source.jpg']);
+    $repurpose = Repurpose::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'source_social_account_id' => $this->source->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.repurposes.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('repurposes.data.0.source_account.avatar_url', Storage::url('avatars/source.jpg')));
+
+    $this->actingAs($this->user)
+        ->get(route('app.repurposes.show', $repurpose))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('repurpose.source_account.avatar_url', Storage::url('avatars/source.jpg')));
+});
+
+test('the public api keeps its own source account shape', function () {
+    $this->source->update(['avatar_url' => 'avatars/source.jpg']);
+    $repurpose = Repurpose::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'source_social_account_id' => $this->source->id,
+    ]);
+
+    $payload = (new ApiRepurposeResource($repurpose->load('sourceAccount')))->toResponse(request())->getData(true);
+
+    expect(data_get($payload, 'source_account.id'))->toBe($this->source->id)
+        ->and(data_get($payload, 'source_account'))->not->toHaveKey('avatar_url');
 });

@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Source',
         'description' => 'TryPost watches this account for new posts of the format below.',
-        'account_label' => 'Account',
         'watch_label' => 'Watch for',
+        'watch_description' => 'The kind of post that starts a repost.',
         'needs_reconnect' => 'Needs reconnecting',
     ],
 

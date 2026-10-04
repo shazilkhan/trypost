@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Πηγή',
         'description' => 'Το TryPost παρακολουθεί αυτόν τον λογαριασμό για νέες αναρτήσεις της παρακάτω μορφής.',
-        'account_label' => 'Λογαριασμός',
         'watch_label' => 'Παρακολούθηση',
+        'watch_description' => 'Ο τύπος ανάρτησης που ξεκινά ένα repost.',
         'needs_reconnect' => 'Χρειάζεται επανασύνδεση',
     ],
 

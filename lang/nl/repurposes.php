@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Bron',
         'description' => 'TryPost volgt dit account op nieuwe berichten van het formaat hieronder.',
-        'account_label' => 'Account',
         'watch_label' => 'Volgen',
+        'watch_description' => 'Het soort post dat een repost start.',
         'needs_reconnect' => 'Opnieuw verbinden nodig',
     ],
 

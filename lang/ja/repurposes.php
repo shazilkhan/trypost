@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'ソース',
         'description' => 'TryPost がこのアカウントを見張り、下で選んだ形式の新しい投稿を探します。',
-        'account_label' => 'アカウント',
         'watch_label' => '監視する形式',
+        'watch_description' => 'リポストのきっかけになる投稿の種類。',
         'needs_reconnect' => '再接続が必要',
     ],
 

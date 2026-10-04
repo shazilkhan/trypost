@@ -3,8 +3,8 @@ import { Link, useForm } from '@inertiajs/vue3';
 import { IconPlugConnected } from '@tabler/icons-vue';
 import { computed, watch } from 'vue';
 
+import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import InputError from '@/components/InputError.vue';
-import PlatformLogo from '@/components/PlatformLogo.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dialog';
 import {
     getPlatformLabel,
-    getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import { store } from '@/routes/app/repurposes';
 import { channels as channelsSettings } from '@/routes/app/workspace';
@@ -42,6 +41,8 @@ const accountOptions = computed(() =>
         value: account.id,
         label: account.display_name,
         platform: account.platform,
+        avatar: account.avatar_url,
+        status: account.status ?? null,
     })),
 );
 
@@ -123,16 +124,21 @@ const submit = () => {
                             "
                         >
                             <template #option="{ option, compact }">
-                                <img
+                                <ChannelAvatar
                                     v-if="compact"
-                                    :src="getPlatformLogo(option.platform)"
-                                    :alt="getPlatformLabel(option.platform)"
-                                    class="size-4 shrink-0 rounded-sm"
+                                    :platform="option.platform"
+                                    :name="option.label"
+                                    :src="option.avatar"
+                                    :size="20"
                                 />
-                                <PlatformLogo
+                                <ChannelAvatar
                                     v-else
                                     :platform="option.platform"
-                                    size="sm"
+                                    :name="option.label"
+                                    :src="option.avatar"
+                                    :status="option.status"
+                                    :size="32"
+                                    ring="popover"
                                     data-testid="source-account-option"
                                 />
 

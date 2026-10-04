@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Source',
         'description' => 'TryPost surveille ce compte pour les nouvelles publications du format ci-dessous.',
-        'account_label' => 'Compte',
         'watch_label' => 'Surveiller',
+        'watch_description' => 'Le type de publication qui déclenche un repost.',
         'needs_reconnect' => 'Reconnexion nécessaire',
     ],
 

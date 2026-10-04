@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Origine',
         'description' => 'TryPost tiene d\'occhio questo account per i nuovi post del formato qui sotto.',
-        'account_label' => 'Account',
         'watch_label' => 'Osserva',
+        'watch_description' => 'Il tipo di post che avvia un repost.',
         'needs_reconnect' => 'Da riconnettere',
     ],
 

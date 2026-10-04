@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Origem',
         'description' => 'O TryPost acompanha esta conta em busca de novas publicações do formato abaixo.',
-        'account_label' => 'Conta',
         'watch_label' => 'Observar',
+        'watch_description' => 'O tipo de post que dispara um repost.',
         'needs_reconnect' => 'Precisa reconectar',
     ],
 

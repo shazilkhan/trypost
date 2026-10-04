@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'Kaynak',
         'description' => 'TryPost bu hesabı aşağıdaki formattaki yeni gönderiler için izler.',
-        'account_label' => 'Hesap',
         'watch_label' => 'İzle',
+        'watch_description' => 'Repost başlatan gönderi türü.',
         'needs_reconnect' => 'Yeniden bağlanmalı',
     ],
 

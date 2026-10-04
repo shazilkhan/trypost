@@ -36,8 +36,8 @@ return [
     'source' => [
         'title' => 'المصدر',
         'description' => 'يراقب TryPost هذا الحساب بحثًا عن منشورات جديدة بالصيغة أدناه.',
-        'account_label' => 'الحساب',
         'watch_label' => 'المراقبة',
+        'watch_description' => 'نوع المنشور الذي يبدأ إعادة النشر.',
         'needs_reconnect' => 'يحتاج إلى إعادة اتصال',
     ],
 
