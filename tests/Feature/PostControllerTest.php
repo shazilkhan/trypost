@@ -1778,10 +1778,10 @@ test('update post rejects scheduling instagram reel with no media', function () 
     $response->assertSessionHasErrors('platforms.0.content_type');
 });
 
-test('update post rejects invalid instagram aspect_ratio meta', function () {
-    $instagramAccount = SocialAccount::factory()->create([
+test('update post no longer stores an aspect_ratio meta for facebook or instagram', function (Platform $platform, ContentType $contentType, string $ratio) {
+    $account = SocialAccount::factory()->create([
         'workspace_id' => $this->workspace->id,
-        'platform' => Platform::Instagram,
+        'platform' => $platform,
     ]);
 
     $post = Post::factory()->create([
@@ -1792,7 +1792,9 @@ test('update post rejects invalid instagram aspect_ratio meta', function () {
 
     $postPlatform = PostPlatform::factory()->create([
         'post_id' => $post->id,
-        'social_account_id' => $instagramAccount->id,
+        'social_account_id' => $account->id,
+        'platform' => $platform,
+        'meta' => [],
     ]);
 
     $response = $this->actingAs($this->user)->put(route('app.posts.update', $post), [
@@ -1800,47 +1802,19 @@ test('update post rejects invalid instagram aspect_ratio meta', function () {
         'platforms' => [
             [
                 'id' => $postPlatform->id,
-                'content_type' => ContentType::InstagramFeed->value,
-                'meta' => ['aspect_ratio' => '2:1'],
+                'content_type' => $contentType->value,
+                'meta' => ['aspect_ratio' => $ratio],
             ],
         ],
     ]);
 
-    $response->assertSessionHasErrors('platforms.0.meta.aspect_ratio');
-});
-
-test('update post accepts valid instagram aspect_ratio meta', function () {
-    $instagramAccount = SocialAccount::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'platform' => Platform::Instagram,
-    ]);
-
-    $post = Post::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'user_id' => $this->user->id,
-        'status' => PostStatus::Draft,
-    ]);
-
-    $postPlatform = PostPlatform::factory()->create([
-        'post_id' => $post->id,
-        'social_account_id' => $instagramAccount->id,
-    ]);
-
-    $response = $this->actingAs($this->user)->put(route('app.posts.update', $post), [
-        'status' => 'draft',
-        'platforms' => [
-            [
-                'id' => $postPlatform->id,
-                'content_type' => ContentType::InstagramFeed->value,
-                'meta' => ['aspect_ratio' => '4:5'],
-            ],
-        ],
-    ]);
-
-    $response->assertSessionDoesntHaveErrors('platforms.0.meta.aspect_ratio');
-    $postPlatform->refresh();
-    expect(data_get($postPlatform->meta, 'aspect_ratio'))->toBe('4:5');
-});
+    $response->assertSessionHasNoErrors();
+    expect(data_get($postPlatform->fresh()->meta, 'aspect_ratio'))->toBeNull();
+})->with([
+    'instagram 4:5' => [Platform::Instagram, ContentType::InstagramFeed, '4:5'],
+    'instagram unknown' => [Platform::Instagram, ContentType::InstagramFeed, '2:1'],
+    'facebook 16:9' => [Platform::Facebook, ContentType::FacebookPost, '16:9'],
+]);
 
 test('scheduling without content_type per platform fails', function () {
     $youtubeAccount = SocialAccount::factory()->create([

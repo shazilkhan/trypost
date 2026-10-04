@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'Het onderwerp moet 1 tot 50 tekens hebben, zonder . of &.',
             'ghost_post_attachments' => 'Ghost-posts ondersteunen geen bijlagen',
         ],
-        'facebook' => [
-            'aspect_label' => 'Beeldverhouding',
-            'aspect' => [
-                'square' => 'Vierkant (1:1)',
-                'portrait' => 'Portret (4:5)',
-                'landscape' => 'Liggend (16:9)',
-                'original' => 'Origineel',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Documenttitel',
             'document_title_placeholder' => 'Getoond op je PDF-documentpost',

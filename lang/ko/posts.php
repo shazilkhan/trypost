@@ -348,15 +348,6 @@ return [
             'topic_invalid' => '주제는 . 또는 & 없이 1~50자여야 합니다.',
             'ghost_post_attachments' => '고스트 게시물은 첨부 파일을 지원하지 않습니다',
         ],
-        'facebook' => [
-            'aspect_label' => '가로세로 비율',
-            'aspect' => [
-                'square' => '정사각형 (1:1)',
-                'portrait' => '세로 (4:5)',
-                'landscape' => '가로 (16:9)',
-                'original' => '원본',
-            ],
-        ],
         'linkedin' => [
             'document_title' => '문서 제목',
             'document_title_placeholder' => 'PDF 문서 게시물에 표시됩니다',

@@ -13,7 +13,7 @@ use App\Exceptions\Social\ErrorCategory;
 use App\Exceptions\Social\InstagramPublishException;
 use App\Exceptions\Social\SocialPublishException;
 use App\Models\PostPlatform;
-use App\Services\Social\Concerns\CropsImageForAspectRatio;
+use App\Services\Social\Concerns\FitsImageToCanvas;
 use App\Services\Social\Concerns\HasSocialHttpClient;
 use App\Services\Social\Meta\GraphError;
 use App\Support\Social\PublishCheckpoint;
@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Log;
 
 class InstagramPublisher
 {
-    use CropsImageForAspectRatio;
+    use FitsImageToCanvas;
     use HasSocialHttpClient;
 
     private string $baseUrl;
@@ -74,12 +74,10 @@ class InstagramPublisher
         $firstMedia = $media->first();
         $contentType = $postPlatform->content_type;
 
-        $aspectRatio = data_get($postPlatform->meta, 'aspect_ratio');
-
         return match ($contentType) {
             ContentType::InstagramReel => $this->publishReel($instagramId, $accessToken, $content, $firstMedia),
             ContentType::InstagramStory => $this->publishStory($instagramId, $accessToken, $firstMedia),
-            ContentType::InstagramFeed => $this->publishFeed($instagramId, $accessToken, $content, $media, $aspectRatio),
+            ContentType::InstagramFeed => $this->publishFeed($instagramId, $accessToken, $content, $media),
             default => throw new InstagramPublishException(
                 userMessage: "Unsupported Instagram content type: {$contentType?->value}",
                 category: ErrorCategory::ContentPolicy,
@@ -87,10 +85,10 @@ class InstagramPublisher
         };
     }
 
-    private function publishFeed(string $instagramId, string $accessToken, ?string $content, $media, ?string $aspectRatio): array
+    private function publishFeed(string $instagramId, string $accessToken, ?string $content, $media): array
     {
         if ($media->count() > 1) {
-            return $this->publishCarousel($instagramId, $accessToken, $content, $media, $aspectRatio);
+            return $this->publishCarousel($instagramId, $accessToken, $content, $media);
         }
 
         $firstMedia = $media->first();
@@ -99,15 +97,13 @@ class InstagramPublisher
             return $this->publishReel($instagramId, $accessToken, $content, $firstMedia);
         }
 
-        return $this->publishSingleImage($instagramId, $accessToken, $content, $firstMedia, $aspectRatio);
+        return $this->publishSingleImage($instagramId, $accessToken, $content, $firstMedia);
     }
 
-    private function publishSingleImage(string $instagramId, string $accessToken, ?string $content, $media, ?string $aspectRatio): array
+    private function publishSingleImage(string $instagramId, string $accessToken, ?string $content, $media): array
     {
-        $imageUrl = $this->cropImageForAspectRatio($media->url, $aspectRatio);
-
         $params = [
-            'image_url' => $imageUrl,
+            'image_url' => $media->url,
             'caption' => $content,
             'access_token' => $accessToken,
         ];
@@ -165,7 +161,7 @@ class InstagramPublisher
         return $this->finishContainer($instagramId, $accessToken, $containerId);
     }
 
-    private function publishCarousel(string $instagramId, string $accessToken, ?string $content, $mediaCollection, ?string $aspectRatio): array
+    private function publishCarousel(string $instagramId, string $accessToken, ?string $content, $mediaCollection): array
     {
         // Step 1: Create containers for each media item
         $childContainers = [];
@@ -184,7 +180,7 @@ class InstagramPublisher
                 $params['media_type'] = 'VIDEO';
                 $params = [...$params, ...$this->thumbOffsetParam($media)];
             } else {
-                $params['image_url'] = $this->cropImageForAspectRatio($media->url, $aspectRatio);
+                $params['image_url'] = $media->url;
 
                 $alt = $media->altTextFor(Platform::Instagram);
 

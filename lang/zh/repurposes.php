@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 return [
     'title' => 'Repurpose',
-    'description' => '把你在 TryPost 之外发布的内容，自动同步到其他平台。',
     'new' => '新建 Repurpose',
 
     'flow' => [

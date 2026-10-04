@@ -28,4 +28,9 @@ export interface PreviewAction {
     labelKey?: string;
 }
 
-export type PreviewMediaLayout = 'grid' | 'stack' | 'peek' | 'carousel';
+export type PreviewMediaLayout =
+    | 'grid'
+    | 'stack'
+    | 'peek'
+    | 'carousel'
+    | 'collage';

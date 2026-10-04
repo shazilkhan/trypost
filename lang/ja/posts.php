@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'トピックは . と & を含まない1〜50文字にしてください。',
             'ghost_post_attachments' => 'ゴースト投稿は添付ファイルに対応していません',
         ],
-        'facebook' => [
-            'aspect_label' => 'アスペクト比',
-            'aspect' => [
-                'square' => '正方形 (1:1)',
-                'portrait' => '縦長 (4:5)',
-                'landscape' => '横長 (16:9)',
-                'original' => 'オリジナル',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'ドキュメントタイトル',
             'document_title_placeholder' => 'PDF ドキュメント投稿に表示されます',

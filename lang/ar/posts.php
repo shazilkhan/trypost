@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'يجب أن يتكون الموضوع من 1 إلى 50 حرفًا، بدون . أو &.',
             'ghost_post_attachments' => 'لا تدعم المنشورات الشبحية المرفقات',
         ],
-        'facebook' => [
-            'aspect_label' => 'نسبة العرض إلى الارتفاع',
-            'aspect' => [
-                'square' => 'مربع (1:1)',
-                'portrait' => 'عمودي (4:5)',
-                'landscape' => 'أفقي (16:9)',
-                'original' => 'الأصلي',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'عنوان المستند',
             'document_title_placeholder' => 'يظهر على منشور مستند PDF الخاص بك',

@@ -440,11 +440,11 @@ test('delete post validates post_id required', function () {
     $response->assertHasErrors();
 });
 
-test('create post persists platform meta (aspect_ratio)', function () {
+test('create post persists platform meta (link_preview)', function () {
     $response = TryPostServer::actingAs($this->user)
         ->tool(CreatePostTool::class, [
             'platforms' => [
-                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '4:5']],
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => false]],
             ],
         ]);
 
@@ -452,21 +452,35 @@ test('create post persists platform meta (aspect_ratio)', function () {
 
     $platform = Post::where('workspace_id', $this->workspace->id)->first()
         ->postPlatforms()->where('social_account_id', $this->socialAccount->id)->first();
-    expect($platform->meta['aspect_ratio'])->toBe('4:5');
+    expect($platform->meta['link_preview'])->toBeFalse();
 });
 
-test('create post rejects an invalid aspect_ratio', function () {
+test('create post no longer stores an aspect_ratio meta', function () {
+    TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'platforms' => [
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '4:5']],
+            ],
+        ])
+        ->assertOk();
+
+    $platform = Post::where('workspace_id', $this->workspace->id)->first()
+        ->postPlatforms()->where('social_account_id', $this->socialAccount->id)->first();
+    expect(data_get($platform->meta, 'aspect_ratio'))->toBeNull();
+});
+
+test('create post rejects an invalid link_preview', function () {
     $response = TryPostServer::actingAs($this->user)
         ->tool(CreatePostTool::class, [
             'platforms' => [
-                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '3:2']],
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => 'nope']],
             ],
         ]);
 
     $response->assertHasErrors();
 });
 
-test('update post rejects an invalid aspect_ratio', function () {
+test('update post rejects an invalid link_preview', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -479,7 +493,7 @@ test('update post rejects an invalid aspect_ratio', function () {
     $response = TryPostServer::actingAs($this->user)
         ->tool(UpdatePostTool::class, [
             'post_id' => $post->id,
-            'meta' => ['aspect_ratio' => '3:2'],
+            'meta' => ['link_preview' => 'nope'],
         ]);
 
     $response->assertHasErrors();
@@ -489,11 +503,11 @@ test('create post returns the platform meta in the response (read-back)', functi
     TryPostServer::actingAs($this->user)
         ->tool(CreatePostTool::class, [
             'platforms' => [
-                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '4:5']],
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => false]],
             ],
         ])
         ->assertOk()
-        ->assertStructuredContent(fn (AssertableJson $json) => $json->where('platforms.0.meta.aspect_ratio', '4:5')->etc());
+        ->assertStructuredContent(fn (AssertableJson $json) => $json->where('platforms.0.meta.link_preview', false)->etc());
 });
 
 test('update post rejects scheduled status without a future scheduled_at', function (?string $existingScheduledAt) {
@@ -591,7 +605,7 @@ test('update post keeps an unscheduled draft when saving as draft without schedu
         ->and($post->fresh()->content)->toBe('Still a draft');
 });
 
-test('update post accepts a valid aspect_ratio and persists it', function () {
+test('update post accepts a valid platform meta and persists it', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -604,11 +618,11 @@ test('update post accepts a valid aspect_ratio and persists it', function () {
     TryPostServer::actingAs($this->user)
         ->tool(UpdatePostTool::class, [
             'post_id' => $post->id,
-            'meta' => ['aspect_ratio' => '16:9'],
+            'meta' => ['link_preview' => false],
         ])
         ->assertOk();
 
-    expect($platform->fresh()->meta['aspect_ratio'])->toBe('16:9');
+    expect($platform->fresh()->meta['link_preview'])->toBeFalse();
 });
 
 test('members who need approval can list and get posts via mcp', function () {

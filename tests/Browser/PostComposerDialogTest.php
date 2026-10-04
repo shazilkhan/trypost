@@ -38,7 +38,7 @@ function waitForComposerReady(mixed $page, string $testId = 'composer-add-accoun
     JS);
 }
 
-test('schedule view switch navigates between the list and month calendar', function () {
+test('schedule view switch opens the weekly calendar and goes back to the list', function () {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'user_id' => $user->id,
@@ -53,7 +53,7 @@ test('schedule view switch navigates between the list and month calendar', funct
         ->assertVisible('@schedule-view-list')
         ->assertAttribute('@schedule-view-list', 'aria-current', 'page')
         ->click('@schedule-view-calendar')
-        ->assertScript('location.pathname', '/schedule/calendar/month')
+        ->assertScript('location.pathname', route('app.calendar', ['view' => 'week'], false))
         ->assertAttribute('@schedule-view-calendar', 'aria-current', 'page')
         ->click('@schedule-view-list')
         ->assertScript('location.pathname', '/schedule')

@@ -9,7 +9,6 @@ use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
 use App\Models\Media;
 use App\Models\Post;
-use App\Models\PostPlatform;
 use App\Models\Workspace;
 use App\Support\Media\ImageDimensions;
 use Closure;
@@ -34,13 +33,6 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      * @var array<string, mixed>
      */
     private array $data = [];
-
-    /**
-     * The entry's effective `meta.aspect_ratio`, when errorsFor() was given one.
-     */
-    private ?string $entryAspectRatio = null;
-
-    private bool $hasEntryAspectRatio = false;
 
     /**
      * @var array{key: string, rows: Collection<string, Media>}|null
@@ -93,59 +85,35 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
     /**
      * The per-platform entries to validate for a post update: each platform's
      * effective content_type (resubmitted in this request, else its stored
-     * value), keyed by the error path the caller surfaces, with its effective
-     * `meta.aspect_ratio` (the request's when it sends the key, else the stored
-     * one, as UpdatePost merges meta). When $requestPlatforms is null, the
-     * post's currently-enabled platforms are used, with $requestMeta (a
-     * top-level `meta` sent by API / MCP) over their stored meta.
+     * value), keyed by the error path the caller surfaces. When
+     * $requestPlatforms is null, the post's currently-enabled platforms are used.
      *
      * @param  array<int, mixed>|null  $requestPlatforms
-     * @param  array<string, mixed>|null  $requestMeta
-     * @return array<int, array{key: string, content_type: string|null, aspect_ratio: string|null}>
+     * @return array<int, array{key: string, content_type: string|null}>
      */
-    public static function entriesForUpdate(Post $post, ?array $requestPlatforms, ?array $requestMeta = null): array
+    public static function entriesForUpdate(Post $post, ?array $requestPlatforms): array
     {
         if (is_array($requestPlatforms)) {
             $stored = $post->postPlatforms()->get()->keyBy('id');
 
-            return collect($requestPlatforms)->map(function ($platform, $index) use ($stored, $requestMeta): array {
-                $storedPlatform = $stored->get(data_get($platform, 'id'));
-                $meta = data_get($platform, 'meta');
-
-                return [
-                    'key' => "platforms.{$index}.content_type",
-                    'content_type' => data_get($platform, 'content_type') ?? $storedPlatform?->content_type?->value,
-                    'aspect_ratio' => self::effectiveAspectRatio(is_array($meta) ? $meta : $requestMeta, $storedPlatform?->meta),
-                ];
-            })->all();
+            return collect($requestPlatforms)->map(fn ($platform, $index): array => [
+                'key' => "platforms.{$index}.content_type",
+                'content_type' => data_get($platform, 'content_type') ?? $stored->get(data_get($platform, 'id'))?->content_type?->value,
+            ])->all();
         }
 
         return $post->postPlatforms()->enabled()->get()->values()
             ->map(fn ($postPlatform, $index): array => [
                 'key' => "platforms.{$index}.content_type",
                 'content_type' => $postPlatform->content_type?->value,
-                'aspect_ratio' => self::effectiveAspectRatio($requestMeta, $postPlatform->meta),
             ])->all();
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $requestMeta
-     * @param  array<string, mixed>|null  $storedMeta
-     */
-    private static function effectiveAspectRatio(?array $requestMeta, ?array $storedMeta): ?string
-    {
-        $aspectRatio = is_array($requestMeta) && array_key_exists('aspect_ratio', $requestMeta)
-            ? data_get($requestMeta, 'aspect_ratio')
-            : data_get($storedMeta, 'aspect_ratio');
-
-        return is_string($aspectRatio) ? $aspectRatio : null;
     }
 
     /**
      * Validate a set of platform entries against the given media, returning
      * `[errorKey => message]` for each incompatible content_type.
      *
-     * @param  array<int, array{key: string, content_type: string|null, aspect_ratio?: string|null}>  $entries
+     * @param  array<int, array{key: string, content_type: string|null}>  $entries
      * @param  array<int, mixed>  $media
      * @return array<string, string>
      */
@@ -160,9 +128,6 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
             if ($contentType === null) {
                 continue;
             }
-
-            $rule->hasEntryAspectRatio = array_key_exists('aspect_ratio', $entry);
-            $rule->entryAspectRatio = data_get($entry, 'aspect_ratio');
 
             $rule->validate($key, $contentType, function (string $message) use (&$errors, $key): void {
                 $errors[$key] = $message;
@@ -214,38 +179,11 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
             return;
         }
 
-        if ($this->failOnDimensionRules($contentType, $media, $fail, $this->aspectRatioFor($attribute))) {
+        if ($this->failOnDimensionRules($contentType, $media, $fail)) {
             return;
         }
 
         $this->failOnSizeAndDurationCaps($contentType, $media, $fail);
-    }
-
-    /**
-     * The `meta.aspect_ratio` the platform being validated publishes with: the
-     * one errorsFor() was given, else (as a field rule on
-     * `platforms.N.content_type`) the request's sibling meta, else the stored
-     * platform's.
-     */
-    private function aspectRatioFor(string $attribute): ?string
-    {
-        if ($this->hasEntryAspectRatio) {
-            return $this->entryAspectRatio;
-        }
-
-        $prefix = Str::beforeLast($attribute, '.content_type');
-
-        if ($prefix === $attribute) {
-            return null;
-        }
-
-        $meta = data_get($this->data, "{$prefix}.meta");
-        $platformId = data_get($this->data, "{$prefix}.id");
-        $storedMeta = is_string($platformId) && Str::isUuid($platformId)
-            ? PostPlatform::query()->find($platformId)?->meta
-            : null;
-
-        return self::effectiveAspectRatio(is_array($meta) ? $meta : null, $storedMeta);
     }
 
     /**
@@ -302,8 +240,7 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      * the item's `medias` row, never from the request; an image row without
      * dimensions is measured once from the stored file (EXIF orientation
      * applied) and written back. Still images the publisher fits into the frame
-     * (autoFitsImage) or crops to `meta.aspect_ratio` (cropsImageTo) are not
-     * checked. The server measures images only: a video's width / height are the
+     * (autoFitsImage) are not checked. The server measures images only: a video's width / height are the
      * ones its upload declared, so videos are checked
      * against the ratio only when their row carries them.
      *
@@ -311,7 +248,7 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      * @param  Closure(string, ?string=): PotentiallyTranslatedString  $fail
      * @return bool Whether a violation was reported.
      */
-    public function failOnDimensionRules(ContentType $contentType, array $media, Closure $fail, ?string $aspectRatio = null): bool
+    public function failOnDimensionRules(ContentType $contentType, array $media, Closure $fail): bool
     {
         $ratioBounds = $contentType->aspectRatioBounds();
         $pixelBounds = $contentType->imageDimensionBounds();
@@ -336,7 +273,7 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
                 continue;
             }
 
-            if ($isImage && ($contentType->autoFitsImage() || $contentType->cropsImageTo($aspectRatio))) {
+            if ($isImage && ($contentType->autoFitsImage())) {
                 continue;
             }
 

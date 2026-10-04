@@ -45,14 +45,14 @@ test('stored youtube description is checked without requiring it for other netwo
 test('shared meta rules still include non-pinterest platform fields', function () {
     $rules = PostPlatformMetaRules::rules();
 
-    expect($rules)->toHaveKeys([
-        'platforms.*.meta.aspect_ratio',
-        'platforms.*.meta.privacy_level',
-        'platforms.*.meta.board_id',
-        'platforms.*.meta.channel_id',
-        'platforms.*.meta.title',
-        'platforms.*.meta.link',
-    ]);
+    expect($rules)->not->toHaveKey('platforms.*.meta.aspect_ratio')
+        ->and($rules)->toHaveKeys([
+            'platforms.*.meta.privacy_level',
+            'platforms.*.meta.board_id',
+            'platforms.*.meta.channel_id',
+            'platforms.*.meta.title',
+            'platforms.*.meta.link',
+        ]);
 });
 
 test('google business event topic type requires event title, start date, and end date to publish', function () {

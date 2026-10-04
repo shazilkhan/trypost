@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'Temat musi mieć od 1 do 50 znaków, bez . i &.',
             'ghost_post_attachments' => 'Posty-duchy nie obsługują załączników',
         ],
-        'facebook' => [
-            'aspect_label' => 'Proporcje',
-            'aspect' => [
-                'square' => 'Kwadrat (1:1)',
-                'portrait' => 'Pionowy (4:5)',
-                'landscape' => 'Poziomy (16:9)',
-                'original' => 'Oryginalny',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Tytuł dokumentu',
             'document_title_placeholder' => 'Wyświetlany w Twoim poście z dokumentem PDF',

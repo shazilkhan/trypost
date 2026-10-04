@@ -124,7 +124,7 @@ const selectEmoji = (emoji: string): void => {
                 />
             </PopoverContent>
         </Popover>
-        <div class="ms-auto flex items-center pe-3">
+        <div class="ms-auto flex items-center gap-3 pe-3">
             <slot />
         </div>
     </div>

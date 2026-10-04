@@ -348,15 +348,6 @@ return [
             'topic_invalid' => '话题须为 1 到 50 个字符，且不含 . 或 &。',
             'ghost_post_attachments' => '幽灵帖子不支持附件',
         ],
-        'facebook' => [
-            'aspect_label' => '宽高比',
-            'aspect' => [
-                'square' => '正方形（1:1）',
-                'portrait' => '竖版（4:5）',
-                'landscape' => '横版（16:9）',
-                'original' => '原始比例',
-            ],
-        ],
         'linkedin' => [
             'document_title' => '文档标题',
             'document_title_placeholder' => '显示在你的 PDF 文档帖子上',

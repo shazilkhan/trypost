@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 return [
     'title' => 'Repurpose',
-    'description' => 'TryPost dışında paylaştıklarını diğer ağlarında otomatik olarak yeniden yayınla.',
     'new' => 'Yeni repurpose',
 
     'flow' => [

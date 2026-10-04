@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
 
+import CharacterCounter from '@/components/CharacterCounter.vue';
 import InputError from '@/components/InputError.vue';
 import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
 import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
@@ -327,13 +328,10 @@ const hasDescriptionError = computed(
                 :placeholder="$t('posts.form.youtube.description_placeholder')"
                 class="field-sizing-fixed min-h-32 w-full resize-y"
             />
-            <p
-                class="text-xs tabular-nums"
-                :class="
-                    hasDescriptionError
-                        ? 'text-destructive-text'
-                        : 'text-muted-foreground'
-                "
+            <CharacterCounter
+                class="block"
+                :exceeded="hasDescriptionError"
+                data-testid="youtube-description-count"
             >
                 {{
                     $t('posts.form.youtube.description_bytes', {
@@ -341,7 +339,7 @@ const hasDescriptionError = computed(
                         limit: YOUTUBE_DESCRIPTION_MAX_BYTES.toString(),
                     })
                 }}
-            </p>
+            </CharacterCounter>
             <InputError
                 :message="
                     descriptionIssueKey

@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'Le sujet doit contenir de 1 à 50 caractères, sans . ni &.',
             'ghost_post_attachments' => 'Les posts fantômes n\'acceptent pas les pièces jointes',
         ],
-        'facebook' => [
-            'aspect_label' => 'Format',
-            'aspect' => [
-                'square' => 'Carré (1:1)',
-                'portrait' => 'Portrait (4:5)',
-                'landscape' => 'Paysage (16:9)',
-                'original' => 'Original',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Titre du document',
             'document_title_placeholder' => 'Affiché sur votre publication de document PDF',

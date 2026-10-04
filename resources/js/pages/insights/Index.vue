@@ -133,7 +133,7 @@ const accountColors = computed<Record<string, string>>(() => {
             class="flex min-h-full min-w-0 shrink-0 flex-col gap-6 px-4 pt-6 pb-10 md:px-8"
         >
             <header
-                class="sticky top-0 z-20 -mx-4 -mt-6 flex min-w-0 flex-col gap-2 border-b border-border bg-card px-4 pt-6 md:-mx-8 md:px-8"
+                class="sticky top-0 z-20 -mx-4 -mt-6 flex min-w-0 flex-col gap-2 bg-card px-4 pt-6 md:-mx-8 md:px-8"
                 data-testid="analytics-page-header"
             >
                 <div class="flex min-w-0 items-center justify-between gap-4">
@@ -152,7 +152,7 @@ const accountColors = computed<Record<string, string>>(() => {
                     </div>
                 </div>
                 <div
-                    class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 pt-2 pb-3"
+                    class="flex min-h-12 min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border-strong pt-2 pb-3"
                     data-testid="analytics-toolbar"
                 >
                     <AnalyticsRangePresets

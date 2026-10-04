@@ -71,13 +71,19 @@ test('passes when video-only content type receives a video', function () {
     expect(runMediaRule(ContentType::FacebookStory->value, $media))->toBe([]);
 });
 
-test('facebook story rejects images', function () {
+test('facebook story accepts images', function () {
     $media = [['type' => MediaType::Image->value, 'mime_type' => 'image/jpeg']];
 
-    $errors = runMediaRule(ContentType::FacebookStory->value, $media);
+    expect(runMediaRule(ContentType::FacebookStory->value, $media))->toBe([]);
+});
 
-    expect($errors)->toHaveCount(1);
-    expect($errors[0])->toContain('accepts only videos');
+test('facebook story still takes a single image or video', function () {
+    $media = [
+        ['type' => MediaType::Image->value, 'mime_type' => 'image/jpeg'],
+        ['type' => MediaType::Image->value, 'mime_type' => 'image/jpeg'],
+    ];
+
+    expect(runMediaRule(ContentType::FacebookStory->value, $media))->toHaveCount(1);
 });
 
 test('instagram story accepts images', function () {

@@ -19,7 +19,7 @@ const tabs: { key: CreateTab; href: () => string }[] = [
 
 <template>
     <div
-        class="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 shadow-[inset_0_-1px_0_var(--color-border-strong)]"
+        class="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 mx-4 md:mx-8 shadow-[inset_0_-1px_0_var(--color-border-strong)]"
     >
         <nav
             class="flex gap-4 overflow-x-auto"

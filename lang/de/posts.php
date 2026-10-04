@@ -350,15 +350,6 @@ return [
             'topic_invalid' => 'Das Thema muss 1 bis 50 Zeichen ohne . oder & haben.',
             'ghost_post_attachments' => 'Ghost-Posts unterstützen keine Anhänge',
         ],
-        'facebook' => [
-            'aspect_label' => 'Seitenverhältnis',
-            'aspect' => [
-                'square' => 'Quadratisch (1:1)',
-                'portrait' => 'Hochformat (4:5)',
-                'landscape' => 'Querformat (16:9)',
-                'original' => 'Original',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Dokumenttitel',
             'document_title_placeholder' => 'Wird bei deinem PDF-Dokument-Beitrag angezeigt',

@@ -127,7 +127,6 @@ class UpdatePostRequest extends FormRequest
         $entries = ContentTypeCompatibleWithMedia::entriesForUpdate(
             $post,
             $this->has('platforms') ? (array) $this->input('platforms', []) : null,
-            is_array($this->input('meta')) ? (array) $this->input('meta') : null,
         );
 
         foreach (ContentTypeCompatibleWithMedia::errorsFor($entries, $media, $post->workspace) as $key => $message) {

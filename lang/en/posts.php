@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'The topic must have 1 to 50 characters, without . or &.',
             'ghost_post_attachments' => 'Ghost Posts don\'t support attachments',
         ],
-        'facebook' => [
-            'aspect_label' => 'Aspect ratio',
-            'aspect' => [
-                'square' => 'Square (1:1)',
-                'portrait' => 'Portrait (4:5)',
-                'landscape' => 'Landscape (16:9)',
-                'original' => 'Original',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Document title',
             'document_title_placeholder' => 'Shown on your PDF document post',

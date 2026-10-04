@@ -128,8 +128,24 @@ test('an empty workspace offers to connect a channel', function () {
         ->assertVisible('@sidebar-channels-settings')
         ->assertVisible('@sidebar-channels-connect');
 
-    expect($page->script("(() => { const button = document.querySelector('[data-testid=\"sidebar-channels-empty-connect-instagram\"]'); return [button.querySelector('svg') !== null, button.querySelector('img') === null, getComputedStyle(button).backgroundImage.startsWith('linear-gradient')]; })()"))
-        ->toBe([true, true, true]);
+    expect($page->script("(() => { const button = document.querySelector('[data-testid=\"sidebar-channels-empty-connect-instagram\"]'); const style = getComputedStyle(button); return [button.querySelector('svg') !== null, button.querySelector('img') === null, style.backgroundImage, style.backgroundColor, style.borderTopStyle]; })()"))
+        ->toBe([true, true, 'none', 'rgba(0, 0, 0, 0)', 'solid']);
+
+    $page->hover('@sidebar-channels-empty-connect-instagram');
+    $page->script(<<<'JS'
+        new Promise((resolve) => {
+            const check = () => document.querySelector('[data-slot="tooltip-content"], [role="tooltip"]') ? resolve(true) : requestAnimationFrame(check);
+            check();
+        })
+    JS);
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const button = document.querySelector('[data-testid="sidebar-channels-empty-connect-instagram"]').getBoundingClientRect();
+            const tooltip = [...document.querySelectorAll('[data-slot="tooltip-content"], [role="tooltip"]')].map((el) => el.getBoundingClientRect()).find((rect) => rect.height > 0);
+            return tooltip.bottom <= button.top;
+        })()
+    JS))->toBeTrue();
 
     $page->click('@sidebar-channels-empty');
     waitForSidebarChannelsTestId($page, 'connect-channel-dialog');
@@ -343,8 +359,40 @@ test('the channels search button shows its shortcut and opens the command palett
 
     $page->assertSeeIn('@sidebar-channels-search-tooltip', 'Search channels');
 
+    expect($page->script(<<<'JS'
+        (() => {
+            const tooltip = getComputedStyle(document.querySelector('[data-testid="sidebar-channels-search-tooltip"]'));
+            const key = getComputedStyle(document.querySelector('[data-testid="sidebar-channels-search-shortcut"] > kbd'));
+            return key.color === tooltip.color;
+        })()
+    JS))->toBeTrue();
+
     $page->click('@sidebar-channels-search')->assertNoJavaScriptErrors();
 });
+
+test('the channels settings and connect actions show a tooltip above them', function (string $action) {
+    $user = sidebarChannelsUser('admin');
+    $user->update(['theme' => 'dark']);
+    SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    waitForSidebarChannelsTestId($page, 'sidebar-channels-label');
+
+    $page->hover('@sidebar-channels-label')->hover("@sidebar-channels-{$action}");
+    waitForSidebarChannelsTestId($page, "sidebar-channels-{$action}-tooltip");
+
+    $page->assertSeeIn("@sidebar-channels-{$action}-tooltip", $action === 'settings' ? __('channels.settings') : __('channels.connect'));
+
+    expect($page->script(<<<JS
+        (() => {
+            const button = document.querySelector('[data-testid="sidebar-channels-{$action}"]').getBoundingClientRect();
+            const tooltip = document.querySelector('[data-testid="sidebar-channels-{$action}-tooltip"]').getBoundingClientRect();
+            return tooltip.bottom <= button.top;
+        })()
+    JS))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+})->with(['settings', 'connect']);
 
 test('only the channel list scrolls while the main nav and the footer stay fixed', function () {
     $user = sidebarChannelsUser('admin');

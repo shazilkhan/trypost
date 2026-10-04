@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'Тема должна содержать от 1 до 50 символов, без . и &.',
             'ghost_post_attachments' => 'Посты-призраки не поддерживают вложения',
         ],
-        'facebook' => [
-            'aspect_label' => 'Соотношение сторон',
-            'aspect' => [
-                'square' => 'Квадрат (1:1)',
-                'portrait' => 'Портрет (4:5)',
-                'landscape' => 'Альбомная (16:9)',
-                'original' => 'Оригинал',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Название документа',
             'document_title_placeholder' => 'Отображается в вашем посте с PDF-документом',

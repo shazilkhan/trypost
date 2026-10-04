@@ -101,11 +101,12 @@
 }
 
 .dark {
-    --background: #0a0a0a;
+    --background: #111111;
+    --raised: #1e1e1e;
     --foreground: #f7f6f3;
-    --card: #141414;
+    --card: #191919;
     --card-foreground: #f7f6f3;
-    --popover: #1a1a1a;
+    --popover: #232323;
     --popover-foreground: #f7f6f3;
     --tooltip: #3a3a39;
     --tooltip-foreground: #ffffff;
@@ -116,12 +117,12 @@
     --primary-strong-foreground: #1e1530;
     --primary-subtle: #2e1065;
     --primary-selected: #8b5cf633;
-    --secondary: #2a2a2a;
+    --secondary: #2e2e2e;
     --secondary-foreground: #f7f6f3;
-    --muted: #1a1a1a;
+    --muted: #202020;
     --muted-foreground: #bcbab6;
     --subtle-foreground: #8c8b88;
-    --accent: #232323;
+    --accent: #2a2a2a;
     --accent-foreground: #f7f6f3;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
@@ -137,8 +138,8 @@
     --info: #2563eb;
     --info-subtle: #0c2a4a;
     --info-text: #9fd0ff;
-    --border: #2a2a2a;
-    --border-strong: #383838;
+    --border: #2e2e2e;
+    --border-strong: #3a3a3a;
     --input: #5a5a59;
     --ring: #a78bfa;
     --primary-text: #c4b5fd;
@@ -148,14 +149,14 @@
     --chart-3: #a78bfa;
     --chart-4: #7c3aed;
     --chart-5: #5b21b6;
-    --sidebar: #0a0a0a;
+    --sidebar: #111111;
     --sidebar-foreground: #f7f6f3;
     --sidebar-primary: #c4b5fd;
     --sidebar-primary-foreground: #292928;
-    --sidebar-accent: #232323;
+    --sidebar-accent: #2a2a2a;
     --sidebar-accent-foreground: #f7f6f3;
     --sidebar-action-hover: rgb(255 255 255 / 0.08);
-    --sidebar-border: #2a2a2a;
+    --sidebar-border: #2e2e2e;
     --sidebar-ring: #a78bfa;
     --font-sans:
         'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
@@ -188,6 +189,17 @@
     --shadow-2xl:
         0 0 0 1px #00000014, 0 1px 1px #00000005, 0 4px 8px -4px #0000000a,
         0 16px 24px -8px #0000000f;
+}
+
+.dark
+    :is(
+        [data-slot='dialog-content'],
+        [data-slot='alert-dialog-content'],
+        [data-slot='sheet-content'],
+        [data-slot='drawer-content']
+    ) {
+    --background: var(--raised);
+    --muted: #0f0f0f;
 }
 
 @theme inline {
@@ -606,5 +618,20 @@ html {
 @media (prefers-reduced-motion: reduce) {
     html {
         scroll-behavior: auto;
+    }
+}
+
+@keyframes motion-progress-sweep {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(250%);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .motion-progress-sweep {
+        animation: motion-progress-sweep 1.6s ease-in-out infinite;
     }
 }

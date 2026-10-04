@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 return [
     'title' => 'Repurpose',
-    'description' => 'Автоматично публікуйте в інших мережах те, що ви викладаєте поза TryPost.',
     'new' => 'Новий repurpose',
 
     'flow' => [

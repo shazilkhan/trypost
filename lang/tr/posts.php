@@ -350,15 +350,6 @@ return [
             'topic_invalid' => 'Konu . veya & içermeden 1 ile 50 karakter arasında olmalıdır.',
             'ghost_post_attachments' => 'Hayalet gönderiler ek desteklemez',
         ],
-        'facebook' => [
-            'aspect_label' => 'En boy oranı',
-            'aspect' => [
-                'square' => 'Kare (1:1)',
-                'portrait' => 'Dikey (4:5)',
-                'landscape' => 'Yatay (16:9)',
-                'original' => 'Orijinal',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Belge başlığı',
             'document_title_placeholder' => 'PDF belge gönderinizde gösterilir',

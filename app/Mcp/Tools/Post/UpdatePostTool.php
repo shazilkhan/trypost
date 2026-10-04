@@ -84,7 +84,7 @@ class UpdatePostTool extends Tool
                 ? [['id' => $selectedTarget->id, 'content_type' => $validated['content_type']]]
                 : null;
             $errors = ContentTypeCompatibleWithMedia::errorsFor(
-                ContentTypeCompatibleWithMedia::entriesForUpdate($post, $submittedTarget, data_get($validated, 'meta')),
+                ContentTypeCompatibleWithMedia::entriesForUpdate($post, $submittedTarget),
                 (array) ($post->media ?? []),
                 $post->workspace,
             );

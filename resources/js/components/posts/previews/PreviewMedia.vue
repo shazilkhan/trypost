@@ -13,11 +13,10 @@ const props = withDefaults(
     defineProps<{
         media: MediaItem[];
         layout?: PreviewMediaLayout;
-        aspect?: number | null;
         bleed?: boolean;
         muteBadge?: boolean;
     }>(),
-    { layout: 'grid', aspect: null, bleed: false, muteBadge: false },
+    { layout: 'grid', bleed: false, muteBadge: false },
 );
 
 const first = computed((): MediaItem | null => props.media[0] ?? null);
@@ -34,12 +33,37 @@ const ratioOf = (item: MediaItem): number => {
 };
 
 const firstRatio = computed(
-    (): number => props.aspect ?? (first.value ? ratioOf(first.value) : 1),
+    (): number => first.value ? ratioOf(first.value) : 1,
 );
 
 const mode = computed((): PreviewMediaLayout | 'single' =>
     props.media.length === 1 ? 'single' : props.layout,
 );
+
+const collageTiles = computed(() => {
+    const count = props.media.length;
+    const visible = props.media.slice(0, 5);
+
+    return visible.map((item, index) => {
+        const span = (() => {
+            if (count === 3) {
+                return index === 0 ? 'col-span-6 aspect-[2/1]' : 'col-span-3 aspect-square';
+            }
+
+            if (count >= 5) {
+                return index < 2 ? 'col-span-3 aspect-square' : 'col-span-2 aspect-square';
+            }
+
+            return count === 2 ? 'col-span-3 aspect-[1/2]' : 'col-span-3 aspect-square';
+        })();
+
+        return {
+            item,
+            span,
+            more: count > 5 && index === 4 ? count - 5 : 0,
+        };
+    });
+});
 
 const frameClass = computed((): string =>
     props.bleed ? '' : 'rounded-xl border',
@@ -96,6 +120,38 @@ const frameClass = computed((): string =>
                         class="size-full object-cover"
                     />
                 </div>
+            </div>
+        </div>
+        <div
+            v-else-if="mode === 'collage'"
+            class="grid grid-cols-6 gap-0.5 overflow-hidden"
+            :class="frameClass"
+            data-testid="preview-media-collage"
+        >
+            <div
+                v-for="tile in collageTiles"
+                :key="tile.item.id"
+                class="relative overflow-hidden bg-muted"
+                :class="tile.span"
+                data-testid="preview-media-collage-tile"
+            >
+                <VideoPreview
+                    v-if="isVideo(tile.item)"
+                    :src="tile.item.url"
+                    video-class="size-full object-cover bg-black"
+                />
+                <img
+                    v-else
+                    :src="tile.item.url"
+                    :alt="tile.item.original_filename"
+                    class="size-full object-cover"
+                />
+                <span
+                    v-if="tile.more"
+                    class="absolute inset-0 flex items-center justify-center bg-black/60 text-xl font-semibold text-white"
+                    data-testid="preview-media-collage-more"
+                    >+{{ tile.more }}</span
+                >
             </div>
         </div>
         <div v-else-if="mode === 'peek'" class="flex gap-1 overflow-hidden">

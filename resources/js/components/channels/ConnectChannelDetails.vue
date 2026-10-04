@@ -140,7 +140,7 @@ const mediaUrl = computed(() => mediaLimitsDocsUrl(value.value));
                 </section>
 
                 <figure
-                    class="flex flex-col gap-3 rounded-lg bg-primary-subtle p-4"
+                    class="flex flex-col gap-3 rounded-lg bg-primary-subtle p-4 dark:bg-primary-selected"
                 >
                     <blockquote class="text-sm leading-[21px] text-foreground">
                         {{ $t(`${copyKey}.tip`) }}

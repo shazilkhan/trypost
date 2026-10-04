@@ -144,7 +144,8 @@ test('content type supports image correctly', function () {
     expect(ContentType::LinkedInPost->supportsImage())->toBeTrue();
     expect(ContentType::InstagramReel->supportsImage())->toBeFalse();
     expect(ContentType::FacebookReel->supportsImage())->toBeFalse();
-    expect(ContentType::FacebookStory->supportsImage())->toBeFalse();
+    expect(ContentType::FacebookStory->supportsImage())->toBeTrue();
+    expect(ContentType::FacebookStory->autoFitsImage())->toBeTrue();
     expect(ContentType::TikTokVideo->supportsImage())->toBeFalse();
     expect(ContentType::YouTubeShort->supportsImage())->toBeFalse();
 });

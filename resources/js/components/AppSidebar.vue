@@ -158,7 +158,7 @@ const mainNavItems = computed<NavItem[]>(() => [
                 <DropdownMenu>
                     <DropdownMenuTrigger as-child>
                         <Button
-                            class="h-9 w-full justify-center gap-1.5 rounded-full bg-primary-strong font-medium text-primary-strong-foreground hover:bg-primary-text-hover data-[state=open]:bg-primary-text-hover group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:px-0"
+                            class="h-9 w-full justify-center gap-1.5 rounded-full bg-primary-strong font-medium text-primary-strong-foreground hover:bg-primary-text-hover data-[state=open]:bg-primary-text-hover dark:hover:bg-primary dark:data-[state=open]:bg-primary group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:px-0"
                             :aria-label="$t('sidebar.new')"
                             data-testid="sidebar-new"
                         >
@@ -187,9 +187,12 @@ const mainNavItems = computed<NavItem[]>(() => [
                             @select="openPostComposer()"
                         >
                             <span
-                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-text-hover"
+                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-text-hover dark:bg-primary-strong dark:text-primary-strong-foreground"
+                                data-testid="sidebar-new-post-icon"
                             >
-                                <IconFileText class="size-5 text-primary-text-hover" />
+                                <IconFileText
+                                    class="size-5 text-primary-text-hover dark:text-primary-strong-foreground"
+                                />
                             </span>
                             <span class="grid gap-0.5">
                                 <span class="text-sm font-semibold">{{
@@ -209,9 +212,12 @@ const mainNavItems = computed<NavItem[]>(() => [
                             @select="router.visit(createIdea.url())"
                         >
                             <span
-                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-strong"
+                                class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-subtle text-primary-strong dark:text-primary-text"
+                                data-testid="sidebar-new-idea-icon"
                             >
-                                <IconBulb class="size-5 text-primary-strong" />
+                                <IconBulb
+                                    class="size-5 text-primary-strong dark:text-primary-text"
+                                />
                             </span>
                             <span class="grid gap-0.5">
                                 <span class="text-sm font-semibold">{{

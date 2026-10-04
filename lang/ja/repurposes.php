@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 return [
     'title' => 'Repurpose',
-    'description' => 'TryPost の外で投稿したものを、他のネットワークへ自動で再投稿します。',
     'new' => '新しい Repurpose',
 
     'flow' => [

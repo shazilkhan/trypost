@@ -107,14 +107,14 @@ test('an Instagram media warning links to the network limits', function () {
  * @param  array<string, int>  $imageMeta
  * @return array{Post, PostPlatform}
  */
-function seedInstagramFeedImagePost(array $platformMeta = [], array $imageMeta = ['width' => 1080, 'height' => 1600], int $size = 1024, int $imageCount = 5): array
+function seedInstagramFeedImagePost(array $platformMeta = [], array $imageMeta = ['width' => 1080, 'height' => 1600], int $size = 1024, int $imageCount = 5, Platform $platform = Platform::Instagram): array
 {
     $user = User::factory()->create();
     $workspace = Workspace::factory()->create(['user_id' => $user->id]);
     $workspace->members()->attach($user->id, membershipPivot('member'));
     $user->update(['current_workspace_id' => $workspace->id]);
 
-    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => $platform]);
     $post = Post::factory()->create([
         'workspace_id' => $workspace->id,
         'user_id' => $user->id,
@@ -132,8 +132,8 @@ function seedInstagramFeedImagePost(array $platformMeta = [], array $imageMeta =
     $postPlatform = PostPlatform::factory()->create([
         'post_id' => $post->id,
         'social_account_id' => $account->id,
-        'platform' => Platform::Instagram,
-        'content_type' => ContentType::InstagramFeed,
+        'platform' => $platform,
+        'content_type' => $platform === Platform::Facebook ? ContentType::FacebookPost : ContentType::InstagramFeed,
         'meta' => $platformMeta,
     ]);
 
@@ -143,7 +143,7 @@ function seedInstagramFeedImagePost(array $platformMeta = [], array $imageMeta =
 }
 
 test('Instagram feed has no global aspect control and asks to adjust unsupported images', function () {
-    [$post] = seedInstagramFeedImagePost(['aspect_ratio' => '1:1']);
+    [$post] = seedInstagramFeedImagePost();
 
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, 'post-composer-dialog');
@@ -160,6 +160,22 @@ test('Instagram feed has no global aspect control and asks to adjust unsupported
 
     $page->assertNoJavaScriptErrors();
 });
+
+test('Facebook has no aspect ratio selector and accepts an image of any ratio', function (int $width, int $height) {
+    [$post, $postPlatform] = seedInstagramFeedImagePost(imageMeta: ['width' => $width, 'height' => $height], imageCount: 1, platform: Platform::Facebook);
+
+    $page = visit(route('app.posts.edit', $post));
+    waitForChannelIssueTestId($page, "channel-{$postPlatform->id}");
+
+    expect($page->script('document.querySelectorAll("[data-testid^=facebook-aspect-]").length'))->toBe(0);
+
+    $page->assertMissing('@media-rules-warning')
+        ->assertEnabled('@composer-submit')
+        ->assertNoJavaScriptErrors();
+})->with([
+    'very tall' => [800, 3200],
+    'very wide' => [3200, 800],
+]);
 
 test('Instagram feed without a saved aspect ratio uses the original image', function () {
     [$post, $postPlatform] = seedInstagramFeedImagePost([]);
@@ -179,8 +195,8 @@ test('Instagram feed without a saved aspect ratio uses the original image', func
     expect(abs($heightToWidth - 1600 / 1080))->toBeLessThan(0.01);
 });
 
-test('saving an Instagram post removes its legacy global aspect ratio', function () {
-    [$post, $postPlatform] = seedInstagramFeedImagePost(['aspect_ratio' => '1:1'], ['width' => 1080, 'height' => 1350], imageCount: 1);
+test('saving an Instagram post stores no global aspect ratio', function () {
+    [$post, $postPlatform] = seedInstagramFeedImagePost([], ['width' => 1080, 'height' => 1350], imageCount: 1);
     $asset = Media::factory()->ownedByPost($post)->create([
         'meta' => ['width' => 1080, 'height' => 1350],
     ]);
@@ -246,7 +262,7 @@ test('supported Instagram original image keeps its own aspect and can publish', 
 ]);
 
 test('Instagram image adjustment offers supported crop presets and clears the original warning', function () {
-    [$post] = seedInstagramFeedImagePost(['aspect_ratio' => '4:5'], imageCount: 1);
+    [$post] = seedInstagramFeedImagePost(imageCount: 1);
 
     $page = visit(route('app.posts.edit', $post));
     waitForChannelIssueTestId($page, 'instagram-edit-image-0');

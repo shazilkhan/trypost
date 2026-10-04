@@ -197,10 +197,10 @@ const calendarUrl = computed((): string => {
 
     return props.channel
         ? channelCalendar.url(
-              { account: props.channel.id, view: 'month' },
+              { account: props.channel.id, view: 'week' },
               { query },
           )
-        : calendar.url({ view: 'month' }, { query });
+        : calendar.url({ view: 'week' }, { query });
 });
 
 const applyFilters = (): void => {

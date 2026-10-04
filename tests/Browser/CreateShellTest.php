@@ -168,3 +168,26 @@ test('invite new member from the sidebar new menu opens the invite dialog', func
         ->assertVisible('#invite-email')
         ->assertNoJavaScriptErrors();
 });
+
+test('the create tabs border keeps the same padding as the publish page on every create page', function (string $route) {
+    $this->actingAs(createShellUser());
+
+    $page = visit(route($route))->resize(1440, 900);
+    waitForCreateShellTestId($page, 'create-tabs');
+
+    $edges = $page->script(<<<'JS'
+        (() => {
+            const row = document.querySelector('[data-testid="create-tabs"]').parentElement.getBoundingClientRect();
+            const panel = document.querySelector('[data-slot="sidebar-inset"]').getBoundingClientRect();
+            return [Math.round(row.left - panel.left), Math.round(panel.right - row.right)];
+        })()
+    JS);
+
+    expect($edges[0])->toBeGreaterThanOrEqual(32)
+        ->and($edges[1])->toBeGreaterThanOrEqual(32);
+    $page->assertNoJavaScriptErrors();
+})->with([
+    'ideas' => 'app.create.ideas.index',
+    'templates' => 'app.create.templates.index',
+    'feeds' => 'app.create.feeds.index',
+]);

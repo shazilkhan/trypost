@@ -9,6 +9,7 @@ import {
 import { trans } from 'laravel-vue-i18n';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
+import CharacterCounter from '@/components/CharacterCounter.vue';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { extractErrorMessage } from '@/lib/httpError';
@@ -244,9 +245,9 @@ const accept = (): void => {
                     class="flex items-start justify-between gap-3 text-xs text-muted-foreground"
                 >
                     <p>{{ $t('posts.composer.assistant_tip') }}</p>
-                    <span
-                        class="shrink-0 tabular-nums"
-                        :class="{ 'text-destructive': promptTooLong }"
+                    <CharacterCounter
+                        class="shrink-0"
+                        :exceeded="promptTooLong"
                         data-testid="writing-assistant-prompt-count"
                     >
                         {{
@@ -255,7 +256,7 @@ const accept = (): void => {
                                 max: formatNumber(PROMPT_MAX_LENGTH),
                             })
                         }}
-                    </span>
+                    </CharacterCounter>
                 </div>
                 <p
                     v-if="promptTooShort"

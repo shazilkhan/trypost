@@ -123,7 +123,7 @@ const customize = (accountId: string): void => {
                     : [
                           'flex flex-col gap-0 overflow-hidden px-0 pt-4 outline-none pb-0 max-sm:my-0 max-sm:h-dvh max-sm:max-w-full max-sm:rounded-none sm:my-6 sm:h-[min(700px,calc(100dvh-48px))] sm:max-w-[840px] sm:rounded-xl',
                           state.step === 'grid' || state.step === 'details'
-                              ? 'bg-muted pt-0 sm:border-8 sm:border-card sm:bg-card'
+                              ? 'bg-muted pt-0 sm:border-8 sm:border-card sm:bg-card dark:sm:border-8 dark:sm:border-background dark:sm:bg-background'
                               : '',
                       ]
             "

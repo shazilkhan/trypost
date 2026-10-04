@@ -21,13 +21,13 @@ const { canManageAccounts } = useWorkspaceAbilities();
 const { open: openConnectDialog } = useConnectChannelDialog();
 
 const tiles = [
-    { left: 6.97, top: 5.09, emoji: '🔍', tone: 'bg-cyan-100 dark:bg-cyan-400/15' },
-    { left: 11.02, top: 50, emoji: '📊', tone: 'bg-blue-100 dark:bg-blue-400/15' },
-    { left: 1, top: 67.96, emoji: null, tone: 'bg-orange-100 dark:bg-orange-400/15' },
-    { left: 20.98, top: 85.03, emoji: null, tone: 'bg-blue-100 dark:bg-blue-400/15' },
-    { left: 82.5, top: 26.05, emoji: '🎯', tone: 'bg-blue-100 dark:bg-blue-400/15' },
-    { left: 89.54, top: 70.06, emoji: '📈', tone: 'bg-amber-100 dark:bg-amber-400/15' },
-    { left: 90.54, top: 5.09, emoji: null, tone: 'bg-green-100 dark:bg-green-400/15' },
+    { left: 6.97, top: 5.09, emoji: '🔍', tone: 'bg-cyan-100 dark:bg-cyan-400/15 dark:ring-1 dark:ring-cyan-300/30' },
+    { left: 11.02, top: 50, emoji: '📊', tone: 'bg-blue-100 dark:bg-blue-400/15 dark:ring-1 dark:ring-blue-300/30' },
+    { left: 1, top: 67.96, emoji: null, tone: 'bg-orange-100 dark:bg-orange-400/15 dark:ring-1 dark:ring-orange-300/30' },
+    { left: 20.98, top: 85.03, emoji: null, tone: 'bg-blue-100 dark:bg-blue-400/15 dark:ring-1 dark:ring-blue-300/30' },
+    { left: 82.5, top: 26.05, emoji: '🎯', tone: 'bg-blue-100 dark:bg-blue-400/15 dark:ring-1 dark:ring-blue-300/30' },
+    { left: 89.54, top: 70.06, emoji: '📈', tone: 'bg-amber-100 dark:bg-amber-400/15 dark:ring-1 dark:ring-amber-300/30' },
+    { left: 90.54, top: 5.09, emoji: null, tone: 'bg-green-100 dark:bg-green-400/15 dark:ring-1 dark:ring-green-300/30' },
 ];
 
 const summaryCards = [
@@ -51,15 +51,15 @@ const reachCurve =
 <template>
     <div class="flex min-w-0 flex-col gap-6">
         <section
-            class="relative flex min-h-[334px] min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl bg-primary-subtle/70 px-6 py-12 text-center dark:bg-primary-subtle/40"
+            class="relative flex min-h-[334px] min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl bg-primary-subtle/70 px-6 py-12 text-center dark:bg-primary-strong/15"
             data-testid="analytics-empty-state"
         >
             <div
-                class="pointer-events-none absolute inset-0 opacity-60 dark:opacity-30"
+                class="pointer-events-none absolute inset-0 opacity-60 [--grid-line:var(--background)] dark:opacity-100 dark:[--grid-line:color-mix(in_oklab,var(--primary)_10%,transparent)]"
                 style="
                     background-image:
-                        linear-gradient(to right, var(--background) 1px, transparent 1px),
-                        linear-gradient(to bottom, var(--background) 1px, transparent 1px);
+                        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+                        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
                     background-size: 51px 51px;
                 "
                 aria-hidden="true"

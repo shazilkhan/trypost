@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { Head, InfiniteScroll, Link } from '@inertiajs/vue3';
-import { IconAlertTriangle, IconPlus, IconRepeat } from '@tabler/icons-vue';
-import { ref } from 'vue';
+import {
+    IconAlertTriangle,
+    IconPlus,
+    IconRepeat,
+} from '@tabler/icons-vue';
+import { computed, ref } from 'vue';
 
 import EmptyState from '@/components/EmptyState.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
 import CreateRepurposeDialog from '@/components/repurpose/CreateRepurposeDialog.vue';
 import RepurposeFlow from '@/components/repurpose/RepurposeFlow.vue';
+import RepurposesEmptyIllustration from '@/components/repurpose/RepurposesEmptyIllustration.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
+import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { show } from '@/routes/app/repurposes';
@@ -23,6 +30,15 @@ const props = defineProps<{
 }>();
 
 const createDialogOpen = ref(false);
+
+const { canManageAccounts } = useWorkspaceAbilities();
+const { open: openConnectDialog } = useConnectChannelDialog();
+
+const hasSourceAccounts = computed(() => props.sourceAccounts.length > 0);
+
+const connectChannel = (): void => {
+    openConnectDialog();
+};
 
 const startBlank = () => {
     createDialogOpen.value = true;
@@ -68,20 +84,35 @@ const destinationNodes = (repurpose: Repurpose): FlowNode[] =>
         <div
             class="flex h-full min-w-0 flex-1 flex-col gap-6 px-4 pt-2 pb-10 md:px-8"
         >
-            <p class="max-w-2xl text-sm text-muted-foreground">
-                {{ $t('repurposes.description') }}
-            </p>
 
-            <div
+            <EmptyState
                 v-if="repurposes.data.length === 0"
-                class="rounded-xl border border-dashed border-border-strong"
+                :title="$t('repurposes.empty.title')"
+                :description="$t('repurposes.empty.description')"
+                data-testid="repurposes-empty"
             >
-                <EmptyState
-                    :icon="IconRepeat"
-                    :title="$t('repurposes.empty.title')"
-                    :description="$t('repurposes.empty.description')"
-                />
-            </div>
+                <template #illustration>
+                    <RepurposesEmptyIllustration />
+                </template>
+                <template v-if="hasSourceAccounts" #action>
+                    <Button
+                        data-testid="repurposes-empty-create"
+                        @click="startBlank"
+                    >
+                        <IconPlus aria-hidden="true" />
+                        {{ $t('repurposes.new') }}
+                    </Button>
+                </template>
+                <template v-else-if="canManageAccounts" #action>
+                    <Button
+                        data-testid="repurposes-empty-connect"
+                        @click="connectChannel"
+                    >
+                        <IconPlus aria-hidden="true" />
+                        {{ $t('channels.connect') }}
+                    </Button>
+                </template>
+            </EmptyState>
 
             <InfiniteScroll
                 v-else

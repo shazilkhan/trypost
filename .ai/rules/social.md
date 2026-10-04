@@ -10,6 +10,8 @@ paths:
   - app/Support/Social/ThreadProgress.php
   - app/Support/ThreadReplies.php
   - app/Services/Social/Concerns/PublishesThreads.php
+  - app/Services/Social/FacebookPublisher.php
+  - app/Services/Social/InstagramPublisher.php
 ---
 
 # Social
@@ -19,3 +21,6 @@ Google fetches Local Post sourceUrl after create while LocalPostState is Process
 
 ## Thread checkpoints resume, never re-post
 Bluesky/Mastodon/X thread segments already live are checkpointed in post_platforms.error_context.thread_progress (ThreadProgress) after each segment, so any retry (incl. posts:retry, which keeps them) resumes from the next segment. A resume keeps the stored root hash: the root is the target's identity even if the same text would now hash differently. Never clear thread_progress on retry and never re-post a checkpointed segment. thread_reply_ids lists the reply ids so ImportExternalPosts skips TryPost's own replies.
+
+## No server-side aspect ratio crop or meta.aspect_ratio
+Removed October 2026 by user decision: the Facebook and Instagram publishers send every image at its own ratio, and there is no `meta.aspect_ratio` (rule, enum, crop helper and composer radios are gone; migration 2026_10_04_202400 stripped stored keys). Instagram feed images outside 3:4–1.91:1 are caught at save by ContentTypeCompatibleWithMedia and fixed per image in the media editor; Facebook feed accepts any ratio. Stories still go through FitsImageToCanvas. Do not reintroduce a ratio selector or a publish-time crop.

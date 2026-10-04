@@ -38,6 +38,7 @@ import { toast } from 'vue-sonner';
 import WritingAssistantPanel, {
     type AssistantChannel,
 } from '@/components/ai/WritingAssistantPanel.vue';
+import CharacterCounter from '@/components/CharacterCounter.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterEmptyState from '@/components/FilterEmptyState.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
@@ -2666,18 +2667,13 @@ const close = (): void => emit('update:open', false);
                                         "
                                         @save-signature="saveSignature"
                                     >
-                                        <span
+                                        <CharacterCounter
                                             v-if="activeRemaining(group) !== null"
                                             :data-testid="`composer-char-count-${group.anchor.id}`"
-                                            class="rounded-sm border px-1 py-0.5 text-xs leading-3 tabular-nums"
-                                            :class="
-                                                (activeRemaining(group) ?? 0) < 0
-                                                    ? 'border-destructive font-medium text-destructive-text'
-                                                    : 'border-border-strong text-subtle-foreground'
-                                            "
+                                            :exceeded="(activeRemaining(group) ?? 0) < 0"
                                         >
                                             {{ activeRemaining(group) }}
-                                        </span>
+                                        </CharacterCounter>
                                         <template v-if="supportsThread(group)">
                                             <Button
                                                 v-if="!threadReplies(group).length"
@@ -2713,11 +2709,10 @@ const close = (): void => emit('update:open', false);
                                                 <IconCirclePlus class="size-4" />
                                             </Button>
                                         </template>
-                                        <span
+                                        <CharacterCounter
                                             v-if="(groupHashtagsRemaining(group) ?? -1) >= 0"
                                             :data-testid="`composer-hashtags-remaining-${group.anchor.id}`"
                                             data-single-line
-                                            class="rounded-sm border border-border-strong px-1 py-0.5 text-xs leading-3 text-subtle-foreground tabular-nums"
                                         >
                                             {{
                                                 $t(
@@ -2731,7 +2726,7 @@ const close = (): void => emit('update:open', false);
                                                     },
                                                 )
                                             }}
-                                        </span>
+                                        </CharacterCounter>
                                     </ComposerEditorToolbar>
                                 </template>
                                 <template #settings>

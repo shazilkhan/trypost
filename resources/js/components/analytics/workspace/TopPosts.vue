@@ -96,7 +96,7 @@ const thumbnailFor = (post: TopPost): string | null => {
             <article
                 v-for="(post, index) in posts"
                 :key="post.id"
-                class="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-secondary transition-control has-[a:hover]:border-border-strong"
+                class="relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-secondary transition-control has-[a:hover]:border-border-strong dark:bg-muted"
                 data-testid="analytics-top-post"
             >
                 <div class="flex h-8 items-center justify-between gap-2 px-3">

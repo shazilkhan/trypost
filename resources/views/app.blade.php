@@ -34,7 +34,7 @@
             }
 
             html.dark {
-                background-color: #0a0a0a;
+                background-color: #111111;
                 color-scheme: dark;
             }
         </style>

@@ -470,8 +470,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             class="min-w-0 overflow-hidden"
             :class="{
                 'rounded-xl border bg-card': !popover,
-                'border-border-strong': !popover && !isPublishing,
-                'border-primary': !popover && isPublishing,
+                'border-border-strong': !popover,
             }"
         >
             <p
@@ -490,11 +489,20 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             </p>
             <div
                 v-if="isPublishing && !popover"
-                class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-primary bg-primary-subtle px-4 py-2.5 text-sm text-primary-text dark:bg-primary-selected"
+                class="relative flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border-strong bg-secondary px-4 py-2.5 text-sm text-foreground"
                 role="status"
                 :data-testid="`post-publishing-${testKey}`"
             >
-                <span class="inline-flex items-center gap-2 font-emphasis">
+                <span
+                    class="absolute inset-x-0 -bottom-px h-0.5 overflow-hidden"
+                    aria-hidden="true"
+                    :data-testid="`post-publishing-progress-${testKey}`"
+                >
+                    <span
+                        class="motion-progress-sweep block h-full w-2/5 rounded-full bg-primary-strong"
+                    />
+                </span>
+                <span class="inline-flex items-center gap-2">
                     <IconLoader2
                         class="size-4 animate-spin text-primary-strong"
                         aria-hidden="true"

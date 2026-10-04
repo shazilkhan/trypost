@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'L\'argomento deve avere da 1 a 50 caratteri, senza . o &.',
             'ghost_post_attachments' => 'I post fantasma non supportano allegati',
         ],
-        'facebook' => [
-            'aspect_label' => 'Proporzioni',
-            'aspect' => [
-                'square' => 'Quadrato (1:1)',
-                'portrait' => 'Verticale (4:5)',
-                'landscape' => 'Orizzontale (16:9)',
-                'original' => 'Originale',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Titolo del documento',
             'document_title_placeholder' => 'Mostrato sul tuo post con documento PDF',

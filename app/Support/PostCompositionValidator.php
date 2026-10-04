@@ -210,7 +210,6 @@ class PostCompositionValidator
                 foreach (ContentTypeCompatibleWithMedia::errorsFor([[
                     'key' => "{$key}.content_type",
                     'content_type' => $destination['content_type'],
-                    'aspect_ratio' => data_get($destination, 'meta.aspect_ratio'),
                 ]], $destination['media'], $workspace) as $field => $message) {
                     $validator->errors()->add($field, $message);
                 }

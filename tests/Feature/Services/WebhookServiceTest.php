@@ -245,7 +245,7 @@ test('postPayload matches the published webhook example', function () {
     $instagramPlatform = PostPlatform::factory()->published()->recycle($post, $instagram)->create([
         'platform' => Platform::Instagram,
         'content_type' => ContentType::InstagramFeed,
-        'meta' => ['aspect_ratio' => '4:5'],
+        'meta' => ['is_ai_generated' => true],
     ]);
     $linkedinPlatform = PostPlatform::factory()->published()->recycle($post, $linkedin)->create([
         'platform' => Platform::LinkedIn,
@@ -349,7 +349,7 @@ test('postPayload matches the published webhook example', function () {
             'display_name' => 'TryPost',
             'display_username' => 'trypost',
             'display_avatar' => Storage::url('avatars/ig.jpg'),
-            'meta' => ['aspect_ratio' => '4:5'],
+            'meta' => ['is_ai_generated' => true],
             'social_account' => [
                 'id' => $instagram->id,
                 'platform' => Platform::Instagram->value,

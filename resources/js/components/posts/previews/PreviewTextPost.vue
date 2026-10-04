@@ -37,7 +37,6 @@ const props = withDefaults(
         moreKey?: string;
         moreBelow?: boolean;
         mediaLayout?: PreviewMediaLayout;
-        mediaAspect?: number | null;
         muteBadge?: boolean;
         linkCard?: boolean;
         linkUrl?: (text: string) => string | null;
@@ -67,7 +66,6 @@ const props = withDefaults(
         moreKey: 'posts.composer.preview.more',
         moreBelow: false,
         mediaLayout: 'grid',
-        mediaAspect: null,
         muteBadge: false,
         linkCard: false,
         linkUrl: undefined,
@@ -241,7 +239,6 @@ const hasActions = computed(
                 v-if="!concealed"
                 :media="media"
                 :layout="mediaLayout"
-                :aspect="mediaAspect"
                 :bleed="isStacked"
                 :mute-badge="muteBadge"
             />

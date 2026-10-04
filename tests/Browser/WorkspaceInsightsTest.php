@@ -460,3 +460,29 @@ test('the channel filter offers to connect a channel when the workspace has none
 
     $page->assertVisible('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
+
+test('the insights toolbar border keeps the page padding instead of touching the panel edges', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.insights'))->resize(1440, 900);
+    waitForWorkspaceInsightsTestId($page, 'analytics-toolbar');
+
+    $edges = $page->script(<<<'JS'
+        (() => {
+            const toolbar = document.querySelector('[data-testid="analytics-toolbar"]');
+            const row = toolbar.getBoundingClientRect();
+            const panel = document.querySelector('[data-slot="sidebar-inset"]').getBoundingClientRect();
+            return [Math.round(row.left - panel.left), Math.round(panel.right - row.right), getComputedStyle(toolbar).borderBottomWidth];
+        })()
+    JS);
+
+    expect($edges[0])->toBeGreaterThanOrEqual(32)
+        ->and($edges[1])->toBeGreaterThanOrEqual(32)
+        ->and($edges[2])->toBe('1px');
+    $page->assertNoJavaScriptErrors();
+});

@@ -123,10 +123,6 @@ export const usePostComposition = (
     ): DestinationDraft & { content: string; media: MediaItem[] } => {
         const override = overrides.value[account.id] ?? {};
         const meta = override.meta ?? {};
-        const isInstagram =
-            account.platform === Platform.Instagram ||
-            account.platform === Platform.InstagramFacebook;
-
         const resolvedMedia = owns(override, 'media')
             ? (override.media ?? [])
             : media.value;
@@ -138,10 +134,7 @@ export const usePostComposition = (
                 override.content_type ??
                 getContentTypeOptions(account.platform)[0]?.value ??
                 '',
-            meta:
-                isInstagram && owns(meta, 'aspect_ratio')
-                    ? { ...meta, aspect_ratio: null }
-                    : meta,
+            meta,
             content: owns(override, 'content')
                 ? (override.content ?? '')
                 : content.value,

@@ -3,7 +3,6 @@ import { computed } from 'vue';
 
 import AiGeneratedRow from '@/components/posts/editor/AiGeneratedRow.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
-import FacebookSettings from '@/components/posts/editor/FacebookSettings.vue';
 import GoogleBusinessSettings from '@/components/posts/editor/GoogleBusinessSettings.vue';
 import InstagramSettings from '@/components/posts/editor/InstagramSettings.vue';
 import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
@@ -94,15 +93,8 @@ const aiGenerated = computed({
 
 <template>
     <div class="contents" data-testid="composer-network-settings">
-        <FacebookSettings
-            v-if="account.platform === Platform.Facebook"
-            :content-type="destination.content_type"
-            :meta="destination.meta"
-            :disabled="disabled"
-            @update:meta="update"
-        />
         <InstagramSettings
-            v-else-if="
+            v-if="
                 account.platform === Platform.Instagram ||
                 account.platform === Platform.InstagramFacebook
             "

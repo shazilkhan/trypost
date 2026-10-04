@@ -812,32 +812,32 @@ it('show post returns correct structure', function () {
         ->assertJsonStructure(['id', 'status', 'scheduled_at', 'published_at']);
 });
 
-it('creates a post with platform meta (aspect_ratio) and returns it', function () {
+it('creates a post with platform meta (link_preview) and returns it', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.store'), [
             'platforms' => [
-                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '4:5']],
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => false]],
             ],
         ])
         ->assertCreated()
-        ->assertJsonPath('platforms.0.meta.aspect_ratio', '4:5');
+        ->assertJsonPath('platforms.0.meta.link_preview', false);
 
     $platform = Post::where('workspace_id', $this->workspace->id)->first()
         ->postPlatforms()->where('social_account_id', $this->socialAccount->id)->first();
-    expect($platform->meta['aspect_ratio'])->toBe('4:5');
+    expect($platform->meta['link_preview'])->toBeFalse();
 });
 
-it('rejects creating a post with an invalid aspect_ratio', function () {
+it('rejects creating a post with an invalid link_preview', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.store'), [
             'platforms' => [
-                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '3:2']],
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => 'nope']],
             ],
         ])
-        ->assertJsonValidationErrors(['platforms.0.meta.aspect_ratio']);
+        ->assertJsonValidationErrors(['platforms.0.meta.link_preview']);
 });
 
-it('rejects updating a post with an invalid aspect_ratio', function () {
+it('rejects updating a post with an invalid link_preview', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -853,13 +853,13 @@ it('rejects updating a post with an invalid aspect_ratio', function () {
         ->putJson(route('api.posts.update', $post), [
             'status' => 'draft',
             'platforms' => [
-                ['id' => $postPlatform->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '3:2']],
+                ['id' => $postPlatform->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => 'nope']],
             ],
         ])
-        ->assertJsonValidationErrors(['platforms.0.meta.aspect_ratio']);
+        ->assertJsonValidationErrors(['platforms.0.meta.link_preview']);
 });
 
-it('accepts a valid aspect_ratio on update and persists it', function () {
+it('accepts a valid platform meta on update and persists it', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -875,28 +875,29 @@ it('accepts a valid aspect_ratio on update and persists it', function () {
         ->putJson(route('api.posts.update', $post), [
             'status' => 'draft',
             'platforms' => [
-                ['id' => $postPlatform->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '16:9']],
+                ['id' => $postPlatform->id, 'content_type' => 'linkedin_post', 'meta' => ['link_preview' => false]],
             ],
         ])
         ->assertOk()
-        ->assertJsonPath('platforms.0.meta.aspect_ratio', '16:9');
+        ->assertJsonPath('platforms.0.meta.link_preview', false);
 
-    expect($postPlatform->fresh()->meta['aspect_ratio'])->toBe('16:9');
+    expect($postPlatform->fresh()->meta['link_preview'])->toBeFalse();
 });
 
-it('accepts the original aspect_ratio (no crop) on create', function () {
+it('no longer stores an aspect_ratio meta on create', function (string $ratio) {
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.store'), [
             'platforms' => [
-                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => 'original']],
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => $ratio]],
             ],
         ])
-        ->assertCreated();
+        ->assertCreated()
+        ->assertJsonMissingPath('platforms.0.meta.aspect_ratio');
 
     $platform = Post::where('workspace_id', $this->workspace->id)->first()
         ->postPlatforms()->where('social_account_id', $this->socialAccount->id)->first();
-    expect($platform->meta['aspect_ratio'])->toBe('original');
-});
+    expect(data_get($platform->meta, 'aspect_ratio'))->toBeNull();
+})->with(['4:5', 'original', '3:2']);
 
 it('shows the origin of imported and trypost posts', function () {
     $imported = Post::factory()->imported()->create(['workspace_id' => $this->workspace->id]);

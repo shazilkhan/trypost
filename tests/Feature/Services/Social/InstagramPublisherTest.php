@@ -1651,76 +1651,6 @@ test('instagram publisher handles publish failure', function () {
         ->toThrow(Exception::class);
 });
 
-test('feed image is cropped to chosen aspect ratio before publishing', function (string $aspectRatio, float $expected) {
-    Storage::fake();
-
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => $aspectRatio]]);
-
-    $this->post->update([
-        'media' => [
-            [
-                'id' => 'test-media-id',
-                'path' => 'media/test.jpg',
-                'url' => 'https://example.com/media/test.jpg',
-                'mime_type' => 'image/jpeg',
-                'original_filename' => 'test.jpg',
-            ],
-        ],
-    ]);
-
-    Http::fake([
-        'https://example.com/media/test.jpg' => Http::response(fakeJpegBytes(1200, 800), 200),
-        'https://graph.instagram.com/v25.0/ig_123456789/media' => Http::response(['id' => 'container-123'], 200),
-        'https://graph.instagram.com/v25.0/container-123*' => Http::response(['status_code' => 'FINISHED'], 200),
-        'https://graph.instagram.com/v25.0/ig_123456789/media_publish' => Http::response(['id' => 'media-1'], 200),
-        'https://graph.instagram.com/v25.0/media-1*' => Http::response(['permalink' => 'https://www.instagram.com/p/X/'], 200),
-    ]);
-
-    $this->publisher->publish($this->postPlatform);
-
-    $cropped = collect(Storage::allFiles())->first(fn (string $path) => str_starts_with($path, 'social-crops/'));
-    expect($cropped)->not->toBeNull();
-
-    $manager = new ImageManager(Driver::class);
-    $tempFile = tempnam(sys_get_temp_dir(), 'verify_');
-    file_put_contents($tempFile, Storage::get($cropped));
-    $image = $manager->decodePath($tempFile);
-    expect(abs($image->width() / $image->height() - $expected))->toBeLessThan(0.01);
-    @unlink($tempFile);
-
-    Http::assertSent(function ($request) {
-        if (! str_ends_with($request->url(), '/ig_123456789/media')) {
-            return false;
-        }
-        $imageUrl = $request['image_url'] ?? '';
-
-        return str_contains($imageUrl, 'social-crops/')
-            && ! str_contains($imageUrl, 'example.com/media/test.jpg');
-    });
-})->with([
-    '1:1' => ['1:1', 1.0],
-    '4:5' => ['4:5', 4 / 5],
-    '16:9' => ['16:9', 16 / 9],
-]);
-
-test('feed image throws when the source image cannot be downloaded for cropping', function () {
-    Storage::fake();
-
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => '4:5']]);
-    $this->post->update([
-        'media' => [
-            ['id' => 'm1', 'path' => 'media/a.jpg', 'url' => 'https://example.com/media/a.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'a.jpg'],
-        ],
-    ]);
-
-    Http::fake([
-        'https://example.com/media/a.jpg' => Http::response('', 404),
-    ]);
-
-    expect(fn () => $this->publisher->publish($this->postPlatform))
-        ->toThrow(InstagramPublishException::class, 'Failed to download image for cropping');
-});
-
 test('story image throws when the source image cannot be downloaded for fitting', function () {
     Storage::fake();
 
@@ -1739,59 +1669,10 @@ test('story image throws when the source image cannot be downloaded for fitting'
         ->toThrow(InstagramPublishException::class, 'Failed to download image for story fitting');
 });
 
-test('feed image throws a clean exception when the crop source is not decodable', function () {
+test('feed image publishes the original url and ignores a legacy aspect ratio', function (string $legacyRatio) {
     Storage::fake();
 
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => '4:5']]);
-    $this->post->update([
-        'media' => [
-            ['id' => 'm1', 'path' => 'media/a.jpg', 'url' => 'https://example.com/media/a.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'a.jpg'],
-        ],
-    ]);
-
-    Http::fake([
-        'https://example.com/media/a.jpg' => Http::response('<html>error</html>', 200, ['Content-Type' => 'text/html']),
-    ]);
-
-    expect(fn () => $this->publisher->publish($this->postPlatform))
-        ->toThrow(InstagramPublishException::class, 'Failed to process image for cropping');
-});
-
-test('instagram publisher does not leak the cropped temp file when hosting the feed image fails', function () {
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => '4:5']]);
-
-    $this->post->update([
-        'media' => [
-            ['id' => 'm1', 'path' => 'media/a.jpg', 'url' => 'https://example.com/media/a.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'a.jpg'],
-        ],
-    ]);
-
-    Http::fake([
-        'https://example.com/media/a.jpg' => Http::response(fakeJpegBytes(1200, 800), 200),
-    ]);
-
-    $croppedPath = null;
-    $mockOptimizer = Mockery::mock(MediaOptimizer::class);
-    $mockOptimizer->shouldReceive('cropToAspectRatio')->once()->andReturnUsing(function (string $tempFile) use (&$croppedPath) {
-        $croppedPath = tempnam(sys_get_temp_dir(), 'media_crop_');
-        copy($tempFile, $croppedPath);
-
-        return $croppedPath;
-    });
-    app()->instance(MediaOptimizer::class, $mockOptimizer);
-
-    Storage::shouldReceive('put')->once()->andThrow(new RuntimeException('disk full'));
-
-    expect(fn () => $this->publisher->publish($this->postPlatform))->toThrow(RuntimeException::class);
-
-    expect($croppedPath)->not->toBeNull()
-        ->and(file_exists($croppedPath))->toBeFalse();
-});
-
-test('feed image with original aspect ratio bypasses crop', function () {
-    Storage::fake();
-
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => 'original']]);
+    $this->postPlatform->update(['meta' => ['aspect_ratio' => $legacyRatio]]);
 
     $this->post->update([
         'media' => [
@@ -1823,6 +1704,48 @@ test('feed image with original aspect ratio bypasses crop', function () {
 
         return ($request['image_url'] ?? '') === 'https://example.com/media/test.jpg';
     });
+    Http::assertNotSent(fn ($request) => $request->url() === 'https://example.com/media/test.jpg');
+})->with([
+    'legacy 1:1' => ['1:1'],
+    'legacy 4:5' => ['4:5'],
+    'legacy 16:9' => ['16:9'],
+    'legacy original' => ['original'],
+]);
+
+test('carousel images publish their original urls and ignore a legacy aspect ratio', function () {
+    Storage::fake();
+
+    $this->postPlatform->update(['meta' => ['aspect_ratio' => '1:1']]);
+    $this->post->update([
+        'media' => [
+            ['id' => 'm1', 'path' => 'media/a.jpg', 'url' => 'https://example.com/media/a.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'a.jpg'],
+            ['id' => 'm2', 'path' => 'media/b.jpg', 'url' => 'https://example.com/media/b.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'b.jpg'],
+        ],
+    ]);
+
+    Http::fake([
+        'https://graph.instagram.com/v25.0/ig_123456789/media' => Http::sequence()
+            ->push(['id' => 'child-1'], 200)
+            ->push(['id' => 'child-2'], 200)
+            ->push(['id' => 'carousel-container-123'], 200),
+        'https://graph.instagram.com/v25.0/carousel-container-123*' => Http::response(['status_code' => 'FINISHED'], 200),
+        'https://graph.instagram.com/v25.0/ig_123456789/media_publish' => Http::response(['id' => 'carousel-1'], 200),
+        'https://graph.instagram.com/v25.0/carousel-1*' => Http::response(['permalink' => 'https://www.instagram.com/p/C1/'], 200),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    $childUrls = collect(Http::recorded())
+        ->map(fn (array $pair) => $pair[0])
+        ->filter(fn ($request) => str_ends_with($request->url(), '/ig_123456789/media') && ($request['is_carousel_item'] ?? null) === 'true')
+        ->map(fn ($request) => $request['image_url'])
+        ->values()
+        ->all();
+
+    expect($childUrls)->toBe(['https://example.com/media/a.jpg', 'https://example.com/media/b.jpg'])
+        ->and(Storage::allFiles())->toBeEmpty();
+    Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://example.com/'));
+
 });
 
 test('feed image without aspect_ratio meta uses original URL', function () {
@@ -1859,50 +1782,6 @@ test('feed image without aspect_ratio meta uses original URL', function () {
         return ($request['image_url'] ?? '') === 'https://example.com/media/test.jpg';
     });
 });
-
-test('carousel applies the chosen aspect ratio crop to every image', function (string $aspectRatio, float $expected) {
-    Storage::fake();
-
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => $aspectRatio]]);
-
-    $this->post->update([
-        'media' => [
-            ['id' => 'm1', 'path' => 'media/a.jpg', 'url' => 'https://example.com/media/a.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'a.jpg'],
-            ['id' => 'm2', 'path' => 'media/b.jpg', 'url' => 'https://example.com/media/b.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'b.jpg'],
-        ],
-    ]);
-
-    Http::fake([
-        'https://example.com/media/a.jpg' => Http::response(fakeJpegBytes(1600, 900), 200),
-        'https://example.com/media/b.jpg' => Http::response(fakeJpegBytes(900, 1600), 200),
-        'https://graph.instagram.com/v25.0/ig_123456789/media' => Http::sequence()
-            ->push(['id' => 'child-1'], 200)
-            ->push(['id' => 'child-2'], 200)
-            ->push(['id' => 'carousel-1'], 200),
-        'https://graph.instagram.com/v25.0/child-1*' => Http::response(['status_code' => 'FINISHED'], 200),
-        'https://graph.instagram.com/v25.0/child-2*' => Http::response(['status_code' => 'FINISHED'], 200),
-        'https://graph.instagram.com/v25.0/carousel-1*' => Http::response(['status_code' => 'FINISHED'], 200),
-        'https://graph.instagram.com/v25.0/ig_123456789/media_publish' => Http::response(['id' => 'media-1'], 200),
-        'https://graph.instagram.com/v25.0/media-1*' => Http::response(['permalink' => 'https://www.instagram.com/p/X/'], 200),
-    ]);
-
-    $this->publisher->publish($this->postPlatform);
-
-    $crops = collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'social-crops/'));
-    expect($crops)->toHaveCount(2);
-
-    $manager = new ImageManager(Driver::class);
-    foreach ($crops as $cropPath) {
-        $tempFile = tempnam(sys_get_temp_dir(), 'verify_');
-        file_put_contents($tempFile, Storage::get($cropPath));
-        $image = $manager->decodePath($tempFile);
-        expect(abs($image->width() / $image->height() - $expected))->toBeLessThan(0.01);
-        @unlink($tempFile);
-    }
-})->with([
-    '1:1' => ['1:1', 1.0],
-    '4:5' => ['4:5', 4 / 5],
-]);
 
 test('instagram publisher sends capped alt text on single image container', function () {
     $longAlt = str_repeat('a', 1500);

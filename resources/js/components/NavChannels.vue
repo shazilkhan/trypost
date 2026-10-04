@@ -102,13 +102,6 @@ const { startConnect } = useNetworkConnect(
 
 const SUGGESTED_PLATFORMS = ['instagram', 'tiktok', 'linkedin'];
 
-const SUGGESTED_BACKGROUNDS: Record<string, string> = {
-    instagram:
-        'bg-[linear-gradient(45deg,#FEDA75_0%,#FA7E1E_25%,#D62976_50%,#962FBF_75%,#4F5BD5_100%)]',
-    tiktok: 'bg-black',
-    linkedin: 'bg-[#0A66C2]',
-};
-
 const suggestedPlatforms = computed(() => {
     const connectable = new Set(
         ((page.props.connectablePlatforms as AvailablePlatform[]) ?? []).map(
@@ -195,30 +188,46 @@ const reconnect = (channel: SidebarChannel): void => {
                         </KbdGroup>
                     </TooltipContent>
                 </Tooltip>
-                <SidebarGroupAction
-                    v-if="canManageAccounts"
-                    as-child
-                    :class="['rounded-md', headerActionClass]"
-                    :title="$t('channels.settings')"
-                >
-                    <Link
-                        :href="channelsSettings.url()"
-                        :aria-label="$t('channels.settings')"
-                        data-testid="sidebar-channels-settings"
+                <Tooltip v-if="canManageAccounts">
+                    <TooltipTrigger as-child>
+                        <SidebarGroupAction
+                            as-child
+                            :class="['rounded-md', headerActionClass]"
+                        >
+                            <Link
+                                :href="channelsSettings.url()"
+                                :aria-label="$t('channels.settings')"
+                                data-testid="sidebar-channels-settings"
+                            >
+                                <IconSettings />
+                            </Link>
+                        </SidebarGroupAction>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="top"
+                        data-testid="sidebar-channels-settings-tooltip"
                     >
-                        <IconSettings />
-                    </Link>
-                </SidebarGroupAction>
-                <SidebarGroupAction
-                    v-if="canManageAccounts"
-                    :class="['rounded-lg', headerActionClass]"
-                    :title="$t('channels.connect')"
-                    :aria-label="$t('channels.connect')"
-                    data-testid="sidebar-channels-connect"
-                    @click="openConnectDialog()"
-                >
-                    <IconPlus />
-                </SidebarGroupAction>
+                        {{ $t('channels.settings') }}
+                    </TooltipContent>
+                </Tooltip>
+                <Tooltip v-if="canManageAccounts">
+                    <TooltipTrigger as-child>
+                        <SidebarGroupAction
+                            :class="['rounded-lg', headerActionClass]"
+                            :aria-label="$t('channels.connect')"
+                            data-testid="sidebar-channels-connect"
+                            @click="openConnectDialog()"
+                        >
+                            <IconPlus />
+                        </SidebarGroupAction>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="top"
+                        data-testid="sidebar-channels-connect-tooltip"
+                    >
+                        {{ $t('channels.connect') }}
+                    </TooltipContent>
+                </Tooltip>
             </div>
         </div>
         <div
@@ -250,10 +259,7 @@ const reconnect = (channel: SidebarChannel): void => {
                         <TooltipTrigger as-child>
                             <button
                                 type="button"
-                                :class="[
-                                    'flex size-8 items-center justify-center rounded-[10px] shadow-xs ring-1 ring-black/5 transition-transform duration-150 ease-out ring-inset group-data-[collapsible=icon]:hidden hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:translate-y-0 motion-reduce:transition-none [&>svg]:size-[18px] [&>svg]:stroke-[2.25]',
-                                    SUGGESTED_BACKGROUNDS[platform],
-                                ]"
+                                class="flex size-8 items-center justify-center rounded-[10px] border border-border-strong text-foreground transition-control group-data-[collapsible=icon]:hidden hover:bg-sidebar-action-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                 :aria-label="
                                     $t('channels.details.connect', {
                                         network: getPlatformLabel(platform),
@@ -262,10 +268,10 @@ const reconnect = (channel: SidebarChannel): void => {
                                 :data-testid="`sidebar-channels-empty-connect-${platform}`"
                                 @click="startConnect(platform)"
                             >
-                                <PlatformBrandIcon :platform="platform" inverse />
+                                <PlatformBrandIcon :platform="platform" />
                             </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom">
+                        <TooltipContent side="top">
                             {{
                                 $t('channels.details.connect', {
                                     network: getPlatformLabel(platform),
@@ -285,7 +291,7 @@ const reconnect = (channel: SidebarChannel): void => {
                                 <IconPlus class="size-4" />
                             </button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom">
+                        <TooltipContent side="top">
                             {{ $t('channels.connect') }}
                         </TooltipContent>
                     </Tooltip>

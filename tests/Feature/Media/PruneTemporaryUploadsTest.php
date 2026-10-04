@@ -11,7 +11,7 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
-use App\Services\Social\FacebookPublisher;
+use App\Services\Social\InstagramPublisher;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -85,7 +85,7 @@ test('a pruned upload token is rejected by the save that follows with media_expi
 });
 
 test('crops older than seven days are deleted, younger crops and google business derivatives are kept', function () {
-    $directory = FacebookPublisher::CROP_DIRECTORY;
+    $directory = InstagramPublisher::CROP_DIRECTORY;
     $old = "{$directory}/".Str::uuid().'.jpg';
     $young = "{$directory}/".Str::uuid().'.jpg';
     $derivative = 'google-business-derivatives/'.Str::uuid().'.jpg';
@@ -101,7 +101,7 @@ test('crops older than seven days are deleted, younger crops and google business
 
 test('a dry run counts without deleting anything', function () {
     $expired = pruneUploadsStoredUpload($this->workspace, 25);
-    $crop = FacebookPublisher::CROP_DIRECTORY.'/old.jpg';
+    $crop = InstagramPublisher::CROP_DIRECTORY.'/old.jpg';
     pruneUploadsCropFile($crop, 8);
 
     expect(PruneTemporaryUploads::execute(now(), dryRun: true))->toBe(['uploads' => 1, 'crops' => 1]);
@@ -157,7 +157,7 @@ test('a row adopted between the read and the locked delete is not deleted', func
 });
 
 test('crop ages come from one directory listing, not a request per file', function () {
-    $directory = FacebookPublisher::CROP_DIRECTORY;
+    $directory = InstagramPublisher::CROP_DIRECTORY;
     collect(range(1, 3))->each(fn (int $index) => pruneUploadsCropFile("{$directory}/old-{$index}.jpg", 8));
     $disk = Storage::disk();
     $spy = Mockery::mock($disk)->makePartial();

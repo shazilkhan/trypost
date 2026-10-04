@@ -36,7 +36,6 @@ const shareToFeed = computed({
             <div class="flex min-h-8 items-center">
                 <Switch
                     v-model="shareToFeed"
-                    size="sm"
                     data-testid="instagram-share-to-feed"
                     :disabled="disabled"
                     :aria-label="$t('posts.form.instagram.share_to_feed')"

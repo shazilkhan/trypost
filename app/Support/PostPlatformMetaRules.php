@@ -6,7 +6,6 @@ namespace App\Support;
 
 use App\Enums\GoogleBusiness\CtaAction;
 use App\Enums\GoogleBusiness\TopicType;
-use App\Enums\PostPlatform\AspectRatio;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\TikTok\PrivacyLevel;
 use App\Enums\YouTube\Category;
@@ -42,8 +41,7 @@ class PostPlatformMetaRules
         return [
             'platforms.*.meta' => ['sometimes', 'nullable', 'array'],
 
-            // Instagram / Facebook
-            'platforms.*.meta.aspect_ratio' => ['sometimes', 'nullable', 'string', Rule::enum(AspectRatio::class)],
+            // Instagram
             'platforms.*.meta.share_to_feed' => ['sometimes', 'boolean'],
 
             // Mastodon — content warning, counted against the post limit
@@ -210,7 +208,6 @@ class PostPlatformMetaRules
     {
         return implode(' ', [
             'Per-platform metadata.',
-            'Instagram/Facebook: aspect_ratio (1:1|4:5|16:9|original).',
             'TikTok: privacy_level PUBLIC_TO_EVERYONE|MUTUAL_FOLLOW_FRIENDS|FOLLOWER_OF_CREATOR|SELF_ONLY (required to publish) + flags (allow_comments, allow_duet, allow_stitch, disclose, brand_content_toggle, brand_organic_toggle, is_aigc, auto_add_music). SELF_ONLY cannot be combined with brand_content_toggle.',
             'Mastodon: spoiler_text (content warning, ≤500; counts toward the 500-character post limit).',
             'Pinterest: board_id (required to publish — call ListPinterestBoardsTool first), title (≤100), link (destination URL). Pin description comes from the post content.',

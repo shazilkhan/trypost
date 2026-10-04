@@ -5,7 +5,6 @@ import {
     IconShare3,
     IconThumbUp,
 } from '@tabler/icons-vue';
-import { computed } from 'vue';
 
 import PreviewAvatar from '@/components/posts/previews/PreviewAvatar.vue';
 import PreviewStoryHeader from '@/components/posts/previews/PreviewStoryHeader.vue';
@@ -18,17 +17,7 @@ import { ContentType } from '@/types/content-type';
 
 import type { PreviewProps } from './types';
 
-const props = defineProps<PreviewProps>();
-
-const ASPECT_RATIOS: Record<string, number> = {
-    '1:1': 1,
-    '4:5': 1.25,
-    '16:9': 0.5625,
-};
-
-const feedAspect = computed(
-    (): number | null => ASPECT_RATIOS[props.meta?.aspect_ratio ?? ''] ?? null,
-);
+defineProps<PreviewProps>();
 </script>
 
 <template>
@@ -77,8 +66,7 @@ const feedAspect = computed(
         avatar-square
         :truncate="110"
         more-key="posts.composer.preview.see_more"
-        media-layout="stack"
-        :media-aspect="feedAspect"
+        media-layout="collage"
         mute-badge
         :link-card="meta?.link_preview !== false"
         :link-card-options="{ bleed: true, band: true, boldTitle: true }"

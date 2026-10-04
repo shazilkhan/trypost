@@ -704,6 +704,7 @@ test('a publishing post sits in its own queue group and moves to sent once it se
 
     $page->assertVisible('@queue-publishing')
         ->assertVisible("@post-publishing-{$publishing->id}")
+        ->assertPresent("@post-publishing-progress-{$publishing->id}")
         ->assertSeeIn('@queue-publishing', 'Publishing now')
         ->assertSeeIn("@post-publishing-{$publishing->id}", __('posts.publish.publishing_on', ['network' => $channel->platform->label()]))
         ->assertVisible("@post-time-{$publishing->id}")

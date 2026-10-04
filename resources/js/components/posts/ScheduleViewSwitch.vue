@@ -45,7 +45,7 @@ const views = computed(() => [
         key: 'calendar',
         label: 'calendar.title',
         icon: IconCalendar,
-        href: props.calendarHref ?? calendar.url({ view: 'month' }),
+        href: props.calendarHref ?? calendar.url({ view: 'week' }),
         note: null,
     },
 ]);

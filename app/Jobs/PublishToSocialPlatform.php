@@ -259,7 +259,6 @@ class PublishToSocialPlatform implements ShouldBeUnique, ShouldQueue
             [[
                 'key' => 'media',
                 'content_type' => $this->postPlatform->content_type?->value,
-                'aspect_ratio' => data_get($this->postPlatform->meta, 'aspect_ratio'),
             ]],
             (array) ($post->media ?? []),
             $post->workspace,

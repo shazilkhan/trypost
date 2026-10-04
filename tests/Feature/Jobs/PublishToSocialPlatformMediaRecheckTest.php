@@ -97,22 +97,9 @@ test('a resume of a publish the provider already accepted is not rechecked', fun
     expect($this->postPlatform->fresh()->status)->toBe(PlatformStatus::Published);
 });
 
-test('a too-wide image the publisher crops to the post aspect ratio still publishes', function () {
+test('a too-wide image fails the recheck even with a legacy aspect ratio', function (string $legacyRatio) {
     $this->media->update(['meta' => ['width' => 2000, 'height' => 1000]]);
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => '1:1']]);
-
-    $publisher = Mockery::mock(InstagramPublisher::class);
-    $publisher->shouldReceive('publish')->once()->andReturn(['id' => 'ig-1', 'url' => 'https://instagram.com/p/ig-1']);
-    $this->app->instance(InstagramPublisher::class, $publisher);
-
-    (new PublishToSocialPlatform($this->postPlatform))->handle();
-
-    expect($this->postPlatform->fresh()->status)->toBe(PlatformStatus::Published);
-});
-
-test('a too-wide image set to its original aspect ratio fails the recheck', function () {
-    $this->media->update(['meta' => ['width' => 2000, 'height' => 1000]]);
-    $this->postPlatform->update(['meta' => ['aspect_ratio' => 'original']]);
+    $this->postPlatform->update(['meta' => ['aspect_ratio' => $legacyRatio]]);
 
     $publisher = Mockery::mock(InstagramPublisher::class);
     $publisher->shouldNotReceive('publish');
@@ -121,4 +108,4 @@ test('a too-wide image set to its original aspect ratio fails the recheck', func
     (new PublishToSocialPlatform($this->postPlatform))->handle();
 
     expect($this->postPlatform->fresh()->status)->toBe(PlatformStatus::Failed);
-});
+})->with(['1:1', '4:5', 'original']);

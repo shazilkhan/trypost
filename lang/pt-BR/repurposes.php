@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 return [
     'title' => 'Repost',
-    'description' => 'Reposte automaticamente nas suas outras redes o que você publica fora do TryPost.',
     'new' => 'Novo repost',
 
     'flow' => [

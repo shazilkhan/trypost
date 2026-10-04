@@ -568,6 +568,16 @@ test('the instagram card shows share to feed on reels, the AI label last and on 
             })()
         JS))->toBeTrue();
 
+    expect($page->script(<<<'JS'
+        (() => {
+            const size = (id) => {
+                const rect = document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+                return [Math.round(rect.width), Math.round(rect.height)];
+            };
+            return JSON.stringify(size('instagram-share-to-feed')) === JSON.stringify(size('instagram-ai-generated'));
+        })()
+    JS))->toBeTrue();
+
     $page->click('@instagram-share-to-feed')
         ->click('@instagram-ai-generated')
         ->click("@composer-type-{$id}-instagram_story");
@@ -595,6 +605,17 @@ test('the instagram card counts hashtags down to five and warns past the limit',
 
     $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
     waitForChannelSettingsTestId($page, "composer-hashtags-remaining-{$id}");
+
+    expect($page->script(<<<JS
+        (() => {
+            const count = document.querySelector('[data-testid="composer-char-count-{$id}"]');
+            const hashtags = document.querySelector('[data-testid="composer-hashtags-remaining-{$id}"]');
+            return {
+                borders: [getComputedStyle(count).borderTopWidth, getComputedStyle(hashtags).borderTopWidth],
+                gap: Math.round(hashtags.getBoundingClientRect().left - count.getBoundingClientRect().right) >= 8,
+            };
+        })()
+    JS))->toBe(['borders' => ['0px', '0px'], 'gap' => true]);
 
     $page->fill("@composer-caption-{$id}", 'Launch #a #b #c')
         ->assertSeeIn("@composer-hashtags-remaining-{$id}", '2')
@@ -1430,4 +1451,78 @@ test('the google business event times follow the user clock and pick from a list
 })->with([
     '12h' => [TimeFormat::TwelveHour, '9 pm', '6:30 PM', '9:00 PM'],
     '24h' => [TimeFormat::TwentyFourHour, '21', '18:30', '21:00'],
+]);
+
+test('the facebook preview lays several photos out as the feed collage, not stacked', function (int $count, array $spans, ?string $more) {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::Facebook, ContentType::FacebookPost);
+    $images = Media::factory()->count($count)->temporaryUpload($postPlatform->post->workspace)->create(['mime_type' => 'image/png']);
+    $postPlatform->post->update(['media' => $images->map(fn (Media $media): array => MediaItem::fromMedia($media)->toArray())->all()]);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'preview-media-collage');
+
+    $layout = $page->script(<<<'JS'
+        (() => {
+            const tiles = [...document.querySelectorAll('[data-testid="preview-media-collage-tile"]')];
+            const width = document.querySelector('[data-testid="preview-media-collage"]').getBoundingClientRect().width;
+            return {
+                spans: tiles.map((tile) => Math.round((tile.getBoundingClientRect().width / width) * 6)),
+                more: document.querySelector('[data-testid="preview-media-collage-more"]')?.textContent.trim() ?? null,
+            };
+        })()
+    JS);
+
+    expect($layout)->toBe(['spans' => $spans, 'more' => $more]);
+    $page->assertNoJavaScriptErrors();
+})->with([
+    'two side by side' => [2, [3, 3], null],
+    'three, one big on top' => [3, [6, 3, 3], null],
+    'four in a square' => [4, [3, 3, 3, 3], null],
+    'five: two over three' => [5, [3, 3, 2, 2, 2], null],
+    'seven: +2 on the last tile' => [7, [3, 3, 2, 2, 2], '+2'],
+]);
+
+test('every character counter in the composer shares one design', function (Platform $platform, ContentType $contentType, string $counter) {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost($platform, $contentType);
+    $testId = str_replace('{id}', $postPlatform->social_account_id, $counter);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, $testId);
+
+    $look = $page->script(<<<JS
+        new Promise((resolve) => {
+            const started = Date.now();
+            const wait = () => {
+                if (document.querySelector('[data-testid="{$testId}"]') || Date.now() - started > 10000) {
+                    measure();
+                } else {
+                    requestAnimationFrame(wait);
+                }
+            };
+            const measure = () => {
+            const probe = document.createElement('span');
+            probe.className = 'text-xs text-muted-foreground';
+            document.body.append(probe);
+            const expected = getComputedStyle(probe);
+            const counter = getComputedStyle(document.querySelector('[data-testid="{$testId}"]'));
+            const result = {
+                size: counter.fontSize === expected.fontSize,
+                color: counter.color === expected.color,
+                numerals: counter.fontVariantNumeric,
+                border: counter.borderTopWidth,
+            };
+            probe.remove();
+            resolve(result);
+            };
+            wait();
+        })
+    JS);
+
+    expect($look)->toBe(['size' => true, 'color' => true, 'numerals' => 'tabular-nums', 'border' => '0px']);
+    $page->assertNoJavaScriptErrors();
+})->with([
+    'characters left' => [Platform::X, ContentType::XPost, 'composer-char-count-{id}'],
+    'hashtags left' => [Platform::Instagram, ContentType::InstagramFeed, 'composer-hashtags-remaining-{id}'],
 ]);

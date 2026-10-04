@@ -348,15 +348,6 @@ return [
             'topic_invalid' => 'Тема має містити від 1 до 50 символів, без . і &.',
             'ghost_post_attachments' => 'Пости-привиди не підтримують вкладення',
         ],
-        'facebook' => [
-            'aspect_label' => 'Співвідношення сторін',
-            'aspect' => [
-                'square' => 'Квадрат (1:1)',
-                'portrait' => 'Портрет (4:5)',
-                'landscape' => 'Альбомна (16:9)',
-                'original' => 'Оригінал',
-            ],
-        ],
         'linkedin' => [
             'document_title' => 'Назва документа',
             'document_title_placeholder' => 'Відображається у вашому пості з PDF-документом',

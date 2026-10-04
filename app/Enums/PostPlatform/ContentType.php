@@ -275,6 +275,7 @@ enum ContentType: string
         $bytes = match ($this) {
             self::InstagramFeed, self::InstagramStory => self::bytesFromMb(8),
             self::FacebookPost => self::bytesFromMb(4),
+            self::FacebookStory => self::bytesFromMb(10),
             self::LinkedInPost, self::LinkedInPagePost => self::bytesFromMb(5),
             self::PinterestPin, self::PinterestCarousel => self::bytesFromMb(20),
             self::XPost => self::bytesFromMb(5),
@@ -366,16 +367,6 @@ enum ContentType: string
             self::ThreadsPost, self::TelegramPost => $type === MediaType::Image && ! $isGif,
             default => true,
         };
-    }
-
-    /**
-     * Whether the publisher crops still images to the post's `meta.aspect_ratio`
-     * itself (Instagram feed, CropsImageForAspectRatio), so the source ratio does
-     * not have to fit. `original` (or none) publishes the image as it is.
-     */
-    public function cropsImageTo(?string $aspectRatio): bool
-    {
-        return $this === self::InstagramFeed && filled($aspectRatio) && $aspectRatio !== 'original';
     }
 
     /**
@@ -479,7 +470,7 @@ enum ContentType: string
      */
     public function autoFitsImage(): bool
     {
-        return $this === self::InstagramStory;
+        return in_array($this, [self::InstagramStory, self::FacebookStory], true);
     }
 
     /**
@@ -663,7 +654,7 @@ enum ContentType: string
     {
         return match ($this) {
             self::InstagramReel => false,
-            self::FacebookReel, self::FacebookStory => false,
+            self::FacebookReel => false,
             self::TikTokVideo => false,
             self::TikTokPhoto => true,
             self::YouTubeShort => false,

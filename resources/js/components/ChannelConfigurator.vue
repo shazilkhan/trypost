@@ -13,7 +13,6 @@ import PlatformLogo from '@/components/PlatformLogo.vue';
 import ChannelMediaWarnings from '@/components/posts/editor/ChannelMediaWarnings.vue';
 import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
-import FacebookSettings from '@/components/posts/editor/FacebookSettings.vue';
 import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
@@ -68,7 +67,6 @@ const selectedChannels = computed(() =>
 );
 
 const SETTINGS_PLATFORMS: string[] = [
-    Platform.Facebook,
     Platform.TikTok,
     Platform.Pinterest,
     Platform.YouTube,
@@ -261,15 +259,8 @@ const updateMeta = (channel: Channel, value: Record<string, any>) =>
                         :media="media"
                         :disabled="disabled"
                     />
-                    <FacebookSettings
-                        v-if="channel.platform === Platform.Facebook"
-                        :content-type="channel.contentType"
-                        :meta="channel.meta"
-                        :disabled="disabled"
-                        @update:meta="updateMeta(channel, $event)"
-                    />
                     <TikTokSettings
-                        v-else-if="channel.platform === Platform.TikTok"
+                        v-if="channel.platform === Platform.TikTok"
                         :social-account="channel.socialAccount"
                         :publish-config="channel.publishConfig ?? null"
                         :creator-info="channel.creatorInfo ?? null"

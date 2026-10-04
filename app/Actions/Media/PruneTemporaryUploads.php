@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Media;
 
 use App\Models\Media;
-use App\Services\Social\FacebookPublisher;
+use App\Services\Social\InstagramPublisher;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -56,7 +56,7 @@ class PruneTemporaryUploads
     {
         $cutoff = $now->copy()->subDays(self::CROP_RETENTION_DAYS)->getTimestamp();
 
-        $expired = collect(Storage::listContents(FacebookPublisher::CROP_DIRECTORY, false)->toArray())
+        $expired = collect(Storage::listContents(InstagramPublisher::CROP_DIRECTORY, false)->toArray())
             ->filter(fn (StorageAttributes $entry): bool => $entry->isFile() && $entry->lastModified() !== null && $entry->lastModified() < $cutoff)
             ->map(fn (StorageAttributes $entry): string => $entry->path())
             ->values();

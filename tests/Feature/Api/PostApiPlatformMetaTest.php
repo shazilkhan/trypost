@@ -428,14 +428,14 @@ it('persists per-platform meta across networks on store', function () {
             'status' => 'draft',
             'content' => 'Cross-platform',
             'destinations' => [
-                ['social_account_id' => $instagram->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => ['aspect_ratio' => '4:5']],
+                ['social_account_id' => $instagram->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => ['is_ai_generated' => true]],
                 ['social_account_id' => $pinterest->id, 'content_type' => ContentType::PinterestPin->value, 'meta' => ['board_id' => 'board-99']],
                 ['social_account_id' => $tiktok->id, 'content_type' => ContentType::TikTokVideo->value, 'meta' => ['privacy_level' => PrivacyLevel::SelfOnly->value, 'allow_comments' => true]],
             ],
         ])
         ->assertCreated();
 
-    expect(PostPlatform::where('social_account_id', $instagram->id)->sole()->meta['aspect_ratio'])->toBe('4:5')
+    expect(PostPlatform::where('social_account_id', $instagram->id)->sole()->meta['is_ai_generated'])->toBeTrue()
         ->and(PostPlatform::where('social_account_id', $pinterest->id)->sole()->meta['board_id'])->toBe('board-99')
         ->and(PostPlatform::where('social_account_id', $tiktok->id)->sole()->meta['privacy_level'])->toBe(PrivacyLevel::SelfOnly->value)
         ->and(PostPlatform::where('social_account_id', $tiktok->id)->sole()->meta['allow_comments'])->toBeTrue();

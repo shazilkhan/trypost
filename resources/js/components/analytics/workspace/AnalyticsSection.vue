@@ -16,7 +16,7 @@ defineProps<{
 
 <template>
     <section
-        class="min-w-0 rounded-xl bg-muted p-2"
+        class="min-w-0 rounded-xl bg-muted p-2 dark:bg-background"
         data-testid="analytics-section"
     >
         <div

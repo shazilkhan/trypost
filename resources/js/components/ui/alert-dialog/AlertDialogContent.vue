@@ -26,7 +26,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
   <AlertDialogPortal>
     <AlertDialogOverlay
       data-slot="alert-dialog-overlay"
-      class="motion-dialog-overlay fixed inset-0 z-50 bg-black/50"
+      class="motion-dialog-overlay fixed inset-0 z-50 bg-black/50 dark:bg-black/60"
     />
     <AlertDialogContent
       data-slot="alert-dialog-content"

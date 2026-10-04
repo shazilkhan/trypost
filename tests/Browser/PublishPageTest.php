@@ -95,6 +95,7 @@ test('the channel page shows the weekly goal progress', function () {
     waitForPublishPageTestId($page, 'publish-goal-progress');
 
     expect($page->script('new URL(document.querySelector(\'[data-testid="schedule-view-calendar"]\').href).search'))->toBe('');
+    expect($page->script('new URL(document.querySelector(\'[data-testid="schedule-view-calendar"]\').href).pathname'))->toBe(route('app.channels.calendar', ['account' => $channel->id, 'view' => 'week'], false));
     $page->assertSeeIn('@publish-goal-progress', '0/3')
         ->assertAttribute('@publish-goal-pie', 'data-percent', '0')
         ->assertNoJavaScriptErrors();
@@ -473,4 +474,24 @@ test('an active label filter shows its count in the primary color', function () 
             })()
         JS, true)
         ->assertNoJavaScriptErrors();
+});
+
+test('the tabs row border keeps the page padding instead of touching the panel edges', function () {
+    [$user] = publishPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'))->resize(1440, 900);
+    waitForPublishPageTestId($page, 'publish-filters');
+
+    $edges = $page->script(<<<'JS'
+        (() => {
+            const row = document.querySelector('[data-testid="publish-filters"]').parentElement.getBoundingClientRect();
+            const panel = document.querySelector('[data-slot="sidebar-inset"]').getBoundingClientRect();
+            return [Math.round(row.left - panel.left), Math.round(panel.right - row.right)];
+        })()
+    JS);
+
+    expect($edges[0])->toBeGreaterThanOrEqual(32)
+        ->and($edges[1])->toBeGreaterThanOrEqual(32);
+    $page->assertNoJavaScriptErrors();
 });

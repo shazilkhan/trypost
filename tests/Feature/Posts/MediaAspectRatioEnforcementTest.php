@@ -290,23 +290,19 @@ test('the destination names the network and the post type', function () {
         ->and(ContentType::GoogleBusinessPost->destinationLabel())->toBe('Google Business Profile · Post');
 });
 
-test('an instagram feed image the publisher crops to a set aspect ratio passes on web, api and mcp', function () {
+test('a legacy aspect ratio no longer lets a too-wide instagram feed image through on web, api and mcp', function (string $legacyRatio) {
     $upload = uploadAspectTestImage($this->user, 2000, 1000);
-    [$post, $platform] = aspectTestPost($this->workspace, $this->user, $this->instagram, $upload, ContentType::InstagramFeed, ['aspect_ratio' => '1:1']);
+    [$post, $platform] = aspectTestPost($this->workspace, $this->user, $this->instagram, $upload, ContentType::InstagramFeed, ['aspect_ratio' => $legacyRatio]);
 
-    $this->actingAs($this->user)->put(route('app.posts.update', $post), [
-        'status' => Status::Draft->value,
-        'media' => [MediaItem::fromMedia($upload)->toArray()],
-        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => ['aspect_ratio' => '1:1']]],
-    ]);
     $this->actingAs($this->user)->put(route('app.posts.update', $post), [
         'status' => Status::Scheduled->value,
         'scheduled_at' => now()->addDay()->toIso8601String(),
         'media' => [MediaItem::fromMedia($upload)->toArray()],
-        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => ['aspect_ratio' => '1:1']]],
+        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => ['aspect_ratio' => $legacyRatio]]],
     ]);
 
-    expect(sessionErrorMessages())->not->toContain(tooWideForInstagramFeed());
+    expect(sessionErrorMessages())->toContain(tooWideForInstagramFeed())
+        ->and($post->fresh()->status)->toBe(Status::Draft);
 
     $headers = ['Authorization' => 'Bearer '.createApiTestToken(['workspace' => $this->workspace])['plain_token']];
     $wide = aspectTestAsset($this->workspace, 2000, 1000, ['width' => 2000, 'height' => 1000]);
@@ -318,18 +314,55 @@ test('an instagram feed image the publisher crops to a set aspect ratio passes o
         'platforms' => [[
             'social_account_id' => $this->instagram->id,
             'content_type' => ContentType::InstagramFeed->value,
-            'meta' => ['aspect_ratio' => '1:1'],
+            'meta' => ['aspect_ratio' => $legacyRatio],
         ]],
-    ])->assertCreated();
+    ])->assertUnprocessable()->assertJsonFragment([tooWideForInstagramFeed()]);
 
-    [$stored] = aspectTestPost($this->workspace, $this->user, $this->instagram, $wide, ContentType::InstagramFeed, ['aspect_ratio' => '4:5']);
+    [$stored] = aspectTestPost($this->workspace, $this->user, $this->instagram, $wide, ContentType::InstagramFeed, ['aspect_ratio' => $legacyRatio]);
 
     $this->withHeaders($headers)->putJson(route('api.posts.update', $stored), [
         'status' => 'scheduled',
         'scheduled_at' => now()->addDay()->toIso8601String(),
-    ])->assertOk();
+    ])->assertUnprocessable()->assertJsonFragment([tooWideForInstagramFeed()]);
 
-    [$mcpPost] = aspectTestPost($this->workspace, $this->user, $this->instagram, $wide, ContentType::InstagramFeed, ['aspect_ratio' => '1:1']);
+    TryPostServer::actingAs($this->user)->tool(UpdatePostTool::class, [
+        'post_id' => $stored->id,
+        'status' => 'scheduled',
+        'scheduled_at' => now()->addDay()->toIso8601String(),
+    ])->assertHasErrors([tooWideForInstagramFeed()]);
+
+    expect(fn () => PostStatusRules::assertStoredPostPublishable($stored))
+        ->toThrow(ValidationException::class, tooWideForInstagramFeed());
+
+    expect($stored->fresh()->status)->toBe(Status::Draft);
+})->with(['1:1', '4:5', '16:9', 'original']);
+
+test('a facebook post schedules an image of any ratio on web, api and mcp', function (int $width, int $height) {
+    $facebook = SocialAccount::factory()->facebook()->create(['workspace_id' => $this->workspace->id]);
+    $upload = uploadAspectTestImage($this->user, $width, $height);
+    [$post, $platform] = aspectTestPost($this->workspace, $this->user, $facebook, $upload, ContentType::FacebookPost);
+
+    $this->actingAs($this->user)->put(route('app.posts.update', $post), [
+        'status' => Status::Scheduled->value,
+        'scheduled_at' => now()->addDay()->toIso8601String(),
+        'media' => [MediaItem::fromMedia($upload)->toArray()],
+        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::FacebookPost->value]],
+    ])->assertSessionHasNoErrors();
+
+    expect($post->fresh()->status)->toBe(Status::Scheduled);
+
+    $headers = ['Authorization' => 'Bearer '.createApiTestToken(['workspace' => $this->workspace])['plain_token']];
+    $asset = aspectTestAsset($this->workspace, $width, $height, ['width' => $width, 'height' => $height]);
+    $asset->update(['size' => 500_000]);
+
+    $this->withHeaders($headers)->postJson(route('api.posts.store'), [
+        'status' => 'scheduled',
+        'scheduled_at' => now()->addDay()->toIso8601String(),
+        'media' => [['id' => $asset->id]],
+        'platforms' => [['social_account_id' => $facebook->id, 'content_type' => ContentType::FacebookPost->value]],
+    ])->assertCreated();
+
+    [$mcpPost] = aspectTestPost($this->workspace, $this->user, $facebook, $asset, ContentType::FacebookPost);
 
     TryPostServer::actingAs($this->user)->tool(UpdatePostTool::class, [
         'post_id' => $mcpPost->id,
@@ -338,23 +371,10 @@ test('an instagram feed image the publisher crops to a set aspect ratio passes o
     ])->assertOk();
 
     expect($mcpPost->fresh()->status)->toBe(Status::Scheduled);
-});
-
-test('an instagram feed image set to its original aspect ratio is still checked', function () {
-    $wide = aspectTestAsset($this->workspace, 2000, 1000, ['width' => 2000, 'height' => 1000]);
-    [$post] = aspectTestPost($this->workspace, $this->user, $this->instagram, $wide, ContentType::InstagramFeed, ['aspect_ratio' => 'original']);
-
-    expect(fn () => PostStatusRules::assertStoredPostPublishable($post))
-        ->toThrow(ValidationException::class, tooWideForInstagramFeed());
-
-    $headers = ['Authorization' => 'Bearer '.createApiTestToken(['workspace' => $this->workspace])['plain_token']];
-
-    $this->withHeaders($headers)->putJson(route('api.posts.update', $post), [
-        'status' => 'scheduled',
-        'scheduled_at' => now()->addDay()->toIso8601String(),
-        'meta' => ['aspect_ratio' => 'original'],
-    ])->assertUnprocessable()->assertJsonFragment([tooWideForInstagramFeed()]);
-});
+})->with([
+    'very tall' => [800, 3200],
+    'very wide' => [3200, 800],
+]);
 
 test('a sideways phone photo is measured as people see it', function () {
     $tall = uploadAspectTestBytes($this->user, sidewaysJpeg(1350, 1080));
@@ -410,3 +430,22 @@ test('an upload stores the dimensions measured from its bytes', function () {
     expect(uploadAspectTestImage($this->user, 2000, 1000)->meta)
         ->toMatchArray(['width' => 2000, 'height' => 1000]);
 });
+
+test('a facebook story schedules an image of any ratio, fitted into the frame at publish', function (int $width, int $height) {
+    $facebook = SocialAccount::factory()->facebook()->create(['workspace_id' => $this->workspace->id]);
+    $upload = uploadAspectTestImage($this->user, $width, $height);
+    [$post, $platform] = aspectTestPost($this->workspace, $this->user, $facebook, $upload, ContentType::FacebookStory);
+
+    $this->actingAs($this->user)->put(route('app.posts.update', $post), [
+        'status' => Status::Scheduled->value,
+        'scheduled_at' => now()->addDay()->toIso8601String(),
+        'media' => [MediaItem::fromMedia($upload)->toArray()],
+        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::FacebookStory->value]],
+    ])->assertSessionHasNoErrors();
+
+    expect($post->fresh()->status)->toBe(Status::Scheduled);
+})->with([
+    'landscape' => [2000, 1000],
+    'square' => [1080, 1080],
+    'story frame' => [1080, 1920],
+]);

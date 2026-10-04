@@ -369,3 +369,40 @@ test('the destination picker does not list google business', function () {
         ->assertMissing("@channel-{$googleBusiness->id}")
         ->assertNoJavaScriptErrors();
 });
+
+test('without any channel the empty state offers to connect one, like the publish page', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    $this->actingAs($user->fresh());
+
+    $page = visit(route('app.repurposes.index'));
+    waitForRepurposeTestId($page, 'repurposes-empty');
+
+    $page->assertVisible('@repurposes-empty-illustration')
+        ->assertSeeIn('@repurposes-empty', __('repurposes.empty.title'))
+        ->assertMissing('@repurposes-empty-create')
+        ->assertSeeIn('@repurposes-empty-connect', __('channels.connect'))
+        ->click('@repurposes-empty-connect');
+    waitForRepurposeTestId($page, 'connect-channel-dialog');
+
+    $page->assertVisible('@connect-channel-dialog')
+        ->assertNoJavaScriptErrors();
+});
+
+test('with a source channel and no repurpose the empty state starts a new one', function () {
+    [$user] = repurposeOwnerWithAccounts();
+    $this->actingAs($user);
+
+    $page = visit(route('app.repurposes.index'));
+    waitForRepurposeTestId($page, 'repurposes-empty');
+
+    $page->assertVisible('@repurposes-empty-illustration')
+        ->assertMissing('@repurposes-empty-connect')
+        ->click('@repurposes-empty-create');
+    waitForRepurposeTestId($page, 'create-repurpose-dialog');
+
+    $page->assertVisible('@create-repurpose-dialog')
+        ->assertNoJavaScriptErrors();
+});

@@ -51,7 +51,7 @@ const onClick = (): void => {
 
 <template>
     <article
-        class="group/card relative flex w-full cursor-pointer flex-col gap-2 overflow-hidden border bg-card p-4 text-start transition-[border-color,opacity] duration-150"
+        class="group/card relative flex w-full cursor-pointer flex-col gap-2 overflow-hidden border bg-card p-4 text-start dark:bg-accent transition-[border-color,opacity] duration-150"
         :class="[
             view === 'gallery' ? 'rounded-md' : 'rounded-lg',
             selected ? 'border-primary-strong' : 'border-border',

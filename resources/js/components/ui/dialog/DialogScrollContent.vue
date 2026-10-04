@@ -28,9 +28,10 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 <template>
   <DialogPortal>
     <DialogOverlay
-      class="motion-dialog-overlay fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/50"
+      class="motion-dialog-overlay fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/50 dark:bg-black/60"
     >
       <DialogContent
+        data-slot="dialog-content"
         :class="
           cn(
             'motion-dialog relative z-50 grid w-full max-w-[calc(100%-2rem)] my-8 gap-4 rounded-2xl bg-background px-6 pt-6 pb-4 shadow-lg duration-200 sm:max-w-lg md:w-full dark:border',
