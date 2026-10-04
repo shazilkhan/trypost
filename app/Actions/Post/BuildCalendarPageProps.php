@@ -174,7 +174,7 @@ class BuildCalendarPageProps
     {
         return match ($status) {
             'drafts' => $query->where('status', PostStatus::Draft),
-            'scheduled' => $query->where('status', PostStatus::Scheduled),
+            'scheduled' => $query->whereIn('status', BuildPublishPageProps::QUEUE_STATUSES),
             'sent' => $query->whereIn('status', BuildPublishPageProps::SENT_STATUSES),
             default => $query,
         };

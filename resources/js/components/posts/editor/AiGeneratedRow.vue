@@ -50,7 +50,6 @@ const checked = defineModel<boolean>({ required: true });
             <div class="flex min-h-8 items-center">
                 <Switch
                     v-model="checked"
-                    size="sm"
                     :data-testid="testId"
                     :disabled="disabled"
                     :aria-label="$t('posts.form.ai_generated.label')"

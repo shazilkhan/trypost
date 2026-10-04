@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => '일주일에 몇 번 게시하고 싶으신가요?',
-        'description' => '게시 목표에 따라 매주 설정하는 추천 시간의 수가 정해집니다.',
+        'description' => '목표에 맞춰 대기열에 게시 시간을 만들어 드려요.',
         'options' => [
             'steady' => '꾸준히 유지하기',
             'presence' => '존재감 키우기',
@@ -264,5 +264,11 @@ return [
         'empty_description' => '이 채널에 게시된 피드 게시물과 릴스가 여기에 표시됩니다.',
         'reel' => '릴스',
         'carousel' => '캐러셀',
+    ],
+
+    'verified' => [
+        'blue' => '인증됨',
+        'business' => '인증된 조직',
+        'government' => '정부 계정',
     ],
 ];

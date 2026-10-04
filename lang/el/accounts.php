@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'Σύνδεση Bluesky',
         'description' => 'Εισάγετε τα διαπιστευτήριά σας για σύνδεση',
-        'email' => 'Email',
+        'email' => 'Όνομα χρήστη ή email',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => 'App Password',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'Εισάγετε το instance του Mastodon σας',
         'instance_url' => 'URL instance',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Εισάγετε τη διεύθυνση URL του instance Mastodon σας (π.χ. mastodon.social, techhub.social)',
+        'instance_hint' => 'Για παράδειγμα: mastodon.social ή techhub.social.',
         'submit' => 'Συνέχεια με Mastodon',
         'submitting' => 'Σύνδεση...',
     ],

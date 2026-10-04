@@ -113,6 +113,7 @@ return [
         'destination_issues' => '修正が必要な問題: :count件',
         'create_another' => '続けて作成',
         'connect_to_post' => '投稿するにはチャンネルを接続',
+        'media_not_supported' => 'この投稿タイプはメディアに対応していません。',
         'request_approval' => '保存して承認を依頼',
         'templates' => 'テンプレート',
         'expand' => 'ダイアログを拡大',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => '時刻を選択',
-            'more_actions' => 'その他の投稿アクション',
+            'more_actions' => 'その他のオプション',
             'done' => '完了',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => '投稿を正常に削除しました！',
         'duplicated' => '投稿を下書きとして複製しました。',
         'cannot_edit_finalized' => 'この投稿はすでに処理済みのため、再公開できません。もう一度試すには複製してください。',
-        'cannot_delete_published' => '公開済みの投稿は削除できません。',
+        'cannot_delete_published' => '送信済みの投稿は削除できません。',
         'connect_first' => '投稿を作成する前に、少なくとも 1 つのソーシャルネットワークを接続してください。',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => '明日',
         'yesterday' => '昨日',
         'unscheduled' => '未予約',
+        'publishing_now' => '公開中',
+        'publishing_badge' => '公開中…',
+        'publishing_on' => ':network に投稿中…',
         'published_via' => '公開先:',
         'published_directly_from' => ':network から直接公開されました',
         'slot_aria' => ':network の :channel に :time の投稿を追加',

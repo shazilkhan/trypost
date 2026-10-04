@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <DialogFooter class="border-t border-border pt-4">
+            <DialogFooter>
                 <Button
                     type="button"
                     data-testid="api-key-generated-done"

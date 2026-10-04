@@ -6,6 +6,7 @@ import LinkCard from '@/components/posts/previews/LinkCard.vue';
 import PreviewAvatar from '@/components/posts/previews/PreviewAvatar.vue';
 import PreviewMedia from '@/components/posts/previews/PreviewMedia.vue';
 import PreviewText from '@/components/posts/previews/PreviewText.vue';
+import VerifiedBadge from '@/components/VerifiedBadge.vue';
 import { useLinkCard } from '@/composables/useLinkCard';
 import type { MediaItem } from '@/types/media';
 
@@ -146,6 +147,12 @@ const hasActions = computed(
                     <span class="truncate font-semibold">{{
                         name ?? account.display_label
                     }}</span>
+                    <VerifiedBadge
+                        v-if="account.verified_badge"
+                        :badge="account.verified_badge"
+                        class="size-4 self-center"
+                        data-testid="preview-verified"
+                    />
                     <slot name="badge" />
                 </div>
                 <div v-if="handle" class="truncate text-muted-foreground">
@@ -175,6 +182,12 @@ const hasActions = computed(
                     <span class="truncate font-semibold">{{
                         name ?? account.display_label
                     }}</span>
+                    <VerifiedBadge
+                        v-if="account.verified_badge"
+                        :badge="account.verified_badge"
+                        class="size-4 self-center"
+                        data-testid="preview-verified"
+                    />
                     <span
                         v-if="subtitle"
                         class="min-w-0 truncate text-muted-foreground"

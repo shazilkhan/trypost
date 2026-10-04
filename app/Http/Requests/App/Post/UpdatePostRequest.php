@@ -96,8 +96,10 @@ class UpdatePostRequest extends FormRequest
 
             $platformsById = $this->route('post')
                 ->postPlatforms()
+                ->with('socialAccount')
                 ->whereIn('id', $ids)
-                ->pluck('platform', 'id');
+                ->get()
+                ->mapWithKeys(fn (PostPlatform $postPlatform): array => [$postPlatform->id => $postPlatform->socialAccount ?? $postPlatform->platform]);
 
             PostPlatformMetaRules::addRequiredOnPublishErrors(
                 $validator,

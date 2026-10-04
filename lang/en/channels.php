@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'How many times a week would you like to post?',
-        'description' => 'Your posting goal decides how many recommended times we set up each week.',
+        'description' => 'We\'ll add posting times to your queue to match your goal.',
         'options' => [
             'steady' => 'Keep it steady',
             'presence' => 'Build a presence',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Feed posts and reels published on this channel will show up here.',
         'reel' => 'Reel',
         'carousel' => 'Carousel',
+    ],
+
+    'verified' => [
+        'blue' => 'Verified',
+        'business' => 'Verified organization',
+        'government' => 'Government account',
     ],
 ];

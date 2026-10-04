@@ -200,7 +200,7 @@ class PostCompositionValidator
                     $validator->errors()->add("{$key}.content", trans('posts.edit.compliance.requires_content_or_media'));
                 }
 
-                $metaViolation = PostPlatformMetaRules::requiredMetaViolation($account->platform, $destination['meta'] ?? []);
+                $metaViolation = PostPlatformMetaRules::requiredMetaViolation($account, $destination['meta'] ?? []);
                 if ($metaViolation !== null && $metaViolation !== $formatViolation) {
                     [$field, $message] = $metaViolation;
                     $validator->errors()->add("{$key}.meta.{$field}", $message);
@@ -210,8 +210,12 @@ class PostCompositionValidator
                     'key' => "{$key}.content_type",
                     'content_type' => $destination['content_type'],
                     'aspect_ratio' => data_get($destination, 'meta.aspect_ratio'),
-                ]], $destination['media'], $workspace, $destination['content']) as $field => $message) {
+                ]], $destination['media'], $workspace) as $field => $message) {
                     $validator->errors()->add($field, $message);
+                }
+
+                foreach (ThreadReplies::mediaErrors($account->platform, $destination['meta'] ?? [], $workspace) as $field => $message) {
+                    $validator->errors()->add("{$key}.meta.{$field}", $message);
                 }
             }
         });

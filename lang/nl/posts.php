@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} :count probleem om op te lossen|[0,*] :count problemen om op te lossen',
         'create_another' => 'Nog een maken',
         'connect_to_post' => 'Koppel een kanaal om te posten',
+        'media_not_supported' => 'Dit posttype ondersteunt geen media.',
         'request_approval' => 'Opslaan en goedkeuring vragen',
         'templates' => 'Sjablonen',
         'expand' => 'Venster vergroten',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Tijd kiezen',
-            'more_actions' => 'Meer publicatieacties',
+            'more_actions' => 'Andere opties',
             'done' => 'Klaar',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Post succesvol verwijderd!',
         'duplicated' => 'Post gedupliceerd als concept.',
         'cannot_edit_finalized' => 'Deze post is al verwerkt en kan niet opnieuw worden gepubliceerd. Dupliceer hem om het opnieuw te proberen.',
-        'cannot_delete_published' => 'Gepubliceerde posts kunnen niet worden verwijderd.',
+        'cannot_delete_published' => 'Verzonden posts kunnen niet worden verwijderd.',
         'connect_first' => 'Koppel ten minste één social netwerk voordat je een post aanmaakt.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Morgen',
         'yesterday' => 'Gisteren',
         'unscheduled' => 'Niet ingepland',
+        'publishing_now' => 'Nu aan het publiceren',
+        'publishing_badge' => 'Publiceren…',
+        'publishing_on' => 'Publiceren op :network…',
         'published_via' => 'Gepubliceerd via',
         'published_directly_from' => 'Rechtstreeks gepubliceerd vanuit :network',
         'slot_aria' => 'Bericht toevoegen aan :channel op :network om :time',

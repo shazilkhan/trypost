@@ -115,6 +115,7 @@ return [
         'destination_issues' => '{1} :count Problem zu beheben|[0,*] :count Probleme zu beheben',
         'create_another' => 'Weiteren erstellen',
         'connect_to_post' => 'Kanal verbinden, um zu posten',
+        'media_not_supported' => 'Dieser Beitragstyp unterstützt keine Medien.',
         'request_approval' => 'Speichern und Freigabe anfragen',
         'templates' => 'Vorlagen',
         'expand' => 'Dialog vergrößern',
@@ -175,7 +176,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Uhrzeit wählen',
-            'more_actions' => 'Weitere Veröffentlichungsaktionen',
+            'more_actions' => 'Weitere Optionen',
             'done' => 'Fertig',
         ],
         'media_editor' => [
@@ -805,7 +806,7 @@ return [
         'deleted' => 'Beitrag erfolgreich gelöscht!',
         'duplicated' => 'Beitrag als Entwurf dupliziert.',
         'cannot_edit_finalized' => 'Dieser Beitrag wurde bereits verarbeitet und kann nicht erneut veröffentlicht werden. Dupliziere ihn, um es noch einmal zu versuchen.',
-        'cannot_delete_published' => 'Veröffentlichte Beiträge können nicht gelöscht werden.',
+        'cannot_delete_published' => 'Gesendete Beiträge können nicht gelöscht werden.',
         'connect_first' => 'Verbinde mindestens ein soziales Netzwerk, bevor du einen Beitrag erstellst.',
     ],
 
@@ -886,6 +887,9 @@ return [
         'tomorrow' => 'Morgen',
         'yesterday' => 'Gestern',
         'unscheduled' => 'Nicht geplant',
+        'publishing_now' => 'Wird jetzt veröffentlicht',
+        'publishing_badge' => 'Veröffentlichen…',
+        'publishing_on' => 'Wird auf :network veröffentlicht…',
         'published_via' => 'Veröffentlicht über',
         'published_directly_from' => 'Direkt über :network veröffentlicht',
         'slot_aria' => 'Beitrag für :channel auf :network um :time hinzufügen',

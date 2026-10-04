@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\MediaItem;
+use App\Enums\Post\Status;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Enums\YouTube\Category;
@@ -678,6 +679,7 @@ test('the mastodon content warning is counted in code points', function () {
 
 test('the threads card offers a topic and a ghost post drops the topic and the media tray', function () {
     fakeChannelSettingsApis();
+    config(['services.unsplash.access_key' => 'test-unsplash-key']);
     $postPlatform = seedChannelSettingsPost(Platform::Threads, ContentType::ThreadsPost);
     $id = $postPlatform->social_account_id;
 
@@ -689,9 +691,15 @@ test('the threads card offers a topic and a ghost post drops the topic and the m
         ->click("@composer-type-{$id}-threads_ghost_post");
     waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"threads-topic-tag\"]')");
     $page->assertMissing("@composer-{$id}-dropzone")
-        ->click("@composer-type-{$id}-threads_post");
+        ->assertMissing("@composer-{$id}-media-source-main")
+        ->assertVisible("@composer-{$id}-media-source-disabled")
+        ->hover("@composer-{$id}-media-source-disabled");
+    waitForChannelSettingsCondition($page, 'document.body.innerText.includes('.json_encode(__('posts.composer.media_not_supported')).')');
+    $page->click("@composer-type-{$id}-threads_post");
     waitForChannelSettingsTestId($page, 'threads-topic-tag');
-    $page->assertNoJavaScriptErrors();
+    $page->assertVisible("@composer-{$id}-media-source-main")
+        ->assertMissing("@composer-{$id}-media-source-disabled")
+        ->assertNoJavaScriptErrors();
 
     $page->click('@composer-save-draft')->assertMissing('@post-composer-dialog');
 
@@ -721,7 +729,7 @@ test('ghost post is disabled while the threads card has media', function () {
         ->assertNoJavaScriptErrors();
 });
 
-test('ghost post is disabled while the threads card shows a link card and never fetches one', function () {
+test('a threads card with a link card can switch to a ghost post, which keeps the link and drops the card', function () {
     $url = 'https://93.184.216.34/article';
     Http::fake([
         $url => Http::response('<meta property="og:title" content="Article card">'),
@@ -735,19 +743,16 @@ test('ghost post is disabled while the threads card shows a link card and never 
     $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
     waitForChannelSettingsTestId($page, "composer-link-card-{$id}");
 
-    expect($page->script("document.querySelector('[data-testid=\"{$ghost}\"]').disabled"))->toBeTrue();
-    $page->hover("@{$ghost}-label");
-    waitForChannelSettingsTestId($page, "{$ghost}-reason");
-    $page->assertSeeIn("@{$ghost}-reason", "Ghost Posts don't support attachments");
+    expect($page->script("document.querySelector('[data-testid=\"{$ghost}\"]').disabled"))->toBeFalse();
 
-    $page->fill("@composer-caption-{$id}", 'No link any more');
-    waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"{$ghost}\"]').disabled");
-
-    $page->click("@{$ghost}")
-        ->fill("@composer-caption-{$id}", "Read {$url}");
-    waitForChannelSettingsCondition($page, "document.querySelector('[data-testid=\"composer-link-card-{$id}\"]')");
-    $page->assertMissing("@composer-link-card-{$id}")
+    $page->click("@{$ghost}");
+    waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"composer-link-card-{$id}\"]')");
+    $page->assertMissing("@composer-text-only-warning-{$id}")
         ->assertNoJavaScriptErrors();
+
+    $page->click('@composer-save-draft')->assertMissing('@post-composer-dialog');
+
+    expect($postPlatform->fresh()->content_type)->toBe(ContentType::ThreadsGhostPost);
 });
 
 test('the threads preview shows a ghost post as a dashed bubble that expires in 24 hours', function () {
@@ -787,24 +792,6 @@ test('a ghost post that got media shows it on the card with a text only warning 
         ->assertNoJavaScriptErrors();
 });
 
-test('typing a link into a ghost post shows the text only warning on the card', function () {
-    fakeChannelSettingsApis();
-    $postPlatform = seedChannelSettingsPost(Platform::Threads, ContentType::ThreadsGhostPost);
-    $id = $postPlatform->social_account_id;
-
-    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
-    waitForChannelSettingsTestId($page, "composer-caption-{$id}");
-    $page->assertMissing("@composer-text-only-warning-{$id}")
-        ->fill("@composer-caption-{$id}", 'Read https://example.com/article');
-    waitForChannelSettingsTestId($page, "composer-text-only-warning-{$id}");
-
-    $page->assertSeeIn("@composer-text-only-warning-{$id}", __('posts.form.warnings.text_only'))
-        ->fill("@composer-caption-{$id}", 'Just text');
-    waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"composer-text-only-warning-{$id}\"]')");
-    $page->assertMissing("@composer-text-only-warning-{$id}")
-        ->assertNoJavaScriptErrors();
-});
-
 test('a bluesky thread starts from the toolbar and stacks its replies under the post', function () {
     fakeChannelSettingsApis();
     $postPlatform = seedChannelSettingsPost(Platform::Bluesky, ContentType::BlueskyPost);
@@ -834,7 +821,7 @@ test('a bluesky thread starts from the toolbar and stacks its replies under the 
 
     $page->click('@composer-save-draft')->assertMissing('@post-composer-dialog');
 
-    expect($postPlatform->fresh()->meta)->toEqual(['thread_replies' => ['Third post']]);
+    expect($postPlatform->fresh()->meta)->toEqual(['thread_replies' => [['text' => 'Third post', 'media' => []]]]);
 });
 
 test('a mastodon thread reply counts the content warning against its own limit', function () {
@@ -863,7 +850,6 @@ test('start thread is not offered on networks that cannot chain', function (Plat
     waitForChannelSettingsTestId($page, 'composer-customization');
     $page->assertMissing('@thread-start')->assertNoJavaScriptErrors();
 })->with([
-    'x until task 19' => [Platform::X, ContentType::XPost],
     'threads' => [Platform::Threads, ContentType::ThreadsPost],
 ]);
 
@@ -944,6 +930,43 @@ test('editing a post that already has a thread shows its replies', function () {
     $page->assertNoJavaScriptErrors();
 });
 
+test('a thread reply shows its own media under it and keeps it on save', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $id = $postPlatform->social_account_id;
+    $image = Media::factory()->ownedByPost($postPlatform->post)->create(['mime_type' => 'image/png']);
+    $postPlatform->update(['meta' => ['thread_replies' => [['text' => 'With a photo', 'media' => [MediaItem::fromMedia($image)->toArray()]], 'Plain reply']]]);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
+    waitForChannelSettingsTestId($page, "composer-{$id}-reply-0-media-item-0");
+
+    $page->assertMissing("@composer-{$id}-media-item-0")
+        ->assertMissing("@composer-{$id}-reply-0-dropzone")
+        ->assertMissing("@composer-{$id}-reply-1-media-tray")
+        ->assertPresent("@composer-{$id}-dropzone")
+        ->assertPresent("@composer-{$id}-add-media")
+        ->click('@thread-reply-collapsed-0');
+    waitForChannelSettingsTestId($page, 'thread-reply-0');
+    $page->assertPresent("@composer-{$id}-reply-0-media-item-0")
+        ->assertPresent("@composer-{$id}-reply-0-dropzone")
+        ->assertMissing("@composer-{$id}-dropzone");
+
+    expect($page->script("!!document.querySelector('[data-testid=\"preview-thread-reply-0\"] img')"))->toBeTrue()
+        ->and($page->script("!!document.querySelector('[data-testid=\"preview-thread-reply-1\"] img')"))->toBeFalse();
+
+    $page->fill('@thread-reply-0', 'Still with a photo')
+        ->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft')
+        ->assertMissing('@post-composer-dialog');
+
+    $replies = $postPlatform->fresh()->meta['thread_replies'];
+
+    expect($replies[0]['text'])->toBe('Still with a photo')
+        ->and($replies[0]['media'][0]['id'])->toBe($image->id)
+        ->and($replies[1])->toEqual(['text' => 'Plain reply', 'media' => []])
+        ->and($postPlatform->post->fresh()->media)->toBe([]);
+});
+
 test('the mastodon preview hides the post behind its content warning on every post of the thread', function () {
     fakeChannelSettingsApis();
     $postPlatform = seedChannelSettingsPost(Platform::Mastodon, ContentType::MastodonPost);
@@ -957,5 +980,242 @@ test('the mastodon preview hides the post behind its content warning on every po
 
     $page->assertDontSeeIn('@preview-thread', 'Channel settings')
         ->assertDontSeeIn('@preview-thread', 'Hidden reply')
+        ->assertNoJavaScriptErrors();
+});
+
+test('an x thread starts from the toolbar and counts each reply against the account limit', function (array $accountMeta, int $limit) {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->socialAccount->update(['meta' => [...(array) $postPlatform->socialAccount->meta, ...$accountMeta]]);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
+    waitForChannelSettingsTestId($page, 'thread-start');
+
+    $page->click('@thread-start');
+    waitForChannelSettingsTestId($page, 'thread-reply-0');
+    $page->fill('@thread-reply-0', 'Second tweet')
+        ->assertSeeIn("@composer-char-count-{$id}", (string) ($limit - mb_strlen('Second tweet')));
+    waitForChannelSettingsTestId($page, 'preview-thread-reply-0');
+    $page->assertSeeIn('@preview-thread-reply-0', 'Second tweet')
+        ->assertNoJavaScriptErrors();
+
+    $page->click('@composer-save-draft')->assertMissing('@post-composer-dialog');
+
+    expect($postPlatform->fresh()->meta)->toEqual(['thread_replies' => [['text' => 'Second tweet', 'media' => []]]]);
+})->with([
+    'standard account' => [[], 280],
+    'premium account' => [['x_subscription_type' => 'Premium'], 25000],
+]);
+
+test('the x card offers the ai-generated switch with its explanation and saves it', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
+    waitForChannelSettingsTestId($page, 'x-ai-generated');
+
+    $page->assertVisible('@x-ai-generated-info')
+        ->click('@x-ai-generated')
+        ->assertNoJavaScriptErrors();
+
+    $page->click('@composer-save-draft')->assertMissing('@post-composer-dialog');
+
+    expect($postPlatform->fresh()->meta)->toEqual(['is_ai_generated' => true]);
+});
+
+test('shift enter opens the next post of an x thread and backspace on an empty post folds it back', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
+    waitForChannelSettingsTestId($page, "composer-caption-{$id}");
+
+    $page->keys("@composer-caption-{$id}", 'Shift+Enter');
+    waitForChannelSettingsTestId($page, 'thread-reply-0');
+    $page->fill('@thread-reply-0', 'Second tweet')
+        ->keys('@thread-reply-0', 'Shift+Enter');
+    waitForChannelSettingsTestId($page, 'thread-reply-1');
+
+    expect($page->script('document.activeElement?.dataset.testid'))->toBe('thread-reply-1');
+
+    $page->keys('@thread-reply-1', 'Backspace');
+    waitForChannelSettingsTestId($page, 'thread-reply-0');
+
+    expect($page->script("document.querySelectorAll('[data-testid^=\"thread-reply-collapsed-\"], [data-testid^=\"thread-reply-\"]:not([data-testid*=\"remove\"]):not([data-testid*=\"error\"]):not([data-testid*=\"collapsed\"])').length"))->toBe(1)
+        ->and($page->script('document.activeElement?.dataset.testid'))->toBe('thread-reply-0');
+
+    $page->fill('@thread-reply-0', '')
+        ->keys('@thread-reply-0', 'Backspace');
+    waitForChannelSettingsTestId($page, "composer-caption-{$id}");
+
+    expect($page->script('document.activeElement?.dataset.testid'))->toBe("composer-caption-{$id}");
+    $page->assertMissing('@thread-reply-0')
+        ->assertMissing('@thread-reply-collapsed-0')
+        ->assertNoJavaScriptErrors();
+});
+
+test('thread posts stack right under each other and show their whole text', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->socialAccount->update(['meta' => ['x_subscription_type' => 'Premium']]);
+    $long = str_repeat('Officia dolore magna in officia consectetur quis proident. ', 8);
+    $postPlatform->update(['meta' => ['thread_replies' => [$long, 'abc']]]);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'thread-reply-collapsed-1');
+    $page->click('@thread-reply-collapsed-1');
+    waitForChannelSettingsTestId($page, 'thread-reply-1');
+
+    $layout = $page->script(<<<'JS'
+        (() => {
+            const first = document.querySelector('[data-testid="thread-reply-collapsed-0"]');
+            const second = document.querySelector('[data-testid="thread-reply-1"]');
+            return {
+                gap: Math.round(second.closest('li').getBoundingClientRect().top - first.closest('li').getBoundingClientRect().bottom),
+                truncated: first.scrollWidth > first.clientWidth || getComputedStyle(first).textOverflow === 'ellipsis',
+                wraps: first.getBoundingClientRect().height > 40,
+            };
+        })()
+    JS);
+
+    expect($layout)->toBe(['gap' => 16, 'truncated' => false, 'wraps' => true]);
+
+    $id = $postPlatform->social_account_id;
+    $page->assertVisible("@composer-{$id}-thread-connector")
+        ->assertVisible('@thread-connector-0')
+        ->assertMissing('@thread-connector-1');
+
+    $page->click("@composer-{$id}-caption-collapsed");
+    waitForChannelSettingsTestId($page, "composer-caption-{$id}");
+
+    expect($page->script(<<<JS
+        (() => {
+            const toolbar = document.querySelector('[id="composer-{$id}-root-toolbar"]');
+            const firstReply = document.querySelector('[data-testid="thread-reply-collapsed-0"]').closest('li');
+            return {
+                toolbarFollowsPost: toolbar.contains(document.querySelector('[data-testid="composer-{$id}-toolbar"]')),
+                gap: Math.round(firstReply.getBoundingClientRect().top - toolbar.getBoundingClientRect().bottom),
+            };
+        })()
+    JS))->toBe(['toolbarFollowsPost' => true, 'gap' => 16]);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('arrow keys move between the posts of a thread from the end and the start of each one', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->post->update(['content' => 'Root']);
+    $postPlatform->update(['meta' => ['thread_replies' => ['First reply', 'Second reply']]]);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, "composer-caption-{$id}");
+
+    $page->script("(() => { const c = document.querySelector('[data-testid=\"composer-caption-{$id}\"]'); c.focus(); c.setSelectionRange(c.value.length, c.value.length); })()");
+    $page->keys("@composer-caption-{$id}", 'ArrowDown');
+    waitForChannelSettingsTestId($page, 'thread-reply-0');
+
+    expect($page->script('[document.activeElement?.dataset.testid, document.activeElement?.selectionStart]'))->toBe(['thread-reply-0', 0]);
+
+    $page->script("(() => { const r = document.querySelector('[data-testid=\"thread-reply-0\"]'); r.setSelectionRange(r.value.length, r.value.length); })()");
+    $page->keys('@thread-reply-0', 'ArrowDown');
+    waitForChannelSettingsTestId($page, 'thread-reply-1');
+
+    expect($page->script('document.activeElement?.dataset.testid'))->toBe('thread-reply-1');
+
+    $page->keys('@thread-reply-1', 'ArrowUp');
+    waitForChannelSettingsTestId($page, 'thread-reply-0');
+
+    expect($page->script('[document.activeElement?.dataset.testid, document.activeElement?.selectionStart === document.activeElement?.value.length]'))->toBe(['thread-reply-0', true]);
+
+    $page->script("document.querySelector('[data-testid=\"thread-reply-0\"]').setSelectionRange(0, 0)");
+    $page->keys('@thread-reply-0', 'ArrowUp');
+    waitForChannelSettingsTestId($page, "composer-caption-{$id}");
+
+    expect($page->script('document.activeElement?.dataset.testid'))->toBe("composer-caption-{$id}");
+    $page->assertNoJavaScriptErrors();
+});
+
+test('only the active post of a thread shows the drop zone', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->post->update(['content' => 'Root']);
+    $postPlatform->update(['meta' => ['thread_replies' => ['First reply', 'Second reply']]]);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, "composer-{$id}-dropzone");
+
+    $page->assertMissing("@composer-{$id}-reply-0-dropzone")
+        ->assertMissing("@composer-{$id}-reply-1-dropzone");
+
+    $page->click('@thread-reply-collapsed-1');
+    waitForChannelSettingsTestId($page, "composer-{$id}-reply-1-dropzone");
+
+    $page->assertMissing("@composer-{$id}-dropzone")
+        ->assertMissing("@composer-{$id}-reply-0-dropzone")
+        ->assertNoJavaScriptErrors();
+});
+
+test('the preview scrolls to the thread post being edited', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->post->update(['content' => str_repeat('Root post text. ', 40)]);
+    $postPlatform->update(['meta' => ['thread_replies' => [str_repeat('First reply text. ', 40), str_repeat('Second reply text. ', 40), 'Last reply']]]);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 700);
+    waitForChannelSettingsTestId($page, 'thread-reply-collapsed-2');
+
+    $page->click('@thread-reply-collapsed-2');
+    waitForChannelSettingsCondition($page, <<<'JS'
+        (() => {
+            const reply = document.querySelector('[data-testid="preview-thread-reply-2"]').getBoundingClientRect();
+            return reply.top >= 0 && reply.bottom <= window.innerHeight;
+        })()
+    JS);
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('editing a scheduled post offers to move it back to drafts', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->post->update(['content' => 'Scheduled post', 'status' => Status::Scheduled, 'scheduled_at' => now()->addDays(2)]);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'composer-save-draft');
+
+    $page->assertSeeIn('@composer-save-draft', __('posts.publish.actions.move_to_drafts'))
+        ->click('@composer-save-draft');
+    waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"composer-save-draft\"]')");
+
+    expect($postPlatform->post->fresh()->status)->toBe(Status::Draft);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('editing a draft keeps the save draft action', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'composer-save-draft');
+
+    $page->assertSeeIn('@composer-save-draft', __('posts.composer.save_draft'))
+        ->assertNoJavaScriptErrors();
+});
+
+test('the x preview shows the verified badge next to the name', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::X, ContentType::XPost);
+    $postPlatform->socialAccount->update(['meta' => ['x_verified_type' => 'blue']]);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'preview-verified');
+
+    $page->assertAttribute('@preview-verified', 'data-verified', 'blue')
+        ->assertAttribute('@preview-verified', 'aria-label', __('channels.verified.blue'))
         ->assertNoJavaScriptErrors();
 });

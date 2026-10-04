@@ -55,6 +55,7 @@ const remove = (): void => {
                             :account-id="account.id"
                             :platform="account.platform"
                             :src="account.avatar_url"
+                            :verified="account.verified_badge"
                             :name="account.display_name || account.username"
                             :size="40"
                             :reserve-space="false"

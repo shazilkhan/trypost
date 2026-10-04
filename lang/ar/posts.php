@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} مشكلات تحتاج إلى إصلاح: :count|[0,*] مشكلات تحتاج إلى إصلاح: :count',
         'create_another' => 'إنشاء منشور آخر',
         'connect_to_post' => 'اربط قناة للنشر',
+        'media_not_supported' => 'هذا النوع من المنشورات لا يدعم الوسائط.',
         'request_approval' => 'حفظ وطلب الموافقة',
         'templates' => 'القوالب',
         'expand' => 'توسيع النافذة',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'اختر الوقت',
-            'more_actions' => 'المزيد من إجراءات النشر',
+            'more_actions' => 'خيارات أخرى',
             'done' => 'تم',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'تم حذف المنشور بنجاح!',
         'duplicated' => 'تم تكرار المنشور كمسودة.',
         'cannot_edit_finalized' => 'تمت معالجة هذا المنشور بالفعل ولا يمكن إعادة نشره. كرّره للمحاولة مرة أخرى.',
-        'cannot_delete_published' => 'لا يمكن حذف المنشورات المنشورة.',
+        'cannot_delete_published' => 'لا يمكن حذف المنشورات المُرسلة.',
         'connect_first' => 'اربط شبكة اجتماعية واحدة على الأقل قبل إنشاء منشور.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'غدًا',
         'yesterday' => 'أمس',
         'unscheduled' => 'غير مجدول',
+        'publishing_now' => 'يُنشر الآن',
+        'publishing_badge' => 'جارٍ النشر…',
+        'publishing_on' => 'جارٍ النشر على :network…',
         'published_via' => 'نُشر عبر',
         'published_directly_from' => 'نُشر مباشرةً من :network',
         'slot_aria' => 'أضف منشورًا إلى :channel على :network في :time',

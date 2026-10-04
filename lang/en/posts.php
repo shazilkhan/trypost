@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} :count issue to fix|[0,*] :count issues to fix',
         'create_another' => 'Create another',
         'connect_to_post' => 'Connect a channel to post',
+        'media_not_supported' => 'This post type doesn\'t support media.',
         'request_approval' => 'Save and request approval',
         'templates' => 'Templates',
         'expand' => 'Expand dialog',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Select Time',
-            'more_actions' => 'More Posting Actions',
+            'more_actions' => 'Other options',
             'done' => 'Done',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Post deleted successfully!',
         'duplicated' => 'Post duplicated as a draft.',
         'cannot_edit_finalized' => 'This post has already been processed and cannot be re-published. Duplicate it to try again.',
-        'cannot_delete_published' => 'Published posts cannot be deleted.',
+        'cannot_delete_published' => 'Sent posts cannot be deleted.',
         'connect_first' => 'Connect at least one social network before creating a post.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Tomorrow',
         'yesterday' => 'Yesterday',
         'unscheduled' => 'Unscheduled',
+        'publishing_now' => 'Publishing now',
+        'publishing_badge' => 'Publishing…',
+        'publishing_on' => 'Publishing on :network…',
         'published_via' => 'Published via',
         'published_directly_from' => 'This was published directly from :network',
         'slot_aria' => 'Add a post to :channel on :network at :time',

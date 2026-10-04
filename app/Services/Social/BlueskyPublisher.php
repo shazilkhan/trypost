@@ -21,6 +21,7 @@ use App\Support\UrlDetector;
 use Carbon\CarbonInterface;
 use Exception;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
@@ -70,11 +71,11 @@ class BlueskyPublisher
             $postPlatform,
             ThreadProgress::hash((string) $content, $postPlatform->post->mediaItems->map(fn (MediaItem $item): string => $item->id)->all()),
             fn (): array => $this->publishRoot($postPlatform, $account, $service, $content),
-            function (string $text, array $parent, array $root) use ($account, $service, &$lookForLiveReply): array {
+            function (string $text, Collection $media, array $parent, array $root) use ($account, $service, &$lookForLiveReply): array {
                 $live = $lookForLiveReply ? $this->liveReply($account, $text, $parent) : null;
                 $lookForLiveReply = false;
 
-                return $live ?? $this->publishReply($account, $service, $text, $parent, $root);
+                return $live ?? $this->publishReply($account, $service, $text, $media, $parent, $root);
             },
         );
     }
@@ -124,47 +125,7 @@ class BlueskyPublisher
     private function publishRoot(PostPlatform $postPlatform, SocialAccount $account, string $service, ?string $content): array
     {
         $medias = $postPlatform->post->mediaItems;
-        $embed = null;
-
-        // Upload images if present (max 4)
-        if ($medias->count() > 0) {
-            $images = [];
-            foreach ($medias->take(4) as $media) {
-                if ($media->isImage()) {
-                    $blob = $this->uploadBlob($account, $service, $media->url, $media->mime_type);
-                    if ($blob) {
-                        $images[] = [
-                            'alt' => $media->altTextFor(Platform::Bluesky) ?? '',
-                            'image' => $blob,
-                        ];
-                    }
-                }
-            }
-
-            if (count($images) > 0) {
-                $embed = [
-                    '$type' => BlueskyLexicon::EMBED_IMAGES,
-                    'images' => $images,
-                ];
-            }
-        }
-
-        // A post carries either images or a single video, never both. Only look
-        // for a video when no image embed was built (mirrors the official client).
-        if ($embed === null) {
-            $video = $medias->first(fn ($media) => $media->isVideo());
-
-            if ($video) {
-                $videoBlob = $this->uploadVideo($account, $service, $video->url, $video->mime_type);
-
-                if ($videoBlob) {
-                    $embed = [
-                        '$type' => BlueskyLexicon::EMBED_VIDEO,
-                        'video' => $videoBlob,
-                    ];
-                }
-            }
-        }
+        $embed = $this->mediaEmbed($account, $service, $medias);
 
         // No image or video embed, so a bare link can carry a preview card.
         // Bluesky does not hydrate cards server-side: the client must attach an
@@ -196,14 +157,55 @@ class BlueskyPublisher
     }
 
     /**
+     * Up to four images, or else a single video. A post carries either images
+     * or one video, never both: a video is only looked for when no image embed
+     * was built (mirrors the official client).
+     *
+     * @param  Collection<int, MediaItem>  $medias
+     * @return array<string, mixed>|null
+     */
+    private function mediaEmbed(SocialAccount $account, string $service, Collection $medias): ?array
+    {
+        $images = [];
+
+        foreach ($medias->take(4) as $media) {
+            if ($media->isImage()) {
+                $blob = $this->uploadBlob($account, $service, $media->url, $media->mime_type);
+                if ($blob) {
+                    $images[] = [
+                        'alt' => $media->altTextFor(Platform::Bluesky) ?? '',
+                        'image' => $blob,
+                    ];
+                }
+            }
+        }
+
+        if ($images !== []) {
+            return [
+                '$type' => BlueskyLexicon::EMBED_IMAGES,
+                'images' => $images,
+            ];
+        }
+
+        $video = $medias->first(fn (MediaItem $media): bool => $media->isVideo());
+        $videoBlob = $video ? $this->uploadVideo($account, $service, $video->url, $video->mime_type) : null;
+
+        return $videoBlob ? [
+            '$type' => BlueskyLexicon::EMBED_VIDEO,
+            'video' => $videoBlob,
+        ] : null;
+    }
+
+    /**
      * A reply points at the thread's first post (root) and the post it answers
      * (parent), each as a strong ref (uri + cid).
      *
+     * @param  Collection<int, MediaItem>  $media
      * @param  array<string, mixed>  $parent
      * @param  array<string, mixed>  $root
      * @return array{id: string, url: string, uri: string, cid: string}
      */
-    private function publishReply(SocialAccount $account, string $service, string $text, array $parent, array $root): array
+    private function publishReply(SocialAccount $account, string $service, string $text, Collection $media, array $parent, array $root): array
     {
         $record = [
             '$type' => BlueskyLexicon::FEED_POST,
@@ -214,6 +216,12 @@ class BlueskyPublisher
                 'parent' => ['uri' => (string) data_get($parent, 'uri'), 'cid' => (string) data_get($parent, 'cid')],
             ],
         ];
+
+        $embed = $this->mediaEmbed($account, $service, $media);
+
+        if ($embed !== null) {
+            $record['embed'] = $embed;
+        }
 
         $facets = $this->parseFacets($text);
 

@@ -7,7 +7,6 @@ use App\Enums\User\Persona;
 use App\Enums\User\ReferralSource;
 use App\Models\Post;
 use App\Models\PostPlatform;
-use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -103,12 +102,9 @@ test('auth and welcome pages do not overflow horizontally on a phone', function 
     ]);
     $workspace->members()->attach($user->id, membershipPivot('admin'));
     $user->update(['current_workspace_id' => $workspace->id]);
-    SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
-
     $this->actingAs($user->fresh());
 
     $welcomePages = [
-        'welcome connect' => route('app.welcome.connect'),
         'welcome plan' => route('app.welcome.plan'),
     ];
 

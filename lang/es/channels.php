@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => '¿Cuántas veces por semana quieres publicar?',
-        'description' => 'Tu objetivo de publicación decide cuántos horarios recomendados configuramos cada semana.',
+        'description' => 'Crearemos los horarios de tu cola según tu objetivo.',
         'options' => [
             'steady' => 'Mantener la constancia',
             'presence' => 'Construir presencia',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Las publicaciones del feed y los reels publicados en este canal aparecerán aquí.',
         'reel' => 'Reel',
         'carousel' => 'Carrusel',
+    ],
+
+    'verified' => [
+        'blue' => 'Verificado',
+        'business' => 'Organización verificada',
+        'government' => 'Cuenta gubernamental',
     ],
 ];

@@ -25,6 +25,7 @@ const { canManageAccounts } = useWorkspaceAbilities();
             :account-id="channel.id"
             :platform="channel.platform"
             :src="channel.avatar_url"
+            :verified="channel.verified_badge"
             :name="channelName(channel)"
             :size="44"
         />

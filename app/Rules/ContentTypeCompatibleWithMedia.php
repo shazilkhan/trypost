@@ -12,7 +12,6 @@ use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
 use App\Support\Media\ImageDimensions;
-use App\Support\UrlDetector;
 use Closure;
 use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -57,10 +56,8 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      *                                     aspect-ratio and pixel checks read the
      *                                     server-measured dimensions from them and
      *                                     are skipped without it.
-     * @param  string|null  $fallbackContent  The post text a text-only type is checked
-     *                                        for links when the request has no `content`.
      */
-    public function __construct(private ?array $fallbackMedia = null, private ?Workspace $workspace = null, private ?string $fallbackContent = null) {}
+    public function __construct(private ?array $fallbackMedia = null, private ?Workspace $workspace = null) {}
 
     /**
      * @param  array<string, mixed>  $data
@@ -86,7 +83,6 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
             self::entriesForUpdate($post, null),
             (array) ($post->media ?? []),
             $post->workspace,
-            $post->content,
         );
 
         if ($errors !== []) {
@@ -153,10 +149,10 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      * @param  array<int, mixed>  $media
      * @return array<string, string>
      */
-    public static function errorsFor(array $entries, array $media, ?Workspace $workspace = null, ?string $content = null): array
+    public static function errorsFor(array $entries, array $media, ?Workspace $workspace = null): array
     {
         $errors = [];
-        $rule = new self($media, $workspace, $content);
+        $rule = new self($media, $workspace);
 
         foreach ($entries as $entry) {
             ['key' => $key, 'content_type' => $contentType] = $entry;
@@ -190,7 +186,7 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
         $media = $this->media();
 
         if ($contentType->maxMediaCount() === 0) {
-            if ($media !== [] || UrlDetector::firstUrl((string) data_get($this->data, 'content', $this->fallbackContent)) !== null) {
+            if ($media !== []) {
                 $fail(trans('posts.form.warnings.text_only'));
             }
 

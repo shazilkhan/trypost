@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 import { IconPlus, IconSettings, IconTag } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import FilterEmptyState from '@/components/FilterEmptyState.vue';
-import CreateDialog from '@/components/labels/CreateDialog.vue';
+import LabelForm from '@/components/labels/LabelForm.vue';
 import MultiSelectFilter from '@/components/MultiSelectFilter.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { index as labelsIndex } from '@/routes/app/labels';
+import {
+    index as labelsIndex,
+    store as labelsStore,
+} from '@/routes/app/labels';
+import type { FlashData } from '@/types';
 
 interface Label {
     id: string;
@@ -42,10 +46,37 @@ const labelFor = (id: string): Label => labelsById.value.get(id)!;
 const matches = (text: string, search: string): boolean =>
     text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
 
-const createDialogOpen = ref(false);
+const DEFAULT_COLOR = '#7c3aed';
 
-const openCreateDialog = (): void => {
-    createDialogOpen.value = true;
+const creating = ref(false);
+const form = useForm({ name: '', color: DEFAULT_COLOR });
+
+const startCreate = (): void => {
+    form.reset();
+    form.clearErrors();
+    creating.value = true;
+};
+
+const showList = (): void => {
+    creating.value = false;
+};
+
+const saveLabel = (): void => {
+    form.post(labelsStore.url(), {
+        preserveState: true,
+        preserveScroll: true,
+        onFlash: (flash) => {
+            const { createdLabel } = flash as FlashData;
+
+            if (createdLabel) {
+                emit('created', createdLabel);
+            }
+        },
+        onSuccess: () => {
+            form.reset();
+            creating.value = false;
+        },
+    });
 };
 
 const clear = (): void => {
@@ -67,10 +98,43 @@ const clear = (): void => {
         :show-header="false"
         :extra-count="untagged ? 1 : 0"
         compact
-        content-class="w-64"
+        content-class="w-80"
         checkbox-position="start"
         :align="align"
+        @close="showList"
     >
+        <template v-if="creating" #panel>
+            <h3 class="mb-3 text-sm font-semibold">
+                {{ $t('labels.create.title') }}
+            </h3>
+            <LabelForm
+                v-model:name="form.name"
+                v-model:color="form.color"
+                :id-prefix="`${testId}-new`"
+                compact
+                :errors="form.errors"
+                :processing="form.processing"
+                @submit="saveLabel"
+                @cancel="showList"
+            />
+        </template>
+        <template v-if="labels.length > 0" #header>
+            <div class="mb-3 flex items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold">
+                    {{ $t('labels.title') }}
+                </h3>
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="outline"
+                    :aria-label="$t('labels.create.title')"
+                    :data-testid="`${testId}-create`"
+                    @click="startCreate"
+                >
+                    <IconPlus class="size-4" />
+                </Button>
+            </div>
+        </template>
         <template v-if="$slots.trigger" #trigger="slotProps">
             <slot name="trigger" v-bind="slotProps" />
         </template>
@@ -124,8 +188,8 @@ const clear = (): void => {
                 <Button
                     type="button"
                     size="sm"
-                    :data-testid="`${testId}-create`"
-                    @click="openCreateDialog"
+                    :data-testid="`${testId}-empty-create`"
+                    @click="startCreate"
                 >
                     <IconPlus class="size-4" />
                     {{ $t('labels.create.submit') }}
@@ -161,8 +225,4 @@ const clear = (): void => {
             </div>
         </template>
     </MultiSelectFilter>
-    <CreateDialog
-        v-model:open="createDialogOpen"
-        @created="emit('created', $event)"
-    />
 </template>

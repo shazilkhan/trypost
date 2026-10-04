@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'Bluesky koppelen',
         'description' => 'Voer je inloggegevens in om te koppelen',
-        'email' => 'E-mail',
+        'email' => 'Handle of e-mail',
         'email_placeholder' => 'jouwhandle.bsky.social',
         'app_password' => 'App-wachtwoord',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'Voer je Mastodon-instance in',
         'instance_url' => 'Instance-URL',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Voer de URL van je Mastodon-instance in (bijv. mastodon.social, techhub.social)',
+        'instance_hint' => 'Bijvoorbeeld: mastodon.social of techhub.social.',
         'submit' => 'Doorgaan met Mastodon',
         'submitting' => 'Koppelen...',
     ],

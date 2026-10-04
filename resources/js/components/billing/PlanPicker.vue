@@ -365,9 +365,12 @@ const sharedFeatures: PlanFeature[] = SHARED_FEATURES.map((feature) => ({
                                 class="size-4 shrink-0 text-muted-foreground"
                             />
                             <span class="inline-flex items-center gap-1.5">
-                                <span>{{
-                                    $t('billing.plans.features.networks_all')
-                                }}</span>
+                                <span
+                                    :data-testid="`plan-feature-label-${plan.slug}-networks_all`"
+                                    >{{
+                                        $t('billing.plans.features.networks_all')
+                                    }}</span
+                                >
                                 <TooltipProvider :delay-duration="200">
                                     <Tooltip>
                                         <TooltipTrigger as-child>
@@ -440,9 +443,12 @@ const sharedFeatures: PlanFeature[] = SHARED_FEATURES.map((feature) => ({
                                 class="size-4 shrink-0 text-muted-foreground"
                             />
                             <span class="inline-flex items-center gap-1.5">
-                                <span>{{
-                                    $t(`billing.plans.features.${feature.key}`)
-                                }}</span>
+                                <span
+                                    :data-testid="`plan-feature-label-${plan.slug}-${feature.key}`"
+                                    >{{
+                                        $t(`billing.plans.features.${feature.key}`)
+                                    }}</span
+                                >
                                 <TooltipProvider
                                     v-if="feature.hasTooltip"
                                     :delay-duration="200"

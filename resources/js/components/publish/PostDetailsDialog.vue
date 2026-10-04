@@ -2,11 +2,9 @@
 import { useHttp } from '@inertiajs/vue3';
 import {
     IconExternalLink,
-    IconFileTypePdf,
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
     IconPencil,
-    IconPlayerPlayFilled,
     IconRepeat,
     IconSend,
 } from '@tabler/icons-vue';
@@ -17,8 +15,10 @@ import { show as showPostGroup } from '@/actions/App/Http/Controllers/App/PostGr
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import MediaLightbox from '@/components/media/MediaLightbox.vue';
 import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
+import ThreadView from '@/components/posts/ThreadView.vue';
 import PostCardLabels from '@/components/publish/PostCardLabels.vue';
 import PostCardMenu from '@/components/publish/PostCardMenu.vue';
+import PostDetailsMedia from '@/components/publish/PostDetailsMedia.vue';
 import PostMetricsBand from '@/components/publish/PostMetricsBand.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,11 +42,11 @@ import {
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import date from '@/date';
 import dayjs from '@/dayjs';
-import { isDocument, isVideo } from '@/lib/mediaType';
 import { compactPublicationMetrics } from '@/lib/publicationMetrics';
 import { isRecurring } from '@/lib/recurrence';
-import { videoFrameUrl } from '@/lib/videoFrame';
+import { type ThreadReply, threadRepliesOf } from '@/lib/threadReplies';
 import type { MediaItem } from '@/types/media';
+import { THREAD_PLATFORMS } from '@/types/network-options';
 import { Platform } from '@/types/platform';
 import { PostOrigin, PostStatus } from '@/types/post';
 import type { PostCard, PostCardMenuAction } from '@/types/publish';
@@ -199,10 +199,22 @@ watch(
     },
 );
 
+const threadReplies = computed((): ThreadReply[] => {
+    const target = targets.value[0];
+
+    return target && THREAD_PLATFORMS.includes(target.platform)
+        ? threadRepliesOf(target.meta).filter(
+              (reply) => reply.text.trim() !== '' || reply.media.length > 0,
+          )
+        : [];
+});
+
 const lightboxOpen = ref(false);
 const lightboxIndex = ref(0);
+const lightboxItems = ref<MediaItem[]>([]);
 
-const openMediaPreview = (index: number): void => {
+const openMediaPreview = (items: MediaItem[], index: number): void => {
+    lightboxItems.value = items;
     lightboxIndex.value = index;
     lightboxOpen.value = true;
 };
@@ -280,6 +292,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             :account-id="siblingAccount(sibling)?.id"
                             :platform="siblingPlatform(sibling)"
                             :src="siblingAccount(sibling)?.avatar_url"
+                            :verified="siblingAccount(sibling)?.verified_badge"
                             :name="
                                 siblingAccount(sibling)?.display_label ??
                                 getPlatformLabel(siblingPlatform(sibling))
@@ -300,6 +313,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             >
                                 <component
                                     :is="getPostStatusConfig(sibling.status).icon"
+                                    :class="getPostStatusConfig(sibling.status).iconClass"
                                     class="size-3.5 shrink-0"
                                     :aria-label="$t(`posts.status.${sibling.status}`)"
                                 />
@@ -347,6 +361,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             >
                                 <component
                                     :is="getPostStatusConfig(current.status).icon"
+                                    :class="getPostStatusConfig(current.status).iconClass"
                                 />
                                 {{ $t(`posts.status.${current.status}`) }}
                             </Badge>
@@ -388,6 +403,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             :account-id="target.social_account?.id"
                             :platform="target.platform"
                             :src="target.social_account?.avatar_url"
+                            :verified="target.social_account?.verified_badge"
                             :name="
                                 target.social_account?.display_label ??
                                 getPlatformLabel(target.platform)
@@ -409,15 +425,25 @@ const siblingMoment = (sibling: PostCard): string | null => {
                             >
                         </span>
                         <Badge
+                            v-if="targets.length > 1"
                             :variant="
                                 getPlatformStatusConfig(target.status).variant
                             "
                             class="h-6 px-2"
+                            :data-testid="`post-details-target-status-${target.id}`"
                         >
                             {{ $t(`posts.edit.status.${target.status}`) }}
                         </Badge>
                     </section>
 
+                    <ThreadView
+                        v-if="threadReplies.length && targets[0]?.social_account"
+                        :account="targets[0].social_account"
+                        :posts="[{ text: content, media }, ...threadReplies]"
+                        :test-key="currentKey"
+                        @open-media="openMediaPreview"
+                    />
+                    <template v-else>
                     <div class="flex flex-col items-start gap-1">
                         <p
                             ref="textElement"
@@ -441,75 +467,21 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         </button>
                     </div>
 
+                    <PostDetailsMedia
+                        v-if="media.length"
+                        :items="media"
+                        :test-key="currentKey"
+                        @open="openMediaPreview(media, $event)"
+                    />
+                    </template>
+
+
                     <PostCardLabels
                         :key="current.id"
                         :post-id="current.id"
                         :labels="current.labels ?? []"
                         :test-key="`details-${currentKey}`"
                     />
-
-                    <div
-                        v-if="media.length"
-                        class="-mx-6 flex gap-2 overflow-x-auto px-6"
-                        :data-testid="`post-details-media-${currentKey}`"
-                    >
-                        <component
-                            :is="isDocument(item) ? 'a' : 'button'"
-                            v-for="(item, index) in media"
-                            :key="item.id ?? item.url"
-                            v-bind="
-                                isDocument(item)
-                                    ? {
-                                          href: item.url,
-                                          target: '_blank',
-                                          rel: 'noopener noreferrer',
-                                      }
-                                    : {
-                                          type: 'button',
-                                          'aria-label': $t(
-                                              'common.media_lightbox.open',
-                                          ),
-                                      }
-                            "
-                            class="relative size-22 shrink-0 overflow-hidden rounded-md border border-border-strong bg-secondary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-                            :class="isDocument(item) ? '' : 'cursor-zoom-in'"
-                            :data-testid="`post-details-media-item-${currentKey}-${index}`"
-                            @click="isDocument(item) || openMediaPreview(index)"
-                        >
-                            <template v-if="isVideo(item)">
-                                <video
-                                    :src="videoFrameUrl(item)"
-                                    class="size-full object-cover"
-                                    muted
-                                    playsinline
-                                    preload="metadata"
-                                />
-                                <IconPlayerPlayFilled
-                                    aria-hidden="true"
-                                    class="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white"
-                                />
-                            </template>
-                            <span
-                                v-else-if="isDocument(item)"
-                                class="flex size-full flex-col items-center justify-center gap-1 p-2 text-center"
-                            >
-                                <IconFileTypePdf
-                                    class="size-6 text-muted-foreground"
-                                />
-                                <span
-                                    class="line-clamp-2 text-xs break-all text-muted-foreground"
-                                    >{{ item.original_filename || 'PDF' }}</span
-                                >
-                            </span>
-                            <img
-                                v-else
-                                :src="item.url"
-                                :alt="item.meta?.alt_text ?? ''"
-                                class="size-full object-cover"
-                                loading="lazy"
-                            />
-                        </component>
-                    </div>
 
                     <PostMetricsBand
                         v-if="metricsDetail"
@@ -615,7 +587,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
             </div>
             <MediaLightbox
                 v-model:open="lightboxOpen"
-                :items="media"
+                :items="lightboxItems"
                 :start-index="lightboxIndex"
             />
         </DialogContent>

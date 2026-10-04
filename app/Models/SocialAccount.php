@@ -48,6 +48,9 @@ class SocialAccount extends Model
      */
     public const array X_LONG_POST_SUBSCRIPTIONS = ['Basic', 'Premium', 'PremiumPlus'];
 
+    /** The X verification types that show a badge: blue (paid), business (gold) and government (gray). */
+    public const array X_VERIFIED_BADGES = ['blue', 'business', 'government'];
+
     protected $fillable = [
         'workspace_id',
         'platform',
@@ -79,6 +82,7 @@ class SocialAccount extends Model
     protected $appends = [
         'display_label',
         'handle_label',
+        'verified_badge',
     ];
 
     protected function casts(): array
@@ -418,6 +422,20 @@ class SocialAccount extends Model
      * username needs user.info.profile, which self-hosters may trim).
      * The platform label is a last-resort fallback, not an expected path.
      */
+    /**
+     * The verification badge the network shows next to this account, or null.
+     * Only X reports one today (`x_verified_type`, kept by SyncXSubscription).
+     */
+    protected function verifiedBadge(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => $this->platform === SocialPlatform::X
+                && in_array(data_get($this->meta, 'x_verified_type'), self::X_VERIFIED_BADGES, true)
+                    ? data_get($this->meta, 'x_verified_type')
+                    : null,
+        );
+    }
+
     protected function handleLabel(): Attribute
     {
         return Attribute::make(

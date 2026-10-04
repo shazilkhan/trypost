@@ -48,6 +48,8 @@ const props = defineProps<{
     uploader?: MediaUploader;
     contentTypes: string[];
     itemErrors?: Record<number, string>;
+    /** Hides the add tile; files reach the tray from elsewhere. */
+    itemsOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -455,6 +457,7 @@ const vSortableTile: Directive<HTMLElement> = {
                 </button>
             </div>
             <button
+                v-if="!itemsOnly"
                 type="button"
                 :data-testid="`${testIdPrefix}-dropzone`"
                 :disabled="disabled"

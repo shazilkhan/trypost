@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} Problemy do poprawienia: :count|[0,*] Problemy do poprawienia: :count',
         'create_another' => 'Utwórz kolejny',
         'connect_to_post' => 'Połącz kanał, aby publikować',
+        'media_not_supported' => 'Ten typ posta nie obsługuje multimediów.',
         'request_approval' => 'Zapisz i poproś o zatwierdzenie',
         'templates' => 'Szablony',
         'expand' => 'Powiększ okno',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Wybierz godzinę',
-            'more_actions' => 'Więcej akcji publikowania',
+            'more_actions' => 'Inne opcje',
             'done' => 'Gotowe',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Post został pomyślnie usunięty!',
         'duplicated' => 'Post zduplikowano jako szkic.',
         'cannot_edit_finalized' => 'Ten post został już przetworzony i nie można go ponownie opublikować. Zduplikuj go, aby spróbować ponownie.',
-        'cannot_delete_published' => 'Opublikowanych postów nie można usunąć.',
+        'cannot_delete_published' => 'Wysłanych postów nie można usunąć.',
         'connect_first' => 'Połącz co najmniej jedną sieć społecznościową przed utworzeniem posta.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Jutro',
         'yesterday' => 'Wczoraj',
         'unscheduled' => 'Niezaplanowane',
+        'publishing_now' => 'Trwa publikacja',
+        'publishing_badge' => 'Publikowanie…',
+        'publishing_on' => 'Publikowanie w :network…',
         'published_via' => 'Opublikowano przez',
         'published_directly_from' => 'Opublikowano bezpośrednio w :network',
         'slot_aria' => 'Dodaj post do :channel w :network o :time',

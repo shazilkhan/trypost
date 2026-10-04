@@ -1116,7 +1116,7 @@ test('create post rejects a numeric link preview in MCP', function (mixed $value
     expect(PostPlatform::where('social_account_id', $bluesky->id)->exists())->toBeFalse();
 })->with([0, '0']);
 
-test('publish post rejects a stored threads ghost post whose text carries a link in MCP', function () {
+test('publish post accepts a stored threads ghost post whose text carries a link in MCP', function () {
     $threads = SocialAccount::factory()->threads()->create(['workspace_id' => $this->workspace->id]);
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'content' => 'Read https://example.com/article', 'status' => PostStatus::Draft,
@@ -1125,8 +1125,8 @@ test('publish post rejects a stored threads ghost post whose text carries a link
     Queue::fake();
 
     TryPostServer::actingAs($this->user)->tool(PublishPostTool::class, ['post_id' => $post->id])
-        ->assertHasErrors([__('posts.form.warnings.text_only')]);
-    Queue::assertNotPushed(PublishPost::class);
+        ->assertHasNoErrors();
+    Queue::assertPushed(PublishPost::class);
 });
 
 test('create post judges a threads topic tag without its leading hash in MCP', function () {
@@ -1154,7 +1154,21 @@ test('create post persists thread replies in MCP', function () {
         'platforms' => [['social_account_id' => $mastodon->id, 'content_type' => ContentType::MastodonPost->value, 'meta' => ['thread_replies' => ['Two']]]],
     ])->assertOk();
 
-    expect(PostPlatform::where('social_account_id', $mastodon->id)->sole()->meta)->toEqual(['thread_replies' => ['Two']]);
+    expect(PostPlatform::where('social_account_id', $mastodon->id)->sole()->meta)->toEqual(['thread_replies' => [['text' => 'Two', 'media' => []]]]);
+});
+
+test('create post stores thread reply media in MCP', function () {
+    $mastodon = SocialAccount::factory()->mastodon()->create(['workspace_id' => $this->workspace->id]);
+    $upload = Media::factory()->stored()->temporaryUpload($this->workspace)->create();
+
+    TryPostServer::actingAs($this->user)->tool(CreatePostTool::class, [
+        'content' => 'Root',
+        'platforms' => [['social_account_id' => $mastodon->id, 'content_type' => ContentType::MastodonPost->value, 'meta' => ['thread_replies' => [
+            ['text' => '', 'media' => [['upload_token' => $upload->upload_token]]],
+        ]]]],
+    ])->assertOk();
+
+    expect(PostPlatform::where('social_account_id', $mastodon->id)->sole()->meta['thread_replies'][0]['media'][0]['id'])->toBe($upload->id);
 });
 
 test('a stored mastodon thread reply that does not fit blocks scheduling through MCP', function () {

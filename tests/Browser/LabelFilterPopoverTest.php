@@ -82,12 +82,13 @@ test('the label filter offers to create a label when the workspace has none', fu
     $page->assertMissing('@posts-label-untagged')
         ->assertMissing('@posts-label-settings')
         ->assertSeeIn('@posts-label-empty', __('posts.no_labels'))
-        ->click('@posts-label-create');
-    waitForLabelPopoverTestId($page, 'create-label-sheet');
+        ->assertMissing('@posts-label-create')
+        ->click('@posts-label-empty-create');
+    waitForLabelPopoverTestId($page, 'posts-label-new-name');
 
     expect($page->script(<<<'JS'
         (() => {
-            const swatch = document.querySelector('[data-testid="create-label-sheet"] [data-testid="hex-color-swatch"]');
+            const swatch = document.querySelector('[data-testid="posts-label-new-name"]').closest('form').querySelector('[data-testid="hex-color-swatch"]');
             const input = swatch.parentElement.querySelector('input');
             const s = swatch.getBoundingClientRect();
             const i = input.getBoundingClientRect();
@@ -95,8 +96,8 @@ test('the label filter offers to create a label when the workspace has none', fu
         })()
     JS))->toBe([true, true, true]);
 
-    $page->fill('@create-label-name', 'Launch')
-        ->click('@submit-create-label');
+    $page->fill('@posts-label-new-name', 'Launch')
+        ->click('@submit-posts-label-new');
 
     for ($attempt = 0; $attempt < 40 && ! WorkspaceLabel::query()->where('workspace_id', $workspace->id)->where('name', 'Launch')->exists(); $attempt++) {
         $page->script('new Promise((resolve) => setTimeout(resolve, 100))');
@@ -105,4 +106,33 @@ test('the label filter offers to create a label when the workspace has none', fu
     expect(WorkspaceLabel::query()->where('workspace_id', $workspace->id)->where('name', 'Launch')->exists())->toBeTrue();
 
     $page->assertNoJavaScriptErrors();
+});
+
+test('the label picker creates a label from its header and the composer selects it', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['account_id' => $user->account_id, 'user_id' => $user->id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id, 'name' => 'Campaign']);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    waitForLabelPopoverTestId($page, 'composer-tags-trigger');
+    $page->click('@composer-tags-trigger');
+    waitForLabelPopoverTestId($page, 'composer-label-create');
+
+    $page->assertSeeIn('[data-slot="popover-content"] h3', __('labels.title'))
+        ->click('@composer-label-create');
+    waitForLabelPopoverTestId($page, 'composer-label-new-name');
+
+    $page->fill('@composer-label-new-name', 'Launch')
+        ->click('@submit-composer-label-new');
+    waitForLabelPopoverTestId($page, 'composer-label-create');
+
+    $label = WorkspaceLabel::query()->where('workspace_id', $workspace->id)->where('name', 'Launch')->firstOrFail();
+
+    $page->assertVisible("@composer-label-option-{$label->id}")
+        ->assertScript("document.querySelector('[data-testid=\"composer-label-checkbox-{$label->id}\"]').getAttribute('data-state')", 'checked')
+        ->assertNoJavaScriptErrors();
 });

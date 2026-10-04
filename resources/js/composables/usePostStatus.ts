@@ -15,15 +15,17 @@ type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'destructive-subtl
 interface StatusConfig {
     variant: BadgeVariant;
     icon: typeof IconFileText;
+    /** In-flight statuses spin their icon so they never read as stuck. */
+    iconClass?: string;
     label: string;
 }
 
-const CONFIGS: Record<string, Pick<StatusConfig, 'variant' | 'icon'>> = {
+const CONFIGS: Record<string, Pick<StatusConfig, 'variant' | 'icon' | 'iconClass'>> = {
     draft: { variant: 'info', icon: IconEdit },
     pending_approval: { variant: 'warning', icon: IconEdit },
     scheduled: { variant: 'default', icon: IconClock },
-    publishing: { variant: 'warning', icon: IconLoader2 },
-    retrying: { variant: 'warning', icon: IconLoader2 },
+    publishing: { variant: 'warning', icon: IconLoader2, iconClass: 'animate-spin' },
+    retrying: { variant: 'warning', icon: IconLoader2, iconClass: 'animate-spin' },
     published: { variant: 'success', icon: IconCircleCheck },
     partially_published: { variant: 'warning', icon: IconAlertCircle },
     failed: { variant: 'destructive-subtle', icon: IconAlertCircle },

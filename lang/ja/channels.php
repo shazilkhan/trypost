@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => '週に何回投稿したいですか？',
-        'description' => '投稿目標に応じて、毎週設定するおすすめの時間の数が決まります。',
+        'description' => '目標に合わせて、キューに投稿時間を作成します。',
         'options' => [
             'steady' => '継続を重視',
             'presence' => '存在感を築く',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'このチャンネルで公開されたフィード投稿とリールがここに表示されます。',
         'reel' => 'リール',
         'carousel' => 'カルーセル',
+    ],
+
+    'verified' => [
+        'blue' => '認証済み',
+        'business' => '認証済み組織',
+        'government' => '政府アカウント',
     ],
 ];

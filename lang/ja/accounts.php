@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'Bluesky を接続',
         'description' => '接続するには認証情報を入力してください',
-        'email' => 'メールアドレス',
+        'email' => 'ハンドルまたはメールアドレス',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => 'アプリパスワード',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'Mastodon のインスタンスを入力してください',
         'instance_url' => 'インスタンス URL',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Mastodon のインスタンス URL を入力してください（例: mastodon.social、techhub.social）',
+        'instance_hint' => '例：mastodon.social、techhub.social',
         'submit' => 'Mastodon で続ける',
         'submitting' => '接続中...',
     ],

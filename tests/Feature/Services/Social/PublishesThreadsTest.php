@@ -9,6 +9,7 @@ use App\Exceptions\Social\MastodonPublishException;
 use App\Models\PostPlatform;
 use App\Services\Social\Concerns\PublishesThreads;
 use App\Support\Social\ThreadProgress;
+use Illuminate\Support\Collection;
 
 function threadPublisher(): object
 {
@@ -41,7 +42,7 @@ test('a thread posts root then replies in order, each replying to the previous',
 
             return ['id' => 'r', 'url' => 'https://mastodon.social/@a/r'];
         },
-        function (string $text, array $parent, array $root) use (&$calls): array {
+        function (string $text, Collection $media, array $parent, array $root) use (&$calls): array {
             $calls[] = "{$text}>{$parent['id']}>{$root['id']}";
 
             return ['id' => "id-{$text}"];
@@ -97,7 +98,7 @@ test('a changed reply is posted again from the first change', function () {
     ]);
     $replies = [];
 
-    $result = threadPublisher()->run($this->postPlatform->fresh(), fn (): array => ['id' => 'duplicate'], function (string $text, array $parent) use (&$replies): array {
+    $result = threadPublisher()->run($this->postPlatform->fresh(), fn (): array => ['id' => 'duplicate'], function (string $text, Collection $media, array $parent) use (&$replies): array {
         $replies[] = "{$text}>{$parent['id']}";
 
         return ['id' => "id-{$text}"];
@@ -118,7 +119,7 @@ test('a stored root is trusted on resume even when its text no longer hashes the
         $calls[] = 'root';
 
         return ['id' => 'duplicate'];
-    }, function (string $text, array $parent) use (&$calls): array {
+    }, function (string $text, Collection $media, array $parent) use (&$calls): array {
         $calls[] = "{$text}>{$parent['id']}";
 
         return ['id' => "id-{$text}"];
@@ -138,9 +139,27 @@ test('a post without replies writes no checkpoint', function () {
 });
 
 test('replies on a network without threads are never posted', function () {
-    $this->postPlatform->update(['platform' => Platform::X, 'content_type' => ContentType::XPost]);
+    $this->postPlatform->update(['platform' => Platform::Threads, 'content_type' => ContentType::ThreadsPost]);
 
     $result = threadPublisher()->run($this->postPlatform->fresh(), fn (): array => ['id' => 'r'], fn (): array => ['id' => 'never']);
 
     expect($result)->toBe(['id' => 'r', 'url' => null]);
+});
+
+test('each reply gets only its own media, and a changed reply media is posted again', function () {
+    $image = ['id' => 'media-1', 'path' => 'medias/one.jpg', 'url' => 'https://cdn.test/one.jpg', 'type' => 'image', 'mime_type' => 'image/jpeg'];
+    $this->postPlatform->update(['meta' => ['thread_replies' => [['text' => 'two', 'media' => [$image]], ['text' => 'three', 'media' => []]]]]);
+    ThreadProgress::remember($this->postPlatform, [
+        ['hash' => ThreadProgress::hash('root'), 'id' => 'r'],
+        ['hash' => ThreadProgress::hash('two'), 'id' => 'old'],
+    ]);
+    $calls = [];
+
+    threadPublisher()->run($this->postPlatform->fresh(), fn (): array => ['id' => 'duplicate'], function (string $text, Collection $media, array $parent) use (&$calls): array {
+        $calls[] = [$text, $media->pluck('id')->all(), $parent['id']];
+
+        return ['id' => "id-{$text}"];
+    });
+
+    expect($calls)->toBe([['two', ['media-1'], 'r'], ['three', [], 'id-two']]);
 });

@@ -8,6 +8,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -172,9 +173,7 @@ defineExpose({ open, close });
                     </label>
                 </div>
 
-                <div
-                    class="flex items-center justify-end gap-2 border-t border-border px-8 py-4"
-                >
+                <DialogFooter class="mx-2 mb-2">
                     <Button
                         type="button"
                         variant="ghost"
@@ -191,7 +190,7 @@ defineExpose({ open, close });
                     >
                         {{ $t('channels.disconnect_modal.title') }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>

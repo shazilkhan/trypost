@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Quantas vezes por semana você quer postar?',
-        'description' => 'Sua meta de postagem define quantos horários recomendados configuramos por semana.',
+        'description' => 'Vamos criar os horários da sua fila de acordo com a meta.',
         'options' => [
             'steady' => 'Manter constância',
             'presence' => 'Criar presença',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Posts do feed e reels publicados neste canal vão aparecer aqui.',
         'reel' => 'Reel',
         'carousel' => 'Carrossel',
+    ],
+
+    'verified' => [
+        'blue' => 'Verificado',
+        'business' => 'Organização verificada',
+        'government' => 'Conta governamental',
     ],
 ];

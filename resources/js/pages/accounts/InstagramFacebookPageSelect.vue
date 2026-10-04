@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { IconBrandInstagram, IconExternalLink } from '@tabler/icons-vue';
 
+import ConnectPopupHeader from '@/components/channels/ConnectPopupHeader.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import PopupLayout from '@/layouts/PopupLayout.vue';
@@ -48,13 +49,11 @@ const igUrl = (username: string): string => `https://www.instagram.com/${usernam
 <template>
     <PopupLayout :title="$t('accounts.instagram_facebook.title')">
         <div class="flex flex-col gap-6">
-            <div class="flex items-center gap-3">
-                <img src="/images/accounts/instagram.png" alt="Instagram" class="h-10 w-10" />
-                <div>
-                    <h1 class="font-heading text-xl font-medium tracking-tight">{{ $t('accounts.instagram_facebook.title') }}</h1>
-                    <p class="text-sm text-muted-foreground">{{ $t('accounts.instagram_facebook.description') }}</p>
-                </div>
-            </div>
+            <ConnectPopupHeader
+                platform="instagram"
+                :title="$t('accounts.instagram_facebook.title')"
+                :description="$t('accounts.instagram_facebook.description')"
+            />
 
             <div v-if="pages.length === 0" class="py-12 text-center">
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">

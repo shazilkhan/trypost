@@ -113,7 +113,7 @@ test('redirect sends no metadata for an account whose owner left every field emp
 
     $account = Account::factory()->create();
     Workspace::factory()->create(['account_id' => $account->id]);
-    User::factory()->create(['account_id' => $account->id]);
+    User::factory()->create(['account_id' => $account->id, 'referral_source' => null]);
     $account->refresh();
 
     $cancelUrl = route('app.welcome');
@@ -149,6 +149,7 @@ test('redirect cuts an oversized click id to the stripe metadata limit', functio
     User::factory()->create([
         'account_id' => $account->id,
         'fbclid' => str_repeat('a', 900),
+        'referral_source' => null,
     ]);
     $account->refresh();
 
@@ -183,7 +184,7 @@ test('redirect applies the plan first-month coupon on a monthly price', function
 
     $account = Account::factory()->create();
     Workspace::factory()->create(['account_id' => $account->id]);
-    User::factory()->create(['account_id' => $account->id]);
+    User::factory()->create(['account_id' => $account->id, 'referral_source' => null]);
     $account->refresh();
 
     $builder = Mockery::mock(SubscriptionBuilder::class);
@@ -235,7 +236,7 @@ test('redirect skips the first-month coupon on a yearly price', function () {
 
     $account = Account::factory()->create();
     Workspace::factory()->create(['account_id' => $account->id]);
-    User::factory()->create(['account_id' => $account->id]);
+    User::factory()->create(['account_id' => $account->id, 'referral_source' => null]);
     $account->refresh();
 
     $builder = Mockery::mock(SubscriptionBuilder::class);
@@ -273,7 +274,7 @@ test('redirect clears a leftover plan_id before opening checkout', function () {
     $workspaces = Plan::where('slug', Slug::Workspaces)->firstOrFail();
     $account = Account::factory()->create(['plan_id' => $workspaces->id]);
     Workspace::factory()->create(['account_id' => $account->id]);
-    User::factory()->create(['account_id' => $account->id]);
+    User::factory()->create(['account_id' => $account->id, 'referral_source' => null]);
     $account->refresh();
 
     $builder = Mockery::mock(SubscriptionBuilder::class);

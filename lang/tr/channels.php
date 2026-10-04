@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Haftada kaç kez paylaşım yapmak istersin?',
-        'description' => 'Paylaşım hedefin, her hafta kaç önerilen saat ayarlayacağımızı belirler.',
+        'description' => 'Hedefine göre kuyruğuna paylaşım saatleri ekleyeceğiz.',
         'options' => [
             'steady' => 'Düzenli kal',
             'presence' => 'Varlık oluştur',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Bu kanalda yayınlanan akış gönderileri ve reels burada görünecek.',
         'reel' => 'Reels',
         'carousel' => 'Karusel',
+    ],
+
+    'verified' => [
+        'blue' => 'Doğrulanmış',
+        'business' => 'Doğrulanmış kuruluş',
+        'government' => 'Devlet hesabı',
     ],
 ];

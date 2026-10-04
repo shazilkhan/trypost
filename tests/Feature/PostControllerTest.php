@@ -945,7 +945,7 @@ test('publish now updates scheduled_at to current time', function () {
         ],
     ]);
 
-    $response->assertRedirect();
+    $response->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 
     $post->refresh();
     expect($post->scheduled_at->toDateTimeString())->toBe(now()->toDateTimeString());
@@ -1134,6 +1134,26 @@ test('destroy post requires authentication', function () {
 
     $response->assertRedirect(route('login'));
 });
+
+test('destroy keeps a post that already went out or failed', function (PostStatus $status) {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => $status,
+    ]);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => 'sent']))
+        ->delete(route('app.posts.destroy', $post))
+        ->assertRedirect(route('app.posts.index', ['tab' => 'sent']));
+
+    expect(Post::find($post->id))->not->toBeNull();
+})->with([
+    'publishing' => [PostStatus::Publishing],
+    'published' => [PostStatus::Published],
+    'partially published' => [PostStatus::PartiallyPublished],
+    'failed' => [PostStatus::Failed],
+]);
 
 test('destroy post deletes the post and redirects to posts index', function () {
     $post = Post::factory()->create([
@@ -1661,7 +1681,7 @@ test('the post details deep link does not expose a post from another workspace',
         ->assertInertia(fn ($page) => $page->has('posts.data', 0));
 });
 
-test('update post redirects to the post details after publishing', function () {
+test('update post goes back to the queue after publishing without opening the post details', function () {
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
         'user_id' => $this->user->id,
@@ -1682,7 +1702,7 @@ test('update post redirects to the post details after publishing', function () {
         ],
     ]);
 
-    $response->assertRedirect(route('app.posts.index', ['post' => $post->id]));
+    $response->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 });
 
 test('update post rejects scheduling youtube short with image', function () {

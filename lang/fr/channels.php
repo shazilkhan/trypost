@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Combien de fois par semaine souhaitez-vous publier ?',
-        'description' => 'Votre objectif de publication détermine le nombre d\'horaires recommandés que nous configurons chaque semaine.',
+        'description' => 'Nous ajouterons des créneaux à votre file selon votre objectif.',
         'options' => [
             'steady' => 'Rester régulier',
             'presence' => 'Bâtir une présence',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Les publications du fil et les reels publiés sur ce canal apparaîtront ici.',
         'reel' => 'Reel',
         'carousel' => 'Carrousel',
+    ],
+
+    'verified' => [
+        'blue' => 'Vérifié',
+        'business' => 'Organisation vérifiée',
+        'government' => 'Compte gouvernemental',
     ],
 ];

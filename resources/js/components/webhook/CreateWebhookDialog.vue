@@ -7,6 +7,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { store } from '@/routes/app/webhooks';
@@ -75,9 +76,7 @@ const submit = (): void => {
                     />
                 </div>
 
-                <div
-                    class="flex items-center justify-end gap-2 border-t border-border px-8 py-4"
-                >
+                <DialogFooter class="mx-2 mb-2">
                     <Button
                         variant="ghost"
                         type="button"
@@ -94,7 +93,7 @@ const submit = (): void => {
                     >
                         {{ $t('webhooks.create.submit') }}
                     </Button>
-                </div>
+                </DialogFooter>
             </form>
         </DialogContent>
     </Dialog>

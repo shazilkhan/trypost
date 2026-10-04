@@ -3,6 +3,7 @@ import { Head, router, usePage, usePoll } from '@inertiajs/vue3';
 import { IconLoader2 } from '@tabler/icons-vue';
 import { computed, onMounted, ref, watch } from 'vue';
 
+import AppLogo from '@/components/AppLogo.vue';
 import { calendar } from '@/routes/app';
 import type { SharedData } from '@/types';
 
@@ -60,11 +61,7 @@ onMounted(() => {
             class="flex w-full max-w-[360px] flex-col items-center gap-6 text-center"
             data-testid="billing-processing"
         >
-            <img
-                src="/images/trypost/icon.png"
-                alt="TryPost"
-                class="motion-auth-logo h-11 w-auto"
-            />
+            <AppLogo variant="mark" class="motion-auth-logo text-[38px]" />
             <div class="flex flex-col gap-4">
                 <h1
                     class="font-heading text-xl leading-tight font-medium text-balance text-foreground"

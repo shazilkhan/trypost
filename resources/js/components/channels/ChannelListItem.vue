@@ -62,6 +62,7 @@ const typeKey = computed(() => accountTypeKey(props.channel));
             :account-id="channel.id"
             :platform="channel.platform"
             :src="channel.avatar_url"
+            :verified="channel.verified_badge"
             :name="channel.display_name || channel.username"
             :size="40"
             ring="card"

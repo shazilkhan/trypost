@@ -6,6 +6,7 @@ import type { MediaItem } from '@/types/media';
 import { Platform } from '@/types/platform';
 import type { QueuePositionValue, ScheduleModeValue } from '@/types/post';
 import type { PostingSchedule } from '@/types/posting-schedule';
+import type { VerifiedBadge } from '@/types/social-account';
 import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 export interface ComposerAccount {
@@ -16,6 +17,7 @@ export interface ComposerAccount {
     display_label: string;
     handle_label: string;
     avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
     status?: SocialAccountStatusValue | null;
     has_posting_schedule?: boolean;
     timezone?: string;

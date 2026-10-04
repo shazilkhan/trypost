@@ -2,20 +2,16 @@
 import { Head, useForm } from '@inertiajs/vue3';
 
 import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import WelcomeChoicePill from '@/components/welcome/WelcomeChoicePill.vue';
+import WelcomeChoiceCard from '@/components/welcome/WelcomeChoiceCard.vue';
+import WelcomeContinueButton from '@/components/welcome/WelcomeContinueButton.vue';
 import WelcomeLayout from '@/layouts/WelcomeLayout.vue';
-import { goalMeta, welcomeOptionMeta } from '@/lib/welcomeOptions';
+import { goalArt, welcomeOptionArt } from '@/lib/welcomeOptions';
 import { store } from '@/routes/app/welcome/goals';
-import type { WelcomeSummary } from '@/types';
 
 const props = defineProps<{
     goals: string[];
     selected?: string[] | null;
-    welcome: WelcomeSummary;
 }>();
-
-const EXCLUSIVE_GOAL = 'just_exploring';
 
 // Drop removed/legacy goal values so mid-welcome users aren't soft-locked
 // with selections that fail Rule::enum(Goal::class) on submit.
@@ -26,19 +22,9 @@ const form = useForm<{ goals: string[] }>({
 const isSelected = (value: string): boolean => form.goals.includes(value);
 
 const toggle = (value: string): void => {
-    if (value === EXCLUSIVE_GOAL) {
-        form.goals = isSelected(value) ? [] : [value];
-
-        return;
-    }
-
-    const withoutExclusive = form.goals.filter(
-        (goal) => goal !== EXCLUSIVE_GOAL,
-    );
-
     form.goals = isSelected(value)
-        ? withoutExclusive.filter((goal) => goal !== value)
-        : [...withoutExclusive, value];
+        ? form.goals.filter((goal) => goal !== value)
+        : [...form.goals, value];
 };
 
 const submit = (): void => {
@@ -55,15 +41,15 @@ const submit = (): void => {
 
     <WelcomeLayout
         :title="$t('welcome.goals_title')"
-        :description="$t('welcome.goals_description')"
         step="goals"
     >
-        <div class="flex flex-wrap gap-2">
-            <WelcomeChoicePill
+        <div class="grid gap-2 sm:grid-cols-2">
+            <WelcomeChoiceCard
+                multiple
                 v-for="goal in goals"
                 :key="goal"
                 :label="$t(`welcome.goals.${goal}`)"
-                :meta="welcomeOptionMeta(goalMeta, goal)"
+                :art="welcomeOptionArt(goalArt, goal)"
                 :selected="isSelected(goal)"
                 :testid="`welcome-goal-${goal}`"
                 @select="toggle(goal)"
@@ -71,21 +57,12 @@ const submit = (): void => {
         </div>
 
         <template #actions>
-            <div
-                class="flex flex-col gap-2 sm:flex-row-reverse sm:items-center sm:gap-4"
-            >
-                <Button
-                    type="button"
-                    size="lg"
-                    class="w-full sm:w-auto sm:min-w-48"
-                    :disabled="form.goals.length === 0 || form.processing"
-                    data-testid="welcome-goals-continue"
-                    @click="submit"
-                >
-                    {{ $t('welcome.continue') }}
-                </Button>
-                <InputError :message="form.errors.goals" />
-            </div>
+            <WelcomeContinueButton
+                :disabled="form.goals.length === 0 || form.processing"
+                testid="welcome-goals-continue"
+                @continue="submit"
+            />
+            <InputError :message="form.errors.goals" />
         </template>
     </WelcomeLayout>
 </template>

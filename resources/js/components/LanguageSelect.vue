@@ -23,6 +23,7 @@ const props = defineProps<{
     languages: Language[];
     testid?: string;
     label?: string;
+    triggerClass?: string;
 }>();
 
 const model = defineModel<string>({ required: true });
@@ -83,7 +84,9 @@ const choose = (code: string): void => {
                 role="combobox"
                 :aria-expanded="open"
                 :aria-label="label"
-                class="max-w-full data-[state=open]:bg-accent"
+                :class="
+                    cn('max-w-full data-[state=open]:bg-accent', triggerClass)
+                "
                 :data-testid="`${id}-trigger`"
             >
                 <img

@@ -8,6 +8,7 @@ use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
+use App\Enums\PostPlatform\Status as PostPlatformStatus;
 use App\Enums\User\TimeFormat;
 use App\Exceptions\Social\ErrorCategory;
 use App\Models\Post;
@@ -396,7 +397,7 @@ test('a failed post is listed in sent with its failed badge and actions, not in 
 
     $page->assertPresent("@post-duplicate-{$failed->id}")
         ->assertPresent("@post-details-open-{$failed->id}")
-        ->assertPresent("@post-delete-{$failed->id}")
+        ->assertMissing("@post-delete-{$failed->id}")
         ->assertNoJavaScriptErrors();
 });
 
@@ -676,5 +677,103 @@ test('a failed post without a stored reason explains it generically', function (
 
     $page->assertSeeIn("@post-failure-reason-{$failed->id}", __('posts.publish.failure.generic'))
         ->assertMissing("@post-failure-details-{$failed->id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('a publishing post sits in its own queue group and moves to sent once it settles', function () {
+    [$user, $workspace, $channel] = publishQueueSetup();
+    $scheduled = publishQueuePost($user, $channel);
+    $publishing = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'status' => PostStatus::Publishing,
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => now()->subMinute(),
+        'content' => 'Going out right now',
+    ]);
+    PostPlatform::factory()->create([
+        'post_id' => $publishing->id,
+        'social_account_id' => $channel->id,
+        'platform' => $channel->platform,
+        'enabled' => true,
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    waitForPublishQueueTestId($page, "post-publishing-{$publishing->id}");
+
+    $page->assertVisible('@queue-publishing')
+        ->assertVisible("@post-publishing-{$publishing->id}")
+        ->assertSeeIn('@queue-publishing', 'Publishing now')
+        ->assertSeeIn("@post-publishing-{$publishing->id}", __('posts.publish.publishing_on', ['network' => $channel->platform->label()]))
+        ->assertVisible("@post-time-{$publishing->id}")
+        ->assertMissing("@post-drag-handle-{$publishing->id}")
+        ->assertMissing("@post-edit-{$publishing->id}")
+        ->assertMissing("@post-card-menu-{$publishing->id}")
+        ->assertVisible("@post-card-{$scheduled->id}")
+        ->assertSeeIn('@publish-tab-count-queue', '2');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const group = document.querySelector('[data-testid="queue-publishing"]');
+            const firstDay = document.querySelector('[data-testid^="queue-day-"]');
+            return Boolean(group.compareDocumentPosition(firstDay) & Node.DOCUMENT_POSITION_FOLLOWING);
+        })()
+    JS))->toBeTrue();
+
+    $publishing->markAsPublished();
+
+    $page->script(<<<JS
+        window.Pusher.instances[0].channels.channels['private-workspace.{$workspace->id}']
+            .emit('post.platform.status.updated', { post_id: '{$publishing->id}' });
+    JS);
+    waitForPublishQueueCondition($page, '!document.querySelector(\'[data-testid="queue-publishing"]\')');
+
+    $page->assertMissing('@queue-publishing')
+        ->assertMissing("@post-card-{$publishing->id}")
+        ->assertVisible("@post-card-{$scheduled->id}")
+        ->assertSeeIn('@publish-tab-count-queue', '1');
+
+    $page->click('@publish-tab-sent');
+    waitForPublishQueueTestId($page, "post-card-{$publishing->id}");
+
+    $page->assertVisible("@post-card-{$publishing->id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('a post publishing to several channels shows each channel settling in the status strip', function () {
+    [$user, $workspace, $channel] = publishQueueSetup();
+    $second = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $publishing = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'status' => PostStatus::Publishing,
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => now()->subMinute(),
+        'content' => 'Going out on two channels',
+    ]);
+    $done = PostPlatform::factory()->create([
+        'post_id' => $publishing->id,
+        'social_account_id' => $channel->id,
+        'platform' => $channel->platform,
+        'enabled' => true,
+        'status' => PostPlatformStatus::Published,
+    ]);
+    $running = PostPlatform::factory()->create([
+        'post_id' => $publishing->id,
+        'social_account_id' => $second->id,
+        'platform' => $second->platform,
+        'enabled' => true,
+        'status' => PostPlatformStatus::Publishing,
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'))->resize(1280, 900);
+    waitForPublishQueueTestId($page, "post-publishing-target-{$running->id}");
+
+    expect($page->script("document.querySelector('[data-testid=\"post-publishing-target-{$done->id}\"]').dataset.progress"))->toBe('done')
+        ->and($page->script("document.querySelector('[data-testid=\"post-publishing-target-{$running->id}\"]').dataset.progress"))->toBe('running');
+
+    $page->assertSeeIn("@post-publishing-{$publishing->id}", __('posts.publish.publishing_badge'))
         ->assertNoJavaScriptErrors();
 });

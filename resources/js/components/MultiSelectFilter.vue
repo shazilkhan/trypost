@@ -44,14 +44,17 @@ const props = withDefaults(
     },
 );
 
-const emit = defineEmits<{ clear: [] }>();
+const emit = defineEmits<{ clear: []; close: [] }>();
 
 const selectedIds = defineModel<string[]>({ required: true });
 const open = ref(false);
 const search = ref('');
 
 watch(open, (isOpen) => {
-    if (!isOpen) search.value = '';
+    if (!isOpen) {
+        search.value = '';
+        emit('close');
+    }
 });
 
 const visibleOptions = computed(() => {
@@ -119,6 +122,9 @@ const toggleAll = (): void => {
             :class="['max-w-[calc(100vw-2rem)] p-3', contentClass]"
             :align="align"
         >
+            <slot v-if="$slots.panel" name="panel" />
+            <template v-else>
+            <slot name="header" />
             <div class="relative">
                 <IconSearch
                     class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -197,6 +203,7 @@ const toggleAll = (): void => {
             </div>
 
             <slot name="footer" />
+            </template>
         </PopoverContent>
     </Popover>
 </template>

@@ -33,7 +33,7 @@ trait HasSocialHttpClient
         $raw = $postPlatform->post->content ?? '';
         $content = app(ContentSanitizer::class)->displayText($raw, $postPlatform->platform);
 
-        $threadViolation = ThreadReplies::violation($postPlatform->platform, $postPlatform->meta);
+        $threadViolation = ThreadReplies::violation($postPlatform->socialAccount ?? $postPlatform->platform, $postPlatform->meta);
 
         if ($threadViolation !== null) {
             throw new Exception($threadViolation[1]);

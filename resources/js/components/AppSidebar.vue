@@ -15,6 +15,7 @@ import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
 import { index as postsIndex } from '@/actions/App/Http/Controllers/App/PostController';
+import AppLogo from '@/components/AppLogo.vue';
 import InviteMemberDialog from '@/components/members/InviteMemberDialog.vue';
 import NavChannels from '@/components/NavChannels.vue';
 import NavMain from '@/components/NavMain.vue';
@@ -140,21 +141,12 @@ const mainNavItems = computed<NavItem[]>(() => [
                 class="flex h-8 items-center rounded-md px-2 outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:px-1"
                 data-testid="sidebar-logo"
             >
-                <img
-                    src="/images/trypost/logo-light.png"
-                    alt="TryPost"
-                    class="h-[19px] w-auto group-data-[collapsible=icon]:hidden dark:hidden"
-                />
-                <img
-                    src="/images/trypost/logo-dark.png"
-                    alt="TryPost"
-                    class="hidden h-[19px] w-auto dark:block dark:group-data-[collapsible=icon]:hidden"
-                />
-                <img
-                    src="/images/trypost/icon.png"
-                    alt="TryPost"
-                    class="hidden size-6 group-data-[collapsible=icon]:block"
-                />
+                <span class="inline-flex group-data-[collapsible=icon]:hidden">
+                    <AppLogo class="text-[20px]" />
+                </span>
+                <span class="hidden group-data-[collapsible=icon]:inline-flex">
+                    <AppLogo variant="mark" class="text-[21px]" />
+                </span>
             </Link>
         </SidebarHeader>
 

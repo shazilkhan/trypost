@@ -487,6 +487,43 @@ test('the main sidebar navigation is ordered create, publish, insights, repurpos
     JS))->toBe($paths);
 });
 
+test('the sidebar logo is the vector mark with the wordmark, and only the mark when collapsed', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'))->resize(1280, 900);
+    waitForSidebarTestId($page, 'sidebar-logo');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const logo = document.querySelector('[data-testid="sidebar-logo"]');
+            const visible = Array.from(logo.querySelectorAll('[data-testid="app-logo"]')).filter((element) => element.getBoundingClientRect().width > 0);
+            return {
+                images: logo.querySelectorAll('img').length,
+                visible: visible.length,
+                text: visible[0]?.textContent.trim(),
+                font: getComputedStyle(visible[0]).fontFamily,
+                mark: visible[0]?.querySelector('svg') !== null,
+            };
+        })()
+    JS))->toMatchArray([
+        'images' => 0,
+        'visible' => 1,
+        'text' => 'trypost.it',
+        'mark' => true,
+    ])
+        ->and($page->script("getComputedStyle(document.querySelector('[data-testid=\"sidebar-logo\"] [data-testid=\"app-logo\"]')).fontFamily"))->toContain('Roboto Slab');
+
+    $page->assertNoJavaScriptErrors();
+});
+
 test('the sidebar menu opens right to left for a right-to-left language', function () {
     $user = User::factory()->create(['locale' => Locale::Arabic]);
     $workspace = Workspace::factory()->create([

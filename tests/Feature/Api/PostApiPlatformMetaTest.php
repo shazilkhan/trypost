@@ -1273,7 +1273,7 @@ it('rejects a numeric link preview', function (mixed $value) {
     expect(PostPlatform::where('social_account_id', $facebook->id)->exists())->toBeFalse();
 })->with([0, '0', 1, '1']);
 
-it('rejects scheduling a threads ghost post whose text carries a link', function () {
+it('schedules a threads ghost post whose text carries a link', function () {
     $threads = SocialAccount::factory()->threads()->create(['workspace_id' => $this->workspace->id]);
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'content' => 'Boo', 'status' => PostStatus::Draft,
@@ -1285,14 +1285,9 @@ it('rejects scheduling a threads ghost post whose text carries a link', function
         'scheduled_at' => now()->addHour()->toIso8601String(),
         'content' => 'Read https://example.com/article',
         'platforms' => [['id' => $platform->id, 'content_type' => ContentType::ThreadsGhostPost->value]],
-    ])->assertUnprocessable()->assertJsonValidationErrors(['platforms.0.content_type' => __('posts.form.warnings.text_only')]);
-
-    $this->withHeaders($this->headers)->putJson(route('api.posts.update', $post), [
-        'status' => PostStatus::Scheduled->value,
-        'scheduled_at' => now()->addHour()->toIso8601String(),
-        'content' => 'Just text',
-        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::ThreadsGhostPost->value]],
     ])->assertOk();
+
+    expect($platform->fresh()->content_type)->toBe(ContentType::ThreadsGhostPost);
 });
 
 it('judges a threads topic tag without its leading hash and stores it stripped', function () {
@@ -1319,7 +1314,7 @@ it('persists thread replies and rejects them where the network cannot chain when
         'content' => 'Root',
         'platforms' => [['social_account_id' => $mastodon->id, 'content_type' => ContentType::MastodonPost->value, 'meta' => ['thread_replies' => ['Two', 'Three']]]],
     ])->assertCreated();
-    expect(PostPlatform::where('social_account_id', $mastodon->id)->sole()->meta)->toEqual(['thread_replies' => ['Two', 'Three']]);
+    expect(PostPlatform::where('social_account_id', $mastodon->id)->sole()->meta)->toEqual(['thread_replies' => [['text' => 'Two', 'media' => []], ['text' => 'Three', 'media' => []]]]);
 
     $x = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id]);
     $this->withHeaders($this->headers)->postJson(route('api.posts.store'), [
@@ -1327,7 +1322,15 @@ it('persists thread replies and rejects them where the network cannot chain when
         'status' => PostStatus::Scheduled->value,
         'scheduled_at' => now()->addDay()->toIso8601String(),
         'platforms' => [['social_account_id' => $x->id, 'content_type' => ContentType::XPost->value, 'meta' => ['thread_replies' => ['Two']]]],
-    ])->assertUnprocessable()->assertJsonValidationErrors(['destinations.0.meta.thread_replies' => __('posts.form.thread.unsupported')]);
+    ])->assertCreated();
+    expect(PostPlatform::where('social_account_id', $x->id)->sole()->meta)->toEqual(['thread_replies' => [['text' => 'Two', 'media' => []]]]);
+
+    $this->withHeaders($this->headers)->postJson(route('api.posts.store'), [
+        'content' => 'Root',
+        'status' => PostStatus::Scheduled->value,
+        'scheduled_at' => now()->addDay()->toIso8601String(),
+        'platforms' => [['social_account_id' => $x->id, 'content_type' => ContentType::XPost->value, 'meta' => ['thread_replies' => [str_repeat('a', 281)]]]],
+    ])->assertUnprocessable()->assertJsonValidationErrors(['destinations.0.meta.thread_replies.0']);
 
     $threads = SocialAccount::factory()->threads()->create(['workspace_id' => $this->workspace->id]);
     $post = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'content' => 'Root', 'status' => PostStatus::Draft]);
@@ -1337,6 +1340,24 @@ it('persists thread replies and rejects them where the network cannot chain when
         'status' => PostStatus::Scheduled->value,
         'scheduled_at' => now()->addHour()->toIso8601String(),
     ])->assertUnprocessable();
+});
+
+it('stores each thread reply media with its reply, from an upload token', function () {
+    $x = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id]);
+    $upload = Media::factory()->stored()->temporaryUpload($this->workspace)->create();
+
+    $this->withHeaders($this->headers)->postJson(route('api.posts.store'), [
+        'content' => 'Root',
+        'platforms' => [['social_account_id' => $x->id, 'content_type' => ContentType::XPost->value, 'meta' => ['thread_replies' => [
+            ['text' => 'Two', 'media' => [['upload_token' => $upload->upload_token]]],
+        ]]]],
+    ])->assertCreated();
+
+    $platform = PostPlatform::where('social_account_id', $x->id)->sole();
+
+    expect($platform->meta['thread_replies'][0]['media'][0]['id'])->toBe($upload->id)
+        ->and($upload->fresh()->post_id)->toBe($platform->post_id)
+        ->and($platform->post->media)->toBe([]);
 });
 
 it('rejects a bluesky thread reply over the limit when scheduling', function () {

@@ -10,8 +10,12 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import VerifiedBadge from '@/components/VerifiedBadge.vue';
 import { cn } from '@/lib/utils';
-import { isConnectionLost } from '@/types/social-account';
+import {
+    isConnectionLost,
+    type VerifiedBadge as VerifiedBadgeType,
+} from '@/types/social-account';
 import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 type ChannelAvatarSize = 20 | 24 | 28 | 32 | 40 | 44 | 64;
@@ -25,6 +29,7 @@ interface SizeSpec {
     offset: string;
     reserve: string;
     dot: string;
+    verified: string;
 }
 
 /**
@@ -40,6 +45,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-1 -bottom-0.5',
         reserve: 'me-0.5',
         dot: '-top-0.5 -start-0.5 size-1.5',
+        verified: '-top-1 -end-1 size-2.5',
     },
     24: {
         avatar: 'size-6 rounded-full',
@@ -48,6 +54,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-1 -bottom-0.5',
         reserve: 'me-0.5',
         dot: '-top-0.5 -start-0.5 size-2',
+        verified: '-top-1 -end-1 size-3',
     },
     28: {
         avatar: 'size-7 rounded-md',
@@ -56,6 +63,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-1.5 -bottom-1',
         reserve: 'me-1',
         dot: '-top-0.5 -start-0.5 size-2',
+        verified: '-top-1 -end-1 size-3.5',
     },
     32: {
         avatar: 'size-8 rounded-lg',
@@ -64,6 +72,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-1.5 -bottom-1',
         reserve: 'me-1',
         dot: '-top-0.5 -start-0.5 size-2.5',
+        verified: '-top-1 -end-1 size-4',
     },
     40: {
         avatar: 'size-10 rounded-xl',
@@ -72,6 +81,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-2 -bottom-1',
         reserve: 'me-1.5',
         dot: '-top-1 -start-1 size-2.5',
+        verified: '-top-1 -end-1 size-4.5',
     },
     44: {
         avatar: 'size-11 rounded-xl',
@@ -80,6 +90,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-2 -bottom-1',
         reserve: 'me-1.5',
         dot: '-top-1 -start-1 size-3',
+        verified: '-top-1 -end-1 size-5',
     },
     64: {
         avatar: 'size-16 rounded-2xl',
@@ -88,6 +99,7 @@ const SIZES: Record<ChannelAvatarSize, SizeSpec> = {
         offset: '-end-2.5 -bottom-1.5',
         reserve: 'me-2',
         dot: '-top-1 -start-1 size-3.5',
+        verified: '-top-1.5 -end-1.5 size-6',
     },
 };
 
@@ -103,6 +115,7 @@ const props = withDefaults(
         reserveSpace?: boolean;
         badge?: boolean;
         avatarClass?: HTMLAttributes['class'];
+        verified?: VerifiedBadgeType | null;
     }>(),
     {
         src: null,
@@ -113,6 +126,7 @@ const props = withDefaults(
         reserveSpace: true,
         badge: true,
         avatarClass: undefined,
+        verified: null,
     },
 );
 
@@ -148,6 +162,16 @@ const disconnected = computed(() => isConnectionLost({ status: props.status }));
             :ring="ring"
             :title="null"
             :class="['absolute', spec.offset]"
+        />
+        <VerifiedBadge
+            v-if="verified"
+            :badge="verified"
+            :class="['absolute z-10 rounded-full bg-white', spec.verified]"
+            :data-testid="
+                accountId
+                    ? `channel-avatar-verified-${accountId}`
+                    : 'channel-avatar-verified'
+            "
         />
         <TooltipProvider v-if="disconnected" :delay-duration="200">
             <Tooltip>

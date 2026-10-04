@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'Підключити Bluesky',
         'description' => 'Введіть облікові дані для підключення',
-        'email' => 'Email',
+        'email' => 'Імʼя користувача або email',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => 'Пароль додатка',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'Введіть інстанс Mastodon',
         'instance_url' => 'URL інстансу',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Введіть URL інстансу Mastodon (напр. mastodon.social, techhub.social)',
+        'instance_hint' => 'Наприклад: mastodon.social або techhub.social.',
         'submit' => 'Продовжити з Mastodon',
         'submitting' => 'Підключення...',
     ],

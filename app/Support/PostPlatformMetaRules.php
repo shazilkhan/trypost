@@ -14,6 +14,7 @@ use App\Enums\YouTube\License;
 use App\Enums\YouTube\PrivacyStatus;
 use App\Models\Post;
 use App\Models\PostPlatform;
+use App\Models\SocialAccount;
 use App\Rules\ValidYouTubeDescription;
 use Closure;
 use Illuminate\Support\Str;
@@ -47,9 +48,22 @@ class PostPlatformMetaRules
             // Mastodon — content warning, counted against the post limit
             'platforms.*.meta.spoiler_text' => ['sometimes', 'nullable', 'string', 'max:500'],
 
-            // Threads of posts (Bluesky, Mastodon) — per-network checks in ThreadReplies
+            // Threads of posts (Bluesky, Mastodon, X) — per-network checks in ThreadReplies
             'platforms.*.meta.thread_replies' => ['sometimes', 'nullable', 'array', 'max:'.ThreadReplies::MAX_REPLIES],
-            'platforms.*.meta.thread_replies.*' => ['nullable', 'string', 'max:'.Post::CONTENT_MAX_LENGTH],
+            'platforms.*.meta.thread_replies.*' => ['nullable', function (string $attribute, mixed $value, Closure $fail): void {
+                if (! is_string($value) && ! is_array($value)) {
+                    $fail(__('validation.array', ['attribute' => $attribute]));
+                }
+
+                if (is_string($value) && mb_strlen($value) > Post::CONTENT_MAX_LENGTH) {
+                    $fail(__('validation.max.string', ['attribute' => $attribute, 'max' => Post::CONTENT_MAX_LENGTH]));
+                }
+            }],
+            'platforms.*.meta.thread_replies.*.text' => ['sometimes', 'nullable', 'string', 'max:'.Post::CONTENT_MAX_LENGTH],
+            'platforms.*.meta.thread_replies.*.media' => ['sometimes', 'nullable', 'array'],
+            'platforms.*.meta.thread_replies.*.media.*' => ['array'],
+            'platforms.*.meta.thread_replies.*.media.*.id' => ['sometimes', 'nullable', 'string'],
+            'platforms.*.meta.thread_replies.*.media.*.upload_token' => ['sometimes', 'nullable', 'string'],
 
             // LinkedIn — title shown on a document (PDF carousel) post
             'platforms.*.meta.document_title' => ['sometimes', 'nullable', 'string', 'max:300'],
@@ -202,9 +216,10 @@ class PostPlatformMetaRules
             'Discord: channel_id (required to publish — call ListDiscordChannelsTool first), mentions ([{token,label}]), embeds ([{title,description,url,image,color}]).',
             'YouTube Shorts: title (≤100, no < or >; omitted, it is derived from the first non-empty line of the content with < and > removed, cut to 100 characters), description (plain text, at most 5000 bytes; omit or null to use the content), category_id (YouTube category id: '.collect(Category::cases())->map(fn (Category $category): string => "{$category->value}=".__($category->labelKey(), [], 'en'))->implode(', ').'; default '.Category::DEFAULT->value.'), privacy_status (public|unlisted|private, default public), license (youtube|creativeCommon), notify_subscribers (default true), embeddable (default true), made_for_kids (default false), is_ai_generated (discloses altered or synthetic content).',
             'Instagram: is_ai_generated (feed, reels, carousels), share_to_feed (reels, default true).',
-            'Threads: topic_tag (1-50 characters after a leading # is dropped, no . or &). Use content_type threads_ghost_post for a text-only post archived after 24 hours (no media, no links, no topic).',
+            'X: is_ai_generated (sent as made_with_ai, discloses AI-generated media on the post).',
+            'Threads: topic_tag (1-50 characters after a leading # is dropped, no . or &). Use content_type threads_ghost_post for a text-only post archived after 24 hours (no media, no topic).',
             'Facebook, Bluesky, LinkedIn: link_preview (default true; false publishes a text post with a link without its preview card).',
-            'Threads of posts: thread_replies (list of up to '.ThreadReplies::MAX_REPLIES.' plain-text replies published under the post as a thread) on Bluesky and Mastodon only; each reply must fit the network limit (Bluesky 300, Mastodon 500 including the content warning, which every reply repeats).',
+            'Threads of posts: thread_replies (list of up to '.ThreadReplies::MAX_REPLIES.' replies published under the post as a thread, each {text, media} where media is a list of up to 4 media items ({id} or {upload_token}) for that reply alone; a plain string is a text-only reply) on Bluesky, Mastodon and X only; each reply needs text or media, its media follows the rules of a post on that network, and its text must fit the account limit (Bluesky 300, Mastodon 500 including the content warning, which every reply repeats, X 280 or 25000 for accounts with long posts).',
         ]);
     }
 
@@ -216,7 +231,7 @@ class PostPlatformMetaRules
      * (by social account) and update (by post platform).
      *
      * @param  array<int, mixed>  $platforms
-     * @param  callable(mixed, int): ?Platform  $resolvePlatform
+     * @param  callable(mixed, int): (Platform|SocialAccount|null)  $resolvePlatform
      */
     public static function addRequiredOnPublishErrors(Validator $validator, array $platforms, callable $resolvePlatform): void
     {
@@ -246,7 +261,7 @@ class PostPlatformMetaRules
      */
     public static function assertStoredPostPublishable(Post $post, array $platformIds = []): void
     {
-        $platforms = $post->postPlatforms()->enabled()->get()->values();
+        $platforms = $post->postPlatforms()->enabled()->with('socialAccount')->get()->values();
 
         if ($platformIds !== []) {
             $platformsById = $platforms->keyBy('id');
@@ -258,7 +273,7 @@ class PostPlatformMetaRules
         $errors = [];
 
         foreach ($platforms as $index => $postPlatform) {
-            $violation = self::requiredMetaViolation($postPlatform->platform, $postPlatform->meta);
+            $violation = self::requiredMetaViolation($postPlatform->socialAccount ?? $postPlatform->platform, $postPlatform->meta);
 
             if ($violation !== null) {
                 [$field, $message] = $violation;
@@ -273,7 +288,8 @@ class PostPlatformMetaRules
 
     /**
      * Meta keys stored as given by any entry point, normalized to the shape
-     * the composer and publishers read: the YouTube category id is a string.
+     * the composer and publishers read: the YouTube category id is a string and
+     * every thread reply is `{text, media}`.
      *
      * @param  array<string, mixed>  $meta
      * @return array<string, mixed>
@@ -286,6 +302,10 @@ class PostPlatformMetaRules
 
         if (is_string(data_get($meta, 'topic_tag'))) {
             $meta['topic_tag'] = self::threadsTopicTag($meta['topic_tag']);
+        }
+
+        if (is_array(data_get($meta, 'thread_replies'))) {
+            $meta['thread_replies'] = ThreadReplies::of($meta);
         }
 
         return $meta;
@@ -326,9 +346,10 @@ class PostPlatformMetaRules
      *
      * @return array{0: string, 1: string}|null [field, message]
      */
-    public static function requiredMetaViolation(?Platform $platform, mixed $meta): ?array
+    public static function requiredMetaViolation(Platform|SocialAccount|null $target, mixed $meta): ?array
     {
-        $threadViolation = ThreadReplies::violation($platform, $meta);
+        $platform = $target instanceof SocialAccount ? $target->platform : $target;
+        $threadViolation = ThreadReplies::violation($target, $meta);
 
         if ($threadViolation !== null) {
             return $threadViolation;

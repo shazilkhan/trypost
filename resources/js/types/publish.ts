@@ -7,6 +7,7 @@ import type {
     QueuePositionValue,
     ScheduleModeValue,
 } from '@/types/post';
+import type { VerifiedBadge } from '@/types/social-account';
 import type { SocialAccountStatusValue } from '@/types/social-account-status';
 
 export type PublishTab = 'queue' | 'approvals' | 'drafts' | 'sent';
@@ -22,6 +23,7 @@ export interface PublishSocialAccount {
     username: string;
     display_label: string;
     avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
     handle_label?: string;
     has_posting_schedule?: boolean;
     timezone?: string;
@@ -112,6 +114,7 @@ export interface QueuePostPosition {
 export interface PublishQueue {
     days: QueueDay[];
     pending: PostCard[];
+    publishing: PostCard[];
     queueDays: number;
     maxQueueDays: number;
 }

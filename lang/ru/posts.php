@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} Проблем для исправления: :count|[0,*] Проблем для исправления: :count',
         'create_another' => 'Создать ещё',
         'connect_to_post' => 'Подключите канал для публикации',
+        'media_not_supported' => 'Этот тип поста не поддерживает медиа.',
         'request_approval' => 'Сохранить и запросить одобрение',
         'templates' => 'Шаблоны',
         'expand' => 'Развернуть окно',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Выберите время',
-            'more_actions' => 'Другие действия публикации',
+            'more_actions' => 'Другие варианты',
             'done' => 'Готово',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Пост успешно удалён!',
         'duplicated' => 'Пост продублирован как черновик.',
         'cannot_edit_finalized' => 'Этот пост уже обработан и не может быть опубликован повторно. Продублируйте его, чтобы попробовать снова.',
-        'cannot_delete_published' => 'Опубликованные посты нельзя удалить.',
+        'cannot_delete_published' => 'Отправленные посты нельзя удалить.',
         'connect_first' => 'Подключите хотя бы одну социальную сеть перед созданием поста.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Завтра',
         'yesterday' => 'Вчера',
         'unscheduled' => 'Без расписания',
+        'publishing_now' => 'Публикуется сейчас',
+        'publishing_badge' => 'Публикация…',
+        'publishing_on' => 'Публикация в :network…',
         'published_via' => 'Опубликовано через',
         'published_directly_from' => 'Опубликовано напрямую из :network',
         'slot_aria' => 'Добавить пост в :channel в :network на :time',

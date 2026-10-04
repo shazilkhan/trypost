@@ -21,6 +21,7 @@ export interface ConnectedAccount {
     display_label: string;
     handle_label: string;
     avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
     profile_url?: string | null;
     status: SocialAccountStatusValue | null;
 }
@@ -35,3 +36,6 @@ export const accountTypeKey = (account: { platform: string }): string | null =>
     account.platform === Platform.InstagramFacebook
         ? `channels.variants.${account.platform}`
         : null;
+
+/** The verification badge a network shows next to an account (only X reports one today). */
+export type VerifiedBadge = 'blue' | 'business' | 'government';

@@ -6,6 +6,7 @@ namespace Database\Factories;
 
 use App\Enums\User\DefaultPostAction;
 use App\Enums\User\Locale;
+use App\Enums\User\ReferralSource;
 use App\Enums\User\Theme;
 use App\Enums\User\TimeFormat;
 use App\Enums\User\WeekStart;
@@ -53,6 +54,7 @@ class UserFactory extends Factory
             'utm_content' => null,
             'registration_ip' => null,
             'persona' => null,
+            'referral_source' => ReferralSource::Google,
             'locale' => Locale::DEFAULT,
             'timezone' => Timezone::DEFAULT,
             'theme' => Theme::DEFAULT,

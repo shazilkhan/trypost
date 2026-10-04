@@ -4,42 +4,94 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Dto\MediaItem;
+use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
+use App\Models\SocialAccount;
+use App\Models\Workspace;
+use App\Rules\ContentTypeCompatibleWithMedia;
 use App\Services\Social\ContentSanitizer;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
- * Text replies that follow a post as a thread (`meta.thread_replies`), on the
+ * Replies that follow a post as a thread (`meta.thread_replies`), on the
  * networks that let an app reply to its own post with the scopes we hold.
+ * Each reply is `{text, media}`; its media belongs to that reply and follows
+ * the rules of the network's reply content type. A reply stored as a bare
+ * string is a text-only reply.
  */
 class ThreadReplies
 {
     public const int MAX_REPLIES = 24;
 
+    /**
+     * The content type a reply publishes as. A network chains replies only
+     * when it has one.
+     */
+    public static function replyContentType(?Platform $platform): ?ContentType
+    {
+        return match ($platform) {
+            Platform::Bluesky => ContentType::BlueskyPost,
+            Platform::Mastodon => ContentType::MastodonPost,
+            Platform::X => ContentType::XPost,
+            default => null,
+        };
+    }
+
     public static function supports(?Platform $platform): bool
     {
-        return in_array($platform, [Platform::Bluesky, Platform::Mastodon], true);
+        return self::replyContentType($platform) !== null;
     }
 
     /**
-     * @return list<string>
+     * @return list<array{text: string, media: list<array<string, mixed>>}>
      */
     public static function of(mixed $meta): array
     {
         return array_values(array_map(
-            fn (mixed $reply): string => is_string($reply) ? $reply : '',
+            self::reply(...),
             (array) data_get($meta, 'thread_replies', []),
         ));
     }
 
     /**
+     * @return array{text: string, media: list<array<string, mixed>>}
+     */
+    public static function reply(mixed $reply): array
+    {
+        if (is_string($reply)) {
+            return ['text' => $reply, 'media' => []];
+        }
+
+        $text = data_get($reply, 'text');
+
+        return [
+            'text' => is_string($text) ? $text : '',
+            'media' => array_values(array_filter((array) data_get($reply, 'media', []), is_array(...))),
+        ];
+    }
+
+    /**
+     * @param  array{text: string, media: list<array<string, mixed>>}  $reply
+     * @return Collection<int, MediaItem>
+     */
+    public static function mediaItems(array $reply): Collection
+    {
+        return collect($reply['media'])->map(fn (array $item): MediaItem => MediaItem::fromArray($item));
+    }
+
+    /**
      * Each reply is measured like the post itself: sanitized text plus what the
-     * network counts besides it (the Mastodon content warning every reply repeats).
+     * network counts besides it (the Mastodon content warning every reply repeats),
+     * against the account's limit when the account is known (X long posts).
+     * A reply needs text or media.
      *
      * @return array{0: string, 1: string}|null
      */
-    public static function violation(?Platform $platform, mixed $meta): ?array
+    public static function violation(Platform|SocialAccount|null $target, mixed $meta): ?array
     {
+        $platform = $target instanceof SocialAccount ? $target->platform : $target;
         $replies = self::of($meta);
 
         if ($replies === []) {
@@ -51,19 +103,60 @@ class ThreadReplies
         }
 
         $reserved = $platform->reservedLength(is_array($meta) ? $meta : null);
+        $limit = $target instanceof SocialAccount ? $target->maxContentLength() : $platform->maxContentLength();
 
         foreach ($replies as $index => $reply) {
-            if (blank(Str::trim($reply))) {
+            $blank = blank(Str::trim($reply['text']));
+
+            if ($blank && $reply['media'] === []) {
                 return ["thread_replies.{$index}", __('posts.form.thread.reply_empty')];
             }
 
-            $over = $platform->contentOverflow(app(ContentSanitizer::class)->displayText($reply, $platform), $reserved);
+            $over = $blank ? 0 : max(0, mb_strlen(app(ContentSanitizer::class)->displayText($reply['text'], $platform)) + $reserved - $limit);
 
             if ($over > 0) {
-                return ["thread_replies.{$index}", __('posts.form.thread.reply_too_long', ['limit' => $platform->maxContentLength() - $reserved, 'over' => $over])];
+                return ["thread_replies.{$index}", __('posts.form.thread.reply_too_long', ['limit' => $limit - $reserved, 'over' => $over])];
             }
         }
 
         return null;
+    }
+
+    /**
+     * Each reply's media against the reply content type, keyed
+     * `thread_replies.{n}.media`.
+     *
+     * @return array<string, string>
+     */
+    public static function mediaErrors(?Platform $platform, mixed $meta, ?Workspace $workspace): array
+    {
+        $contentType = self::replyContentType($platform);
+
+        if ($contentType === null) {
+            return [];
+        }
+
+        $errors = [];
+
+        foreach (self::of($meta) as $index => $reply) {
+            $key = "thread_replies.{$index}.media";
+            $count = count($reply['media']);
+
+            if ($count > $contentType->maxMediaCount()) {
+                $errors[$key] = __('posts.form.warnings.max_files_exceeded', ['max' => $contentType->maxMediaCount(), 'current' => $count]);
+
+                continue;
+            }
+
+            if ($count > 0) {
+                $errors = [...$errors, ...ContentTypeCompatibleWithMedia::errorsFor(
+                    [['key' => $key, 'content_type' => $contentType->value]],
+                    $reply['media'],
+                    $workspace,
+                )];
+            }
+        }
+
+        return $errors;
     }
 }

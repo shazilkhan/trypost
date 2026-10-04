@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'Conectar Bluesky',
         'description' => 'Introduce tus credenciales para conectar',
-        'email' => 'Correo electrónico',
+        'email' => 'Usuario o correo electrónico',
         'email_placeholder' => 'tuusuario.bsky.social',
         'app_password' => 'Contraseña de app',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'Introduce tu instancia de Mastodon',
         'instance_url' => 'URL de la instancia',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Introduce la URL de tu instancia de Mastodon (ej: mastodon.social, techhub.social)',
+        'instance_hint' => 'Por ejemplo: mastodon.social o techhub.social.',
         'submit' => 'Continuar con Mastodon',
         'submitting' => 'Conectando...',
     ],

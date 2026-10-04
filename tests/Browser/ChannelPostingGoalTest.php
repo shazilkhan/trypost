@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\User\Locale;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -400,4 +401,38 @@ test('a connect callback without an opener lands on the channels page', function
     $page->assertVisible('@channels-connect')
         ->assertMissing('@popup-callback')
         ->assertNoJavaScriptErrors();
+});
+
+test('the goal description fits on one line in every language', function () {
+    [$user, $channel] = postingGoalSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'))->resize(1440, 900);
+    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
+    postPopupResult($page, $channel, true);
+    waitForPostingGoalTestId($page, 'goal-description');
+
+    $translations = collect(Locale::cases())
+        ->mapWithKeys(fn (Locale $locale): array => [$locale->value => __('channels.goal_dialog.description', [], $locale->value)])
+        ->all();
+
+    $json = json_encode($translations, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+    $wrapped = $page->script(<<<JS
+        (() => {
+            const translations = {$json};
+            const element = document.querySelector('[data-testid="goal-description"]');
+            const available = element.getBoundingClientRect().width;
+            element.style.whiteSpace = 'nowrap';
+            element.style.display = 'inline-block';
+            return Object.entries(translations)
+                .filter(([, text]) => {
+                    element.textContent = text;
+                    return element.getBoundingClientRect().width * 1.04 > available;
+                })
+                .map(([locale, text]) => locale + ': ' + text);
+        })()
+    JS);
+
+    expect($wrapped)->toBe([]);
 });

@@ -32,7 +32,6 @@ import { DOCS_URL } from '@/lib/docs';
 import { hourWindow, MAX_GOAL } from '@/lib/postingSchedule';
 import { orderedWeekdays } from '@/preferences';
 import { generate } from '@/routes/app/channels/posting-schedule';
-import { connect as welcomeConnect } from '@/routes/app/welcome';
 import type { SidebarChannel } from '@/types/channel';
 import type {
     ChannelScheduleState,
@@ -56,9 +55,6 @@ type WindowParams = { day: string; start: string; end: string };
 const CUSTOM_START = 6;
 
 const page = usePage();
-const onboarding = computed(() =>
-    page.url.startsWith(welcomeConnect.url()),
-);
 const channel = computed(() =>
     ((page.props.channels as SidebarChannel[]) ?? []).find(
         (item) => item.id === props.accountId,
@@ -262,7 +258,10 @@ const rows = computed(() =>
                 <template v-if="step === 'goal'">
                     <div class="mt-8 text-center" data-testid="goal-flow">
                         <DialogTitle class="text-[22px]">{{ $t('channels.goal_dialog.title') }}</DialogTitle>
-                        <p class="mt-2 text-[15px] text-muted-foreground">
+                        <p
+                            class="mt-2 text-[15px] text-muted-foreground"
+                            data-testid="goal-description"
+                        >
                             {{ $t('channels.goal_dialog.description') }}
                         </p>
                     </div>
@@ -338,7 +337,10 @@ const rows = computed(() =>
                 <template v-else>
                     <div class="mt-8 text-center" data-testid="goal-recommended">
                         <DialogTitle class="text-[22px]">{{ $t('channels.goal_dialog.recommended_title') }}</DialogTitle>
-                        <p class="mt-2 text-[15px] text-muted-foreground">
+                        <p
+                            class="mt-2 text-[15px] text-muted-foreground"
+                            data-testid="goal-description"
+                        >
                             {{ $t('channels.goal_dialog.recommended_description') }}
                             <br />
                             {{ $t('channels.goal_dialog.recommended_note') }}
@@ -439,7 +441,6 @@ const rows = computed(() =>
                 </Button>
                 <div class="flex items-center gap-2">
                     <Button
-                        v-if="!onboarding"
                         size="lg"
                         variant="ghost"
                         class="font-normal sm:text-[15px]"

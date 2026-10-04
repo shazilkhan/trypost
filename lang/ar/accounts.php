@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'ربط Bluesky',
         'description' => 'أدخل بيانات اعتمادك للربط',
-        'email' => 'البريد الإلكتروني',
+        'email' => 'اسم المستخدم أو البريد الإلكتروني',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => 'كلمة مرور التطبيق',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'أدخل خادم Mastodon الخاص بك',
         'instance_url' => 'رابط الخادم',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'أدخل رابط خادم Mastodon الخاص بك (مثل mastodon.social، techhub.social)',
+        'instance_hint' => 'مثال: mastodon.social أو techhub.social',
         'submit' => 'المتابعة عبر Mastodon',
         'submitting' => 'جارٍ الاتصال...',
     ],

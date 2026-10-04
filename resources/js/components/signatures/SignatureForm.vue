@@ -2,6 +2,7 @@
 import { trans } from 'laravel-vue-i18n';
 
 import { Button } from '@/components/ui/button';
+import { DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,12 +64,9 @@ const emit = defineEmits<{
                 </p>
             </div>
         </div>
-        <div
-            :class="
-                compact
-                    ? 'mt-auto flex justify-end gap-2 pt-4'
-                    : 'mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end'
-            "
+        <component
+            :is="compact ? 'div' : DialogFooter"
+            :class="compact ? 'mt-auto flex justify-end gap-2 pt-4' : 'mt-6'"
         >
             <Button
                 type="button"
@@ -89,6 +87,6 @@ const emit = defineEmits<{
                     )
                 }}
             </Button>
-        </div>
+        </component>
     </form>
 </template>

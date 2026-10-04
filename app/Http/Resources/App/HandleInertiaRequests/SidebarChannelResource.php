@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 class SidebarChannelResource
 {
     /**
-     * @return list<array{id: string, platform: string, network: string, username: string, display_name: ?string, avatar_url: ?string, status: ?string, timezone: string, scheduled_posts_count: int}>
+     * @return list<array{id: string, platform: string, network: string, username: string, display_name: ?string, avatar_url: ?string, verified_badge: ?string, status: ?string, timezone: string, scheduled_posts_count: int}>
      */
     public static function collection(Workspace $workspace): array
     {
@@ -31,6 +31,7 @@ class SidebarChannelResource
                 'username' => (string) $account->username,
                 'display_name' => $account->display_name,
                 'avatar_url' => $account->avatar_url,
+                'verified_badge' => $account->verified_badge,
                 'status' => $account->status?->value,
                 'timezone' => Timezone::normalize($account->timezone),
                 'scheduled_posts_count' => (int) $account->scheduled_posts_count,

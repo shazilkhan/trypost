@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => 'Bluesky 연결',
         'description' => '연결하려면 인증 정보를 입력하세요',
-        'email' => '이메일',
+        'email' => '핸들 또는 이메일',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => '앱 비밀번호',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => 'Mastodon 인스턴스를 입력하세요',
         'instance_url' => '인스턴스 URL',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Mastodon 인스턴스 URL을 입력하세요 (예: mastodon.social, techhub.social)',
+        'instance_hint' => '예: mastodon.social 또는 techhub.social',
         'submit' => 'Mastodon으로 계속하기',
         'submitting' => '연결 중...',
     ],

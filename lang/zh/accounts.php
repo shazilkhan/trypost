@@ -4,7 +4,7 @@ return [
     'bluesky' => [
         'title' => '连接 Bluesky',
         'description' => '输入你的凭据以连接',
-        'email' => '邮箱',
+        'email' => '用户名或邮箱',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => '应用专用密码',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -18,7 +18,7 @@ return [
         'description' => '输入你的 Mastodon 实例',
         'instance_url' => '实例地址',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => '输入你的 Mastodon 实例地址（例如 mastodon.social、techhub.social）',
+        'instance_hint' => '例如：mastodon.social 或 techhub.social',
         'submit' => '继续使用 Mastodon',
         'submitting' => '连接中…',
     ],

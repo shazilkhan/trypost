@@ -10,14 +10,9 @@ import type {
     WeekStart,
 } from '@/preferences';
 import type { AuthPlan, Features, PlanOption } from '@/types/plan';
-import type { WelcomeSummary } from '@/types/welcome';
 
 export type { AuthPlan, BillingInterval, Features, PlanOption } from '@/types/plan';
-export type {
-    WelcomeNetwork,
-    WelcomeStep,
-    WelcomeSummary,
-} from '@/types/welcome';
+export type { WelcomeStep } from '@/types/welcome';
 
 export interface Workspace {
     id: string;
@@ -116,8 +111,8 @@ export interface SharedData {
     usage?: Usage | null;
     plans?: PlanOption[];
     mediaSources?: { menu: MediaSourceOption[] } | null;
+    referralSources?: string[] | null;
     mediaUploadLimits?: MediaUploadLimits | null;
-    welcome?: WelcomeSummary;
     [key: string]: unknown;
 }
 

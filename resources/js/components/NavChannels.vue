@@ -323,6 +323,7 @@ const reconnect = (channel: SidebarChannel): void => {
                         <ChannelAvatar
                             :platform="draggedChannel.platform"
                             :src="draggedChannel.avatar_url"
+                            :verified="draggedChannel.verified_badge"
                             :name="channelName(draggedChannel)"
                             :size="28"
                             ring="sidebar"
@@ -369,6 +370,7 @@ const reconnect = (channel: SidebarChannel): void => {
                             <ChannelAvatar
                                 :platform="channel.platform"
                                 :src="channel.avatar_url"
+                                :verified="channel.verified_badge"
                                 :name="channelName(channel)"
                                 :size="28"
                                 ring="sidebar"

@@ -103,7 +103,7 @@ import {
 } from '@/composables/useComposerAutosave';
 import { useComposerTimezone } from '@/composables/useComposerTimezone';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
-import { firstHttpUrl, useLinkCard } from '@/composables/useLinkCard';
+import { useLinkCard } from '@/composables/useLinkCard';
 import {
     getMediaValidationWarning,
     mediaWarningParams,
@@ -153,7 +153,13 @@ import {
     rulesFor,
 } from '@/lib/mediaEditor';
 import { isGooglePickerOpen } from '@/lib/mediaSources/googleDrive';
+import { acceptAttribute } from '@/lib/mediaType';
 import { evaluatePlatformMeta } from '@/lib/platformMeta';
+import {
+    newThreadReply,
+    type ThreadReply,
+    threadRepliesOf,
+} from '@/lib/threadReplies';
 import { htmlToPlainText } from '@/lib/utils';
 import { userTimezone } from '@/preferences';
 import { settings as channelSettings } from '@/routes/app/channels';
@@ -167,11 +173,14 @@ import type {
 } from '@/types';
 import {
     CAPTIONLESS_CONTENT_TYPES,
-    MEDIALESS_CONTENT_TYPES,
     ContentType,
 } from '@/types/content-type';
 import type { MediaItem } from '@/types/media';
-import { THREAD_MAX_REPLIES, THREAD_PLATFORMS } from '@/types/network-options';
+import {
+    THREAD_MAX_REPLIES,
+    THREAD_PLATFORMS,
+    THREAD_REPLY_CONTENT_TYPES,
+} from '@/types/network-options';
 import { Platform } from '@/types/platform';
 import {
     PostStatus,
@@ -354,6 +363,7 @@ const initialScheduleMode = (): ComposerScheduleMode => {
     return composition.scheduledAt.value ? 'custom' : 'now';
 };
 const scheduleMode = ref<ComposerScheduleMode>(initialScheduleMode());
+
 const previewAccountId = ref<string | null>(null);
 const networkGroups = composition.networkGroups;
 const customizing = composition.customizing;
@@ -379,9 +389,7 @@ const contentTypeOptionsFor = (group: NetworkGroup): ContentTypeOption[] => {
 
     if (group.platform !== Platform.Threads) return options;
 
-    const attached =
-        groupDestination(group).media.length > 0 ||
-        (group.key === openGroupKey.value && openLinkCard.value !== null);
+    const attached = groupDestination(group).media.length > 0;
 
     return options.map((option) =>
         option.value === ContentType.ThreadsGhostPost && attached
@@ -403,6 +411,7 @@ const openNetwork = (
 const cropping = ref(false);
 const cropTarget = ref<{
     groupKey: string | null;
+    replyKey: string | null;
     indexes: number[];
     initialIndex: number;
     tab: EditorTab;
@@ -575,6 +584,7 @@ const replaceLinkCardWithMedia = async (group: NetworkGroup): Promise<void> => {
 const uploadScope = effectScope();
 const uploaders = shallowReactive(new Map<string, MediaUploader>());
 const cardUploaders = new Map<string, MediaUploader>();
+const replyUploaders = shallowReactive(new Map<string, MediaUploader>());
 const withSharedUploads = (
     own: MediaUploader,
     shared: MediaUploader,
@@ -656,9 +666,24 @@ watch(
 );
 const unsplashOpen = ref(false);
 const unsplashGroupKey = ref<string | null>(null);
-const openUnsplash = (groupKey: string | null): void => {
+const unsplashReplyKey = ref<string | null>(null);
+const openUnsplash = (
+    groupKey: string | null,
+    replyKey: string | null = null,
+): void => {
     unsplashGroupKey.value = groupKey;
+    unsplashReplyKey.value = replyKey;
     unsplashOpen.value = true;
+};
+const onUnsplashPicked = (item: MediaItem): void => {
+    if (unsplashGroupKey.value !== null && unsplashReplyKey.value !== null) {
+        setReplyMedia(unsplashGroupKey.value, unsplashReplyKey.value, (media) =>
+            withMediaAdded(media, item, null),
+        );
+
+        return;
+    }
+    appendMedia(unsplashGroupKey.value, item);
 };
 
 const mediaImport = useMediaImport();
@@ -679,6 +704,7 @@ const activeUploaders = computed(() => [
 
         return uploader ? [uploader] : [];
     }),
+    ...replyUploaders.values(),
 ]);
 const mediaUploading = computed(() =>
     activeUploaders.value.some((uploader) => uploader.busy.value),
@@ -753,7 +779,7 @@ const mediaErrorsFor = (groupKey: string | null): Record<number, string> => {
 };
 const onMediaDropped = (event: DragEvent, groupKey: string | null): void => {
     const files = Array.from(event.dataTransfer?.files ?? []);
-    if (!files.length || cropUploading.value) return;
+    if (!files.length || cropUploading.value || !acceptsMedia(groupKey)) return;
     uploaderFor(groupKey).add(files);
 };
 const onMediaPasted = (
@@ -764,7 +790,8 @@ const onMediaPasted = (
     if (
         !files.length ||
         event.clipboardData?.getData('text/plain').trim() ||
-        cropUploading.value
+        cropUploading.value ||
+        !acceptsMedia(groupKey)
     ) {
         return;
     }
@@ -1027,10 +1054,10 @@ const deselectThread = (): void => {
 watch(openGroupKey, () => {
     threadActive.value = -1;
 });
-const repliesOf = (meta: Record<string, any> | null | undefined): string[] =>
-    Array.isArray(meta?.thread_replies) ? meta.thread_replies : [];
-const threadReplies = (group: NetworkGroup): string[] =>
-    repliesOf(groupDestination(group).meta);
+const threadReplies = (group: NetworkGroup): ThreadReply[] =>
+    threadRepliesOf(groupDestination(group).meta);
+const activeReply = (group: NetworkGroup): ThreadReply | undefined =>
+    threadReplies(group)[threadActive.value];
 const supportsThread = (group: NetworkGroup): boolean =>
     THREAD_PLATFORMS.includes(group.platform);
 const replyLimit = (account: ComposerAccount): number | null => {
@@ -1047,7 +1074,10 @@ const threadReplyLimit = (group: NetworkGroup): number | null => {
 
     return limits.length ? Math.min(...limits) : null;
 };
-const setThreadReplies = (group: NetworkGroup, replies: string[]): void => {
+const setThreadReplies = (
+    group: NetworkGroup,
+    replies: ThreadReply[],
+): void => {
     const meta = { ...groupDestination(group).meta };
     delete meta.thread_replies;
     composition.setGroupOverride(
@@ -1059,17 +1089,26 @@ const setThreadReplies = (group: NetworkGroup, replies: string[]): void => {
 const addThreadReply = (group: NetworkGroup): void => {
     const replies = threadReplies(group);
     if (replies.length >= THREAD_MAX_REPLIES) return;
-    setThreadReplies(group, [...replies, '']);
+    setThreadReplies(group, [...replies, newThreadReply()]);
     threadActive.value = replies.length;
 };
+const focusFirstReply = (): void => {
+    threadActive.value = 0;
+};
+const startThreadFromCaption = (group: NetworkGroup): void => {
+    const replies = threadReplies(group);
+    if (replies.length >= THREAD_MAX_REPLIES) return;
+    setThreadReplies(group, [newThreadReply(), ...replies]);
+    threadActive.value = 0;
+};
 const activeRemaining = (group: NetworkGroup): number | null => {
-    const reply = threadReplies(group)[threadActive.value];
+    const reply = activeReply(group);
     if (reply === undefined) return groupRemaining(group);
     const limit = threadReplyLimit(group);
 
     return limit === null
         ? null
-        : limit - characterCount(contentFor(reply, group.platform));
+        : limit - characterCount(contentFor(reply.text, group.platform));
 };
 const threadReplyErrors = (group: NetworkGroup): Record<number, string> => {
     const found: Record<number, string> = {};
@@ -1077,13 +1116,156 @@ const threadReplyErrors = (group: NetworkGroup): Record<number, string> => {
         const prefix = `destinations.${selectedAccounts.value.indexOf(account)}.meta.thread_replies`;
         for (const [key, message] of Object.entries(errors.value)) {
             const match = key.startsWith(`${prefix}.`)
-                ? Number(key.slice(prefix.length + 1))
+                ? Number(key.slice(prefix.length + 1).split('.')[0])
                 : NaN;
             if (Number.isInteger(match)) found[match] ??= message;
         }
     }
 
     return found;
+};
+const replyUploaderKey = (groupKey: string, replyKey: string): string =>
+    `${groupKey}::${replyKey}`;
+const replyUploaderFor = (
+    group: NetworkGroup,
+    reply: ThreadReply,
+): MediaUploader | undefined =>
+    replyUploaders.get(replyUploaderKey(group.key, reply.key));
+const setReplyMedia = (
+    groupKey: string,
+    replyKey: string,
+    update: (media: MediaItem[]) => MediaItem[],
+): void => {
+    const group = findGroup(groupKey);
+    if (!group) return;
+    setThreadReplies(
+        group,
+        threadReplies(group).map((reply) =>
+            reply.key === replyKey
+                ? { ...reply, media: update(reply.media) }
+                : reply,
+        ),
+    );
+};
+watch(
+    () =>
+        customizing.value
+            ? networkGroups.value.flatMap((group) =>
+                  threadReplies(group).map((reply) =>
+                      replyUploaderKey(group.key, reply.key),
+                  ),
+              )
+            : [],
+    (keys) => {
+        keys.forEach((key) => {
+            if (replyUploaders.has(key)) return;
+            const [groupKey, replyKey] = key.split('::');
+            uploadScope.run(() => {
+                replyUploaders.set(
+                    key,
+                    useMediaUpload({
+                        limits: mediaUploadLimits,
+                        onReady: (item, _key, replaces) =>
+                            setReplyMedia(groupKey, replyKey, (media) =>
+                                withMediaAdded(media, item, replaces ?? null),
+                            ),
+                    }),
+                );
+            });
+        });
+        [...replyUploaders.keys()]
+            .filter((key) => !keys.includes(key))
+            .forEach((key) => {
+                replyUploaders.get(key)?.clear();
+                replyUploaders.delete(key);
+            });
+    },
+    { immediate: true },
+);
+/** The toolbar, paste and drop add media to the post being edited: the active reply, else the first post. */
+const groupMediaUploader = (group: NetworkGroup): MediaUploader => {
+    const reply = activeReply(group);
+
+    return (reply && replyUploaderFor(group, reply)) || uploaderFor(group.key);
+};
+const setGroupMedia = (group: NetworkGroup, items: MediaItem[]): void =>
+    composition.setGroupOverride(group.key, 'media', items);
+const setReplyMediaItems = (
+    group: NetworkGroup,
+    reply: ThreadReply,
+    items: MediaItem[],
+): void => setReplyMedia(group.key, reply.key, () => items);
+const onReplyImportStarted = (
+    started: MediaImportStarted,
+    group: NetworkGroup,
+    reply: ThreadReply,
+): void => {
+    const uploader = replyUploaderFor(group, reply);
+    if (uploader) mediaImport.track(uploader, started);
+};
+const replyHasActivity = (
+    group: NetworkGroup,
+    reply: ThreadReply,
+): boolean => {
+    const uploader = replyUploaderFor(group, reply);
+
+    return Boolean(
+        uploader &&
+            (uploader.entries.value.length > 0 ||
+                uploader.imports.value.length > 0),
+    );
+};
+const threadFileInput = ref<HTMLInputElement | null>(null);
+const threadFileGroup = ref<NetworkGroup | null>(null);
+const bindThreadFileInput = (element: unknown): void => {
+    threadFileInput.value =
+        element instanceof HTMLInputElement ? element : null;
+};
+const pickGroupFiles = (group: NetworkGroup): void => {
+    threadFileGroup.value = group;
+    threadFileInput.value?.click();
+};
+const onThreadFilesSelected = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length && threadFileGroup.value) {
+        groupMediaUploader(threadFileGroup.value).add(files);
+    }
+};
+const groupAcceptsMedia = (group: NetworkGroup): boolean =>
+    activeReply(group) !== undefined || acceptsMedia(group.key);
+const onGroupImportStarted = (
+    started: MediaImportStarted,
+    group: NetworkGroup,
+): void => mediaImport.track(groupMediaUploader(group), started);
+const openGroupUnsplash = (group: NetworkGroup): void =>
+    openUnsplash(group.key, activeReply(group)?.key ?? null);
+const onGroupMediaDropped = (event: DragEvent, group: NetworkGroup): void => {
+    if (!activeReply(group)) {
+        onMediaDropped(event, group.key);
+
+        return;
+    }
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length && !cropUploading.value) {
+        groupMediaUploader(group).add(files);
+    }
+};
+const onReplyMediaPasted = (
+    event: ClipboardEvent,
+    group: NetworkGroup,
+): void => {
+    const files = Array.from(event.clipboardData?.files ?? []);
+    if (
+        !files.length ||
+        event.clipboardData?.getData('text/plain').trim() ||
+        cropUploading.value
+    ) {
+        return;
+    }
+    event.preventDefault();
+    groupMediaUploader(group).add(files);
 };
 const remainingHashtags = (account: ComposerAccount): number | null => {
     const limit = props.platformConfigs[account.id]?.maxHashtags;
@@ -1135,15 +1317,6 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
             warning: mediaWarning,
             contentType,
         });
-    } else if (
-        MEDIALESS_CONTENT_TYPES.has(contentType) &&
-        firstHttpUrl(destination.content) !== null
-    ) {
-        issues.push({
-            key: 'posts.form.warnings.text_only',
-            params: {},
-            contentType,
-        });
     }
     for (const aspectIssue of aspectIssues) {
         issues.push({
@@ -1188,15 +1361,19 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
             contentType,
         });
     }
-    if (THREAD_PLATFORMS.includes(account.platform)) {
+    const replyContentType = THREAD_REPLY_CONTENT_TYPES[account.platform];
+    if (replyContentType) {
         const limit = replyLimit(account);
-        for (const reply of repliesOf(destination.meta)) {
+        for (const reply of threadRepliesOf(destination.meta)) {
             const over =
                 limit === null
                     ? 0
-                    : characterCount(contentFor(reply, account.platform)) -
+                    : characterCount(contentFor(reply.text, account.platform)) -
                       limit;
-            if (isBlankText(reply)) {
+            const replyMediaWarning = reply.media.length
+                ? getMediaValidationWarning(replyContentType, reply.media)
+                : null;
+            if (isBlankText(reply.text) && !reply.media.length) {
                 issues.push({
                     key: 'posts.form.thread.reply_empty',
                     params: {},
@@ -1207,6 +1384,14 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
                     key: 'posts.form.thread.reply_too_long',
                     params: { limit: String(limit), over: String(over) },
                     contentType,
+                });
+            }
+            if (replyMediaWarning) {
+                issues.push({
+                    key: `posts.form.warnings.${replyMediaWarning.key}`,
+                    params: {},
+                    warning: replyMediaWarning,
+                    contentType: replyContentType,
                 });
             }
         }
@@ -1253,6 +1438,20 @@ const hasBlockingIssues = computed(() => blockingIssue.value !== null);
 const isBatch = computed(
     () => !props.postId && selectedAccounts.value.length > 1,
 );
+const movesToDrafts = computed(
+    (): boolean =>
+        props.initialPost?.status === PostStatus.Scheduled ||
+        props.initialPost?.status === PostStatus.PendingApproval,
+);
+const draftActionLabel = computed((): string => {
+    if (movesToDrafts.value) {
+        return 'posts.publish.actions.move_to_drafts';
+    }
+
+    return isBatch.value
+        ? 'posts.composer.save_drafts'
+        : 'posts.composer.save_draft';
+});
 const scheduleLabelKey = computed(() =>
     scheduleMode.value === 'next' || scheduleMode.value === 'top'
         ? `posts.composer.queue.${scheduleMode.value}`
@@ -1373,13 +1572,30 @@ const showSidePanel = (panel: ComposerSidePanel): void => {
     mobilePanelOpen.value = true;
 };
 
-const editorMedia = (groupKey: string | null): MediaItem[] => {
+const editorMedia = (
+    groupKey: string | null,
+    replyKey: string | null = null,
+): MediaItem[] => {
     const group = findGroup(groupKey);
+    if (group && replyKey !== null) {
+        return (
+            threadReplies(group).find((reply) => reply.key === replyKey)
+                ?.media ?? []
+        );
+    }
 
     return group ? groupDestination(group).media : composition.media.value;
 };
-const editorContentTypes = (groupKey: string | null): string[] => {
+const editorContentTypes = (
+    groupKey: string | null,
+    replyKey: string | null = null,
+): string[] => {
     const group = findGroup(groupKey);
+    if (group && replyKey !== null) {
+        const replyContentType = THREAD_REPLY_CONTENT_TYPES[group.platform];
+
+        return replyContentType ? [replyContentType] : [];
+    }
 
     return (group ? [group] : groupKey === null ? networkGroups.value : [])
         .map((candidate) => groupDestination(candidate).content_type)
@@ -1387,20 +1603,23 @@ const editorContentTypes = (groupKey: string | null): string[] => {
 };
 
 const openEditor = (
-    target: { groupKey: string | null },
+    target: { groupKey: string | null; replyKey?: string | null },
     index: number,
     tab: EditorTab,
 ): void => {
     if (cropUploading.value) return;
     if (target.groupKey !== null && !findGroup(target.groupKey)) return;
-    const rules = rulesFor(editorContentTypes(target.groupKey));
-    const indexes = editorMedia(target.groupKey).flatMap((candidate, position) =>
-        editorTabsFor(candidate, rules).length > 0 ? [position] : [],
+    const replyKey = target.replyKey ?? null;
+    const rules = rulesFor(editorContentTypes(target.groupKey, replyKey));
+    const indexes = editorMedia(target.groupKey, replyKey).flatMap(
+        (candidate, position) =>
+            editorTabsFor(candidate, rules).length > 0 ? [position] : [],
     );
     if (!indexes.includes(index)) return;
     cropError.value = false;
     cropTarget.value = {
         groupKey: target.groupKey,
+        replyKey,
         indexes,
         initialIndex: indexes.indexOf(index),
         tab,
@@ -1408,12 +1627,31 @@ const openEditor = (
     cropping.value = true;
 };
 
+const acceptsMedia = (groupKey: string | null): boolean => {
+    const contentTypes = editorContentTypes(groupKey);
+
+    return (
+        contentTypes.length === 0 ||
+        contentTypes.some(
+            (contentType) =>
+                getMediaRulesForContentType(contentType).maxFiles > 0,
+        )
+    );
+};
 const cropContentTypes = computed(() =>
-    cropTarget.value ? editorContentTypes(cropTarget.value.groupKey) : [],
+    cropTarget.value
+        ? editorContentTypes(
+              cropTarget.value.groupKey,
+              cropTarget.value.replyKey,
+          )
+        : [],
 );
 const cropItems = computed(() => {
     if (!cropTarget.value) return [];
-    const media = editorMedia(cropTarget.value.groupKey);
+    const media = editorMedia(
+        cropTarget.value.groupKey,
+        cropTarget.value.replyKey,
+    );
 
     return cropTarget.value.indexes.flatMap((index) =>
         media[index] ? [media[index]] : [],
@@ -1432,9 +1670,11 @@ const onMediaEdited = async (changes: MediaEditChange[]): Promise<void> => {
     await swapEditedMedia({
         changes,
         indexes: target.indexes,
-        items: () => editorMedia(target.groupKey),
+        items: () => editorMedia(target.groupKey, target.replyKey),
         write: (items) => {
-            if (target.groupKey === null) {
+            if (target.groupKey !== null && target.replyKey !== null) {
+                setReplyMedia(target.groupKey, target.replyKey, () => items);
+            } else if (target.groupKey === null) {
                 composition.media.value = items;
             } else {
                 composition.setGroupOverride(target.groupKey, 'media', items);
@@ -1983,6 +2223,7 @@ const close = (): void => emit('update:open', false);
                         >
                             <template #media>
                                 <MediaTray
+                                    v-if="acceptsMedia(null) || composition.media.value.length > 0"
                                     test-id-prefix="composer"
                                     :items="composition.media.value"
                                     :limits="mediaUploadLimits()"
@@ -2014,6 +2255,7 @@ const close = (): void => emit('update:open', false);
                                 <ComposerEditorToolbar
                                     test-id-prefix="composer-base"
                                     :signatures="availableSignatures"
+                                    :media-disabled="!acceptsMedia(null)"
                                     @import-started="onImportStarted($event, null)"
                                     @open-unsplash="openUnsplash(null)"
                                     @select-emoji="appendEmoji($event, null)"
@@ -2044,7 +2286,11 @@ const close = (): void => emit('update:open', false);
                                 :caption-collapsed="
                                     threadReplies(group)[threadActive] !== undefined
                                 "
+                                :threadable="supportsThread(group)"
+                                :threaded="threadReplies(group).length > 0"
                                 @expand-caption="deselectThread"
+                                @start-thread="startThreadFromCaption(group)"
+                                @next-post="focusFirstReply"
                                 @update:content="
                                     composition.setGroupOverride(
                                         group.key,
@@ -2060,7 +2306,7 @@ const close = (): void => emit('update:open', false);
                                     )
                                 "
                                 @paste="onMediaPasted($event, group.key)"
-                                @drop="onMediaDropped($event, group.key)"
+                                @drop="onGroupMediaDropped($event, group)"
                                 @open-templates="showSidePanel('templates')"
                             >
                                 <template
@@ -2177,7 +2423,12 @@ const close = (): void => emit('update:open', false);
                                         @replace="replaceLinkCardWithMedia(group)"
                                     />
                                     <MediaTray
-                                        v-show="!openLinkCard || trayHasActivity(group.key)"
+                                        v-if="!threadReplies(group).length"
+                                        v-show="
+                                            (acceptsMedia(group.key) ||
+                                                groupDestination(group).media.length > 0) &&
+                                            (!openLinkCard || trayHasActivity(group.key))
+                                        "
                                         :test-id-prefix="`composer-${group.anchor.id}`"
                                         :items="groupDestination(group).media"
                                         :limits="mediaUploadLimits()"
@@ -2192,11 +2443,7 @@ const close = (): void => emit('update:open', false);
                                             setSuggestions(group.key, $event)
                                         "
                                         @update:items="
-                                            composition.setGroupOverride(
-                                                group.key,
-                                                'media',
-                                                $event,
-                                            )
+                                            setGroupMedia(group, $event)
                                         "
                                         @edit="
                                             openEditor(
@@ -2221,12 +2468,47 @@ const close = (): void => emit('update:open', false);
                                         }}
                                     </p>
                                 </template>
+                                <template #post-media>
+                                    <MediaTray
+                                        v-if="
+                                            threadActive === -1 ||
+                                            groupDestination(group).media.length ||
+                                            trayHasActivity(group.key)
+                                        "
+                                        class="px-[9px] pt-1"
+                                        :items-only="threadActive !== -1"
+                                        :test-id-prefix="`composer-${group.anchor.id}`"
+                                        :items="groupDestination(group).media"
+                                        :limits="mediaUploadLimits()"
+                                        :uploader="uploaderFor(group.key)"
+                                        :item-errors="mediaErrorsFor(group.key)"
+                                        :content-types="
+                                            editorContentTypes(group.key)
+                                        "
+                                        :disabled="cropUploading"
+                                        @update:items="
+                                            setGroupMedia(group, $event)
+                                        "
+                                        @edit="
+                                            openEditor(
+                                                { groupKey: group.key },
+                                                $event.index,
+                                                $event.tab,
+                                            )
+                                        "
+                                        @import-started="
+                                            onImportStarted($event, group.key)
+                                        "
+                                    />
+                                </template>
                                 <template
                                     v-if="threadReplies(group).length"
                                     #replies
                                 >
                                     <ThreadRepliesField
                                         v-model:active="threadActive"
+                                        :toolbar-target="`composer-${group.anchor.id}-reply-toolbar`"
+                                        :max="THREAD_MAX_REPLIES"
                                         :model-value="threadReplies(group)"
                                         :platform="group.platform"
                                         :limit="threadReplyLimit(group) ?? Infinity"
@@ -2235,16 +2517,107 @@ const close = (): void => emit('update:open', false);
                                         @update:model-value="
                                             setThreadReplies(group, $event)
                                         "
+                                        @paste="onReplyMediaPasted($event, group)"
+                                    >
+                                        <template #media="{ reply, index }">
+                                            <div
+                                                v-if="
+                                                    threadActive === index ||
+                                                    reply.media.length ||
+                                                    replyHasActivity(group, reply)
+                                                "
+                                                class="flex flex-col gap-2 px-[9px] pt-1"
+                                            >
+                                                <ChannelMediaWarnings
+                                                    :platform="group.platform"
+                                                    :content-type="
+                                                        THREAD_REPLY_CONTENT_TYPES[
+                                                            group.platform
+                                                        ]
+                                                    "
+                                                    :media="reply.media"
+                                                    :media-editing="true"
+                                                    :disabled="cropUploading"
+                                                    @edit:media="
+                                                        openEditor(
+                                                            {
+                                                                groupKey: group.key,
+                                                                replyKey: reply.key,
+                                                            },
+                                                            $event,
+                                                            'edit',
+                                                        )
+                                                    "
+                                                />
+                                                <MediaTray
+                                                    :items-only="threadActive !== index"
+                                                    :test-id-prefix="`composer-${group.anchor.id}-reply-${index}`"
+                                                    :items="reply.media"
+                                                    :limits="mediaUploadLimits()"
+                                                    :uploader="
+                                                        replyUploaderFor(group, reply)
+                                                    "
+                                                    :content-types="
+                                                        editorContentTypes(
+                                                            group.key,
+                                                            reply.key,
+                                                        )
+                                                    "
+                                                    :disabled="cropUploading"
+                                                    @update:items="
+                                                        setReplyMediaItems(
+                                                            group,
+                                                            reply,
+                                                            $event,
+                                                        )
+                                                    "
+                                                    @edit="
+                                                        openEditor(
+                                                            {
+                                                                groupKey: group.key,
+                                                                replyKey: reply.key,
+                                                            },
+                                                            $event.index,
+                                                            $event.tab,
+                                                        )
+                                                    "
+                                                    @import-started="
+                                                        onReplyImportStarted(
+                                                            $event,
+                                                            group,
+                                                            reply,
+                                                        )
+                                                    "
+                                                />
+                                            </div>
+                                        </template>
+                                    </ThreadRepliesField>
+                                    <input
+                                        :ref="bindThreadFileInput"
+                                        type="file"
+                                        multiple
+                                        class="hidden"
+                                        tabindex="-1"
+                                        :accept="
+                                            acceptAttribute(
+                                                mediaUploadLimits().heic,
+                                            )
+                                        "
+                                        :data-testid="`composer-${group.anchor.id}-thread-file-input`"
+                                        @change="onThreadFilesSelected"
                                     />
                                 </template>
                                 <template #toolbar>
                                     <ComposerEditorToolbar
                                         :test-id-prefix="`composer-${group.anchor.id}`"
                                         :signatures="availableSignatures"
+                                        :media-disabled="!groupAcceptsMedia(group)"
+                                        :uploadable="threadReplies(group).length > 0"
                                         @import-started="
-                                            onImportStarted($event, group.key)
+                                            onGroupImportStarted($event, group)
                                         "
-                                        @open-unsplash="openUnsplash(group.key)"
+                                        @open-unsplash="openGroupUnsplash(group)"
+                                        @upload="pickGroupFiles(group)"
                                         @select-emoji="
                                             appendEmoji($event, group.key)
                                         "
@@ -2504,6 +2877,7 @@ const close = (): void => emit('update:open', false);
                                             groupDestination(group).content_type
                                         "
                                         :meta="groupDestination(group).meta"
+                                        :active-post="threadActive"
                                     />
                                 </section>
                             </template>
@@ -2526,6 +2900,7 @@ const close = (): void => emit('update:open', false);
                                         previewDestination.content_type
                                     "
                                     :meta="previewDestination.meta"
+                                    :active-post="threadActive"
                                 />
                             </div>
                             <EmptyState
@@ -2564,13 +2939,7 @@ const close = (): void => emit('update:open', false);
                         data-testid="composer-save-draft"
                         :disabled="!canSubmit"
                         @click="submit('draft')"
-                        >{{
-                            $t(
-                                isBatch
-                                    ? 'posts.composer.save_drafts'
-                                    : 'posts.composer.save_draft',
-                            )
-                        }}</Button
+                        >{{ $t(draftActionLabel) }}</Button
                     >
                     <p
                         v-if="mediaFailed"
@@ -2917,7 +3286,7 @@ const close = (): void => emit('update:open', false);
     />
     <UnsplashDialog
         v-model:open="unsplashOpen"
-        @picked="appendMedia(unsplashGroupKey, $event)"
+        @picked="onUnsplashPicked"
     />
     <AlertDialog v-model:open="confirmingBack">
         <AlertDialogContent

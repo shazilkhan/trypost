@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3';
 import { IconPlus } from '@tabler/icons-vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 
+import PostTimelineCard from '@/components/publish/PostTimelineCard.vue';
 import QueueDayGroup from '@/components/publish/QueueDayGroup.vue';
 import {
     useSortableQueue,
@@ -22,6 +23,7 @@ import type {
 const props = defineProps<{
     days: QueueDay[];
     posts: Record<string, PostCard>;
+    publishing: PostCard[];
     queueDays: number;
     canLoadMoreTimes: boolean;
     channels: Record<string, PublishSocialAccount>;
@@ -167,6 +169,23 @@ const loadMoreTimes = (): void => {
 
 <template>
     <div class="flex flex-col gap-10">
+        <section
+            v-if="publishing.length"
+            class="flex flex-col gap-6"
+            data-testid="queue-publishing"
+        >
+            <h2 class="text-base leading-5 font-emphasis text-foreground">
+                {{ $t('posts.publish.publishing_now') }}
+            </h2>
+            <PostTimelineCard
+                v-for="post in publishing"
+                :key="post.id"
+                :post="post"
+                tab="queue"
+                :display-timezone="displayTimezone"
+                :movable="false"
+            />
+        </section>
         <QueueDayGroup
             v-for="day in days"
             :key="day.date"

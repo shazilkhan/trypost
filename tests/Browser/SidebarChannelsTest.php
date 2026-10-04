@@ -384,3 +384,19 @@ test('only the channel list scrolls while the main nav and the footer stay fixed
 
     $page->assertNoJavaScriptErrors();
 });
+
+test('a verified x channel shows its badge on the avatar', function () {
+    $user = sidebarChannelsUser('admin');
+    $verified = SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id, 'meta' => ['x_verified_type' => 'business']]);
+    $plain = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    waitForSidebarChannelsTestId($page, "channel-avatar-verified-{$verified->id}");
+
+    $page->assertVisible("@channel-avatar-verified-{$verified->id}")
+        ->assertAttribute("@channel-avatar-verified-{$verified->id}", 'data-verified', 'business')
+        ->assertAttribute("@channel-avatar-verified-{$verified->id}", 'aria-label', __('channels.verified.business'))
+        ->assertMissing("@channel-avatar-verified-{$plain->id}")
+        ->assertNoJavaScriptErrors();
+});

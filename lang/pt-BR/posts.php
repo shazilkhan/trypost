@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} :count problema para corrigir|[0,*] :count problemas para corrigir',
         'create_another' => 'Criar outro',
         'connect_to_post' => 'Conecte um canal para publicar',
+        'media_not_supported' => 'Este tipo de post não aceita mídia.',
         'request_approval' => 'Salvar e pedir aprovação',
         'templates' => 'Modelos',
         'expand' => 'Expandir diálogo',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Selecionar horário',
-            'more_actions' => 'Mais ações de publicação',
+            'more_actions' => 'Outras opções',
             'done' => 'Concluir',
         ],
         'media_editor' => [
@@ -241,7 +242,7 @@ return [
     ],
     'no_search_results' => 'Nenhum post corresponde à sua busca',
     'try_different_search' => 'Tente outra palavra-chave ou limpe a busca.',
-    'filter_by_label' => 'Labels',
+    'filter_by_label' => 'Etiquetas',
     'label_filter_untagged' => 'Sem label',
     'label_filter_clear' => 'Limpar tudo',
     'label_filter_manage' => 'Gerenciar labels',
@@ -548,7 +549,7 @@ return [
     'edit' => [
         'title' => 'Editar Post',
         'view_title' => 'Visualizar Post',
-        'labels' => 'Etiqueta',
+        'labels' => 'Etiquetas',
         'signatures' => 'Assinaturas',
         'schedule' => 'Agendar',
         'delete' => 'Excluir',
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Post excluído com sucesso!',
         'duplicated' => 'Post duplicado como rascunho.',
         'cannot_edit_finalized' => 'Este post já foi processado e não pode ser republicado. Duplique-o para tentar de novo.',
-        'cannot_delete_published' => 'Posts publicados não podem ser excluídos.',
+        'cannot_delete_published' => 'Posts enviados não podem ser excluídos.',
         'connect_first' => 'Conecte pelo menos uma rede social antes de criar um post.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Amanhã',
         'yesterday' => 'Ontem',
         'unscheduled' => 'Sem agendamento',
+        'publishing_now' => 'Publicando agora',
+        'publishing_badge' => 'Publicando…',
+        'publishing_on' => 'Publicando no :network…',
         'published_via' => 'Publicado via',
         'published_directly_from' => 'Publicado diretamente pelo :network',
         'slot_aria' => 'Adicionar um post em :channel no :network às :time',

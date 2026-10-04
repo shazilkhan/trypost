@@ -42,6 +42,7 @@ class PostStatusRules
         PostStatus::Publishing,
         PostStatus::Published,
         PostStatus::PartiallyPublished,
+        PostStatus::Failed,
     ];
 
     public static function blocksEditing(Post $post): bool

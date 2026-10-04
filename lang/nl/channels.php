@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Hoe vaak per week wil je posten?',
-        'description' => 'Je publicatiedoel bepaalt hoeveel aanbevolen tijden we elke week instellen.',
+        'description' => 'We maken tijden in je wachtrij aan op basis van je doel.',
         'options' => [
             'steady' => 'Consistent blijven',
             'presence' => 'Een aanwezigheid opbouwen',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Feedberichten en reels die op dit kanaal zijn gepubliceerd, verschijnen hier.',
         'reel' => 'Reel',
         'carousel' => 'Carrousel',
+    ],
+
+    'verified' => [
+        'blue' => 'Geverifieerd',
+        'business' => 'Geverifieerde organisatie',
+        'government' => 'Overheidsaccount',
     ],
 ];

@@ -4,32 +4,40 @@ declare(strict_types=1);
 
 namespace App\Services\Social\Concerns;
 
+use App\Dto\MediaItem;
 use App\Models\PostPlatform;
 use App\Services\Social\ContentSanitizer;
 use App\Support\Social\ThreadProgress;
 use App\Support\ThreadReplies;
+use Illuminate\Support\Collection;
 
 trait PublishesThreads
 {
     /**
      * Publishes the root, then each `meta.thread_replies` entry as a reply to
-     * the previous segment, checkpointing every live segment so a retry
-     * resumes after the last one instead of posting it again. A failure
-     * propagates untouched; the job names the live part
-     * (ThreadProgress::failureMessage()).
+     * the previous segment, with the media of that reply only, checkpointing
+     * every live segment so a retry resumes after the last one instead of
+     * posting it again. A failure propagates untouched; the job names the live
+     * part (ThreadProgress::failureMessage()).
      *
      * @param  callable(): array{id: string, url?: ?string, uri?: string, cid?: string}  $postRoot
-     * @param  callable(string, array<string, mixed>, array<string, mixed>): array{id: string, url?: ?string, uri?: string, cid?: string}  $postReply
+     * @param  callable(string, Collection<int, MediaItem>, array<string, mixed>, array<string, mixed>): array{id: string, url?: ?string, uri?: string, cid?: string}  $postReply
      * @param  (callable(array<string, mixed>): void)|null  $afterThread
      * @return array{id: string, url: ?string, thread_reply_ids?: list<string>}
      */
     protected function publishThread(PostPlatform $postPlatform, string $rootHash, callable $postRoot, callable $postReply, ?callable $afterThread = null): array
     {
         $replies = array_map(
-            fn (string $reply): string => app(ContentSanitizer::class)->sanitize($reply, $postPlatform->platform),
+            fn (array $reply): array => [
+                'text' => app(ContentSanitizer::class)->sanitize($reply['text'], $postPlatform->platform),
+                'media' => ThreadReplies::mediaItems($reply),
+            ],
             ThreadReplies::supports($postPlatform->platform) ? ThreadReplies::of($postPlatform->meta) : [],
         );
-        $hashes = [ThreadProgress::rootHash($postPlatform->error_context) ?? $rootHash, ...array_map(fn (string $reply): string => ThreadProgress::hash($reply), $replies)];
+        $hashes = [
+            ThreadProgress::rootHash($postPlatform->error_context) ?? $rootHash,
+            ...array_map(fn (array $reply): string => ThreadProgress::hash($reply['text'], $reply['media']->map(fn (MediaItem $item): string => $item->id)->all()), $replies),
+        ];
         $posted = ThreadProgress::resumable($postPlatform->error_context, $hashes);
 
         if ($posted === []) {
@@ -47,7 +55,7 @@ trait PublishesThreads
                 continue;
             }
 
-            $posted[] = self::threadSegment($hashes[$position], $postReply($reply, $posted[$position - 1], $posted[0]));
+            $posted[] = self::threadSegment($hashes[$position], $postReply($reply['text'], $reply['media'], $posted[$position - 1], $posted[0]));
 
             ThreadProgress::remember($postPlatform, $posted);
         }

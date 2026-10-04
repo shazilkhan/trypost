@@ -74,6 +74,7 @@ const allSelected = (): boolean => props.accounts.every(isSelected);
                         :account-id="account.id"
                         :platform="account.platform"
                         :src="account.avatar_url"
+                        :verified="account.verified_badge"
                         :name="account.display_name || account.username"
                         ring="popover"
                     />

@@ -1,4 +1,5 @@
 import type { PinterestBoard } from '@/types';
+import type { VerifiedBadge } from '@/types/social-account';
 import type { SocialAccountStatusValue } from '@/types/social-account-status';
 import type { TikTokPrivacyLevelValue } from '@/types/tiktok-privacy';
 
@@ -49,6 +50,7 @@ export interface SidebarChannel {
     username: string;
     display_name: string | null;
     avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
     status: SocialAccountStatusValue | null;
     timezone: string;
     scheduled_posts_count: number;

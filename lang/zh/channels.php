@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => '你希望每周发布几次？',
-        'description' => '发布目标决定我们每周为你设置多少个推荐时间。',
+        'description' => '我们会按你的目标在队列中创建发布时间。',
         'options' => [
             'steady' => '保持稳定',
             'presence' => '建立影响力',
@@ -264,5 +264,11 @@ return [
         'empty_description' => '此频道发布的动态帖子和 Reels 会显示在这里。',
         'reel' => 'Reels',
         'carousel' => '轮播',
+    ],
+
+    'verified' => [
+        'blue' => '已认证',
+        'business' => '已认证机构',
+        'government' => '政府账号',
     ],
 ];

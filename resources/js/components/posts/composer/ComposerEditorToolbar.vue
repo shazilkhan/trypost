@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { IconSignature, IconMoodSmile } from '@tabler/icons-vue';
+import {
+    IconMoodSmile,
+    IconPhotoPlus,
+    IconSignature,
+} from '@tabler/icons-vue';
 import { ref } from 'vue';
 
 import MediaSourceMenu from '@/components/posts/composer/MediaSourceMenu.vue';
@@ -11,14 +15,21 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 
-defineProps<{
-    testIdPrefix: string;
-    signatures: { id: string; name: string; content: string }[];
-}>();
+withDefaults(
+    defineProps<{
+        testIdPrefix: string;
+        signatures: { id: string; name: string; content: string }[];
+        mediaDisabled?: boolean;
+        /** Offers a file upload button, for a card without an add tile. */
+        uploadable?: boolean;
+    }>(),
+    { mediaDisabled: false, uploadable: false },
+);
 
 const emit = defineEmits<{
     (event: 'import-started', payload: { importId: string; label: string }): void;
     (event: 'open-unsplash'): void;
+    (event: 'upload'): void;
     (event: 'select-emoji', emoji: string): void;
     (
         event: 'select-signature',
@@ -42,6 +53,10 @@ const selectSignature = (signature: {
     signaturesOpen.value = false;
 };
 
+const requestUpload = (): void => {
+    emit('upload');
+};
+
 const selectEmoji = (emoji: string): void => {
     emit('select-emoji', emoji);
     emojiOpen.value = false;
@@ -53,8 +68,22 @@ const selectEmoji = (emoji: string): void => {
         class="-mx-3 -mb-2 flex items-center pt-4"
         :data-testid="`${testIdPrefix}-toolbar`"
     >
+        <button
+            v-if="uploadable"
+            type="button"
+            :data-testid="`${testIdPrefix}-add-media`"
+            :aria-label="$t('posts.edit.add_media')"
+            :title="$t('posts.edit.add_media')"
+            :disabled="mediaDisabled"
+            class="flex size-8 items-center justify-center rounded-lg text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent"
+            @click="requestUpload"
+        >
+            <IconPhotoPlus class="size-4" />
+        </button>
         <MediaSourceMenu
             :test-id-prefix="testIdPrefix"
+            :disabled="mediaDisabled"
+            :disabled-reason="$t('posts.composer.media_not_supported')"
             @import-started="emit('import-started', $event)"
             @open-unsplash="emit('open-unsplash')"
         />

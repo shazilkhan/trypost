@@ -87,7 +87,6 @@ class UpdatePostTool extends Tool
                 ContentTypeCompatibleWithMedia::entriesForUpdate($post, $submittedTarget, data_get($validated, 'meta')),
                 (array) ($post->media ?? []),
                 $post->workspace,
-                array_key_exists('content', $validated) ? $validated['content'] : $post->content,
             );
 
             if ($errors !== []) {

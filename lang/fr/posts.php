@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} :count problème à corriger|[0,*] :count problèmes à corriger',
         'create_another' => 'En créer un autre',
         'connect_to_post' => 'Connectez un canal pour publier',
+        'media_not_supported' => 'Ce type de publication n\'accepte pas de médias.',
         'request_approval' => 'Enregistrer et demander l\'approbation',
         'templates' => 'Modèles',
         'expand' => 'Agrandir la fenêtre',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Choisir l’heure',
-            'more_actions' => 'Plus d’actions de publication',
+            'more_actions' => 'Autres options',
             'done' => 'Terminé',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Publication supprimée avec succès !',
         'duplicated' => 'Publication dupliquée en brouillon.',
         'cannot_edit_finalized' => 'Cette publication a déjà été traitée et ne peut pas être republiée. Dupliquez-la pour réessayer.',
-        'cannot_delete_published' => 'Les publications publiées ne peuvent pas être supprimées.',
+        'cannot_delete_published' => 'Les publications envoyées ne peuvent pas être supprimées.',
         'connect_first' => 'Connectez au moins un réseau social avant de créer une publication.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Demain',
         'yesterday' => 'Hier',
         'unscheduled' => 'Non planifié',
+        'publishing_now' => 'Publication en cours',
+        'publishing_badge' => 'Publication…',
+        'publishing_on' => 'Publication sur :network…',
         'published_via' => 'Publié via',
         'published_directly_from' => 'Publié directement depuis :network',
         'slot_aria' => 'Ajouter une publication à :channel sur :network à :time',

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
     IconArrowLeft,
-    IconArrowsLeftRight,
 } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
@@ -10,7 +9,6 @@ import ConnectChannelDetails from '@/components/channels/ConnectChannelDetails.v
 import InstagramConnectStep from '@/components/channels/InstagramConnectStep.vue';
 import InstagramFacebookRequirementsStep from '@/components/channels/InstagramFacebookRequirementsStep.vue';
 import TelegramConnectStep from '@/components/channels/TelegramConnectStep.vue';
-import PlatformLogo from '@/components/PlatformLogo.vue';
 import { Button } from '@/components/ui/button';
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
@@ -59,13 +57,7 @@ const selectPlatform = (platform: string): void => {
     openConnect(platform);
 };
 
-const STEP_PLATFORMS: Partial<Record<ConnectChannelState['step'], string>> = {
-    instagram: Platform.Instagram,
-    'instagram-facebook': Platform.Instagram,
-    telegram: Platform.Telegram,
-};
 
-const stepPlatform = computed(() => STEP_PLATFORMS[props.state.step]);
 
 const connectInstagramFacebook = (): void => {
     emit('close');
@@ -86,7 +78,7 @@ const selectInstagramMethod = (method: string): void => {
 <template>
     <div
         :key="state.step"
-        class="motion-view-swap flex min-h-0 min-w-0 flex-1 flex-col"
+        class="motion-view-swap relative flex min-h-0 min-w-0 flex-1 flex-col"
     >
         <ConnectChannelDetails
             v-if="detailsPlatform"
@@ -120,36 +112,17 @@ const selectInstagramMethod = (method: string): void => {
         </div>
 
         <template v-else>
-            <div class="relative flex h-8 shrink-0 items-center px-4 sm:px-6">
-                <Button
-                    v-if="state.canGoBack"
-                    variant="ghost"
-                    size="icon"
-                    :aria-label="$t('channels.dialog.back')"
-                    data-testid="connect-channel-back"
-                    @click="back"
-                >
-                    <IconArrowLeft class="size-4 rtl:rotate-180" />
-                </Button>
-                <div
-                    v-if="stepPlatform"
-                    class="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-foreground"
-                    aria-hidden="true"
-                    data-testid="connect-channel-logos"
-                >
-                    <img
-                        src="/images/trypost/icon.png"
-                        alt=""
-                        class="size-5 object-contain"
-                    />
-                    <IconArrowsLeftRight class="size-4 text-muted-foreground" />
-                    <PlatformLogo
-                        :platform="stepPlatform"
-                        :size="20"
-                        data-testid="connect-channel-logo"
-                    />
-                </div>
-            </div>
+            <Button
+                v-if="state.canGoBack"
+                variant="ghost"
+                size="icon"
+                class="absolute start-4 top-4 z-10"
+                :aria-label="$t('channels.dialog.back')"
+                data-testid="connect-channel-back"
+                @click="back"
+            >
+                <IconArrowLeft class="size-4 rtl:rotate-180" />
+            </Button>
             <InstagramConnectStep
                 v-if="state.step === 'instagram'"
                 :methods="instagramMethods"

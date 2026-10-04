@@ -6,7 +6,7 @@ return [
     'bluesky' => [
         'title' => 'Bluesky\'i Bağla',
         'description' => 'Bağlanmak için kimlik bilgilerinizi girin',
-        'email' => 'E-posta',
+        'email' => 'Kullanıcı adı veya e-posta',
         'email_placeholder' => 'yourhandle.bsky.social',
         'app_password' => 'Uygulama Parolası',
         'app_password_placeholder' => 'xxxx-xxxx-xxxx-xxxx',
@@ -20,7 +20,7 @@ return [
         'description' => 'Mastodon sunucunuzu girin',
         'instance_url' => 'Sunucu URL\'si',
         'instance_placeholder' => 'https://mastodon.social',
-        'instance_hint' => 'Mastodon sunucunuzun URL\'sini girin (örn. mastodon.social, techhub.social)',
+        'instance_hint' => 'Örneğin: mastodon.social veya techhub.social.',
         'submit' => 'Mastodon ile devam et',
         'submitting' => 'Bağlanıyor...',
     ],

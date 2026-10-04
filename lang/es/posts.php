@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} :count problema por corregir|[0,*] :count problemas por corregir',
         'create_another' => 'Crear otro',
         'connect_to_post' => 'Conecta un canal para publicar',
+        'media_not_supported' => 'Este tipo de post no admite contenido multimedia.',
         'request_approval' => 'Guardar y pedir aprobación',
         'templates' => 'Plantillas',
         'expand' => 'Ampliar diálogo',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Seleccionar hora',
-            'more_actions' => 'Más acciones de publicación',
+            'more_actions' => 'Otras opciones',
             'done' => 'Listo',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => '¡Post eliminado correctamente!',
         'duplicated' => 'Post duplicado como borrador.',
         'cannot_edit_finalized' => 'Este post ya fue procesado y no puede republicarse. Duplícalo para intentar de nuevo.',
-        'cannot_delete_published' => 'Los posts publicados no se pueden eliminar.',
+        'cannot_delete_published' => 'Las publicaciones enviadas no se pueden eliminar.',
         'connect_first' => 'Conecta al menos una red social antes de crear un post.',
     ],
 
@@ -885,6 +886,9 @@ return [
         'tomorrow' => 'Mañana',
         'yesterday' => 'Ayer',
         'unscheduled' => 'Sin programar',
+        'publishing_now' => 'Publicando ahora',
+        'publishing_badge' => 'Publicando…',
+        'publishing_on' => 'Publicando en :network…',
         'published_via' => 'Publicado en',
         'published_directly_from' => 'Publicado directamente desde :network',
         'slot_aria' => 'Añadir una publicación a :channel en :network a las :time',

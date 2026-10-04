@@ -101,3 +101,14 @@ test('shared channels carry their normalized time zone', function () {
         ->get(route('app.workspace.channels'))
         ->assertInertia(fn ($page) => $page->where('channels.0.timezone', 'Europe/Warsaw'));
 });
+
+test('a shared channel carries its verified badge', function () {
+    $channel = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id, 'meta' => ['x_verified_type' => 'blue']]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.workspace.channels'))
+        ->assertInertia(fn ($page) => $page
+            ->where('channels.0.id', $channel->id)
+            ->where('channels.0.verified_badge', 'blue')
+        );
+});

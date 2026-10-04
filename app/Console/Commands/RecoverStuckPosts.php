@@ -81,6 +81,8 @@ class RecoverStuckPosts extends Command
                 }
 
                 app(FinalizePostPublication::class)->handle($post);
+
+                $stalePlatforms->each(fn (PostPlatform $postPlatform) => PostPlatformStatusUpdated::dispatch($postPlatform->fresh()));
             });
     }
 

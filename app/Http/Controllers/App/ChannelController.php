@@ -203,6 +203,7 @@ class ChannelController extends Controller
                     'username' => $other->username,
                     'platform' => $other->platform->value,
                     'avatar_url' => $other->avatar_url,
+                    'verified_badge' => $other->verified_badge,
                 ])
                 ->values()
                 ->all(),

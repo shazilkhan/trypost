@@ -2,6 +2,7 @@
 import { useForm } from '@inertiajs/vue3';
 import { IconBuildingStore } from '@tabler/icons-vue';
 
+import ConnectPopupHeader from '@/components/channels/ConnectPopupHeader.vue';
 import InputError from '@/components/InputError.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -40,13 +41,11 @@ const handleSelectLocation = (location: Location) => {
 <template>
     <PopupLayout :title="$t('accounts.google_business.title')">
         <div class="flex flex-col gap-6">
-            <div class="flex items-center gap-3">
-                <img src="/images/accounts/google_business.png" :alt="$t('accounts.google_business.title')" class="h-10 w-10" />
-                <div>
-                    <h1 class="font-heading text-xl font-medium tracking-tight">{{ $t('accounts.google_business.title') }}</h1>
-                    <p class="text-sm text-muted-foreground">{{ $t('accounts.google_business.description') }}</p>
-                </div>
-            </div>
+            <ConnectPopupHeader
+                platform="google_business"
+                :title="$t('accounts.google_business.title')"
+                :description="$t('accounts.google_business.description')"
+            />
 
             <div v-if="locations.length === 0" class="py-12 text-center">
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">

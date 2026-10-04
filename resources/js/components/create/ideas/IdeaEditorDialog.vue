@@ -719,7 +719,7 @@ const iconButtonClass =
                     </Button>
                 </div>
 
-                <DialogFooter class="shrink-0 border-t px-6 py-4">
+                <DialogFooter class="mx-2 mb-2 shrink-0">
                     <Button
                         type="button"
                         variant="ghost"

@@ -115,6 +115,7 @@ return [
         'destination_issues' => '{1} Düzeltilecek :count sorun|[0,*] Düzeltilecek :count sorun',
         'create_another' => 'Bir tane daha oluştur',
         'connect_to_post' => 'Paylaşmak için kanal bağla',
+        'media_not_supported' => 'Bu gönderi türü medya desteklemiyor.',
         'request_approval' => 'Kaydet ve onay iste',
         'templates' => 'Şablonlar',
         'expand' => 'Pencereyi büyüt',
@@ -175,7 +176,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Saat seçin',
-            'more_actions' => 'Diğer paylaşım eylemleri',
+            'more_actions' => 'Diğer seçenekler',
             'done' => 'Bitti',
         ],
         'media_editor' => [
@@ -805,7 +806,7 @@ return [
         'deleted' => 'Gönderi başarıyla silindi!',
         'duplicated' => 'Gönderi taslak olarak çoğaltıldı.',
         'cannot_edit_finalized' => 'Bu gönderi zaten işlendi ve yeniden yayınlanamaz. Yeniden denemek için çoğaltın.',
-        'cannot_delete_published' => 'Yayınlanmış gönderiler silinemez.',
+        'cannot_delete_published' => 'Gönderilmiş gönderiler silinemez.',
         'connect_first' => 'Gönderi oluşturmadan önce en az bir sosyal ağ bağlayın.',
     ],
 
@@ -886,6 +887,9 @@ return [
         'tomorrow' => 'Yarın',
         'yesterday' => 'Dün',
         'unscheduled' => 'Planlanmamış',
+        'publishing_now' => 'Şimdi yayınlanıyor',
+        'publishing_badge' => 'Yayınlanıyor…',
+        'publishing_on' => ':network üzerinde paylaşılıyor…',
         'published_via' => 'Yayınlandığı yer:',
         'published_directly_from' => 'Doğrudan :network üzerinden yayınlandı',
         'slot_aria' => ':network üzerindeki :channel için :time saatine gönderi ekle',

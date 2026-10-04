@@ -1,6 +1,7 @@
 import type { Component } from 'vue';
 
 import type { MediaItem } from '@/types/media';
+import type { VerifiedBadge } from '@/types/social-account';
 
 export interface PreviewAccount {
     id: string;
@@ -10,6 +11,7 @@ export interface PreviewAccount {
     display_label: string;
     handle_label: string;
     avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
 }
 
 export interface PreviewProps {

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
+import { type ThreadReply, threadRepliesOf } from '@/lib/threadReplies';
 import type { MediaItem } from '@/types/media';
 import { THREAD_PLATFORMS } from '@/types/network-options';
 
@@ -30,6 +31,8 @@ interface Props {
     meta?: Record<string, any>;
     /** Local scheduled datetime (datetime-local); falls back to now in previews. */
     postedAt?: string | null;
+    /** The thread post being edited: -1 is the first post, otherwise the reply index. */
+    activePost?: number;
 }
 
 const props = defineProps<Props>();
@@ -43,13 +46,41 @@ const { contentFor } = useXLinkDefuser();
  */
 const previewContent = computed((): string => contentFor(props.content, props.platform));
 
-const threadReplies = computed((): string[] =>
-    THREAD_PLATFORMS.includes(props.platform) &&
-    Array.isArray(props.meta?.thread_replies)
-        ? props.meta.thread_replies.filter(
-              (reply: string) => reply.trim() !== '',
-          )
+const shownReplies = computed((): { reply: ThreadReply; index: number }[] =>
+    THREAD_PLATFORMS.includes(props.platform)
+        ? threadRepliesOf(props.meta)
+              .map((reply, index) => ({ reply, index }))
+              .filter(
+                  ({ reply }) =>
+                      reply.text.trim() !== '' || reply.media.length > 0,
+              )
         : [],
+);
+const threadReplies = computed((): ThreadReply[] =>
+    shownReplies.value.map(({ reply }) => reply),
+);
+
+const thread = ref<HTMLElement | null>(null);
+
+/** Keeps the post being edited in view: an empty reply has no preview, so the closest one above it stands in. */
+watch(
+    () => props.activePost,
+    async (active) => {
+        if (active === undefined || !threadReplies.value.length) {
+            return;
+        }
+
+        await nextTick();
+        const position = shownReplies.value.filter(
+            ({ index }) => index <= active,
+        ).length;
+        thread.value
+            ?.querySelectorAll(':scope > [data-thread-post]')
+            [position]?.scrollIntoView({
+            block: 'nearest',
+            behavior: 'smooth',
+        });
+    },
 );
 
 const resolvedSocialAccount = computed((): PreviewAccount => props.socialAccount ?? {
@@ -103,8 +134,10 @@ const previewComponent = computed(() => {
         class="overflow-hidden rounded-lg border bg-card text-card-foreground"
     >
         <div
+            ref="thread"
             :data-testid="threadReplies.length ? 'preview-thread' : undefined"
         >
+            <div data-thread-post>
             <component
                 :is="previewComponent"
                 :social-account="resolvedSocialAccount"
@@ -115,16 +148,18 @@ const previewComponent = computed(() => {
                 :posted-at="postedAt"
                 :thread-position="threadReplies.length ? 'first' : undefined"
             />
+            </div>
             <div
                 v-for="(reply, index) in threadReplies"
-                :key="index"
+                :key="reply.key"
+                data-thread-post
                 :data-testid="`preview-thread-reply-${index}`"
             >
                 <component
                     :is="previewComponent"
                     :social-account="resolvedSocialAccount"
-                    :content="contentFor(reply, platform)"
-                    :media="[]"
+                    :content="contentFor(reply.text, platform)"
+                    :media="reply.media"
                     :content-type="contentType"
                     :meta="{ spoiler_text: meta?.spoiler_text }"
                     :posted-at="postedAt"

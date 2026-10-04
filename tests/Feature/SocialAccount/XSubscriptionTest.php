@@ -68,3 +68,17 @@ test('a response without the tier fields keeps the stored tier', function () {
         ->toMatchArray(['x_subscription_type' => 'Premium', 'x_verified_type' => 'blue'])
         ->and($account->fresh()->maxContentLength())->toBe(25000);
 });
+
+test('only an x account with a known verification type has a verified badge', function (string $factory, array $meta, ?string $badge) {
+    $account = SocialAccount::factory()->{$factory}()->create(['meta' => $meta]);
+
+    expect($account->verified_badge)->toBe($badge)
+        ->and($account->toArray()['verified_badge'])->toBe($badge);
+})->with([
+    'blue' => ['x', ['x_verified_type' => 'blue'], 'blue'],
+    'business' => ['x', ['x_verified_type' => 'business'], 'business'],
+    'government' => ['x', ['x_verified_type' => 'government'], 'government'],
+    'not verified' => ['x', ['x_verified_type' => 'none'], null],
+    'never synced' => ['x', [], null],
+    'another network' => ['linkedin', ['x_verified_type' => 'blue'], null],
+]);

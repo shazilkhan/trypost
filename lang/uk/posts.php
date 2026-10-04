@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} Проблем для виправлення: :count|[0,*] Проблем для виправлення: :count',
         'create_another' => 'Створити ще',
         'connect_to_post' => 'Підключіть канал для публікації',
+        'media_not_supported' => 'Цей тип допису не підтримує медіа.',
         'request_approval' => 'Зберегти й запросити схвалення',
         'templates' => 'Шаблони',
         'expand' => 'Розгорнути вікно',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Виберіть час',
-            'more_actions' => 'Інші дії публікації',
+            'more_actions' => 'Інші варіанти',
             'done' => 'Готово',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Пост успішно видалено!',
         'duplicated' => 'Пост продубльовано як чернетку.',
         'cannot_edit_finalized' => 'Цей пост уже оброблено і не можна опублікувати повторно. Продублюйте його, щоб спробувати знову.',
-        'cannot_delete_published' => 'Опубліковані пости не можна видалити.',
+        'cannot_delete_published' => 'Надіслані дописи не можна видалити.',
         'connect_first' => 'Підключіть принаймні одну соціальну мережу перед створенням поста.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Завтра',
         'yesterday' => 'Учора',
         'unscheduled' => 'Без розкладу',
+        'publishing_now' => 'Публікується зараз',
+        'publishing_badge' => 'Публікація…',
+        'publishing_on' => 'Публікація в :network…',
         'published_via' => 'Опубліковано через',
         'published_directly_from' => 'Опубліковано напряму з :network',
         'slot_aria' => 'Додати допис до :channel у :network на :time',

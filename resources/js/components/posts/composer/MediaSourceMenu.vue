@@ -22,6 +22,12 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
     type MediaImportPayload,
     useMediaImport,
 } from '@/composables/useMediaImport';
@@ -39,9 +45,14 @@ import type { MediaSourceOption } from '@/types';
 
 type SourceKey = MediaSourceOption['source'];
 
-defineProps<{
-    testIdPrefix: string;
-}>();
+withDefaults(
+    defineProps<{
+        testIdPrefix: string;
+        disabled?: boolean;
+        disabledReason?: string;
+    }>(),
+    { disabled: false, disabledReason: undefined },
+);
 
 const emit = defineEmits<{
     (event: 'import-started', payload: { importId: string; label: string }): void;
@@ -220,7 +231,30 @@ const pickCanvaPreset = (
 </script>
 
 <template>
-    <div v-if="sources.length" class="flex items-center">
+    <TooltipProvider v-if="sources.length && disabled" :delay-duration="200">
+        <Tooltip>
+            <TooltipTrigger as-child>
+                <span
+                    class="flex cursor-not-allowed items-center text-subtle-foreground"
+                    :aria-label="disabledReason"
+                    :data-testid="`${testIdPrefix}-media-source-disabled`"
+                >
+                    <span class="flex size-8 items-center justify-center">
+                        <component
+                            :is="main ? ICONS[main.source] : IconCloudUpload"
+                            class="size-4"
+                        />
+                    </span>
+                    <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
+                    <span class="flex h-8 w-6 items-center justify-center">
+                        <IconChevronDown class="size-3.5" />
+                    </span>
+                </span>
+            </TooltipTrigger>
+            <TooltipContent>{{ disabledReason }}</TooltipContent>
+        </Tooltip>
+    </TooltipProvider>
+    <div v-else-if="sources.length" class="flex items-center">
         <button
             type="button"
             :data-testid="`${testIdPrefix}-media-source-main`"

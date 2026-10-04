@@ -12,7 +12,6 @@ use App\Exceptions\Social\ThreadsPublishException;
 use App\Models\PostPlatform;
 use App\Services\Social\Concerns\HasSocialHttpClient;
 use App\Support\PostPlatformMetaRules;
-use App\Support\UrlDetector;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
@@ -58,7 +57,7 @@ class ThreadsPublisher
 
         $media = $postPlatform->post->mediaItems;
 
-        if ($postPlatform->content_type === ContentType::ThreadsGhostPost && ($media->isNotEmpty() || UrlDetector::firstUrl((string) $content) !== null)) {
+        if ($postPlatform->content_type === ContentType::ThreadsGhostPost && $media->isNotEmpty()) {
             throw new ThreadsPublishException(
                 userMessage: __('posts.form.warnings.text_only'),
                 category: ErrorCategory::MediaFormat,
@@ -78,7 +77,9 @@ class ThreadsPublisher
                 );
             }
 
-            return $this->publishTextPost($userId, $accessToken, $content);
+            return $this->publishMediaWithRetry(
+                fn (): array => $this->publishTextPost($userId, $accessToken, $content),
+            );
         }
 
         $firstMedia = $media->first();
@@ -130,7 +131,8 @@ class ThreadsPublisher
             );
         }
 
-        // Step 2: Publish
+        $this->waitForMediaProcessing($containerId, $accessToken);
+
         return $this->publishContainer($userId, $accessToken, $containerId);
     }
 

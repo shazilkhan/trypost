@@ -113,6 +113,7 @@ return [
         'destination_issues' => '수정할 문제 :count개',
         'create_another' => '하나 더 만들기',
         'connect_to_post' => '게시하려면 채널을 연결하세요',
+        'media_not_supported' => '이 게시물 유형은 미디어를 지원하지 않습니다.',
         'request_approval' => '저장하고 승인 요청',
         'templates' => '템플릿',
         'expand' => '대화 상자 확장',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => '시간 선택',
-            'more_actions' => '더 많은 게시 작업',
+            'more_actions' => '다른 옵션',
             'done' => '완료',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => '게시물이 성공적으로 삭제되었습니다!',
         'duplicated' => '게시물이 초안으로 복제되었습니다.',
         'cannot_edit_finalized' => '이 게시물은 이미 처리되어 다시 게시할 수 없습니다. 다시 시도하려면 복제하세요.',
-        'cannot_delete_published' => '게시된 게시물은 삭제할 수 없습니다.',
+        'cannot_delete_published' => '전송된 게시물은 삭제할 수 없습니다.',
         'connect_first' => '게시물을 만들기 전에 소셜 네트워크를 하나 이상 연결하세요.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => '내일',
         'yesterday' => '어제',
         'unscheduled' => '예약 안 됨',
+        'publishing_now' => '지금 게시 중',
+        'publishing_badge' => '게시 중…',
+        'publishing_on' => ':network에 게시 중…',
         'published_via' => '게시 채널:',
         'published_directly_from' => ':network에서 직접 게시됨',
         'slot_aria' => ':network의 :channel에 :time 게시물 추가',

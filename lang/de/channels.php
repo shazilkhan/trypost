@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Wie oft pro Woche möchtest du veröffentlichen?',
-        'description' => 'Dein Veröffentlichungsziel bestimmt, wie viele empfohlene Zeiten wir pro Woche einrichten.',
+        'description' => 'Wir legen passende Zeiten in deiner Warteschlange an.',
         'options' => [
             'steady' => 'Konstant bleiben',
             'presence' => 'Präsenz aufbauen',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Feed-Beiträge und Reels, die auf diesem Kanal veröffentlicht werden, erscheinen hier.',
         'reel' => 'Reel',
         'carousel' => 'Karussell',
+    ],
+
+    'verified' => [
+        'blue' => 'Verifiziert',
+        'business' => 'Verifizierte Organisation',
+        'government' => 'Regierungskonto',
     ],
 ];

@@ -113,6 +113,7 @@ return [
         'destination_issues' => '{1} :count problema da risolvere|[0,*] :count problemi da risolvere',
         'create_another' => 'Crea un altro',
         'connect_to_post' => 'Collega un canale per pubblicare',
+        'media_not_supported' => 'Questo tipo di post non supporta i media.',
         'request_approval' => 'Salva e chiedi approvazione',
         'templates' => 'Modelli',
         'expand' => 'Espandi finestra',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => 'Seleziona l’ora',
-            'more_actions' => 'Altre azioni di pubblicazione',
+            'more_actions' => 'Altre opzioni',
             'done' => 'Fatto',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => 'Post eliminato con successo!',
         'duplicated' => 'Post duplicato come bozza.',
         'cannot_edit_finalized' => 'Questo post è già stato elaborato e non può essere ripubblicato. Duplicalo per riprovare.',
-        'cannot_delete_published' => 'I post pubblicati non possono essere eliminati.',
+        'cannot_delete_published' => 'I post inviati non possono essere eliminati.',
         'connect_first' => 'Collega almeno una rete social prima di creare un post.',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => 'Domani',
         'yesterday' => 'Ieri',
         'unscheduled' => 'Non programmato',
+        'publishing_now' => 'In pubblicazione',
+        'publishing_badge' => 'Pubblicazione…',
+        'publishing_on' => 'Pubblicazione su :network…',
         'published_via' => 'Pubblicato tramite',
         'published_directly_from' => 'Pubblicato direttamente da :network',
         'slot_aria' => 'Aggiungi un post a :channel su :network alle :time',

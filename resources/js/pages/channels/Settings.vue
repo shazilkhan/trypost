@@ -69,7 +69,7 @@ import type {
     PostingSchedule,
     TimezoneOption,
 } from '@/types/posting-schedule';
-import type { ConnectedAccount } from '@/types/social-account';
+import type { ConnectedAccount, VerifiedBadge } from '@/types/social-account';
 
 interface OtherChannel {
     id: string;
@@ -77,6 +77,7 @@ interface OtherChannel {
     username: string;
     platform: string;
     avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
 }
 
 const DEFAULT_GOAL = 3;
@@ -351,6 +352,7 @@ const addSlot = (): void => {
                         :account-id="channel.id"
                         :platform="channel.platform"
                         :src="channel.avatar_url"
+                        :verified="channel.verified_badge"
                         :name="channel.display_name || channel.username"
                         :size="44"
                     />
@@ -559,6 +561,7 @@ const addSlot = (): void => {
                                                     <ChannelAvatar
                                                         :platform="other.platform"
                                                         :src="other.avatar_url"
+                                                        :verified="other.verified_badge"
                                                         :name="
                                                             other.display_name ||
                                                             other.username

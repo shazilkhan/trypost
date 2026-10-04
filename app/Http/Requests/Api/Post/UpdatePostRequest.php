@@ -95,8 +95,7 @@ class UpdatePostRequest extends FormRequest
 
             $this->addMediaCompatibilityErrors($validator);
 
-            $platformsById = $this->resolveSelectedPlatforms()
-                ->map(fn (Platform|SocialAccount $target): Platform => $target instanceof SocialAccount ? $target->platform : $target);
+            $platformsById = $this->resolveSelectedPlatforms();
 
             PostPlatformMetaRules::addRequiredOnPublishErrors(
                 $validator,
@@ -131,9 +130,7 @@ class UpdatePostRequest extends FormRequest
             is_array($this->input('meta')) ? (array) $this->input('meta') : null,
         );
 
-        $content = $this->has('content') ? $this->input('content') : $post->content;
-
-        foreach (ContentTypeCompatibleWithMedia::errorsFor($entries, $media, $post->workspace, is_string($content) ? $content : null) as $key => $message) {
+        foreach (ContentTypeCompatibleWithMedia::errorsFor($entries, $media, $post->workspace) as $key => $message) {
             $validator->errors()->add($key, $message);
         }
     }

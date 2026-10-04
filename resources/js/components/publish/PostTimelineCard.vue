@@ -7,6 +7,8 @@ import {
     IconExternalLink,
     IconGripVertical,
     IconListNumbers,
+    IconCheck,
+    IconLoader2,
     IconPencil,
     IconPlayerPlayFilled,
     IconRepeat,
@@ -134,13 +136,33 @@ const targets = computed(() =>
 const primaryTarget = computed(() => targets.value[0] ?? null);
 const account = computed(() => primaryTarget.value?.social_account ?? null);
 
-const time = computed(() =>
-    props.tab === 'sent'
-        ? (props.post.published_at ??
-          props.post.scheduled_at ??
-          props.post.created_at)
-        : props.post.scheduled_at,
+const isPublishing = computed(
+    () => props.post.status === PostStatus.Publishing,
 );
+
+const time = computed(() => {
+    if (props.tab === 'sent') {
+        return (
+            props.post.published_at ??
+            props.post.scheduled_at ??
+            props.post.created_at
+        );
+    }
+
+    return isPublishing.value
+        ? (props.post.scheduled_at ?? props.post.updated_at)
+        : props.post.scheduled_at;
+});
+
+const PUBLISHED_TARGET_STATUSES = ['published', 'pending_review'];
+const FAILED_TARGET_STATUSES = ['failed', 'rejected'];
+
+const targetProgress = (status: string): 'done' | 'failed' | 'running' =>
+    PUBLISHED_TARGET_STATUSES.includes(status)
+        ? 'done'
+        : FAILED_TARGET_STATUSES.includes(status)
+          ? 'failed'
+          : 'running';
 
 const isPending = computed(
     () => props.post.status === PostStatus.PendingApproval,
@@ -419,12 +441,15 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 :timezone="timezone"
             />
             <Badge
-                v-else-if="showStatus"
+                v-else-if="showStatus && !isPublishing"
                 :variant="getPostStatusConfig(post.status).variant"
                 class="h-6 gap-1 px-2 [&>svg]:size-4"
                 :data-testid="`post-status-${testKey}`"
             >
-                <component :is="getPostStatusConfig(post.status).icon" />
+                <component
+                    :is="getPostStatusConfig(post.status).icon"
+                    :class="getPostStatusConfig(post.status).iconClass"
+                />
                 {{ $t(`posts.status.${post.status}`) }}
             </Badge>
             <Button
@@ -443,7 +468,9 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
         <article
             class="min-w-0 overflow-hidden"
             :class="{
-                'rounded-xl border border-border-strong bg-card': !popover,
+                'rounded-xl border bg-card': !popover,
+                'border-border-strong': !popover && !isPublishing,
+                'border-primary': !popover && isPublishing,
             }"
         >
             <p
@@ -460,7 +487,54 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                     :origin-at="post.recurrence_origin_at"
                 />
             </p>
-            <div class="relative flex gap-4 p-4 md:gap-6">
+            <div
+                v-if="isPublishing && !popover"
+                class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-primary bg-primary-subtle px-4 py-2.5 text-sm text-primary-text dark:bg-primary-selected"
+                role="status"
+                :data-testid="`post-publishing-${testKey}`"
+            >
+                <span class="inline-flex items-center gap-2 font-emphasis">
+                    <IconLoader2
+                        class="size-4 animate-spin text-primary-strong"
+                        aria-hidden="true"
+                    />
+                    {{
+                        targets.length === 1 && primaryTarget
+                            ? $t('posts.publish.publishing_on', {
+                                  network: getPlatformLabel(primaryTarget.platform),
+                              })
+                            : $t('posts.publish.publishing_badge')
+                    }}
+                </span>
+                <ul
+                    v-if="targets.length > 1"
+                    class="flex flex-wrap items-center gap-1.5"
+                >
+                    <li
+                        v-for="target in targets"
+                        :key="target.id"
+                        class="inline-flex h-6 items-center gap-1 rounded-full bg-card px-1.5 text-xs"
+                        :title="getPlatformLabel(target.platform)"
+                        :data-testid="`post-publishing-target-${target.id}`"
+                        :data-progress="targetProgress(target.status)"
+                    >
+                        <PlatformBrandIcon :platform="target.platform" />
+                        <IconLoader2
+                            v-if="targetProgress(target.status) === 'running'"
+                            class="size-3.5 animate-spin text-muted-foreground"
+                        />
+                        <IconCheck
+                            v-else-if="targetProgress(target.status) === 'done'"
+                            class="size-3.5 text-success"
+                        />
+                        <IconX v-else class="size-3.5 text-destructive-text" />
+                    </li>
+                </ul>
+            </div>
+            <div
+                class="relative flex gap-4 p-4 md:gap-6"
+                :class="{ 'opacity-70': isPublishing && !popover }"
+            >
                 <component
                     :is="isEditable ? Link : 'div'"
                     :href="isEditable ? editUrl(post) : undefined"
@@ -475,6 +549,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                             v-if="primaryTarget"
                             :platform="primaryTarget.platform"
                             :src="account?.avatar_url"
+                            :verified="account?.verified_badge"
                             :name="
                                 account?.display_label ??
                                 getPlatformLabel(primaryTarget.platform)
@@ -597,6 +672,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             </div>
 
             <PostCardLabels
+                v-if="!isPublishing"
                 class="-mt-1 px-4 pb-4"
                 :post-id="post.id"
                 :labels="post.labels ?? []"
@@ -770,7 +846,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         </TooltipContent>
                     </Tooltip>
                     <PostCardMenu
-                        v-if="canCreatePost"
+                        v-if="canCreatePost && !isPublishing"
                         :post="post"
                         :test-key="testKey"
                         :can-move-up="canMoveUp"
@@ -800,7 +876,10 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             </div>
         </article>
 
-        <div v-if="!popover" class="md:absolute md:top-0 md:left-full md:ms-1">
+        <div
+            v-if="!popover && !isPublishing"
+            class="md:absolute md:top-0 md:left-full md:ms-1"
+        >
             <PostNotesPopover
                 :post-id="post.id"
                 :count="post.notes_count"

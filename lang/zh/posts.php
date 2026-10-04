@@ -113,6 +113,7 @@ return [
         'destination_issues' => '需要修复的问题：:count 个',
         'create_another' => '再创建一条',
         'connect_to_post' => '连接频道以发布',
+        'media_not_supported' => '此帖子类型不支持媒体。',
         'request_approval' => '保存并请求审批',
         'templates' => '模板',
         'expand' => '展开对话框',
@@ -173,7 +174,7 @@ return [
         ],
         'schedule_picker' => [
             'select_time' => '选择时间',
-            'more_actions' => '更多发布操作',
+            'more_actions' => '其他选项',
             'done' => '完成',
         ],
         'media_editor' => [
@@ -803,7 +804,7 @@ return [
         'deleted' => '帖子删除成功！',
         'duplicated' => '帖子已复制为草稿。',
         'cannot_edit_finalized' => '此帖子已处理完毕，无法重新发布。请复制后再试。',
-        'cannot_delete_published' => '已发布的帖子无法删除。',
+        'cannot_delete_published' => '已发送的帖子无法删除。',
         'connect_first' => '创建帖子前，请先至少连接一个社交平台。',
     ],
 
@@ -884,6 +885,9 @@ return [
         'tomorrow' => '明天',
         'yesterday' => '昨天',
         'unscheduled' => '未排期',
+        'publishing_now' => '正在发布',
+        'publishing_badge' => '发布中…',
+        'publishing_on' => '正在发布到 :network…',
         'published_via' => '发布于',
         'published_directly_from' => '直接从 :network 发布',
         'slot_aria' => '在 :time 为 :network 上的 :channel 添加帖子',

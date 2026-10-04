@@ -78,6 +78,7 @@
         'Outfit', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
         'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-display: var(--font-heading);
+    --font-logo: 'Roboto Slab', ui-serif, Georgia, serif;
     --radius: 0.5rem;
     --shadow-2xs: 0 1px 2px #0000000a;
     --shadow-xs: 0 1px 2px #0000000f;
@@ -169,6 +170,7 @@
         'Outfit', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
         'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-display: var(--font-heading);
+    --font-logo: 'Roboto Slab', ui-serif, Georgia, serif;
     --radius: 0.5rem;
     --shadow-2xs: 0 1px 2px #0000000a;
     --shadow-xs: 0 1px 2px #0000000f;
@@ -250,6 +252,7 @@
     --font-serif: var(--font-serif);
     --font-heading: var(--font-heading);
     --font-display: var(--font-display);
+    --font-logo: var(--font-logo);
 
     --font-weight-emphasis: 550;
     --font-weight-strong: 650;

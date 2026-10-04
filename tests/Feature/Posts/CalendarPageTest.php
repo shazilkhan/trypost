@@ -224,6 +224,7 @@ test('the status filter narrows the calendar to drafts, scheduled or sent posts'
     calendarPost($this->linkedin, '2026-10-05 09:00:00', 'Published post', PostStatus::Published);
     calendarPost($this->linkedin, '2026-10-05 09:30:00', 'Partial post', PostStatus::PartiallyPublished);
     calendarPost($this->linkedin, '2026-10-05 09:45:00', 'Failed post', PostStatus::Failed);
+    calendarPost($this->linkedin, '2026-10-05 09:55:00', 'Publishing post', PostStatus::Publishing);
 
     $contents = fn (?string $status): array => $this->actingAs($this->user)
         ->get(route('app.calendar', ['view' => 'week', 'status' => $status]))
@@ -231,11 +232,11 @@ test('the status filter narrows the calendar to drafts, scheduled or sent posts'
 
     $flatten = fn (array $days): array => collect($days)->flatten(1)->pluck('content')->sort()->values()->all();
 
-    expect($flatten($contents(null)))->toHaveCount(5)
+    expect($flatten($contents(null)))->toHaveCount(6)
         ->and($flatten($contents('drafts')))->toBe(['Dated draft'])
-        ->and($flatten($contents('scheduled')))->toBe(['Scheduled post'])
+        ->and($flatten($contents('scheduled')))->toBe(['Publishing post', 'Scheduled post'])
         ->and($flatten($contents('sent')))->toBe(['Failed post', 'Partial post', 'Published post'])
-        ->and($flatten($contents('bogus')))->toHaveCount(5);
+        ->and($flatten($contents('bogus')))->toHaveCount(6);
 
     $this->actingAs($this->user)
         ->get(route('app.calendar', ['view' => 'week', 'status' => 'sent']))

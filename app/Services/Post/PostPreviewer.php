@@ -38,7 +38,7 @@ class PostPreviewer
      *         truncated: bool,
      *         description?: string,
      *         description_length_bytes?: int,
-     *         thread_replies?: list<string>
+     *         thread_replies?: list<array{text: string, media: list<array<string, mixed>>}>
      *     }>
      * }
      */
@@ -86,7 +86,10 @@ class PostPreviewer
                 $replies = ThreadReplies::supports($platform) ? ThreadReplies::of($pp->meta) : [];
 
                 if ($replies !== []) {
-                    $preview['thread_replies'] = array_map(fn (string $reply): string => $this->sanitizer->sanitize($reply, $platform), $replies);
+                    $preview['thread_replies'] = array_map(fn (array $reply): array => [
+                        'text' => $this->sanitizer->sanitize($reply['text'], $platform),
+                        'media' => $reply['media'],
+                    ], $replies);
                 }
 
                 return $preview;

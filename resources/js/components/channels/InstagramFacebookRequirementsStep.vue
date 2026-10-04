@@ -23,7 +23,7 @@ const LINK_PAGE_HELP_URL =
     <div class="flex min-h-0 flex-1 flex-col">
         <div class="min-h-0 flex-1 overflow-y-auto">
             <div
-                class="mx-auto flex w-full max-w-[720px] flex-col gap-8 px-4 pt-6 pb-8 sm:px-6"
+                class="mx-auto flex w-full max-w-[720px] flex-col gap-8 px-4 pt-2 pb-8 sm:px-6"
             >
                 <header class="flex flex-col gap-2 text-center">
                     <DialogTitle

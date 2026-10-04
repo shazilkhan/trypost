@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import ConnectPopupHeader from '@/components/channels/ConnectPopupHeader.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import PopupLayout from '@/layouts/PopupLayout.vue';
@@ -65,17 +66,11 @@ const organizationUrl = (vanity: string | null): string | null =>
 <template>
     <PopupLayout :title="$t('accounts.linkedin.select_title')">
         <div class="flex flex-col gap-6">
-            <div class="flex items-center gap-3">
-                <img src="/images/accounts/linkedin.png" alt="LinkedIn" class="h-10 w-10" />
-                <div>
-                    <h1 class="font-heading text-xl font-medium tracking-tight">
-                        {{ $t('accounts.linkedin.select_title') }}
-                    </h1>
-                    <p class="text-sm text-muted-foreground">
-                        {{ $t('accounts.linkedin.select_subtitle') }}
-                    </p>
-                </div>
-            </div>
+            <ConnectPopupHeader
+                platform="linkedin"
+                :title="$t('accounts.linkedin.select_title')"
+                :description="$t('accounts.linkedin.select_subtitle')"
+            />
 
             <div v-if="isEmpty" class="py-12 text-center">
                 <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">

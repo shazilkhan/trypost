@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Analytics\PublicationContentType;
+use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
@@ -127,6 +128,8 @@ test('clicking a sent card opens nothing and the menu opens the post details', f
     waitForPostDetailsDialogTestId($page, "post-details-{$post->id}");
 
     expect($page->script('location.href'))->toBe($before);
+    $page->assertPresent("@post-details-status-{$post->id}")
+        ->assertNotPresent('[data-testid^="post-details-target-status-"]');
     $page->assertSeeIn("@post-details-text-{$post->id}", 'Details dialog post')
         ->assertNoJavaScriptErrors();
 });
@@ -319,3 +322,59 @@ test('the metrics band arrows follow the real overflow when the metrics change w
     expect(postDetailsDialogMetricsBandState($page, $band))->toBe(['overflows' => true, 'next' => true, 'fadeNext' => true]);
     $page->assertNoJavaScriptErrors();
 })->with(['dialog', 'card'])->with([1280, 1440, 1920]);
+
+test('a publishing post shows a spinning status in its details', function () {
+    [$user, $account] = postDetailsDialogSetup();
+    $post = postDetailsDialogPost($account);
+    $post->update(['status' => PostStatus::Publishing]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['post' => $post->id]));
+    waitForPostDetailsDialogTestId($page, "post-details-status-{$post->id}");
+
+    expect($page->script("document.querySelector('[data-testid=\"post-details-status-{$post->id}\"] svg').classList.contains('animate-spin')"))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the details of a sent thread show every post of the thread with its own media', function () {
+    [$user, $instagram] = postDetailsDialogSetup();
+    $account = SocialAccount::factory()->x()->create(['workspace_id' => $instagram->workspace_id, 'timezone' => 'UTC', 'meta' => ['x_verified_type' => 'blue']]);
+    $post = Post::factory()->published()->create([
+        'workspace_id' => $account->workspace_id,
+        'content' => 'First post of the thread',
+        'published_at' => now()->subHour(),
+    ]);
+    PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::X,
+        'content_type' => ContentType::XPost,
+        'published_at' => now()->subHour(),
+        'meta' => ['thread_replies' => [
+            ['text' => 'Second post of the thread', 'media' => [[
+                'id' => (string) Str::uuid(),
+                'path' => 'medias/reply.jpg',
+                'url' => 'https://cdn.example.test/reply.jpg',
+                'type' => 'image',
+                'mime_type' => 'image/jpeg',
+                'original_filename' => 'reply.jpg',
+                'size' => 1024,
+            ]]],
+            'Third post of the thread',
+        ]],
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index', ['post' => $post->id]));
+    waitForPostDetailsDialogTestId($page, "thread-view-{$post->id}");
+
+    $page->assertSeeIn("@thread-view-post-{$post->id}-0", 'First post of the thread')
+        ->assertSeeIn("@thread-view-post-{$post->id}-1", 'Second post of the thread')
+        ->assertPresent("@post-details-media-item-{$post->id}-1-0")
+        ->assertSeeIn("@thread-view-post-{$post->id}-2", 'Third post of the thread')
+        ->assertNotPresent("@post-details-text-{$post->id}")
+        ->assertPresent("@thread-view-connector-{$post->id}-0")
+        ->assertNotPresent("@thread-view-connector-{$post->id}-2")
+        ->assertScript("document.querySelectorAll('[data-testid=\"thread-view-{$post->id}\"] [data-verified=\"blue\"]').length", 3)
+        ->assertNoJavaScriptErrors();
+});

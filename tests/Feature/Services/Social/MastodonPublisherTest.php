@@ -640,6 +640,38 @@ test('a mastodon thread chains each reply to the previous one with the root cont
     ] && $request->header('Idempotency-Key') === ["{$this->postPlatform->id}:2:".ThreadProgress::hash('Three')]);
 });
 
+test('a mastodon thread attaches each reply media to that reply only', function () {
+    $image = ['id' => 'reply-image', 'path' => 'media/2026-01/photo.jpg', 'url' => 'https://example.com/media/2026-01/photo.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'photo.jpg'];
+    $this->postPlatform->update(['meta' => ['thread_replies' => [['text' => 'Two', 'media' => [$image]], 'Three']]]);
+    $instance = data_get($this->socialAccount->meta, 'instance');
+
+    $mockOptimizer = Mockery::mock(MediaOptimizer::class);
+    $mockOptimizer->shouldReceive('optimizeImage')->andReturnUsing(function (string $tempFile) {
+        $optimized = tempnam(sys_get_temp_dir(), 'masto_opt_');
+        copy($tempFile, $optimized);
+
+        return $optimized;
+    });
+    app()->instance(MediaOptimizer::class, $mockOptimizer);
+
+    Http::fake([
+        'https://example.com/*' => Http::response(file_get_contents(__DIR__.'/../../../fixtures/1x1.png')),
+        "{$instance}/api/v1/media" => Http::response(['id' => 'media-1']),
+        "{$instance}/api/v1/statuses" => Http::sequence()
+            ->push(['id' => '1', 'url' => "{$instance}/@t/1"])
+            ->push(['id' => '2', 'url' => "{$instance}/@t/2"])
+            ->push(['id' => '3', 'url' => "{$instance}/@t/3"]),
+    ]);
+
+    $result = $this->publisher->publish($this->postPlatform->fresh());
+
+    expect($result['thread_reply_ids'])->toBe(['2', '3']);
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), '/statuses') && data_get($request->data(), 'status') === $this->post->content && ! array_key_exists('media_ids', $request->data()));
+    Http::assertSent(fn ($request): bool => $request->data() === ['status' => 'Two', 'visibility' => 'public', 'in_reply_to_id' => '1', 'media_ids' => ['media-1']]
+        && $request->header('Idempotency-Key') === ["{$this->postPlatform->id}:1:".ThreadProgress::hash('Two', ['reply-image'])]);
+    Http::assertSent(fn ($request): bool => $request->data() === ['status' => 'Three', 'visibility' => 'public', 'in_reply_to_id' => '2']);
+});
+
 test('a mastodon thread with a reply over the limit fails before posting anything', function () {
     $this->postPlatform->update(['meta' => ['thread_replies' => [str_repeat('a', 495)], 'spoiler_text' => 'Ten chars!']]);
     Http::fake();

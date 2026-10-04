@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, useSlots } from 'vue';
+import { computed, nextTick, ref, useSlots, watch } from 'vue';
 
 import PlatformLogo from '@/components/PlatformLogo.vue';
 import ContentTypeRadioGroup from '@/components/posts/editor/ContentTypeRadioGroup.vue';
 import type { ContentTypeOption } from '@/composables/usePlatformLogo';
+import { autosizeTextarea } from '@/lib/autosizeTextarea';
 import {
     CAPTIONLESS_CONTENT_TYPES,
     MEDIALESS_CONTENT_TYPES,
@@ -20,6 +21,10 @@ const props = withDefaults(
         contentType?: string;
         hasMedia?: boolean;
         captionCollapsed?: boolean;
+        /** Shift+Enter in the caption opens the first post of a thread. */
+        threadable?: boolean;
+        /** A thread follows the caption, so it sizes to its text instead of filling the card. */
+        threaded?: boolean;
         disabled?: boolean;
     }>(),
     {
@@ -29,6 +34,8 @@ const props = withDefaults(
         contentType: '',
         hasMedia: false,
         captionCollapsed: false,
+        threadable: false,
+        threaded: false,
         disabled: false,
     },
 );
@@ -40,13 +47,91 @@ const emit = defineEmits<{
     drop: [event: DragEvent];
     'open-templates': [];
     'expand-caption': [];
+    'start-thread': [];
+    'next-post': [];
 }>();
+
+const caption = ref<HTMLTextAreaElement | null>(null);
+
+watch(
+    () => [props.threaded, props.content, props.captionCollapsed] as const,
+    async ([threaded]) => {
+        await nextTick();
+
+        if (caption.value) {
+            caption.value.style.height = '';
+        }
+
+        if (threaded) {
+            autosizeTextarea(caption.value);
+        }
+    },
+    { immediate: true },
+);
+
+const onCaptionInput = (event: Event): void => {
+    const textarea = event.target as HTMLTextAreaElement;
+
+    if (props.threaded) {
+        autosizeTextarea(textarea);
+    }
+
+    emit('update:content', textarea.value);
+};
+
+const onCaptionKeydown = (event: KeyboardEvent): void => {
+    const textarea = event.target as HTMLTextAreaElement;
+
+    if (
+        props.threaded &&
+        event.key === 'ArrowDown' &&
+        textarea.selectionStart === textarea.selectionEnd &&
+        textarea.selectionEnd === textarea.value.length
+    ) {
+        event.preventDefault();
+        emit('next-post');
+
+        return;
+    }
+
+    if (
+        props.threadable &&
+        event.key === 'Enter' &&
+        event.shiftKey &&
+        !event.isComposing
+    ) {
+        event.preventDefault();
+        emit('start-thread');
+    }
+};
+
+watch(
+    () => props.captionCollapsed,
+    async (collapsed, wasCollapsed) => {
+        if (collapsed || !wasCollapsed) {
+            return;
+        }
+
+        await nextTick();
+        autosizeTextarea(caption.value);
+        caption.value?.focus();
+        caption.value?.setSelectionRange(
+            caption.value.value.length,
+            caption.value.value.length,
+        );
+    },
+);
 
 const slots = useSlots();
 const captionId = computed(() => `${props.testIdPrefix}-caption`);
 const hintId = computed(() => `${props.testIdPrefix}-templates-hint`);
+const rootToolbarTarget = computed(() => `${props.testIdPrefix}-root-toolbar`);
+const replyToolbarTarget = computed(() => `${props.testIdPrefix}-reply-toolbar`);
 const showsCaption = computed(
     () => !CAPTIONLESS_CONTENT_TYPES.has(props.contentType),
+);
+const showsMedia = computed(
+    () => props.hasMedia || !MEDIALESS_CONTENT_TYPES.has(props.contentType),
 );
 const showsHeader = computed(
     () => props.contentTypeOptions.length > 0 || Boolean(slots.header),
@@ -83,33 +168,50 @@ const showsHeader = computed(
                 <slot name="header" />
             </div>
             <slot name="warnings" />
-            <template v-if="showsCaption">
+            <div
+                v-if="showsCaption"
+                class="relative flex flex-col"
+                :class="{ 'flex-1': !threaded && !captionCollapsed }"
+            >
+                <span
+                    v-if="threaded && platform"
+                    aria-hidden="true"
+                    class="pointer-events-none absolute -start-[25px] top-7 -bottom-3 w-0.5 rounded-full bg-border"
+                    :data-testid="`${testIdPrefix}-thread-connector`"
+                />
                 <button
                     v-if="captionCollapsed"
                     type="button"
-                    class="truncate px-[9px] text-start text-sm text-muted-foreground"
+                    class="px-[9px] text-start text-sm break-words whitespace-pre-line text-muted-foreground"
                     :data-testid="`${testIdPrefix}-caption-collapsed`"
                     @click="emit('expand-caption')"
                 >
                     {{ content }}
                 </button>
-                <div v-else class="relative flex min-h-40 flex-1 flex-col">
+                <div
+                    v-else
+                    class="relative flex flex-col"
+                    :class="threaded ? '' : 'min-h-40 flex-1'"
+                >
                     <label class="sr-only" :for="captionId">{{
                         $t('posts.composer.content_label')
                     }}</label>
                     <textarea
                         :id="captionId"
+                        ref="caption"
+                        :rows="threaded ? 1 : undefined"
                         :value="content"
                         :data-testid="captionTestId"
                         :aria-describedby="content ? undefined : hintId"
-                        class="min-h-40 w-full flex-1 resize-none bg-transparent px-[9px] pt-0.5 pb-1 text-sm outline-none"
-                        @input="
-                            emit(
-                                'update:content',
-                                ($event.target as HTMLTextAreaElement).value,
-                            )
+                        class="w-full resize-none bg-transparent px-[9px] pt-0.5 pb-1 text-sm outline-none"
+                        :class="
+                            threaded
+                                ? 'overflow-hidden'
+                                : 'min-h-40 flex-1'
                         "
+                        @input="onCaptionInput"
                         @paste="emit('paste', $event)"
+                        @keydown="onCaptionKeydown"
                     />
                     <p
                         v-if="!content"
@@ -131,14 +233,24 @@ const showsHeader = computed(
                         </button>
                     </p>
                 </div>
-            </template>
+                <slot v-if="threaded" name="post-media" />
+                <div
+                    v-if="threaded && !captionCollapsed"
+                    :id="rootToolbarTarget"
+                    class="px-[9px]"
+                />
+            </div>
             <slot name="replies" />
             <div>
-                <slot
-                    v-if="hasMedia || !MEDIALESS_CONTENT_TYPES.has(contentType)"
-                    name="media"
-                />
-                <slot name="toolbar" />
+                <slot v-if="showsMedia" name="media" />
+                <Teleport
+                    v-if="threaded"
+                    defer
+                    :to="`#${captionCollapsed ? replyToolbarTarget : rootToolbarTarget}`"
+                >
+                    <slot name="toolbar" />
+                </Teleport>
+                <slot v-else name="toolbar" />
             </div>
             <slot name="settings" />
         </div>

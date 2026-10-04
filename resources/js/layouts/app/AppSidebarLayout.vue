@@ -4,6 +4,7 @@ import AppSidebar from '@/components/AppSidebar.vue';
 import ConnectChannelDialog from '@/components/channels/ConnectChannelDialog.vue';
 import CommandPalette from '@/components/command-palette/CommandPalette.vue';
 import GlobalPostComposer from '@/components/posts/composer/GlobalPostComposer.vue';
+import ReferralSourceSurvey from '@/components/ReferralSourceSurvey.vue';
 import Toast from '@/components/Toast.vue';
 import {
     SidebarInset,
@@ -69,5 +70,6 @@ withDefaults(defineProps<Props>(), {
     <GlobalPostComposer />
     <ConnectChannelDialog />
     <CommandPalette />
+    <ReferralSourceSurvey />
     <Toast />
 </template>

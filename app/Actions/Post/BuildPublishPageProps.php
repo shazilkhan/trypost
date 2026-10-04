@@ -45,6 +45,10 @@ class BuildPublishPageProps
         PostStatus::Published,
         PostStatus::PartiallyPublished,
         PostStatus::Failed,
+    ];
+
+    public const QUEUE_STATUSES = [
+        PostStatus::Scheduled,
         PostStatus::Publishing,
     ];
 
@@ -195,7 +199,7 @@ class BuildPublishPageProps
             ->map(fn (mixed $count): int => (int) $count);
 
         return [
-            'queue' => $byStatus->get(PostStatus::Scheduled->value, 0),
+            'queue' => collect(self::QUEUE_STATUSES)->sum(fn (PostStatus $status): int => $byStatus->get($status->value, 0)),
             'drafts' => $byStatus->get(PostStatus::Draft->value, 0),
             'sent' => collect(self::SENT_STATUSES)->sum(fn (PostStatus $status): int => $byStatus->get($status->value, 0)),
         ];
@@ -231,12 +235,13 @@ class BuildPublishPageProps
     /**
      * A channel page always gets its timeline (scheduled posts and free posting times);
      * the all-channels page only gets one while nothing is scheduled. Pending queue
-     * requests holding a slot come along for the viewer who may see them.
+     * requests holding a slot come along for the viewer who may see them, and posts
+     * being published right now stay in the queue until they settle.
      *
      * @param  Collection<int, SocialAccount>  $channels
      * @param  list<string>  $labelIds
      * @param  callable(): Builder  $cards
-     * @return array{days: list<array<string, mixed>>, pending: list<Post>, queueDays: int, maxQueueDays: int}
+     * @return array{days: list<array<string, mixed>>, pending: list<Post>, publishing: list<Post>, queueDays: int, maxQueueDays: int}
      */
     private static function queue(Workspace $workspace, Collection $channels, string $displayTimezone, Request $request, array $labelIds, bool $untagged, callable $cards, bool $channelScope, ?User $requester): array
     {
@@ -256,11 +261,20 @@ class BuildPublishPageProps
             ->limit((int) config('app.pagination.default'))
             ->get();
 
+        $publishing = $cards()
+            ->where('status', PostStatus::Publishing)
+            ->orderBy('posts.scheduled_at')
+            ->orderBy('posts.id')
+            ->limit((int) config('app.pagination.default'))
+            ->get();
+
         self::decorate($pending);
+        self::decorate($publishing);
 
         return [
             'days' => $days,
             'pending' => $pending->values()->all(),
+            'publishing' => $publishing->values()->all(),
             'queueDays' => $queueDays,
             'maxQueueDays' => self::MAX_QUEUE_DAYS,
         ];

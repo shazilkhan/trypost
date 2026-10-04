@@ -15,6 +15,7 @@ use App\Services\Social\Concerns\HasSocialHttpClient;
 use App\Services\Social\Concerns\PublishesThreads;
 use App\Support\Social\ThreadProgress;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -40,11 +41,14 @@ class MastodonPublisher
             $postPlatform,
             $rootHash,
             fn (): array => $this->publishRoot($postPlatform, $account, $instance, $content, "{$postPlatform->id}:{$rootHash}"),
-            fn (string $text, array $parent): array => $this->createStatus(
+            fn (string $text, Collection $media, array $parent): array => $this->createStatus(
                 $account,
                 $instance,
-                $this->replyPayload($postPlatform, $text, (string) $parent['id']),
-                "{$postPlatform->id}:{$parent['id']}:".ThreadProgress::hash($text),
+                [
+                    ...$this->replyPayload($postPlatform, $text, (string) $parent['id']),
+                    ...$this->mediaPayload($account, $instance, $media),
+                ],
+                "{$postPlatform->id}:{$parent['id']}:".ThreadProgress::hash($text, $media->map(fn (MediaItem $item): string => $item->id)->all()),
             ),
         );
     }
@@ -54,25 +58,34 @@ class MastodonPublisher
      */
     private function publishRoot(PostPlatform $postPlatform, SocialAccount $account, string $instance, ?string $content, string $idempotencyKey): array
     {
+        $payload = [
+            'status' => $content ?? '',
+            'visibility' => 'public',
+            ...$this->mediaPayload($account, $instance, $postPlatform->post->mediaItems),
+        ];
+
+        return $this->createStatus($account, $instance, [...$payload, ...$this->contentWarning($postPlatform)], $idempotencyKey);
+    }
+
+    /**
+     * Uploads up to four media and returns the status's `media_ids`, empty
+     * when nothing uploaded.
+     *
+     * @param  Collection<int, MediaItem>  $media
+     * @return array{media_ids?: list<string>}
+     */
+    private function mediaPayload(SocialAccount $account, string $instance, Collection $media): array
+    {
         $mediaIds = [];
 
-        foreach ($postPlatform->post->mediaItems->take(4) as $media) {
-            $mediaId = $this->uploadMedia($account, $instance, $media->url, $media->original_filename, $media->isImage() ? $media->altTextFor(Platform::Mastodon) : null);
+        foreach ($media->take(4) as $item) {
+            $mediaId = $this->uploadMedia($account, $instance, $item->url, $item->original_filename, $item->isImage() ? $item->altTextFor(Platform::Mastodon) : null);
             if ($mediaId) {
                 $mediaIds[] = $mediaId;
             }
         }
 
-        $payload = [
-            'status' => $content ?? '',
-            'visibility' => 'public',
-        ];
-
-        if (! empty($mediaIds)) {
-            $payload['media_ids'] = $mediaIds;
-        }
-
-        return $this->createStatus($account, $instance, [...$payload, ...$this->contentWarning($postPlatform)], $idempotencyKey);
+        return $mediaIds === [] ? [] : ['media_ids' => $mediaIds];
     }
 
     /**

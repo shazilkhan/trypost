@@ -200,7 +200,7 @@ class PostController extends Controller
         }
 
         if ($action === PostAction::Publishing) {
-            return redirect()->route('app.posts.index', ['post' => $post->id]);
+            return redirect($this->publishPageReturnUrl(['tab' => 'queue']) ?? route('app.posts.index', ['tab' => 'queue']));
         }
 
         if ($action === PostAction::Scheduled) {

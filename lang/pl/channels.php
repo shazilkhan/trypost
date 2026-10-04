@@ -220,7 +220,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Ile razy w tygodniu chcesz publikować?',
-        'description' => 'Twój cel publikacji określa, ile zalecanych godzin ustawiamy na każdy tydzień.',
+        'description' => 'Utworzymy godziny w Twojej kolejce zgodnie z celem.',
         'options' => [
             'steady' => 'Zachowaj regularność',
             'presence' => 'Zbuduj obecność',
@@ -264,5 +264,11 @@ return [
         'empty_description' => 'Tutaj pojawią się posty w feedzie i rolki opublikowane na tym kanale.',
         'reel' => 'Rolka',
         'carousel' => 'Karuzela',
+    ],
+
+    'verified' => [
+        'blue' => 'Zweryfikowane',
+        'business' => 'Zweryfikowana organizacja',
+        'government' => 'Konto rządowe',
     ],
 ];

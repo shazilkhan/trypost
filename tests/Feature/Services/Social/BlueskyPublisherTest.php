@@ -1973,6 +1973,45 @@ test('a bluesky thread replies with root and parent strong refs', function () {
     Http::assertNotSent(fn ($request): bool => str_contains($request->url(), 'getPostThread'));
 });
 
+test('a bluesky thread embeds each reply media in that reply only', function () {
+    $image = ['id' => 'reply-image', 'path' => 'media/2026-01/photo.jpg', 'url' => 'https://example.com/media/2026-01/photo.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'photo.jpg', 'meta' => ['alt_text' => 'A photo']];
+    $this->postPlatform->update(['meta' => ['thread_replies' => [['text' => 'Two', 'media' => [$image]], 'Three']]]);
+
+    $this->mock(MediaOptimizer::class)
+        ->shouldReceive('optimizeImage')
+        ->andReturnUsing(fn () => tap(tempnam(sys_get_temp_dir(), 'bsky_test_'), fn ($f) => file_put_contents($f, str_repeat('x', 1024))));
+
+    $posts = ['r1', 'r2', 'r3'];
+    Http::fake(function ($request) use (&$posts) {
+        if (str_contains($request->url(), 'uploadBlob')) {
+            return Http::response(['blob' => ['$type' => 'blob', 'ref' => ['$link' => 'bafkreiabc123'], 'mimeType' => 'image/jpeg', 'size' => 1024]], 200);
+        }
+
+        if (str_contains($request->url(), 'createRecord')) {
+            $id = array_shift($posts);
+
+            return Http::response(['uri' => "at://did:plc:testuser123/app.bsky.feed.post/{$id}", 'cid' => "c-{$id}"], 200);
+        }
+
+        return Http::response(str_repeat('x', 1024), 200);
+    });
+
+    $result = $this->publisher->publish($this->postPlatform->fresh());
+
+    expect($result['thread_reply_ids'])->toBe(['r2', 'r3']);
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), 'createRecord')
+        && data_get($request->data(), 'record.text') === 'Two'
+        && data_get($request->data(), 'record.embed.$type') === 'app.bsky.embed.images'
+        && data_get($request->data(), 'record.embed.images.0.alt') === 'A photo'
+        && data_get($request->data(), 'record.reply.parent.uri') === 'at://did:plc:testuser123/app.bsky.feed.post/r1');
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), 'createRecord')
+        && data_get($request->data(), 'record.text') === 'Three'
+        && data_get($request->data(), 'record.embed') === null);
+    Http::assertNotSent(fn ($request): bool => str_contains($request->url(), 'createRecord')
+        && data_get($request->data(), 'record.reply') === null
+        && data_get($request->data(), 'record.embed.$type') === 'app.bsky.embed.images');
+});
+
 test('a bluesky thread resumes from the stored segments without posting the root again', function () {
     $this->postPlatform->update(['meta' => ['thread_replies' => ['Two', 'Three']]]);
     $service = data_get($this->socialAccount->meta, 'service');

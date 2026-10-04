@@ -634,9 +634,14 @@ const openInviteMemberDialog = (): void => {
     inviteMemberDialogOpen.value = true;
 };
 
+const publishingPosts = computed<PostCard[]>(() =>
+    props.tab === 'queue' ? (props.queue?.publishing ?? []) : [],
+);
+
 const isEmpty = computed(() =>
     props.tab === 'queue'
-        ? visibleQueueDays.value.length === 0
+        ? visibleQueueDays.value.length === 0 &&
+          publishingPosts.value.length === 0
         : (props.posts?.data.length ?? 0) === 0,
 );
 
@@ -983,6 +988,7 @@ const submitComposition = (
                         <QueueTimeline
                             :days="visibleQueueDays"
                             :posts="localQueue.posts"
+                            :publishing="publishingPosts"
                             :queue-days="queue?.queueDays ?? 0"
                             :can-load-more-times="canLoadMoreTimes"
                             :channels="queueChannels"

@@ -710,7 +710,11 @@ TryPost runs on **both PostgreSQL and MySQL**. Cloud runs PostgreSQL; a self-hos
 
 ## Thread replies
 
-- Bluesky and Mastodon only (`App\Support\ThreadReplies`), up to 24 replies in `meta.thread_replies`. X threads are not built yet.
+- Bluesky, Mastodon and X (`App\Support\ThreadReplies`), up to 24 replies in `meta.thread_replies`. Each reply is measured against the **account's** limit (`SocialAccount::maxContentLength()`), so an X account with long posts gets 25000 per reply; pass the account to `ThreadReplies::violation()` / `PostPlatformMetaRules::requiredMetaViolation()` whenever it is known.
+- Each reply is `{text, media}` (a stored plain string is a text-only reply; `ThreadReplies::of()` normalizes both, `PostPlatformMetaRules::normalize()` stores objects). Its media belongs to that reply only, never to the root: it publishes as `ThreadReplies::replyContentType()` (X → `XPost`, Bluesky → `BlueskyPost`, Mastodon → `MastodonPost`), so it follows that type's media rules (`ThreadReplies::mediaErrors()`, at save and at publish), and a reply needs text or media. The frontend mirror is `THREAD_REPLY_CONTENT_TYPES`. Adding a network means one entry in each map plus a reply callback in its publisher.
+- Reply media rows are owned by the post like its root media. `SyncOwnedMedia` resolves them from the post's stored `meta.thread_replies` and writes the canonical items back, so write the target's meta **before** calling it; it never deletes a row a reply still uses. Every segment's checkpoint hash covers its media ids.
+- In the composer each post of a thread shows its own media under it; the toolbar, paste, drop and the toolbar upload button add to the active post.
+- X replies go through `POST /2/tweets` with `reply.in_reply_to_tweet_id` on the previous segment. X restricts API replies (February 2026) to posts whose author summoned the replier; replying to your own post is the case that stays allowed. Each reply is billed as a post.
 - Each segment already live is checkpointed in `post_platforms.error_context.thread_progress` (`App\Support\Social\ThreadProgress`), so a retry resumes instead of re-posting, and a resume keeps the root hash. `posts:retry` keeps the live segments.
 - `post_platforms.thread_reply_ids` lists the reply ids so `ImportExternalPosts` does not import TryPost's own replies as new posts.
 

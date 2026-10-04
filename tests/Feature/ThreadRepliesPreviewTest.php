@@ -14,12 +14,15 @@ test('previews thread replies with the network sanitizer', function () {
         'post_id' => $post->id,
         'social_account_id' => $account->id,
         'enabled' => true,
-        'meta' => ['thread_replies' => ['<p>Second</p>']],
+        'meta' => ['thread_replies' => ['<p>Second</p>', ['text' => '<p>Third</p>', 'media' => [['id' => 'media-1', 'url' => 'https://cdn.test/one.jpg']]]]],
     ]);
 
     $preview = app(PostPreviewer::class)->forPost($post->fresh())['platforms'][0];
 
-    expect($preview['thread_replies'])->toBe(['Second']);
+    expect($preview['thread_replies'])->toEqual([
+        ['text' => 'Second', 'media' => []],
+        ['text' => 'Third', 'media' => [['id' => 'media-1', 'url' => 'https://cdn.test/one.jpg']]],
+    ]);
 });
 
 test('networks that cannot chain get no thread preview', function () {

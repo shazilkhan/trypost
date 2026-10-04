@@ -279,11 +279,11 @@ class UpdatePost
                 'schedule_mode' => $mode,
                 ...PostApproval::transition($previousStatus, $storedStatus, $actor, $pending ? $position : null),
             ]);
-            SyncOwnedMedia::execute($post, $destination['media'], $batch);
             $target->update([
                 'content_type' => $destination['content_type'],
                 'meta' => $meta,
             ]);
+            SyncOwnedMedia::execute($post, $destination['media'], $batch);
 
             if (array_key_exists('label_ids', $data)) {
                 $post->labels()->sync(data_get($data, 'label_ids'));

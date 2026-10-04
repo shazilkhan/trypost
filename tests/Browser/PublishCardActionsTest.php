@@ -116,7 +116,7 @@ test('a queued card shows publish now, edit and the menu in order', function () 
 
     $footer = $page->script(<<<JS
         Array.from(document.querySelector('[data-testid="post-publish-now-{$queued->id}"]').parentElement.children)
-            .map((element) => element.dataset.testid)
+            .map((element) => element.dataset.testid ?? element.querySelector('[data-testid]')?.dataset.testid)
     JS);
 
     expect($footer)->toBe([

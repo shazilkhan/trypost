@@ -52,7 +52,7 @@ return [
             'ai_tooltip' => 'Seu assistente de IA para escrever e revisar posts.',
             'mcp' => 'MCP: poste pelo Claude, ChatGPT ou Grok',
             'mcp_tooltip' => 'Conecte o Claude, ChatGPT ou Grok ao seu workspace. Peça para criar e agendar posts, puxar métricas, ver o que performou melhor e planejar o próximo conteúdo com base nos seus dados.',
-            'repurpose' => 'Repost: republique automaticamente nas outras redes',
+            'repurpose' => 'Repurpose: transforme um post em vários',
             'repurpose_tooltip' => 'Escolha uma conta de origem. Cada post novo que você publicar nela é republicado automaticamente nas suas outras redes. Você não precisa abrir o TryPost.',
             'analytics' => 'Analytics',
             'analytics_tooltip' => 'Obtenha métricas como impressões, alcance, likes e comentários de cada post e de cada conta, tudo num só lugar.',

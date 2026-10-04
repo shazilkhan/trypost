@@ -10,6 +10,7 @@ use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
 use App\Enums\User\Locale;
+use App\Enums\User\ReferralSource;
 use App\Http\Resources\App\HandleInertiaRequests\AuthAccountResource;
 use App\Http\Resources\App\HandleInertiaRequests\AuthPlanResource;
 use App\Http\Resources\App\HandleInertiaRequests\AuthUserResource;
@@ -58,6 +59,12 @@ class HandleInertiaRequests extends Middleware
             'channels' => fn (): array => $currentWorkspace
                 ? SidebarChannelResource::collection($currentWorkspace)
                 : [],
+            'referralSources' => fn (): ?array => $user !== null
+                && ! $isSelfHosted
+                && $account?->hasAppAccess()
+                && $user->getRawOriginal('referral_source') === null
+                    ? array_map(fn (ReferralSource $source): string => $source->value, ReferralSource::cases())
+                    : null,
             'mediaSources' => fn (): ?array => $user !== null ? ['menu' => MediaSource::menu()] : null,
             'mediaUploadLimits' => fn (): ?array => $user !== null ? [
                 'max_bytes' => [

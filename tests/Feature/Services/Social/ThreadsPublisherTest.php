@@ -51,6 +51,9 @@ test('threads publisher can publish text-only post', function () {
         'https://graph.threads.net/v1.0/123456789/threads' => Http::response([
             'id' => 'container-123',
         ], 200),
+        'https://graph.threads.net/v1.0/container-123*' => Http::response([
+            'status' => 'FINISHED',
+        ], 200),
         'https://graph.threads.net/v1.0/123456789/threads_publish' => Http::response([
             'id' => 'post-123456789',
         ], 200),
@@ -553,6 +556,9 @@ test('threads publisher refreshes token when expired', function () {
         'https://graph.threads.net/v1.0/123456789/threads' => Http::response([
             'id' => 'container-123',
         ], 200),
+        'https://graph.threads.net/v1.0/container-123*' => Http::response([
+            'status' => 'FINISHED',
+        ], 200),
         'https://graph.threads.net/v1.0/123456789/threads_publish' => Http::response([
             'id' => 'post-123456789',
         ], 200),
@@ -893,6 +899,7 @@ test('threads publisher keeps links intact', function () {
 
     Http::fake([
         'https://graph.threads.net/v1.0/123456789/threads' => Http::response(['id' => 'container-123'], 200),
+        'https://graph.threads.net/v1.0/container-123*' => Http::response(['status' => 'FINISHED'], 200),
         'https://graph.threads.net/v1.0/123456789/threads_publish' => Http::response(['id' => 'post-123456789'], 200),
         'https://graph.threads.net/v1.0/post-123456789*' => Http::response([
             'permalink' => 'https://www.threads.net/@testuser/post/ABC123',
@@ -998,11 +1005,58 @@ test('a threads post without a topic sends only text', function () {
         && array_keys($request->data()) === ['media_type', 'text', 'access_token']);
 });
 
-test('a ghost post with a link fails before calling threads', function () {
+test('a ghost post with a link is published as a ghost text container', function () {
     $this->postPlatform->update(['content_type' => ContentType::ThreadsGhostPost]);
     $this->post->update(['content' => 'Read https://example.com/article']);
-    Http::fake();
+    fakeThreadsContainerFlow();
 
-    expect(fn () => $this->publisher->publish($this->postPlatform->fresh()))->toThrow(ThreadsPublishException::class, __('posts.form.warnings.text_only'));
-    Http::assertNothingSent();
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn ($request): bool => str_ends_with($request->url(), '/123456789/threads')
+        && data_get($request->data(), 'media_type') === 'TEXT'
+        && data_get($request->data(), 'is_ghost_post') === 'true'
+        && str_contains((string) data_get($request->data(), 'text'), 'https://example.com/article'));
+});
+
+test('a text post waits for its container before publishing and recreates it when threads cannot find it', function () {
+    $this->postPlatform->update(['content_type' => ContentType::ThreadsGhostPost]);
+    $base = config('trypost.platforms.threads.graph_api');
+    $containerCreations = 0;
+    $publicationAttempts = 0;
+    $requestOrder = [];
+
+    Http::fake(function ($request) use ($base, &$containerCreations, &$publicationAttempts, &$requestOrder) {
+        $url = $request->url();
+
+        if (str_starts_with($url, "{$base}/123456789/threads_publish")) {
+            $publicationAttempts++;
+            $requestOrder[] = 'publish';
+
+            return $publicationAttempts === 1
+                ? Http::response(['error' => ['code' => 24, 'error_subcode' => 4279009, 'message' => 'The requested resource does not exist']], 400)
+                : Http::response(['id' => 'post-1']);
+        }
+
+        if (str_starts_with($url, "{$base}/123456789/threads")) {
+            $containerCreations++;
+            $requestOrder[] = 'create';
+
+            return Http::response(['id' => "container-{$containerCreations}"]);
+        }
+
+        if (str_starts_with($url, "{$base}/container-")) {
+            $requestOrder[] = 'status';
+
+            return Http::response(['status' => 'FINISHED']);
+        }
+
+        return Http::response(['permalink' => 'https://www.threads.net/@testuser/post/A']);
+    });
+
+    $result = $this->publisher->publish($this->postPlatform->fresh());
+
+    expect($result['id'])->toBe('post-1')
+        ->and($containerCreations)->toBe(2)
+        ->and($publicationAttempts)->toBe(2)
+        ->and(array_slice($requestOrder, 0, 3))->toBe(['create', 'status', 'publish']);
 });

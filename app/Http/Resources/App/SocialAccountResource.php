@@ -24,6 +24,7 @@ class SocialAccountResource extends JsonResource
             'display_label' => $this->display_label,
             'handle_label' => $this->handle_label,
             'avatar_url' => $this->avatar_url,
+            'verified_badge' => $this->verified_badge,
             'profile_url' => $this->profile_url,
             'status' => $this->status,
             'timezone' => $this->timezone,

@@ -36,6 +36,7 @@ use App\Support\Social\GoogleBusinessDerivativeCleaner;
 use App\Support\Social\PublishCheckpoint;
 use App\Support\Social\ThreadProgress;
 use App\Support\Social\TikTokPhotoDerivativeCleaner;
+use App\Support\ThreadReplies;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -262,8 +263,7 @@ class PublishToSocialPlatform implements ShouldBeUnique, ShouldQueue
             ]],
             (array) ($post->media ?? []),
             $post->workspace,
-            $post->content,
-        );
+        ) ?: ThreadReplies::mediaErrors($this->postPlatform->platform, $this->postPlatform->meta, $post->workspace);
 
         if ($errors === []) {
             return false;

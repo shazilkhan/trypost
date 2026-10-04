@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/vue3';
 import { IconCircleCheck, IconStarFilled } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
+import AppLogo from '@/components/AppLogo.vue';
 import LocaleSwitcher from '@/components/LocaleSwitcher.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { Auth } from '@/types';
@@ -91,10 +92,9 @@ const loopedReviews = [
 
             <div :class="['flex w-full flex-col gap-6', widthClass[width]]">
                 <div class="flex flex-col items-center gap-4 text-center">
-                    <img
-                        src="/images/trypost/icon.png"
-                        alt="TryPost"
-                        class="motion-auth-logo h-11 w-auto"
+                    <AppLogo
+                        variant="mark"
+                        class="motion-auth-logo text-[38px]"
                         data-testid="auth-logo"
                     />
                     <div
