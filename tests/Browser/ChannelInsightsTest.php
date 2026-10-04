@@ -250,8 +250,50 @@ test('the channel header exports this channel and rows open the post details or 
     $page->keys('@insights-export-csv', 'Escape')
         ->assertPresent('@insights-sync-status')
         ->assertPresent('@insights-posts-about')
-        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostReactions->id}\"]').getAttribute('href')", route('app.posts.index', ['post' => $post->id]))
-        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostViews->id}\"]').getAttribute('target')", '_blank')
-        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostViews->id}\"]').getAttribute('href')", 'https://www.instagram.com/p/most-views/')
+        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostReactions->id}\"]').tagName", 'BUTTON')
+        ->assertScript("document.querySelector('[data-testid=\"insights-posts-link-{$this->mostViews->id}\"]').tagName", 'BUTTON')
+        ->assertNoJavaScriptErrors();
+});
+
+test('a publication with a TryPost post opens the post details on the insights page', function () {
+    $post = Post::factory()->published()->create([
+        'workspace_id' => $this->instagram->workspace_id,
+        'user_id' => $this->user->id,
+        'content' => 'Published through TryPost',
+        'published_at' => $this->mostReactions->provider_published_at,
+    ]);
+    $target = PostPlatform::factory()->published()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->instagram->id,
+        'platform' => Platform::Instagram,
+    ]);
+    $this->mostReactions->update(['post_platform_id' => $target->id]);
+    $insightsUrl = route('app.channels.insights', $this->instagram);
+
+    $page = visit($insightsUrl);
+    waitForChannelInsightsTestId($page, "insights-posts-link-{$this->mostReactions->id}");
+    $path = $page->script('location.pathname');
+
+    $page->click("@insights-posts-link-{$this->mostReactions->id}");
+    waitForChannelInsightsTestId($page, "post-details-{$post->id}");
+
+    $page->assertSeeIn("@post-details-text-{$post->id}", 'Published through TryPost')
+        ->assertScript('location.pathname', $path)
+        ->assertNoJavaScriptErrors();
+});
+
+test('a publication without a TryPost post opens its details on the insights page', function () {
+    $this->mostViews->update(['excerpt' => 'Posted straight on Instagram', 'permalink' => 'https://www.instagram.com/p/most-views/']);
+
+    $page = visit(route('app.channels.insights', $this->instagram));
+    waitForChannelInsightsTestId($page, "insights-posts-link-{$this->mostViews->id}");
+    $path = $page->script('location.pathname');
+
+    $page->click("@insights-posts-link-{$this->mostViews->id}");
+    waitForChannelInsightsTestId($page, "publication-details-{$this->mostViews->id}");
+
+    $page->assertSeeIn("@publication-details-text-{$this->mostViews->id}", 'Posted straight on Instagram')
+        ->assertAttribute("@publication-details-view-{$this->mostViews->id}", 'href', 'https://www.instagram.com/p/most-views/')
+        ->assertScript('location.pathname', $path)
         ->assertNoJavaScriptErrors();
 });

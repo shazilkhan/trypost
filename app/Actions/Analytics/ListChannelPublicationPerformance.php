@@ -15,6 +15,9 @@ use InvalidArgumentException;
 
 class ListChannelPublicationPerformance
 {
+    /** The ranking stops at the best posts; the rest of the period is not listed. */
+    public const int TOP_POSTS = 50;
+
     public function __construct(
         private readonly ResolveAnalyticsAccountKey $accountKey,
         private readonly QueryLatestPublicationSnapshots $latestSnapshots,
@@ -44,12 +47,20 @@ class ListChannelPublicationPerformance
             ->paginate((int) config('app.pagination.default'));
 
         $offset = ($paginator->currentPage() - 1) * $paginator->perPage();
+        $total = min($paginator->total(), self::TOP_POSTS);
+        $top = new LengthAwarePaginator(
+            collect($paginator->items())->take(max(0, $total - $offset))->values(),
+            $total,
+            $paginator->perPage(),
+            $paginator->currentPage(),
+            $paginator->getOptions(),
+        );
 
-        return $paginator->through(fn (object $row, int $index): array => $this->row($row, $offset + $index + 1));
+        return $top->through(fn (object $row, int $index): array => $this->row($row, $offset + $index + 1));
     }
 
     /**
-     * @return array{id: string, rank: int, excerpt: ?string, thumbnail_url: ?string, permalink: ?string, published_at: string, content_type: ?string, metrics: array{reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, shares: ?int, saves: ?int, reach: ?int}, url: ?string}
+     * @return array{id: string, rank: int, excerpt: ?string, thumbnail_url: ?string, permalink: ?string, published_at: string, content_type: ?string, metrics: array{reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, shares: ?int, saves: ?int, reach: ?int}, post_id: ?string}
      */
     private function row(object $row, int $rank): array
     {
@@ -70,7 +81,7 @@ class ListChannelPublicationPerformance
                 'saves' => $this->integer($row->saves_count),
                 'reach' => $this->integer($row->reach_count),
             ],
-            'url' => $row->post_id === null ? null : route('app.posts.index', ['post' => $row->post_id]),
+            'post_id' => $row->post_id,
         ];
     }
 

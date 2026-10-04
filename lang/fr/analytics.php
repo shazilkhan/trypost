@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'Aucun aperçu textuel disponible.',
         'published_via_trypost' => 'Publié via TryPost',
         'published_on_network' => 'Publié sur le réseau social',
-        'view_post' => 'Voir la publication',
         'top_posts_sort' => 'Classer les publications par',
         'carried_forward' => 'Dernière valeur connue',
         'carried_forward_hint' => 'Le service était indisponible ; voici le dernier nombre connu d’abonnés.',

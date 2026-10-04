@@ -276,18 +276,19 @@ test('a channel whose connection is lost shows the disconnected dot in the filte
     $page->assertNoJavaScriptErrors();
 });
 
-test('clicking a top post opens its post details on the publish page', function () {
+test('clicking a top post opens its post details on the insights page', function () {
     ['user' => $user, 'post' => $post] = insightsParitySetup();
     $this->actingAs($user);
 
     $page = visit(route('app.insights'));
     waitForInsightsParityTestId($page, 'analytics-top-post-link');
+    $path = $page->script('location.pathname');
 
     $page->click('[data-testid="analytics-top-post"] >> nth=0');
     waitForInsightsParityTestId($page, "post-details-{$post->id}");
 
-    $page->assertScript('new URLSearchParams(location.search).get("post")', $post->id)
-        ->assertScript('location.pathname', parse_url(route('app.posts.index'), PHP_URL_PATH))
+    $page->assertScript('location.pathname', $path)
+        ->assertScript('new URLSearchParams(location.search).has("post")', false)
         ->assertSeeIn("@post-details-text-{$post->id}", 'Insights parity post alpha')
         ->assertNoJavaScriptErrors();
 });

@@ -217,6 +217,9 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('insights/download/{format}', [InsightsController::class, 'download'])
         ->whereIn('format', ExportFormat::values())
         ->name('app.insights.download');
+    Route::get('insights/publications/{publication}/details', [InsightsController::class, 'publication'])
+        ->whereUuid('publication')
+        ->name('app.insights.publications.details');
 
     // Schedule
     Route::get('schedule', [PostController::class, 'index'])->name('app.posts.index');

@@ -1903,7 +1903,7 @@ const close = (): void => emit('update:open', false);
             :class="
                 expandedDialog
                     ? 'sm:h-dvh sm:max-h-dvh sm:w-screen sm:rounded-none'
-                    : 'sm:h-[calc(100dvh-3rem)] sm:max-h-[888px] sm:w-[min(1100px,calc(100vw-3rem))] sm:rounded-2xl'
+                    : 'sm:h-[calc(100dvh-3rem)] sm:max-h-[888px] sm:w-[min(1280px,calc(100vw-3rem))] sm:rounded-2xl'
             "
             :show-close-button="false"
             :aria-describedby="undefined"
@@ -2071,7 +2071,7 @@ const close = (): void => emit('update:open', false);
             </header>
 
             <div
-                class="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1fr)_380px]"
+                class="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1fr)_440px]"
             >
                 <div
                     class="min-h-0 overflow-y-auto px-4 pt-4 pb-5 sm:px-8"
@@ -2791,6 +2791,7 @@ const close = (): void => emit('update:open', false);
 
                 <aside
                     class="min-h-0 flex-col bg-muted"
+                    data-testid="composer-preview-panel"
                     :class="mobilePanelOpen ? 'flex' : 'hidden md:flex'"
                 >
                     <div class="border-b px-4 py-2 md:hidden">
@@ -3302,10 +3303,9 @@ const close = (): void => emit('update:open', false);
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter
-                class="flex-col border-t border-border px-6 py-4 sm:flex-row sm:justify-end"
+                class="mx-2 mb-2"
             >
                 <AlertDialogCancel
-                    class="mt-0"
                     data-testid="composer-back-cancel"
                 >
                     {{ $t('common.cancel') }}

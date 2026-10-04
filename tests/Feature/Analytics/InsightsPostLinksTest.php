@@ -74,3 +74,45 @@ test('the post details deep link receives the latest saved post metrics', functi
 
     Http::assertNothingSent();
 });
+
+test('a publication without a TryPost post returns its details and latest metrics', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    $account = SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::Instagram]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'platform' => Platform::Instagram,
+        'network' => Platform::Instagram->network(),
+        'origin' => PublicationOrigin::External,
+        'excerpt' => 'Posted straight on Instagram',
+        'permalink' => 'https://www.instagram.com/p/abc/',
+    ]);
+    AnalyticsPublicationDailySnapshot::factory()->create([
+        'publication_id' => $publication->id,
+        'reactions_count' => 12,
+    ]);
+
+    $this->actingAs($user)
+        ->getJson(route('app.insights.publications.details', $publication->id))
+        ->assertOk()
+        ->assertJsonPath('publication.id', $publication->id)
+        ->assertJsonPath('publication.excerpt', 'Posted straight on Instagram')
+        ->assertJsonPath('publication.permalink', 'https://www.instagram.com/p/abc/')
+        ->assertJsonPath('available', true);
+});
+
+test('a publication of another workspace is not found', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    $foreign = AnalyticsPublication::factory()->create(['workspace_id' => Workspace::factory()->create()->id]);
+
+    $this->actingAs($user)
+        ->getJson(route('app.insights.publications.details', $foreign->id))
+        ->assertNotFound();
+});

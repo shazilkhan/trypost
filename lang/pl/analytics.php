@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'Podgląd tekstu jest niedostępny.',
         'published_via_trypost' => 'Opublikowano przez TryPost',
         'published_on_network' => 'Opublikowano w sieci społecznościowej',
-        'view_post' => 'Zobacz post',
         'top_posts_sort' => 'Sortuj posty według',
         'carried_forward' => 'Ostatnia znana wartość',
         'carried_forward_hint' => 'Dostawca był niedostępny; to ostatnia znana liczba obserwujących.',

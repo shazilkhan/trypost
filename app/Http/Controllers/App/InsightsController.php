@@ -7,6 +7,7 @@ namespace App\Http\Controllers\App;
 use App\Actions\Analytics\BuildInsightsExport;
 use App\Actions\Analytics\BuildWorkspaceAnalyticsReport;
 use App\Actions\Analytics\ListAvailableChannelMetrics;
+use App\Actions\Analytics\ReadPublicationAnalytics;
 use App\Actions\Analytics\ResolveAnalyticsChannelFilter;
 use App\Actions\Analytics\ResolveAnalyticsLabelFilter;
 use App\Actions\Analytics\ResolveAnalyticsRangePreset;
@@ -14,8 +15,10 @@ use App\Enums\Analytics\ExportFormat;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AnalyticsReportRequest;
 use App\Http\Requests\App\Insights\DownloadInsightsRequest;
+use App\Http\Resources\App\PublicationDetailResource;
 use App\Support\Analytics\InsightsExportWriter;
 use App\Support\Analytics\SyncCadence;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -88,5 +91,13 @@ class InsightsController extends Controller
             InsightsExportWriter::write($format, $sections, $stream);
             fclose($stream);
         }, $filename, ['Content-Type' => $format->contentType()]);
+    }
+
+    public function publication(Request $request, string $publication, ReadPublicationAnalytics $analytics): PublicationDetailResource
+    {
+        $workspace = $request->user()->currentWorkspace;
+        $this->authorize('view', $workspace);
+
+        return PublicationDetailResource::make($analytics->latestForWorkspacePublication($workspace, $publication));
     }
 }

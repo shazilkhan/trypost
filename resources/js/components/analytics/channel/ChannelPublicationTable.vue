@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { InfiniteScroll, Link, router } from '@inertiajs/vue3';
+import { InfiniteScroll, router } from '@inertiajs/vue3';
 import { IconChevronDown, IconPhoto } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import AnalyticsModeToggle from '@/components/analytics/workspace/AnalyticsModeToggle.vue';
 import AnalyticsSection from '@/components/analytics/workspace/AnalyticsSection.vue';
+import PostDetailsDialog from '@/components/publish/PostDetailsDialog.vue';
+import PublicationDetailsDialog from '@/components/publish/PublicationDetailsDialog.vue';
 import {
     Table,
     TableBody,
@@ -13,6 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { usePostDetails } from '@/composables/usePostDetails';
 import date from '@/date';
 import { formatNumberCompact, formatPercent } from '@/lib/utils';
 import type {
@@ -97,22 +100,27 @@ const changeSort = (sort: SummaryMetric): void => {
     }
 };
 
-const networkUrl = (row: ChannelPublicationRow): string | null =>
-    row.permalink && /^https:\/\//i.test(row.permalink) ? row.permalink : null;
+const {
+    detailsPost,
+    detailsOpen,
+    openPost,
+    detailsPublication,
+    publicationOpen,
+    openPublication,
+    editPost,
+    runPostAction,
+} = usePostDetails();
 
-const linkAttributes = (
-    row: ChannelPublicationRow,
-): Record<string, string> => {
-    if (row.url) {
-        return { href: row.url };
+const openRow = (row: ChannelPublicationRow): void => {
+    if (row.post_id) {
+        openPost(row.post_id);
+
+        return;
     }
 
-    const permalink = networkUrl(row);
-
-    return permalink
-        ? { href: permalink, target: '_blank', rel: 'noopener noreferrer' }
-        : {};
+    openPublication(row.id);
 };
+
 
 const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
     const value = row.metrics[key];
@@ -216,9 +224,9 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
                                 :data-testid="`insights-posts-row-${row.id}`"
                             >
                                 <TableCell class="border-r-0 px-4 py-3">
-                                    <component
-                                        :is="row.url ? Link : networkUrl(row) ? 'a' : 'span'"
-                                        v-bind="linkAttributes(row)"
+                                    <button
+                                        type="button"
+                                        @click="openRow(row)"
                                         class="flex max-w-md min-w-0 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                                         :data-testid="`insights-posts-link-${row.id}`"
                                     >
@@ -265,7 +273,7 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
                                                 }}
                                             </span>
                                         </span>
-                                    </component>
+                                    </button>
                                 </TableCell>
                                 <TableCell
                                     v-for="column in columns"
@@ -280,5 +288,20 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
                 </div>
             </InfiniteScroll>
         </div>
+        <PublicationDetailsDialog
+            v-if="detailsPublication"
+            v-model:open="publicationOpen"
+            :detail="detailsPublication"
+            :channel-id="null"
+        />
+        <PostDetailsDialog
+            v-if="detailsPost"
+            v-model:open="detailsOpen"
+            :post="detailsPost"
+            :test-key="detailsPost.id"
+            :timezone="date.getUserTimezone()"
+            @select="runPostAction"
+            @edit="editPost"
+        />
     </AnalyticsSection>
 </template>

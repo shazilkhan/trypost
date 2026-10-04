@@ -85,7 +85,6 @@ return [
         'no_excerpt' => 'Keine Textvorschau verfügbar.',
         'published_via_trypost' => 'Über TryPost veröffentlicht',
         'published_on_network' => 'Im sozialen Netzwerk veröffentlicht',
-        'view_post' => 'Beitrag ansehen',
         'top_posts_sort' => 'Beiträge sortieren nach',
         'carried_forward' => 'Letzter bekannter Wert',
         'carried_forward_hint' => 'Der Anbieter war nicht verfügbar; dies ist die letzte bekannte Follower-Zahl.',

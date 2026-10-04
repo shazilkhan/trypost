@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'テキストのプレビューはありません。',
         'published_via_trypost' => 'TryPostから公開',
         'published_on_network' => 'SNS上で公開',
-        'view_post' => '投稿を見る',
         'top_posts_sort' => '投稿の並べ替え基準',
         'carried_forward' => '最後に確認された値',
         'carried_forward_hint' => 'サービスに接続できなかったため、最後に確認されたフォロワー数を表示しています。',

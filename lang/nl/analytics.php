@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'Geen tekstvoorbeeld beschikbaar.',
         'published_via_trypost' => 'Gepubliceerd via TryPost',
         'published_on_network' => 'Gepubliceerd op het sociale netwerk',
-        'view_post' => 'Bericht bekijken',
         'top_posts_sort' => 'Berichten rangschikken op',
         'carried_forward' => 'Laatst bekende waarde',
         'carried_forward_hint' => 'De aanbieder was niet beschikbaar; dit is het laatst bekende aantal volgers.',

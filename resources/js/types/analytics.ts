@@ -176,7 +176,7 @@ export interface ChannelPublicationRow {
     published_at: string;
     content_type: string | null;
     metrics: Partial<Record<SummaryMetric, number | null>>;
-    url: string | null;
+    post_id: string | null;
 }
 
 export interface PublicationMetricFact {

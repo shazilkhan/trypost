@@ -1391,3 +1391,26 @@ test('the schedule picker footer keeps both actions on one line in every languag
 
     expect($wrapped)->toBe([]);
 });
+
+test('the composer is wide enough for the preview on a desktop screen', function (int $width, int $dialog) {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'))->resize($width, 1000);
+    waitForComposerReady($page);
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
+
+    expect($page->script(<<<'JS'
+        (() => ({
+            dialog: Math.round(document.querySelector('[data-testid="post-composer-dialog"]').getBoundingClientRect().width),
+            preview: Math.round(document.querySelector('[data-testid="composer-preview-panel"]').getBoundingClientRect().width),
+        }))()
+    JS))->toBe(['dialog' => $dialog, 'preview' => 440]);
+})->with([
+    'large screen' => [1920, 1280],
+    'laptop' => [1280, 1232],
+]);

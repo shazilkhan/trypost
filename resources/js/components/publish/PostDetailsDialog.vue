@@ -26,6 +26,7 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -208,6 +209,12 @@ const threadReplies = computed((): ThreadReply[] => {
           )
         : [];
 });
+
+const showsThread = computed(
+    () =>
+        threadReplies.value.length > 0 &&
+        Boolean(targets.value[0]?.social_account),
+);
 
 const lightboxOpen = ref(false);
 const lightboxIndex = ref(0);
@@ -393,7 +400,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                     </DialogHeader>
 
                     <section
-                        v-for="target in targets"
+                        v-for="target in showsThread ? [] : targets"
                         :key="target.id"
                         class="flex items-center gap-3"
                         :data-testid="`post-details-target-${target.id}`"
@@ -437,7 +444,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                     </section>
 
                     <ThreadView
-                        v-if="threadReplies.length && targets[0]?.social_account"
+                        v-if="showsThread && targets[0]?.social_account"
                         :account="targets[0].social_account"
                         :posts="[{ text: content, media }, ...threadReplies]"
                         :test-key="currentKey"
@@ -487,14 +494,12 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         v-if="metricsDetail"
                         :detail="metricsDetail"
                         :channel-id="targets[0]?.social_account?.id ?? null"
-                        class="px-0"
+                        class="-mx-6 px-6"
                         :metrics-test-id="`post-details-metrics-${currentKey}`"
                         :insights-test-id="`post-details-insights-${currentKey}`"
                     />
 
-                    <div
-                        class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-4"
-                    >
+                    <DialogFooter class="sm:justify-between">
                         <p class="min-w-0 truncate text-sm text-foreground">
                             <TooltipProvider
                                 v-if="
@@ -582,7 +587,7 @@ const siblingMoment = (sibling: PostCard): string | null => {
                                 @select="(action) => emit('select', action, current)"
                             />
                         </div>
-                    </div>
+                    </DialogFooter>
                 </div>
             </div>
             <MediaLightbox

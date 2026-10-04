@@ -14,6 +14,7 @@ import {
     DialogClose,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
 import { type ImageSize, useImageCrop } from '@/composables/useImageCrop';
@@ -534,9 +535,7 @@ watch(tagging, (isTagging) => {
                 </aside>
             </div>
 
-            <footer
-                class="flex flex-wrap items-center justify-end gap-2 px-4 py-3"
-            >
+            <DialogFooter class="m-2 shrink-0 flex-wrap">
                 <p
                     v-if="failed"
                     class="mr-auto text-sm text-destructive"
@@ -546,7 +545,7 @@ watch(tagging, (isTagging) => {
                 </p>
                 <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     data-testid="media-editor-cancel"
                     @click="emit('update:open', false)"
                 >
@@ -570,7 +569,7 @@ watch(tagging, (isTagging) => {
                             : $t('posts.composer.media_editor.apply')
                     }}
                 </Button>
-            </footer>
+            </DialogFooter>
         </DialogContent>
     </Dialog>
 </template>

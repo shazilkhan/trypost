@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'No text preview available.',
         'published_via_trypost' => 'Published via TryPost',
         'published_on_network' => 'Published on the social network',
-        'view_post' => 'View post',
         'top_posts_sort' => 'Rank posts by',
         'carried_forward' => 'Last known',
         'carried_forward_hint' => 'The provider was unavailable; this is the last known follower count.',

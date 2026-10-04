@@ -160,10 +160,9 @@ const customize = (accountId: string): void => {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter
-                        class="flex-col border-t border-border px-6 py-4 sm:flex-row sm:justify-end"
+                        class="mx-2 mb-2"
                     >
                         <AlertDialogCancel
-                            class="mt-0"
                             data-testid="connect-channel-exit-continue"
                         >
                             {{ $t('channels.dialog.exit_confirm.continue') }}

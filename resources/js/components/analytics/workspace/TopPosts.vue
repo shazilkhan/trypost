@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { IconArrowUpRight, IconExternalLink } from '@tabler/icons-vue';
+import { IconArrowUpRight } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
+import PostDetailsDialog from '@/components/publish/PostDetailsDialog.vue';
+import PublicationDetailsDialog from '@/components/publish/PublicationDetailsDialog.vue';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
+import { usePostDetails } from '@/composables/usePostDetails';
 import date from '@/date';
 import { formatNumberCompact } from '@/lib/utils';
-import { index as postsIndex } from '@/routes/app/posts';
 import type { TopPost, WorkspaceAnalyticsReport } from '@/types/analytics';
 
 import AnalyticsModeToggle from './AnalyticsModeToggle.vue';
@@ -32,12 +33,26 @@ const buttons = [
     },
 ] as const;
 const posts = computed<TopPost[]>(() => props.topPosts[metric.value]);
-const detailsUrl = (post: TopPost): string | null =>
-    post.post_id ? postsIndex.url({ query: { post: post.post_id } }) : null;
-const networkUrl = (post: TopPost): string | null =>
-    post.permalink && /^https:\/\//i.test(post.permalink)
-        ? post.permalink
-        : null;
+const {
+    detailsPost,
+    detailsOpen,
+    openPost,
+    detailsPublication,
+    publicationOpen,
+    openPublication,
+    editPost,
+    runPostAction,
+} = usePostDetails();
+
+const openDetails = (post: TopPost): void => {
+    if (post.post_id) {
+        openPost(post.post_id);
+
+        return;
+    }
+
+    openPublication(post.id);
+};
 const thumbnailFor = (post: TopPost): string | null => {
     const value = post.preview_metadata?.thumbnail_url;
     return typeof value === 'string' && /^https:\/\//i.test(value)
@@ -165,35 +180,36 @@ const thumbnailFor = (post: TopPost): string | null => {
                                   )
                                 : $t('analytics.dashboard.published_on_network')
                         }}</span>
-                        <Link
-                            v-if="detailsUrl(post)"
-                            :href="detailsUrl(post)!"
+                        <button
+                            type="button"
                             data-testid="analytics-top-post-link"
                             class="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 font-medium text-foreground transition-control after:absolute after:inset-0 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
+                            @click="openDetails(post)"
                         >
                             {{ $t('analytics.detail.details') }}
                             <IconArrowUpRight
                                 class="size-3.5"
                                 aria-hidden="true"
                             />
-                        </Link>
-                        <a
-                            v-else-if="networkUrl(post)"
-                            :href="networkUrl(post)!"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            data-testid="analytics-top-post-link"
-                            class="inline-flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 font-medium text-foreground transition-control after:absolute after:inset-0 hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
-                        >
-                            {{ $t('analytics.dashboard.view_post') }}
-                            <IconExternalLink
-                                class="size-3.5"
-                                aria-hidden="true"
-                            />
-                        </a>
+                        </button>
                     </div>
                 </div>
             </article>
         </div>
+        <PublicationDetailsDialog
+            v-if="detailsPublication"
+            v-model:open="publicationOpen"
+            :detail="detailsPublication"
+            :channel-id="null"
+        />
+        <PostDetailsDialog
+            v-if="detailsPost"
+            v-model:open="detailsOpen"
+            :post="detailsPost"
+            :test-key="detailsPost.id"
+            :timezone="date.getUserTimezone()"
+            @select="runPostAction"
+            @edit="editPost"
+        />
     </AnalyticsSection>
 </template>

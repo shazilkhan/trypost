@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'No hay vista previa de texto disponible.',
         'published_via_trypost' => 'Publicado mediante TryPost',
         'published_on_network' => 'Publicado en la red social',
-        'view_post' => 'Ver publicación',
         'top_posts_sort' => 'Ordenar publicaciones por',
         'carried_forward' => 'Último valor conocido',
         'carried_forward_hint' => 'El proveedor no estaba disponible; este es el último número conocido de seguidores.',

@@ -85,7 +85,6 @@ return [
         'no_excerpt' => 'Metin önizlemesi mevcut değil.',
         'published_via_trypost' => 'TryPost aracılığıyla yayınlandı',
         'published_on_network' => 'Sosyal ağda yayınlandı',
-        'view_post' => 'Gönderiyi görüntüle',
         'top_posts_sort' => 'Gönderileri şuna göre sırala',
         'carried_forward' => 'Bilinen son değer',
         'carried_forward_hint' => 'Sağlayıcı kullanılamıyordu; bu, bilinen son takipçi sayısıdır.',

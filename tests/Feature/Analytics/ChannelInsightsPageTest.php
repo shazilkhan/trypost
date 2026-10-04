@@ -106,10 +106,10 @@ test('the insights page renders the channel report and its publications', functi
             ->where('publications.data.0.rank', 1)
             ->where('publications.data.0.thumbnail_url', 'https://cdn.example.com/a.jpg')
             ->where('publications.data.0.metrics.reactions', 8)
-            ->where('publications.data.0.url', null)
+            ->where('publications.data.0.post_id', null)
             ->where('publications.data.0.permalink', $publication->permalink)
             ->where('publications.data.1.id', $insecure->id)
-            ->where('publications.data.1.url', route('app.posts.index', ['post' => $post->id]))
+            ->where('publications.data.1.post_id', $post->id)
             ->where('sync', SyncCadence::toArray())
             ->where('publications.data.1.rank', 2)
             ->where('publications.data.1.thumbnail_url', null)
@@ -201,6 +201,28 @@ test('the publication table is paginated by the default page size', function () 
             ->where('publications.data.0.rank', $size + 1)
             ->where('publications.data.0.metrics.reactions', 1)
             ->etc());
+});
+
+test('the publication table lists only the top posts of the period', function () {
+    config(['app.pagination.default' => 20]);
+    $top = ListChannelPublicationPerformance::TOP_POSTS;
+
+    foreach (range(1, $top + 5) as $index) {
+        channelInsightsPublication($this->instagram, CarbonImmutable::parse('2026-08-01 10:00:00', 'UTC')->addMinutes($index)->toDateTimeString(), ['reactions_count' => $index]);
+    }
+
+    $page = fn (int $number) => $this->actingAs($this->user)
+        ->get(route('app.channels.insights', ['account' => $this->instagram, 'range' => 'custom', 'start' => '2026-08-01', 'end' => '2026-08-31', 'page' => $number]))
+        ->assertOk();
+
+    $page(3)->assertInertia(fn (Assert $inertia) => $inertia
+        ->has('publications.data', $top - 40)
+        ->where('publications.data.0.rank', 41)
+        ->etc());
+
+    $page(4)->assertInertia(fn (Assert $inertia) => $inertia
+        ->has('publications.data', 0)
+        ->etc());
 });
 
 test('a sort metric no publication reports falls back to published date order', function () {

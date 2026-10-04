@@ -83,7 +83,6 @@ return [
         'no_excerpt' => '没有可用的文字预览。',
         'published_via_trypost' => '通过TryPost发布',
         'published_on_network' => '在社交平台发布',
-        'view_post' => '查看帖子',
         'top_posts_sort' => '帖子排序依据',
         'carried_forward' => '最近已知值',
         'carried_forward_hint' => '服务暂时不可用；这里显示最近已知的粉丝数。',

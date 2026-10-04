@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'Anteprima del testo non disponibile.',
         'published_via_trypost' => 'Pubblicato tramite TryPost',
         'published_on_network' => 'Pubblicato sul social network',
-        'view_post' => 'Visualizza post',
         'top_posts_sort' => 'Ordina i post per',
         'carried_forward' => 'Ultimo valore noto',
         'carried_forward_hint' => 'Il servizio non era disponibile; questo è l’ultimo numero noto di follower.',

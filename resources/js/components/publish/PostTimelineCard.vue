@@ -249,6 +249,7 @@ const hasMetrics = computed(() =>
 
 const showStatus = computed(
     () =>
+        !(props.tab === 'drafts' && props.post.status === PostStatus.Draft) &&
         props.post.status !== PostStatus.Scheduled &&
         props.post.status !== PostStatus.Published &&
         !isPending.value,
@@ -688,8 +689,9 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             />
 
             <div
-                class="flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-strong px-4 py-3"
+                class="m-2 flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-muted p-3 [&_[data-variant=ghost]:hover]:bg-secondary"
                 :class="popover ? 'justify-end' : 'justify-between'"
+                :data-testid="`post-footer-${testKey}`"
             >
                 <p v-if="!popover" class="min-w-0 truncate text-sm text-foreground">
                     <TooltipProvider

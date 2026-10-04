@@ -83,7 +83,6 @@ return [
         'no_excerpt' => '텍스트 미리보기가 없습니다.',
         'published_via_trypost' => 'TryPost를 통해 게시',
         'published_on_network' => '소셜 네트워크에 게시',
-        'view_post' => '게시물 보기',
         'top_posts_sort' => '게시물 정렬 기준',
         'carried_forward' => '마지막으로 확인된 값',
         'carried_forward_hint' => '서비스를 사용할 수 없어 마지막으로 확인된 팔로워 수를 표시합니다.',

@@ -83,7 +83,6 @@ return [
         'no_excerpt' => 'Prévia de texto indisponível.',
         'published_via_trypost' => 'Publicado pelo TryPost',
         'published_on_network' => 'Publicado na rede social',
-        'view_post' => 'Ver post',
         'top_posts_sort' => 'Ordenar posts por',
         'carried_forward' => 'Último valor',
         'carried_forward_hint' => 'A rede ficou indisponível; este é o último número conhecido de seguidores.',

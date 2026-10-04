@@ -374,6 +374,7 @@ test('the details of a sent thread show every post of the thread with its own me
         ->assertSeeIn("@thread-view-post-{$post->id}-2", 'Third post of the thread')
         ->assertNotPresent("@post-details-text-{$post->id}")
         ->assertPresent("@thread-view-connector-{$post->id}-0")
+        ->assertNotPresent('[data-testid^="post-details-target-"]')
         ->assertNotPresent("@thread-view-connector-{$post->id}-2")
         ->assertScript("document.querySelectorAll('[data-testid=\"thread-view-{$post->id}\"] [data-verified=\"blue\"]').length", 3)
         ->assertNoJavaScriptErrors();

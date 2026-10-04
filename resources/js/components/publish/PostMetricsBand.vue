@@ -1,26 +1,10 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import {
-    IconActivity,
-    IconBookmark,
     IconChartBar,
     IconChevronLeft,
     IconChevronRight,
-    IconClick,
     IconClock,
-    IconClockPlay,
-    IconExternalLink,
-    IconEye,
-    IconMessage,
-    IconMessageReply,
-    IconPercentage,
-    IconPinned,
-    IconQuote,
-    IconRepeat,
-    IconTarget,
-    IconThumbUp,
-    IconTrendingUp,
-    IconUserPlus,
 } from '@tabler/icons-vue';
 import { useResizeObserver } from '@vueuse/core';
 import { computed, type HTMLAttributes, ref } from 'vue';
@@ -28,6 +12,7 @@ import { computed, type HTMLAttributes, ref } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import date from '@/date';
+import { metricIcon } from '@/lib/publicationMetricIcons';
 import {
     compactPublicationMetrics,
     formatPublicationMetric,
@@ -52,34 +37,6 @@ const props = withDefaults(
     },
 );
 
-const METRIC_ICONS: Record<string, typeof IconEye> = {
-    views: IconEye,
-    video_views: IconEye,
-    engaged_views: IconEye,
-    impressions: IconEye,
-    reach: IconTarget,
-    reactions: IconThumbUp,
-    comments: IconMessage,
-    replies: IconMessageReply,
-    shares: IconRepeat,
-    reposts: IconRepeat,
-    quotes: IconQuote,
-    saves: IconBookmark,
-    bookmarks: IconBookmark,
-    engagement_rate: IconActivity,
-    follows: IconTrendingUp,
-    subscribers_gained: IconUserPlus,
-    watch_time_milliseconds: IconClockPlay,
-    average_watch_time_milliseconds: IconClockPlay,
-    total_play_time_milliseconds: IconClockPlay,
-    average_video_play_time_milliseconds: IconClockPlay,
-    average_percentage_viewed: IconPercentage,
-    clicks: IconClick,
-    link_clicks: IconClick,
-    pin_clicks: IconPinned,
-    outbound_clicks: IconExternalLink,
-    save_rate: IconBookmark,
-};
 
 const metrics = computed(() => compactPublicationMetrics(props.detail));
 
@@ -187,7 +144,7 @@ useResizeObserver(
                         class="inline-flex items-center gap-1 text-sm font-medium whitespace-nowrap text-foreground"
                     >
                         <component
-                            :is="METRIC_ICONS[metric.key] ?? IconChartBar"
+                            :is="metricIcon(metric.key)"
                             class="size-4 text-muted-foreground"
                             aria-hidden="true"
                         />
