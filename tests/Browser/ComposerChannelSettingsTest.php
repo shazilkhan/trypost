@@ -714,13 +714,13 @@ test('the threads card offers a topic and a ghost post drops the topic and the m
         ->click("@composer-type-{$id}-threads_ghost_post");
     waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"threads-topic-tag\"]')");
     $page->assertMissing("@composer-{$id}-dropzone")
-        ->assertMissing("@composer-{$id}-media-source-main")
+        ->assertMissing("@composer-{$id}-media-source-menu")
         ->assertVisible("@composer-{$id}-media-source-disabled")
         ->hover("@composer-{$id}-media-source-disabled");
     waitForChannelSettingsCondition($page, 'document.body.innerText.includes('.json_encode(__('posts.composer.media_not_supported')).')');
     $page->click("@composer-type-{$id}-threads_post");
     waitForChannelSettingsTestId($page, 'threads-topic-tag');
-    $page->assertVisible("@composer-{$id}-media-source-main")
+    $page->assertVisible("@composer-{$id}-media-source-menu")
         ->assertMissing("@composer-{$id}-media-source-disabled")
         ->assertNoJavaScriptErrors();
 
@@ -967,7 +967,8 @@ test('a thread reply shows its own media under it and keeps it on save', functio
         ->assertMissing("@composer-{$id}-reply-0-dropzone")
         ->assertMissing("@composer-{$id}-reply-1-media-tray")
         ->assertPresent("@composer-{$id}-dropzone")
-        ->assertPresent("@composer-{$id}-add-media")
+        ->assertPresent("@composer-{$id}-media-source-menu")
+        ->assertNotPresent("@composer-{$id}-add-media")
         ->click('@thread-reply-collapsed-0');
     waitForChannelSettingsTestId($page, 'thread-reply-0');
     $page->assertPresent("@composer-{$id}-reply-0-media-item-0")

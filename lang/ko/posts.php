@@ -39,6 +39,7 @@ return [
             'no_image' => '이 링크에는 사용할 이미지가 없습니다.',
         ],
         'media_sources' => [
+            'upload' => '컴퓨터에서 업로드',
             'more' => '더 많은 미디어 소스',
             'select_from' => ':source에서 선택',
             'importing' => '가져오는 중…',

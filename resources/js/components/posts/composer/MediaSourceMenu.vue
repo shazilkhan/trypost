@@ -4,9 +4,9 @@ import {
     IconBrandGoogleDrive,
     IconBrandGooglePhotos,
     IconBrandUnsplash,
-    IconChevronDown,
     IconCircleLetterCFilled,
-    IconCloudUpload,
+    IconPhotoPlus,
+    IconUpload,
 } from '@tabler/icons-vue';
 import { getActiveLanguage, trans } from 'laravel-vue-i18n';
 import { computed, onBeforeUnmount, ref, type Component } from 'vue';
@@ -16,6 +16,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuSub,
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
@@ -57,9 +58,8 @@ withDefaults(
 const emit = defineEmits<{
     (event: 'import-started', payload: { importId: string; label: string }): void;
     (event: 'open-unsplash'): void;
+    (event: 'upload'): void;
 }>();
-
-const STORAGE_KEY = 'trypost.composer.mediaSource';
 
 const ICONS: Record<SourceKey, Component> = {
     canva: IconCircleLetterCFilled,
@@ -176,137 +176,85 @@ const sources = computed<MediaSourceOption[]>(() =>
     ),
 );
 
-const readLastUsed = (): string | null => {
-    try {
-        return window.localStorage.getItem(STORAGE_KEY);
-    } catch {
-        return null;
-    }
-};
-
-const lastUsed = ref<string | null>(readLastUsed());
-
-const main = computed<MediaSourceOption | undefined>(
-    () =>
-        sources.value.find((option) => option.source === lastUsed.value) ??
-        (sources.value.length === 1 ? sources.value[0] : undefined),
-);
-
 const menuOpen = ref(false);
-
-const rememberSource = (source: SourceKey): void => {
-    lastUsed.value = source;
-    try {
-        window.localStorage.setItem(STORAGE_KEY, source);
-    } catch {
-        return;
-    }
-};
 
 const preload = (options: MediaSourceOption[]): void =>
     options.forEach((option) => preloaders[option.source]?.(option));
 
-const pick = (option: MediaSourceOption): void => {
-    rememberSource(option.source);
-    void handlers[option.source]?.(option, startImport);
+const preloadSources = (): void => {
+    preload(sources.value);
 };
 
-const openMain = (): void => {
-    if (main.value) {
-        pick(main.value);
-
-        return;
+const onMenuOpenChange = (open: boolean): void => {
+    if (open) {
+        preloadSources();
     }
+};
 
-    menuOpen.value = true;
+const requestUpload = (): void => {
+    emit('upload');
+};
+
+const pick = (option: MediaSourceOption): void => {
+    void handlers[option.source]?.(option, startImport);
 };
 
 const pickCanvaPreset = (
     option: MediaSourceOption,
     preset: string,
 ): void => {
-    rememberSource(option.source);
     void designInCanva(option, preset);
 };
 </script>
 
 <template>
-    <TooltipProvider v-if="sources.length && disabled" :delay-duration="200">
+    <TooltipProvider v-if="disabled" :delay-duration="200">
         <Tooltip>
             <TooltipTrigger as-child>
                 <span
-                    class="flex cursor-not-allowed items-center text-subtle-foreground"
+                    class="flex size-8 cursor-not-allowed items-center justify-center text-subtle-foreground"
                     :aria-label="disabledReason"
                     :data-testid="`${testIdPrefix}-media-source-disabled`"
                 >
-                    <span class="flex size-8 items-center justify-center">
-                        <component
-                            :is="main ? ICONS[main.source] : IconCloudUpload"
-                            class="size-4"
-                        />
-                    </span>
-                    <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-                    <span class="flex h-8 w-6 items-center justify-center">
-                        <IconChevronDown class="size-3.5" />
-                    </span>
+                    <IconPhotoPlus class="size-4" />
                 </span>
             </TooltipTrigger>
             <TooltipContent>{{ disabledReason }}</TooltipContent>
         </Tooltip>
     </TooltipProvider>
-    <div v-else-if="sources.length" class="flex items-center">
-        <button
-            type="button"
-            :data-testid="`${testIdPrefix}-media-source-main`"
-            :data-source="main?.source ?? 'none'"
-            :aria-label="
-                main
-                    ? $t('posts.composer.media_sources.select_from', {
-                          source: main.label,
-                      })
-                    : $t('posts.composer.media_sources.more')
-            "
-            :title="
-                main
-                    ? $t('posts.composer.media_sources.select_from', {
-                          source: main.label,
-                      })
-                    : $t('posts.composer.media_sources.more')
-            "
-            :aria-haspopup="main ? undefined : 'menu'"
-            class="flex size-8 items-center justify-center rounded-lg text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-            @pointerenter="preload(main ? [main] : sources)"
-            @focus="preload(main ? [main] : sources)"
-            @click="openMain"
-        >
-            <component
-                :is="main ? ICONS[main.source] : IconCloudUpload"
-                class="size-4"
-            />
-        </button>
-        <span class="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-        <DropdownMenu
-            v-model:open="menuOpen"
-            @update:open="$event && preload(sources)"
-        >
-            <DropdownMenuTrigger as-child>
-                <button
-                    type="button"
-                    :data-testid="`${testIdPrefix}-media-source-menu`"
-                    :aria-label="$t('posts.composer.media_sources.more')"
-                    :title="$t('posts.composer.media_sources.more')"
-                    class="flex h-8 w-6 items-center justify-center rounded-lg text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring data-[state=open]:bg-accent"
-                >
-                    <IconChevronDown class="size-3.5" />
-                </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-                side="top"
-                align="start"
-                :side-offset="8"
-                class="min-w-40"
-                :data-testid="`${testIdPrefix}-media-source-list`"
+    <DropdownMenu
+        v-else
+        v-model:open="menuOpen"
+        @update:open="onMenuOpenChange"
+    >
+        <DropdownMenuTrigger as-child>
+            <button
+                type="button"
+                :data-testid="`${testIdPrefix}-media-source-menu`"
+                :aria-label="$t('posts.edit.add_media')"
+                :title="$t('posts.edit.add_media')"
+                class="flex size-8 items-center justify-center rounded-lg text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring data-[state=open]:bg-accent"
+                @pointerenter="preloadSources"
+                @focus="preloadSources"
             >
+                <IconPhotoPlus class="size-4" />
+            </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+            side="top"
+            align="start"
+            :side-offset="8"
+            class="min-w-48"
+            :data-testid="`${testIdPrefix}-media-source-list`"
+        >
+            <DropdownMenuItem
+                data-testid="media-source-upload"
+                @select="requestUpload"
+            >
+                <IconUpload class="text-foreground" />
+                {{ $t('posts.composer.media_sources.upload') }}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator v-if="sources.length" />
                 <template v-for="option in sources" :key="option.source">
                     <DropdownMenuSub v-if="option.source === 'canva'">
                         <DropdownMenuSubTrigger
@@ -365,7 +313,6 @@ const pickCanvaPreset = (
                         {{ option.label }}
                     </DropdownMenuItem>
                 </template>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    </div>
+        </DropdownMenuContent>
+    </DropdownMenu>
 </template>

@@ -41,6 +41,7 @@ import {
 import { useMediaUpload } from '@/composables/useMediaUpload';
 import { editorTabsFor, rulesFor } from '@/lib/mediaEditor';
 import { isGooglePickerOpen } from '@/lib/mediaSources/googleDrive';
+import { acceptAttribute } from '@/lib/mediaType';
 import { store, update } from '@/routes/app/create/ideas';
 import type { MediaUploadLimits, SharedData } from '@/types';
 import {
@@ -95,6 +96,21 @@ const uploader = useMediaUpload({
     limits: mediaUploadLimits,
     onReady: appendMedia,
 });
+const mediaFileInput = ref<HTMLInputElement | null>(null);
+
+const pickFiles = (): void => {
+    mediaFileInput.value?.click();
+};
+
+const onFilesSelected = (event: Event): void => {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (files.length) {
+        uploader.add(files);
+    }
+};
+
 const unsplashOpen = ref(false);
 
 const openUnsplash = (): void => {
@@ -682,6 +698,17 @@ const iconButtonClass =
                         test-id-prefix="idea-editor"
                         @import-started="onImportStarted"
                         @open-unsplash="openUnsplash"
+                        @upload="pickFiles"
+                    />
+                    <input
+                        ref="mediaFileInput"
+                        type="file"
+                        multiple
+                        class="hidden"
+                        tabindex="-1"
+                        :accept="acceptAttribute(mediaUploadLimits().heic)"
+                        data-testid="idea-editor-media-menu-file-input"
+                        @change="onFilesSelected"
                     />
                     <span
                         class="mx-1 h-6 w-px bg-border"

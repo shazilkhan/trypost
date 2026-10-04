@@ -39,6 +39,7 @@ return [
             'no_image' => 'このリンクには使用できる画像がありません。',
         ],
         'media_sources' => [
+            'upload' => 'パソコンからアップロード',
             'more' => 'その他のメディアソース',
             'select_from' => ':source から選択',
             'importing' => 'インポート中…',

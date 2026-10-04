@@ -69,8 +69,7 @@ function openComposerWithOnlyCanva(mixed $test): array
 test('the Canva submenu lists the five presets with their sizes, Square first and default', function () {
     ['page' => $page] = openComposerWithOnlyCanva($this);
 
-    $page->assertAttribute('@composer-base-media-source-main', 'aria-label', 'Select from Canva')
-        ->click('@composer-base-media-source-menu');
+    $page->click('@composer-base-media-source-menu');
     waitForComposerCanvaTestId($page, 'media-source-canva');
     $page->click('@media-source-canva');
     waitForComposerCanvaTestId($page, 'canva-preset-square');

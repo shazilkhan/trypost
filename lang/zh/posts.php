@@ -39,6 +39,7 @@ return [
             'no_image' => '此链接没有可用的图片。',
         ],
         'media_sources' => [
+            'upload' => '从电脑上传',
             'more' => '更多媒体来源',
             'select_from' => '从 :source 选择',
             'importing' => '正在导入…',

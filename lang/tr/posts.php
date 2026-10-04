@@ -41,6 +41,7 @@ return [
             'no_image' => 'Bu bağlantıda kullanılacak görsel yok.',
         ],
         'media_sources' => [
+            'upload' => 'Bilgisayardan yükle',
             'more' => 'Daha fazla medya kaynağı',
             'select_from' => ':source kaynağından seç',
             'importing' => 'İçe aktarılıyor…',

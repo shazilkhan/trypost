@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import {
-    IconMoodSmile,
-    IconPhotoPlus,
-    IconSignature,
-} from '@tabler/icons-vue';
+import { IconMoodSmile, IconSignature } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
 import MediaSourceMenu from '@/components/posts/composer/MediaSourceMenu.vue';
@@ -20,10 +16,8 @@ withDefaults(
         testIdPrefix: string;
         signatures: { id: string; name: string; content: string }[];
         mediaDisabled?: boolean;
-        /** Offers a file upload button, for a card without an add tile. */
-        uploadable?: boolean;
     }>(),
-    { mediaDisabled: false, uploadable: false },
+    { mediaDisabled: false },
 );
 
 const emit = defineEmits<{
@@ -68,24 +62,13 @@ const selectEmoji = (emoji: string): void => {
         class="-mx-3 -mb-2 flex items-center pt-4"
         :data-testid="`${testIdPrefix}-toolbar`"
     >
-        <button
-            v-if="uploadable"
-            type="button"
-            :data-testid="`${testIdPrefix}-add-media`"
-            :aria-label="$t('posts.edit.add_media')"
-            :title="$t('posts.edit.add_media')"
-            :disabled="mediaDisabled"
-            class="flex size-8 items-center justify-center rounded-lg text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent"
-            @click="requestUpload"
-        >
-            <IconPhotoPlus class="size-4" />
-        </button>
         <MediaSourceMenu
             :test-id-prefix="testIdPrefix"
             :disabled="mediaDisabled"
             :disabled-reason="$t('posts.composer.media_not_supported')"
             @import-started="emit('import-started', $event)"
             @open-unsplash="emit('open-unsplash')"
+            @upload="requestUpload"
         />
         <span class="mx-1.5 h-6 w-px bg-border" aria-hidden="true" />
         <Popover v-model:open="emojiOpen">

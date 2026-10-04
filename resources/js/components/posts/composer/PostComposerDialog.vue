@@ -1216,22 +1216,21 @@ const replyHasActivity = (
                 uploader.imports.value.length > 0),
     );
 };
-const threadFileInput = ref<HTMLInputElement | null>(null);
-const threadFileGroup = ref<NetworkGroup | null>(null);
-const bindThreadFileInput = (element: unknown): void => {
-    threadFileInput.value =
-        element instanceof HTMLInputElement ? element : null;
+const mediaFileInput = ref<HTMLInputElement | null>(null);
+const mediaFileTarget = ref<MediaUploader | null>(null);
+const pickFilesFor = (uploader: MediaUploader): void => {
+    mediaFileTarget.value = uploader;
+    mediaFileInput.value?.click();
 };
-const pickGroupFiles = (group: NetworkGroup): void => {
-    threadFileGroup.value = group;
-    threadFileInput.value?.click();
-};
-const onThreadFilesSelected = (event: Event): void => {
+const pickGroupFiles = (group: NetworkGroup): void =>
+    pickFilesFor(groupMediaUploader(group));
+const pickBaseFiles = (): void => pickFilesFor(uploaderFor(null));
+const onMediaFilesSelected = (event: Event): void => {
     const input = event.target as HTMLInputElement;
     const files = Array.from(input.files ?? []);
     input.value = '';
-    if (files.length && threadFileGroup.value) {
-        groupMediaUploader(threadFileGroup.value).add(files);
+    if (files.length && mediaFileTarget.value) {
+        mediaFileTarget.value.add(files);
     }
 };
 const groupAcceptsMedia = (group: NetworkGroup): boolean =>
@@ -1940,6 +1939,16 @@ const close = (): void => emit('update:open', false);
             :disable-outside-pointer-events="!isGooglePickerOpen"
             @interact-outside="isGooglePickerOpen && $event.preventDefault()"
         >
+            <input
+                ref="mediaFileInput"
+                type="file"
+                multiple
+                class="hidden"
+                tabindex="-1"
+                :accept="acceptAttribute(mediaUploadLimits().heic)"
+                data-testid="composer-media-menu-file-input"
+                @change="onMediaFilesSelected"
+            />
             <header
                 data-testid="composer-header"
                 class="flex shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:min-h-16 sm:flex-nowrap sm:py-4 sm:ps-8 sm:pe-6"
@@ -2287,6 +2296,7 @@ const close = (): void => emit('update:open', false);
                                     :media-disabled="!acceptsMedia(null)"
                                     @import-started="onImportStarted($event, null)"
                                     @open-unsplash="openUnsplash(null)"
+                                    @upload="pickBaseFiles"
                                     @select-emoji="appendEmoji($event, null)"
                                     @select-signature="appendSignature($event, null)"
                                     @save-signature="saveSignature"
@@ -2633,27 +2643,12 @@ const close = (): void => emit('update:open', false);
                                             </div>
                                         </template>
                                     </ThreadRepliesField>
-                                    <input
-                                        :ref="bindThreadFileInput"
-                                        type="file"
-                                        multiple
-                                        class="hidden"
-                                        tabindex="-1"
-                                        :accept="
-                                            acceptAttribute(
-                                                mediaUploadLimits().heic,
-                                            )
-                                        "
-                                        :data-testid="`composer-${group.anchor.id}-thread-file-input`"
-                                        @change="onThreadFilesSelected"
-                                    />
                                 </template>
                                 <template #toolbar>
                                     <ComposerEditorToolbar
                                         :test-id-prefix="`composer-${group.anchor.id}`"
                                         :signatures="availableSignatures"
                                         :media-disabled="!groupAcceptsMedia(group)"
-                                        :uploadable="threadReplies(group).length > 0"
                                         @import-started="
                                             onGroupImportStarted($event, group)
                                         "

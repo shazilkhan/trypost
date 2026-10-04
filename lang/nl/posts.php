@@ -39,6 +39,7 @@ return [
             'no_image' => 'Deze link heeft geen afbeelding om te gebruiken.',
         ],
         'media_sources' => [
+            'upload' => 'Uploaden vanaf computer',
             'more' => 'Meer mediabronnen',
             'select_from' => 'Selecteren uit :source',
             'importing' => 'Importeren…',

@@ -41,6 +41,7 @@ return [
             'no_image' => 'Dieser Link hat kein Bild, das verwendet werden kann.',
         ],
         'media_sources' => [
+            'upload' => 'Vom Computer hochladen',
             'more' => 'Weitere Medienquellen',
             'select_from' => 'Aus :source auswählen',
             'importing' => 'Wird importiert…',

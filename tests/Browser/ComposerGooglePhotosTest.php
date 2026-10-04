@@ -61,9 +61,16 @@ function openComposerForGooglePhotos(mixed $test): mixed
     $test->actingAs($user);
 
     $page = visit(route('app.posts.create'));
-    waitForComposerGooglePhotosTestId($page, 'composer-base-media-source-main', rounds: 4);
+    waitForComposerGooglePhotosTestId($page, 'composer-base-media-source-menu', rounds: 4);
 
     return $page;
+}
+
+function chooseComposerGooglePhotos(mixed $page): void
+{
+    $page->click('@composer-base-media-source-menu');
+    waitForComposerGooglePhotosTestId($page, 'media-source-google_photos');
+    $page->click('@media-source-google_photos');
 }
 
 function enableOnlyGooglePhotosForComposer(bool $mediaItemsSet = true): string
@@ -186,10 +193,9 @@ test('the real sign-in popup opens the picker and every picked photo becomes its
     $api = enableOnlyGooglePhotosForComposer();
 
     $page = openComposerForGooglePhotos($this);
-    $page->assertAttribute('@composer-base-media-source-main', 'aria-label', 'Select from Google Photos');
 
     stubGooglePhotosPopupForComposer($page, severed: true);
-    $page->click('@composer-base-media-source-main');
+    chooseComposerGooglePhotos($page);
 
     $popup = visit(googlePhotosSignInUrl($page));
 
@@ -232,7 +238,7 @@ test('closing the google photos window without picking adds nothing and discards
     stubGooglePhotosPopupForComposer($page);
     $user = User::query()->sole();
 
-    $page->click('@composer-base-media-source-main');
+    chooseComposerGooglePhotos($page);
     parse_str((string) parse_url(googlePhotosSignInUrl($page), PHP_URL_QUERY), $query);
     $nonce = (string) data_get($query, 'nonce');
 
@@ -270,7 +276,7 @@ test('a refused google photos sign-in opens no picker and says why', function ()
 
     $page = openComposerForGooglePhotos($this);
     stubGooglePhotosPopupForComposer($page, severed: true);
-    $page->click('@composer-base-media-source-main');
+    chooseComposerGooglePhotos($page);
 
     config()->set('trypost.media_sources.google_oauth.authorize_url', route('app.integrations.google.callback').'?error=access_denied&ignored');
 
@@ -305,7 +311,7 @@ test('a blocked google photos popup says so and asks the server for nothing', fu
     stubGooglePhotosPopupForComposer($page);
     $page->script('window.open = () => null; true;');
 
-    $page->click('@composer-base-media-source-main');
+    chooseComposerGooglePhotos($page);
     waitForComposerGooglePhotosCondition($page, "document.body.innerText.includes('Your browser blocked the window')");
 
     $page->assertSee(__('posts.composer.media_sources.errors.popup_blocked'))

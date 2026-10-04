@@ -39,6 +39,7 @@ return [
             'no_image' => 'Este enlace no tiene ninguna imagen para usar.',
         ],
         'media_sources' => [
+            'upload' => 'Subir desde el equipo',
             'more' => 'Más fuentes de medios',
             'select_from' => 'Seleccionar de :source',
             'importing' => 'Importando…',
