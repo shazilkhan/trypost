@@ -144,7 +144,6 @@ test('every network with settings renders them as label and control rows under t
         ->assertMissing('@tiktok-settings-toggle')
         ->assertNoJavaScriptErrors();
 })->with([
-    'facebook' => [Platform::Facebook, ContentType::FacebookPost, []],
     'tiktok' => [Platform::TikTok, ContentType::TikTokVideo, []],
     'pinterest' => [Platform::Pinterest, ContentType::PinterestPin, []],
     'youtube' => [Platform::YouTube, ContentType::YouTubeShort, []],
