@@ -161,10 +161,6 @@ const openAssistant = (): void => {
     assistantOpen.value = true;
 };
 
-const toggleAssistant = (): void => {
-    assistantOpen.value = !assistantOpen.value;
-};
-
 const stageOpen = ref(false);
 const stageSearch = ref('');
 const labelsOpen = ref(false);
@@ -630,6 +626,7 @@ const iconButtonClass =
                             <button
                                 type="button"
                                 class="pointer-events-auto inline-flex h-6 items-center gap-1 rounded-md bg-primary-subtle px-2 text-xs font-medium text-primary-text transition-control hover:brightness-95"
+                                :aria-pressed="assistantOpen"
                                 data-testid="idea-editor-use-assistant"
                                 @click="openAssistant"
                             >
@@ -712,7 +709,7 @@ const iconButtonClass =
                         size="sm"
                         :aria-pressed="assistantOpen"
                         data-testid="idea-editor-ai"
-                        @click="toggleAssistant"
+                        @click="openAssistant"
                     >
                         <IconSparkles class="size-4" />
                         {{ $t('posts.composer.assistant_title') }}

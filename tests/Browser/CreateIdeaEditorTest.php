@@ -635,3 +635,40 @@ test('editing an idea image swaps in the edited file and releases the original o
         ->and(Media::find($original->id))->toBeNull();
     $page->assertNoJavaScriptErrors();
 });
+
+test('the assistant buttons only open the AI sidebar; it closes from its X', function (string $button) {
+    [$user, $workspace] = createIdeaEditorSetup();
+    $idea = createIdeaEditorIdea($workspace, $user, ['title' => 'Saas metrics', 'body' => '']);
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.show', $idea));
+    waitForCreateIdeaEditorDialog($page);
+
+    $page->click("@{$button}");
+    waitForCreateIdeaEditorTestId($page, 'idea-editor-assistant');
+    $page->assertAttribute("@{$button}", 'aria-pressed', 'true')
+        ->click("@{$button}");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 300))');
+
+    $page->assertVisible('@idea-editor-assistant');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const editor = document.querySelector('[data-testid="idea-editor"]').getBoundingClientRect();
+            const assistant = document.querySelector('[data-testid="idea-editor-assistant"]').getBoundingClientRect();
+            const close = document.querySelector('[data-testid="idea-editor-assistant-close"]').getBoundingClientRect();
+            const dialogClose = document.querySelector('[data-testid="idea-editor"] [data-slot="dialog-close"]').getBoundingClientRect();
+            return {
+                onTheLeft: Math.round(assistant.left) === Math.round(editor.left),
+                closesApart: close.right <= dialogClose.left,
+            };
+        })()
+    JS))->toBe(['onTheLeft' => true, 'closesApart' => true]);
+
+    $page->click('@idea-editor-assistant-close');
+    waitForCreateIdeaEditorCondition($page, '!document.querySelector(\'[data-testid="idea-editor-assistant"]\')');
+
+    $page->assertMissing('@idea-editor-assistant')
+        ->assertAttribute("@{$button}", 'aria-pressed', 'false')
+        ->assertNoJavaScriptErrors();
+})->with(['idea-editor-ai', 'idea-editor-use-assistant']);
