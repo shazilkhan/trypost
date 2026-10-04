@@ -166,7 +166,6 @@ return [
         'refresh_before' => 'Bağlantıyla ilgili sorun mu var? Önce',
         'refresh_after' => 'deneyin.',
         'irreversible' => 'Bu işlem geri alınamaz.',
-        'type_to_confirm' => 'Onaylamak için ":keyword" yazın.',
         'description' => 'Bu işlem, taslaklar, zamanlanmış gönderiler ve yayın geçmişi dahil olmak üzere bu kanalın TryPost’taki tüm gönderilerini siler. Ağda zaten bulunan gönderiler orada kalır.',
         'confirm' => 'Bağlantıyı kes',
         'keyword' => 'bağlantıyı kes',

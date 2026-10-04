@@ -236,7 +236,7 @@ Typing the exact name is the stronger guard for the identity-bound ones, on purp
 - It comes from one shared lang key in all 16 locales — never a literal, and never a per-feature copy of the word.
 - Resolve it with `$t` in the template, not `trans()` in script (see `.ai/rules/js.md`).
 - Regenerating an API key uses its own keyword, `settings.api_keys.regenerate_modal.keyword` (`REGENERATE`, `REGENERAR`, …), under the same rules.
-- **Exception — disconnecting a channel** (`DisconnectChannelDialog`, user decision October 2026): its keyword, `channels.disconnect_modal.keyword`, is translated and **lowercase** (`disconnect`, `desconectar`, …), shown as the input placeholder and in `Type "disconnect" to confirm.`, and still compared case-sensitively after trimming (`DISCONNECT` must not confirm). The dialog ends its description with a bold `This cannot be undone.` and offers **Refresh connection** before disconnecting. Do not carry either into the other dialogs.
+- **Exception — disconnecting a channel** (`DisconnectChannelDialog`, user decision October 2026): its keyword, `channels.disconnect_modal.keyword`, is translated and **lowercase** (`disconnect`, `desconectar`, …), shown as the input placeholder and in the copyable keyword line `Type [disconnect ⧉] to confirm.` (same markup as `ConfirmDeleteModal`), and still compared case-sensitively after trimming (`DISCONNECT` must not confirm). The dialog ends its description with a bold `This cannot be undone.` and offers **Refresh connection** before disconnecting. Do not carry either into the other dialogs.
 
 ## Translated copy must fit its UI slot
 
@@ -732,6 +732,7 @@ TryPost runs on **both PostgreSQL and MySQL**. Cloud runs PostgreSQL; a self-hos
 ## YouTube
 
 - Without `meta.title`, the title is the first non-empty line of the post's plain text, with `<` and `>` removed, cut to 100 code points, and no ` #Shorts` (`YouTubeMetadata::title()`); `YouTubeSettings.vue` fills the Title field with the same rule.
+- YouTube rejects an upload without a title (`invalidTitle`). A post with neither `meta.title` nor any text cannot be scheduled or published there: `PostPlatformMetaRules::contentMetaViolation()` (through `YouTubeMetadata::missingTitleViolation()`) reports it on `meta.title` in `PostCompositionValidator` (web, API, MCP, repurpose) and `assertStoredPostPublishable()`, and the publisher checks it again. Drafts may lack both.
 - Categories are a fixed list, `App\Enums\YouTube\Category`; the composer reads it from `Platform::publishConfig()` (`categoryOptions`, `defaultCategoryId`). Do not copy it into TypeScript.
 
 ## Media Types (image / video / document)

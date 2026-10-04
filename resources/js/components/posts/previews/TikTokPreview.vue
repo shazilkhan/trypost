@@ -41,6 +41,7 @@ const caption = computed((): string =>
     <PreviewVerticalCard
         data-testid="tiktok-preview"
         :media="media"
+        backdrop="black"
         :actions="[
             { icon: IconHeartFilled },
             { icon: IconMessageCircleFilled },

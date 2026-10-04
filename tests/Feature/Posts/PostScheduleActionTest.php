@@ -200,3 +200,67 @@ test('a post of another workspace is not found', function () {
 
     expect($post->fresh()->status)->toBe(PostStatus::Draft);
 });
+
+test('publish now from any tab of the publish list goes to the queue tab', function (string $tab) {
+    $draft = scheduleActionPost($this->channel, $this->user);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => $tab, 'tz' => 'UTC']))
+        ->put(route('app.posts.schedule.update', $draft), ['action' => 'publish_now'])
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue', 'tz' => 'UTC']));
+})->with(['drafts', 'sent', 'approvals', 'queue']);
+
+test('publish now from a channel page goes to that channel queue tab', function () {
+    $draft = scheduleActionPost($this->channel, $this->user);
+
+    $this->actingAs($this->user)
+        ->from(route('app.channels.publish', ['account' => $this->channel, 'tab' => 'drafts']))
+        ->put(route('app.posts.schedule.update', $draft), ['action' => 'publish_now'])
+        ->assertRedirect(route('app.channels.publish', ['account' => $this->channel, 'tab' => 'queue']));
+});
+
+test('publish now from the calendar stays on the calendar', function () {
+    $draft = scheduleActionPost($this->channel, $this->user);
+    $calendar = route('app.calendar', ['view' => 'month']);
+
+    $this->actingAs($this->user)
+        ->from($calendar)
+        ->put(route('app.posts.schedule.update', $draft), ['action' => 'publish_now'])
+        ->assertRedirect($calendar);
+});
+
+test('a member who needs approval stays on the tab after publish now, since the post only goes to approval', function () {
+    $member = User::factory()->create(['account_id' => $this->user->account_id]);
+    $this->workspace->members()->attach($member->id, membershipPivot('approval'));
+    $member->update(['current_workspace_id' => $this->workspace->id]);
+    $draft = scheduleActionPost($this->channel, $member);
+    $drafts = route('app.posts.index', ['tab' => 'drafts']);
+
+    $this->actingAs($member)
+        ->from($drafts)
+        ->put(route('app.posts.schedule.update', $draft), ['action' => 'publish_now'])
+        ->assertRedirect($drafts);
+
+    expect($draft->fresh()->status)->toBe(PostStatus::PendingApproval);
+});
+
+test('moving a post to drafts stays on the tab it was moved from', function () {
+    $queued = scheduleActionPost($this->channel, $this->user, ['status' => PostStatus::Scheduled, 'scheduled_at' => now()->addDay(), 'schedule_mode' => 'custom']);
+    $queue = route('app.posts.index', ['tab' => 'queue']);
+
+    $this->actingAs($this->user)
+        ->from($queue)
+        ->put(route('app.posts.schedule.update', $queued), ['action' => 'draft'])
+        ->assertRedirect($queue);
+});
+
+test('adding a draft to the queue from its card goes to the queue tab', function (string $action) {
+    $this->channel->update(['posting_schedule' => PostingSchedule::empty()->withTime(1, '10:00')]);
+    $draft = scheduleActionPost($this->channel, $this->user);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => 'drafts']))
+        ->put(route('app.posts.schedule.update', $draft), ['action' => $action])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
+})->with(['queue_next', 'queue_top']);

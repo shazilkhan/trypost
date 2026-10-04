@@ -2,6 +2,7 @@
 import { IconX } from '@tabler/icons-vue';
 import { computed, ref, watch } from 'vue';
 
+import { show as showMediaFile } from '@/actions/App/Http/Controllers/App/MediaFileController';
 import ImageCropStage from '@/components/media/ImageCropStage.vue';
 import MediaEditorAltTextPanel from '@/components/posts/composer/MediaEditorAltTextPanel.vue';
 import MediaEditorAppearancePanel from '@/components/posts/composer/MediaEditorAppearancePanel.vue';
@@ -17,6 +18,7 @@ import {
     DialogFooter,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type ImageSize, useImageCrop } from '@/composables/useImageCrop';
 import { defaultCropPresets } from '@/lib/contentTypeMediaRules';
 import {
@@ -87,6 +89,10 @@ const section = ref<'crop' | 'appearance'>('crop');
 
 const selectSection = (option: typeof section.value): void => {
     section.value = option;
+};
+
+const onSectionChange = (value: string | number): void => {
+    selectSection(value === 'appearance' ? 'appearance' : 'crop');
 };
 
 const pendingPoint = ref<{ x: number; y: number } | null>(null);
@@ -209,6 +215,18 @@ const onStagePress = (point: { x: number; y: number }): void => {
 
 const resetCrop = (): void => resetGeometry(basePreset.value);
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Where to read an item's pixels for the canvas: a stored media row comes
+ * through the app's own origin, since the storage host may send no CORS
+ * headers and a cross-origin image would block the export.
+ */
+const pixelSource = (media: MediaItem): string =>
+    UUID.test(media.id) && /^https?:/i.test(media.url)
+        ? showMediaFile.url(media.id)
+        : media.url;
+
 const loadImage = (src: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
         const image = new Image();
@@ -227,7 +245,7 @@ const apply = async (): Promise<void> => {
                     const media = editingItems.value[index];
                     const itemEdit = edits.value[index];
                     const image = hasPixelChanges(itemEdit)
-                        ? await loadImage(media.url)
+                        ? await loadImage(pixelSource(media))
                         : null;
                     const rendered = !image
                         ? null
@@ -304,7 +322,7 @@ watch(tagging, (isTagging) => {
 <template>
     <Dialog :open="open" @update:open="emit('update:open', $event)">
         <DialogContent
-            class="flex h-dvh max-h-dvh w-screen max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:max-w-none"
+            class="top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 shadow-none outline-none sm:max-w-none"
             data-testid="media-editor"
             :show-close-button="false"
         >
@@ -359,6 +377,7 @@ watch(tagging, (isTagging) => {
                             :src="activeItem.url"
                             :natural="natural"
                             :crop-mode="cropMode"
+                            :resize-any-ratio="isPhoto"
                             test-id-prefix="media-editor"
                             :box-class="
                                 tab === 'tags' && tagging
@@ -395,7 +414,8 @@ watch(tagging, (isTagging) => {
 
                     <div
                         v-if="!isPhoto"
-                        class="flex justify-center gap-2 overflow-x-auto pb-1"
+                        class="flex justify-center gap-3 overflow-x-auto px-1 pt-3 pb-1.5 [scrollbar-width:thin]"
+                        data-testid="media-editor-thumbnails"
                     >
                         <button
                             v-for="(item, index) in editingItems"
@@ -411,7 +431,7 @@ watch(tagging, (isTagging) => {
                                 )
                             "
                             :aria-current="index === activeIndex"
-                            class="relative size-13 shrink-0 overflow-hidden rounded-lg"
+                            class="relative size-16 shrink-0 overflow-hidden rounded-lg"
                             :class="
                                 index === activeIndex
                                     ? 'ring-2 ring-primary-strong'
@@ -476,31 +496,25 @@ watch(tagging, (isTagging) => {
                     </div>
 
                     <template v-if="tab === 'edit' && edit">
-                        <div
-                            role="group"
-                            class="grid grid-cols-2 border-b border-border"
+                        <Tabs
+                            :model-value="section"
+                            @update:model-value="onSectionChange"
                         >
-                            <button
-                                v-for="option in ['crop', 'appearance'] as const"
-                                :key="option"
-                                type="button"
-                                :aria-pressed="section === option"
-                                :data-testid="`media-editor-${option}-section`"
-                                class="-mb-px border-b-2 py-2 text-sm font-medium transition-colors"
-                                :class="
-                                    section === option
-                                        ? 'border-primary-strong text-foreground'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground'
-                                "
-                                @click="selectSection(option)"
-                            >
-                                {{
-                                    $t(
-                                        `posts.composer.media_editor.${option}_tab`,
-                                    )
-                                }}
-                            </button>
-                        </div>
+                            <TabsList variant="line" class="grid grid-cols-2 gap-0">
+                                <TabsTrigger
+                                    v-for="option in ['crop', 'appearance'] as const"
+                                    :key="option"
+                                    :value="option"
+                                    :data-testid="`media-editor-${option}-section`"
+                                >
+                                    {{
+                                        $t(
+                                            `posts.composer.media_editor.${option}_tab`,
+                                        )
+                                    }}
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
                         <MediaEditorCropPanel
                             v-if="section === 'crop'"
                             v-model:edit="edit"

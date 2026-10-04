@@ -7,7 +7,6 @@ import { toast } from 'vue-sonner';
 import InputError from '@/components/InputError.vue';
 import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
 import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
-import { Avatar } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Select,
@@ -16,6 +15,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { usePageErrors } from '@/composables/usePageErrors';
 import { ContentType } from '@/types/content-type';
 import {
@@ -86,8 +86,8 @@ const privacyLevel = computed({
 });
 
 const autoAddMusic = computed({
-    get: () => ((props.meta?.auto_add_music ?? false) ? 'yes' : 'no'),
-    set: (value: string) => updateMeta({ auto_add_music: value === 'yes' }),
+    get: () => props.meta?.auto_add_music ?? false,
+    set: (value: boolean) => updateMeta({ auto_add_music: value }),
 });
 
 const allowComments = computed({
@@ -220,27 +220,6 @@ watch(
 <template>
     <SettingsSection>
         <SettingsRow
-            v-if="socialAccount"
-            :label="$t('posts.form.tiktok.posting_to')"
-        >
-            <div class="flex min-h-8 min-w-0 items-center gap-2 text-sm">
-                <Avatar
-                    :src="socialAccount.avatar_url"
-                    :name="socialAccount.display_label"
-                    class="size-6 shrink-0 rounded-full border border-border"
-                />
-                <span class="truncate font-medium text-foreground">{{
-                    socialAccount.display_label
-                }}</span>
-                <span
-                    v-if="socialAccount.username"
-                    class="truncate text-muted-foreground"
-                    >@{{ socialAccount.username }}</span
-                >
-            </div>
-        </SettingsRow>
-
-        <SettingsRow
             :label="$t('posts.form.tiktok.privacy_level')"
             :label-for="`tiktok-privacy-${socialAccount?.id ?? 'account'}`"
             align-top
@@ -309,41 +288,26 @@ watch(
             }}
         </p>
 
-        <SettingsRow
-            v-if="isPhotoPost"
-            :label="$t('posts.form.tiktok.auto_add_music')"
-            :label-for="`tiktok-music-${socialAccount?.id ?? 'account'}`"
-            align-top
-        >
-            <Select v-model="autoAddMusic" :disabled="props.disabled">
-                <SelectTrigger
-                    :id="`tiktok-music-${socialAccount?.id ?? 'account'}`"
-                    class="w-full"
-                >
-                    <SelectValue>{{
-                        autoAddMusic === 'yes'
-                            ? $t('posts.form.tiktok.yes')
-                            : $t('posts.form.tiktok.no')
-                    }}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="yes">{{
-                        $t('posts.form.tiktok.yes')
-                    }}</SelectItem>
-                    <SelectItem value="no">{{
-                        $t('posts.form.tiktok.no')
-                    }}</SelectItem>
-                </SelectContent>
-            </Select>
-            <p class="text-xs text-muted-foreground">
-                {{ $t('posts.form.tiktok.auto_add_music_hint') }}
-            </p>
+        <SettingsRow v-if="isPhotoPost">
+            <div class="space-y-1">
+                <label class="flex min-h-8 items-center gap-2 text-sm">
+                    <Checkbox
+                        v-model="autoAddMusic"
+                        :disabled="props.disabled"
+                        data-testid="tiktok-auto-add-music"
+                    />
+                    {{ $t('posts.form.tiktok.auto_add_music') }}
+                </label>
+                <p class="text-xs text-muted-foreground">
+                    {{ $t('posts.form.tiktok.auto_add_music_hint') }}
+                </p>
+            </div>
         </SettingsRow>
 
-        <SettingsRow :label="$t('posts.form.tiktok.allow_users')">
-            <div class="flex min-h-8 flex-wrap items-center gap-x-6 gap-y-2">
+        <SettingsRow>
+            <div class="space-y-1">
                 <label
-                    class="flex items-center gap-2 text-sm"
+                    class="flex min-h-8 items-center gap-2 text-sm"
                     :class="{ 'opacity-50': commentDisabled }"
                     :title="
                         commentDisabled
@@ -355,13 +319,14 @@ watch(
                 >
                     <Checkbox
                         v-model="allowComments"
+                        data-testid="tiktok-allow-comments"
                         :disabled="props.disabled || commentDisabled"
                     />
-                    {{ $t('posts.form.tiktok.comments') }}
+                    {{ $t('posts.form.tiktok.allow_comments') }}
                 </label>
                 <template v-if="!isPhotoPost">
                     <label
-                        class="flex items-center gap-2 text-sm"
+                        class="flex min-h-8 items-center gap-2 text-sm"
                         :class="{ 'opacity-50': duetDisabled }"
                         :title="
                             duetDisabled
@@ -375,10 +340,10 @@ watch(
                             v-model="allowDuet"
                             :disabled="props.disabled || duetDisabled"
                         />
-                        {{ $t('posts.form.tiktok.duet') }}
+                        {{ $t('posts.form.tiktok.allow_duet') }}
                     </label>
                     <label
-                        class="flex items-center gap-2 text-sm"
+                        class="flex min-h-8 items-center gap-2 text-sm"
                         :class="{ 'opacity-50': stitchDisabled }"
                         :title="
                             stitchDisabled
@@ -392,7 +357,7 @@ watch(
                             v-model="allowStitch"
                             :disabled="props.disabled || stitchDisabled"
                         />
-                        {{ $t('posts.form.tiktok.stitch') }}
+                        {{ $t('posts.form.tiktok.allow_stitch') }}
                     </label>
                 </template>
             </div>
@@ -401,14 +366,15 @@ watch(
         <SettingsRow>
             <div class="space-y-3">
                 <div class="space-y-1">
-                    <label class="flex min-h-8 items-center gap-2 text-sm">
-                        <Checkbox
+                    <label class="flex min-h-8 items-center gap-3 text-sm">
+                        <Switch
                             v-model="discloseOpen"
                             :disabled="props.disabled"
+                            data-testid="tiktok-disclose"
                         />
                         {{ $t('posts.form.tiktok.disclose') }}
                     </label>
-                    <p class="ml-6 text-xs text-muted-foreground">
+                    <p class="text-xs text-muted-foreground">
                         {{ $t('posts.form.tiktok.disclose_hint') }}
                     </p>
                 </div>
@@ -466,30 +432,35 @@ watch(
             </div>
         </SettingsRow>
 
-        <div class="space-y-1 text-xs text-muted-foreground">
-            <p>
-                {{ $t('posts.form.tiktok.compliance.agree') }}
-                <template v-if="brandContentToggle">
+        <SettingsRow>
+            <div
+                class="space-y-1 pb-4 text-xs text-muted-foreground"
+                data-testid="tiktok-compliance"
+            >
+                <p>
+                    {{ $t('posts.form.tiktok.compliance.agree') }}
+                    <template v-if="brandContentToggle">
+                        <a
+                            :href="publishConfig?.brandedContentPolicyUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-medium text-primary-text underline-offset-2 hover:text-primary-text-hover hover:underline"
+                        >
+                            {{ $t('posts.form.tiktok.compliance.branded_policy') }}
+                        </a>
+                        {{ ' ' + $t('posts.form.tiktok.compliance.and') + ' ' }}
+                    </template>
                     <a
-                        :href="publishConfig?.brandedContentPolicyUrl"
+                        :href="publishConfig?.musicUsageConfirmationUrl"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="font-medium text-primary-text underline-offset-2 hover:text-primary-text-hover hover:underline"
                     >
-                        {{ $t('posts.form.tiktok.compliance.branded_policy') }}
+                        {{ $t('posts.form.tiktok.compliance.music_usage') }}
                     </a>
-                    {{ ' ' + $t('posts.form.tiktok.compliance.and') + ' ' }}
-                </template>
-                <a
-                    :href="publishConfig?.musicUsageConfirmationUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="font-medium text-primary-text underline-offset-2 hover:text-primary-text-hover hover:underline"
-                >
-                    {{ $t('posts.form.tiktok.compliance.music_usage') }}
-                </a>
-            </p>
-            <p>{{ $t('posts.form.tiktok.processing_hint') }}</p>
-        </div>
+                </p>
+                <p>{{ $t('posts.form.tiktok.processing_hint') }}</p>
+            </div>
+        </SettingsRow>
     </SettingsSection>
 </template>

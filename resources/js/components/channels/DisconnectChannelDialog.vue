@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { IconCheck, IconCopy } from '@tabler/icons-vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,14 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
+import { copyToClipboard } from '@/lib/utils';
 import { disconnect } from '@/routes/app/channels';
 import { accountTypeKey, type ConnectedAccount } from '@/types/social-account';
 
@@ -38,6 +46,35 @@ const typeKey = computed(() =>
 );
 
 const isConfirmed = computed(() => confirmation.value.trim() === props.keyword);
+
+const keywordCopied = ref(false);
+let keywordCopiedTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const copyKeyword = async (): Promise<void> => {
+    const didCopy = await copyToClipboard(props.keyword, undefined, {
+        showSuccessToast: false,
+    });
+
+    if (!didCopy) {
+        return;
+    }
+
+    keywordCopied.value = true;
+
+    if (keywordCopiedTimeout) {
+        clearTimeout(keywordCopiedTimeout);
+    }
+
+    keywordCopiedTimeout = setTimeout(() => {
+        keywordCopied.value = false;
+    }, 2000);
+};
+
+onBeforeUnmount(() => {
+    if (keywordCopiedTimeout) {
+        clearTimeout(keywordCopiedTimeout);
+    }
+});
 
 const open = (target: ConnectedAccount): void => {
     channel.value = target;
@@ -157,20 +194,56 @@ defineExpose({ open, close });
                         {{ $t('channels.disconnect_modal.refresh_after') }}
                     </p>
 
-                    <label class="mt-2 flex flex-col gap-2">
-                        <span class="text-sm font-emphasis text-foreground">{{
-                            $t('channels.disconnect_modal.type_to_confirm', {
-                                keyword,
-                            })
-                        }}</span>
+                    <div class="mt-2 flex flex-col gap-2">
+                        <p
+                            class="flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
+                        >
+                            <span>{{ $t('common.confirm_modal.type') }}</span>
+                            <code
+                                class="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted px-1.5 py-0.5 font-mono text-xs font-medium break-all text-foreground"
+                            >
+                                {{ keyword }}
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <button
+                                                type="button"
+                                                tabindex="-1"
+                                                class="inline-flex shrink-0 cursor-pointer items-center rounded text-muted-foreground hover:text-foreground"
+                                                data-testid="confirm-delete-copy-keyword"
+                                                @click="copyKeyword"
+                                            >
+                                                <IconCheck
+                                                    v-if="keywordCopied"
+                                                    class="size-3 text-success-text"
+                                                    data-testid="confirm-delete-keyword-copied"
+                                                />
+                                                <IconCopy v-else class="size-3" />
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>
+                                                {{
+                                                    $t(
+                                                        'common.confirm_modal.copy_to_clipboard',
+                                                    )
+                                                }}
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </code>
+                            <span>{{ $t('common.confirm_modal.to_confirm') }}</span>
+                        </p>
                         <Input
                             v-model="confirmation"
                             :placeholder="keyword"
+                            :aria-label="keyword"
                             autocomplete="off"
                             autofocus
                             data-testid="confirm-delete-input"
                         />
-                    </label>
+                    </div>
                 </div>
 
                 <DialogFooter class="mx-2 mb-2">

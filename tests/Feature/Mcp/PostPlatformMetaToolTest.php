@@ -1188,3 +1188,32 @@ test('a stored mastodon thread reply that does not fit blocks scheduling through
 
     expect($platform->post->fresh()->status)->toBe(PostStatus::Draft);
 });
+
+test('publishing a youtube post with neither a title nor text is rejected in MCP', function () {
+    $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'content' => '',
+        'status' => PostStatus::Draft,
+        'media' => [[
+            'id' => 'video-1',
+            'type' => 'video',
+            'path' => 'medias/video.mp4',
+            'url' => 'https://example.com/video.mp4',
+            'mime_type' => 'video/mp4',
+            'original_filename' => 'video.mp4',
+        ]],
+    ]);
+    PostPlatform::factory()->youtube()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+        'enabled' => true,
+        'meta' => [],
+    ]);
+    Queue::fake();
+
+    TryPostServer::actingAs($this->user)->tool(PublishPostTool::class, ['post_id' => $post->id])
+        ->assertHasErrors([__('posts.form.youtube.title_required')]);
+    Queue::assertNotPushed(PublishPost::class);
+});

@@ -166,7 +166,6 @@ return [
         'refresh_before' => '¿Problemas con la conexión? Prueba',
         'refresh_after' => 'primero.',
         'irreversible' => 'Esto no se puede deshacer.',
-        'type_to_confirm' => 'Escribe ":keyword" para confirmar.',
         'description' => 'Esto elimina todas las publicaciones de este canal en TryPost, incluidos borradores, programadas y el historial de publicadas. Las publicaciones que ya están en la red se quedan allí.',
         'confirm' => 'Desconectar',
         'keyword' => 'desconectar',

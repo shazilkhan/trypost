@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import {
     draggable,
     dropTargetForElements,
     monitorForElements,
 } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
+import { disableNativeDragPreview } from '@atlaskit/pragmatic-drag-and-drop/element/disable-native-drag-preview';
 import { reorder } from '@atlaskit/pragmatic-drag-and-drop/reorder';
-import { attachClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge/attach-closest-edge';
-import { extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge/extract-closest-edge';
-import { getReorderDestinationIndex } from '@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index';
 import { usePage } from '@inertiajs/vue3';
 import {
     IconAlertTriangle,
@@ -33,6 +30,7 @@ import {
     type MediaUploader,
     useMediaUpload,
 } from '@/composables/useMediaUpload';
+import { cancelDragOnEscape } from '@/lib/dragPlaceholder';
 import { editorTabsFor, rulesFor, type EditorTab } from '@/lib/mediaEditor';
 import { canvaDesignId, editInCanva } from '@/lib/mediaSources/canva';
 import { acceptAttribute, isImage, isVideo } from '@/lib/mediaType';
@@ -157,11 +155,11 @@ const dismissSuggested = (): void => {
 };
 
 const TILE_KEY = 'mediaTrayTile';
+const TRAY_KEY = 'mediaTray';
 const trayId = useId();
 const reorderHintId = `${trayId}-reorder-hint`;
-const dropIndicator = ref<{ index: number; edge: 'start' | 'end' } | null>(
-    null,
-);
+/** While a tile is dragged: where it started and the slot it would land in. */
+const dragPreview = ref<{ from: number; to: number } | null>(null);
 const moved = ref<{ name: string; position: number; total: number } | null>(
     null,
 );
@@ -170,15 +168,6 @@ const isTile = (
     data: Record<string | symbol, unknown>,
 ): data is Record<string | symbol, unknown> & { index: number } =>
     data[TILE_KEY] === trayId && typeof data.index === 'number';
-
-const logicalEdge = (
-    data: Record<string | symbol, unknown>,
-): 'start' | 'end' | null => {
-    const edge = extractClosestEdge(data);
-    if (edge !== 'left' && edge !== 'right') return null;
-
-    return (edge === 'left') === (data.rtl !== true) ? 'start' : 'end';
-};
 
 const replacingImports = computed(() =>
     props.items.map((item) =>
@@ -210,6 +199,16 @@ const tileKeys = computed(() => {
 
         return `${id}#${occurrence}`;
     });
+});
+
+/** Item indexes in the order shown: the dragged tile sits in its landing slot. */
+const displayOrder = computed((): number[] => {
+    const indexes = props.items.map((_, index) => index);
+    const preview = dragPreview.value;
+
+    return preview
+        ? reorder({ list: indexes, startIndex: preview.from, finishIndex: preview.to })
+        : indexes;
 });
 
 const moveItem = (startIndex: number, finishIndex: number): void => {
@@ -246,26 +245,96 @@ const moveWithKeyboard = (startIndex: number, finishIndex: number): void => {
     );
 };
 
+/**
+ * The slot under the pointer in the wrapped grid of tiles, in reading order,
+ * leaving the dragged tile out. Layout offsets (not rects) keep it stable while
+ * the tiles move.
+ */
+const slotAt = (pointer: { clientX: number; clientY: number }, from: number): number => {
+    const container = trayElement.value;
+    if (!container) return from;
+
+    const rect = container.getBoundingClientRect();
+    const x = pointer.clientX - rect.left;
+    const y = pointer.clientY - rect.top;
+    const rtl = getComputedStyle(container).direction === 'rtl';
+
+    return [...container.querySelectorAll<HTMLElement>(':scope > [data-index]')]
+        .filter((tile) => tileIndex(tile) !== from)
+        .filter((tile) => {
+            const top = tile.offsetTop;
+            const bottom = top + tile.offsetHeight;
+            const middle = tile.offsetLeft + tile.offsetWidth / 2;
+
+            if (bottom < y) return true;
+            if (top > y) return false;
+
+            return rtl ? middle > x : middle < x;
+        }).length;
+};
+
+let stopEscape: (() => void) | null = null;
+
+const endDrag = (): void => {
+    dragPreview.value = null;
+    stopEscape?.();
+    stopEscape = null;
+};
+
 const stopMonitor = monitorForElements({
     canMonitor: ({ source }) => isTile(source.data),
-    onDrop: ({ source, location }) => {
-        dropIndicator.value = null;
-        const target = location.current.dropTargets[0];
-        if (!target || !isTile(source.data) || !isTile(target.data)) return;
-        moveItem(
-            source.data.index,
-            getReorderDestinationIndex({
-                startIndex: source.data.index,
-                indexOfTarget: target.data.index,
-                closestEdgeOfTarget:
-                    logicalEdge(target.data) === 'end' ? 'right' : 'left',
-                axis: 'horizontal',
-            }),
-        );
+    onDragStart: ({ source }) => {
+        if (!isTile(source.data)) return;
+
+        dragPreview.value = { from: source.data.index, to: source.data.index };
+        stopEscape = cancelDragOnEscape(endDrag);
+    },
+    onDrag: ({ location }) => {
+        const preview = dragPreview.value;
+        if (!preview) return;
+
+        const overTray = location.current.dropTargets.some((target) => target.data[TRAY_KEY] === trayId);
+        const to = overTray ? slotAt(location.current.input, preview.from) : preview.from;
+
+        if (to !== preview.to) {
+            dragPreview.value = { ...preview, to };
+        }
+    },
+    onDrop: ({ location }) => {
+        const preview = dragPreview.value;
+        const overTray = location.current.dropTargets.some((target) => target.data[TRAY_KEY] === trayId);
+
+        endDrag();
+
+        if (preview && overTray) {
+            moveItem(preview.from, slotAt(location.current.input, preview.from));
+        }
     },
 });
 
-onBeforeUnmount(stopMonitor);
+onBeforeUnmount(() => {
+    stopMonitor();
+    endDrag();
+});
+
+const stopTrayTarget = ref<(() => void) | null>(null);
+
+watch(
+    trayElement,
+    (element) => {
+        stopTrayTarget.value?.();
+        stopTrayTarget.value = element
+            ? dropTargetForElements({
+                  element,
+                  canDrop: ({ source }) => isTile(source.data),
+                  getData: () => ({ [TRAY_KEY]: trayId }),
+              })
+            : null;
+    },
+    { flush: 'post' },
+);
+
+onBeforeUnmount(() => stopTrayTarget.value?.());
 
 const tileIndex = (element: HTMLElement): number =>
     Number(element.dataset.index);
@@ -276,55 +345,21 @@ const vSortableTile: Directive<HTMLElement> = {
     mounted: (element) =>
         cleanups.set(
             element,
-            combine(
-                draggable({
-                    element,
-                    dragHandle:
-                        element.querySelector<HTMLElement>(
-                            '[data-media-handle]',
-                        ) ?? undefined,
-                    canDrag: () => !props.disabled,
-                    getInitialData: () => ({
-                        [TILE_KEY]: trayId,
-                        index: tileIndex(element),
-                    }),
-                    onDragStart: () =>
-                        element.setAttribute('data-dragging', ''),
-                    onDrop: () => element.removeAttribute('data-dragging'),
+            draggable({
+                element,
+                dragHandle:
+                    element.querySelector<HTMLElement>('[data-media-handle]') ??
+                    undefined,
+                canDrag: () => !props.disabled,
+                getInitialData: () => ({
+                    [TILE_KEY]: trayId,
+                    index: tileIndex(element),
                 }),
-                dropTargetForElements({
-                    element,
-                    canDrop: ({ source }) => isTile(source.data),
-                    getData: ({ input }) =>
-                        attachClosestEdge(
-                            {
-                                [TILE_KEY]: trayId,
-                                index: tileIndex(element),
-                                rtl: getComputedStyle(element).direction === 'rtl',
-                            },
-                            {
-                                element,
-                                input,
-                                allowedEdges: ['left', 'right'],
-                            },
-                        ),
-                    onDrag: ({ self, source }) => {
-                        const edge = logicalEdge(self.data);
-                        const index = tileIndex(element);
-                        dropIndicator.value =
-                            edge &&
-                            isTile(source.data) &&
-                            source.data.index !== index
-                                ? { index, edge }
-                                : null;
-                    },
-                    onDragLeave: () => {
-                        if (dropIndicator.value?.index === tileIndex(element)) {
-                            dropIndicator.value = null;
-                        }
-                    },
-                }),
-            ),
+                onGenerateDragPreview: ({ nativeSetDragImage }) =>
+                    disableNativeDragPreview({ nativeSetDragImage }),
+                onDragStart: () => element.setAttribute('data-dragging', ''),
+                onDrop: () => element.removeAttribute('data-dragging'),
+            }),
         ),
     unmounted: (element) => {
         cleanups.get(element)?.();
@@ -337,23 +372,23 @@ const vSortableTile: Directive<HTMLElement> = {
     <div>
         <div
             ref="trayElement"
-            class="flex flex-wrap gap-3"
+            class="relative flex flex-wrap gap-3"
             :data-testid="`${testIdPrefix}-media-tray`"
             @dragover.prevent
             @drop.prevent.stop="onDrop"
         >
             <div
-                v-for="(item, index) in items"
+                v-for="index in displayOrder"
                 :key="tileKeys[index]"
                 v-sortable-tile
                 :data-index="index"
                 :data-testid="`${testIdPrefix}-media-item-${index}`"
-                class="relative shrink-0 data-dragging:opacity-50"
+                class="relative shrink-0 rounded-lg transition-[box-shadow,transform] duration-150 data-dragging:z-10 data-dragging:scale-105 data-dragging:cursor-grabbing data-dragging:shadow-lg data-dragging:ring-2 data-dragging:ring-primary"
             >
                 <MediaTile
                     :test-id-prefix="testIdPrefix"
                     :index="index"
-                    :item="item"
+                    :item="items[index]!"
                     :tabs="itemTabs[index]"
                     :disabled="disabled"
                     :error="itemErrors?.[index]"
@@ -386,16 +421,6 @@ const vSortableTile: Directive<HTMLElement> = {
                         <IconX class="size-3.5" />
                     </button>
                 </div>
-                <span
-                    v-if="dropIndicator?.index === index"
-                    aria-hidden="true"
-                    :data-testid="`${testIdPrefix}-drop-indicator`"
-                    :data-edge="dropIndicator.edge"
-                    class="pointer-events-none absolute inset-y-0 w-0.5 rounded-full bg-primary"
-                    :class="
-                        dropIndicator.edge === 'start' ? '-start-2' : '-end-2'
-                    "
-                />
             </div>
             <MediaTile
                 v-for="(entry, index) in uploader.entries.value"

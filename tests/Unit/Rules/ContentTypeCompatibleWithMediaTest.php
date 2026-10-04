@@ -406,3 +406,28 @@ test('pinterest content types accept only the media their pin type is made of', 
     'carousel with five images' => [ContentType::PinterestCarousel, array_fill(0, 5, ['type' => 'image', 'mime_type' => 'image/png']), true],
     'carousel with a video' => [ContentType::PinterestCarousel, [['type' => 'image', 'mime_type' => 'image/png'], ['type' => 'video', 'mime_type' => 'video/mp4']], false],
 ]);
+
+test('tiktok never mixes photos and a video', function (ContentType $contentType) {
+    $media = [
+        ['type' => MediaType::Image->value, 'mime_type' => 'image/jpeg'],
+        ['type' => MediaType::Video->value, 'mime_type' => 'video/mp4'],
+    ];
+
+    expect(runMediaRule($contentType->value, $media))->toBe([__('posts.form.warnings.no_mixed_media')]);
+})->with([ContentType::TikTokVideo, ContentType::TikTokPhoto]);
+
+test('a content type rejects more files than it takes', function () {
+    $video = ['type' => MediaType::Video->value, 'mime_type' => 'video/mp4'];
+
+    expect(runMediaRule(ContentType::TikTokVideo->value, [$video, $video]))
+        ->toBe([__('posts.form.warnings.max_files_exceeded', ['max' => 1, 'current' => 2])])
+        ->and(runMediaRule(ContentType::TikTokVideo->value, [$video]))->toBe([]);
+});
+
+test('a tiktok photo post takes up to 35 photos', function () {
+    $photo = ['type' => MediaType::Image->value, 'mime_type' => 'image/jpeg'];
+
+    expect(runMediaRule(ContentType::TikTokPhoto->value, array_fill(0, 35, $photo)))->toBe([])
+        ->and(runMediaRule(ContentType::TikTokPhoto->value, array_fill(0, 36, $photo)))
+        ->toBe([__('posts.form.warnings.max_files_exceeded', ['max' => 35, 'current' => 36])]);
+});

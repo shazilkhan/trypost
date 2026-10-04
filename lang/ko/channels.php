@@ -166,7 +166,6 @@ return [
         'refresh_before' => '연결에 문제가 있나요? 먼저',
         'refresh_after' => '을(를) 시도해 보세요.',
         'irreversible' => '이 작업은 되돌릴 수 없습니다.',
-        'type_to_confirm' => '확인하려면 ":keyword"을(를) 입력하세요.',
         'description' => 'TryPost에 있는 이 채널의 모든 게시물이 임시 저장, 예약 게시물, 게시 기록을 포함해 삭제됩니다. 네트워크에 이미 올라간 게시물은 그대로 남습니다.',
         'confirm' => '연결 해제',
         'keyword' => '연결 해제',

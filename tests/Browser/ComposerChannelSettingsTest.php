@@ -6,6 +6,8 @@ use App\Dto\MediaItem;
 use App\Enums\Post\Status;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
+use App\Enums\User\Locale;
+use App\Enums\User\TimeFormat;
 use App\Enums\YouTube\Category;
 use App\Models\Media;
 use App\Models\Post;
@@ -17,6 +19,7 @@ use App\Services\Social\ContentSanitizer;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 /**
  * @param  array<int, array<string, mixed>>  $media
@@ -1219,3 +1222,212 @@ test('the x preview shows the verified badge next to the name', function () {
         ->assertAttribute('@preview-verified', 'aria-label', __('channels.verified.blue'))
         ->assertNoJavaScriptErrors();
 });
+
+test('a youtube video with neither text nor a title warns in its card until a title is set', function () {
+    fakeChannelSettingsApis();
+    $video = [['id' => (string) Str::uuid(), 'type' => 'video', 'path' => 'medias/clip.mp4', 'url' => 'https://example.com/clip.mp4', 'mime_type' => 'video/mp4', 'original_filename' => 'clip.mp4']];
+    $postPlatform = seedChannelSettingsPost(Platform::YouTube, ContentType::YouTubeShort, $video);
+    $postPlatform->post->update(['content' => '']);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, "composer-meta-warning-{$id}");
+
+    $page->assertSeeIn("@composer-meta-warning-{$id}", __('posts.form.youtube.title_required'))
+        ->fill('@youtube-title', 'My short');
+    waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"composer-meta-warning-{$id}\"]')");
+
+    $page->assertMissing("@composer-meta-warning-{$id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('the tiktok settings label fits on one line in every language, interactions read as full sentences and the compliance text lines up with the fields', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::TikTok, ContentType::TikTokVideo);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
+    waitForChannelSettingsTestId($page, 'tiktok-privacy-level');
+
+    $page->assertMissing('@tiktok-posting-to')
+        ->assertVisible('@tiktok-disclose')
+        ->assertSeeIn('[data-testid="channel-settings-rows"]', __('posts.form.tiktok.allow_comments'))
+        ->assertSeeIn('[data-testid="channel-settings-rows"]', __('posts.form.tiktok.allow_duet'))
+        ->assertSeeIn('[data-testid="channel-settings-rows"]', __('posts.form.tiktok.allow_stitch'));
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const compliance = document.querySelector('[data-testid="tiktok-compliance"] p:last-child').getBoundingClientRect();
+            const select = document.querySelector('[data-testid="tiktok-privacy-level"]').getBoundingClientRect();
+            const next = document.querySelector('[data-testid="tiktok-ai-generated"]').closest('[data-testid="channel-settings-row"]').parentElement.getBoundingClientRect();
+            return { aligned: Math.round(compliance.left) === Math.round(select.left), gap: Math.round(next.top - compliance.bottom) >= 12 };
+        })()
+    JS))->toBe(['aligned' => true, 'gap' => true]);
+
+    $translations = collect(['privacy_level'])
+        ->mapWithKeys(fn (string $key): array => [$key => collect(Locale::cases())
+            ->mapWithKeys(fn (Locale $locale): array => [$locale->value => __("posts.form.tiktok.{$key}", [], $locale->value)])
+            ->all()])
+        ->all();
+    $current = json_encode(['privacy_level' => __('posts.form.tiktok.privacy_level')], JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+    $json = json_encode($translations, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+    $wrapped = $page->script(<<<JS
+        (() => {
+            const current = {$current};
+            const translations = {$json};
+            const labels = [...document.querySelectorAll('[data-testid="channel-settings-row"] > label, [data-testid="channel-settings-row"] > span')];
+            return Object.entries(translations).flatMap(([key, texts]) => {
+                const element = labels.find((label) => label.textContent.trim() === current[key]);
+                if (!element) return [key + ': label not found'];
+                const available = parseFloat(getComputedStyle(element.parentElement).gridTemplateColumns.split(' ')[0]);
+                element.style.whiteSpace = 'nowrap';
+                element.style.display = 'inline-block';
+                element.style.justifySelf = 'start';
+                return Object.entries(texts)
+                    .filter(([, text]) => {
+                        element.textContent = text;
+                        return element.getBoundingClientRect().width * 1.04 > available;
+                    })
+                    .map(([locale, text]) => key + ' ' + locale + ': ' + text);
+            });
+        })()
+    JS);
+
+    expect($wrapped)->toBe([]);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('tiktok has no post type choice: photos make a photo post and a video a video post', function () {
+    fakeChannelSettingsApis();
+    $photos = collect(range(1, 2))->map(fn (int $index): array => ['id' => (string) Str::uuid(), 'type' => 'image', 'path' => "medias/photo-{$index}.jpg", 'url' => "https://example.com/photo-{$index}.jpg", 'mime_type' => 'image/jpeg', 'original_filename' => "photo-{$index}.jpg"])->all();
+    $postPlatform = seedChannelSettingsPost(Platform::TikTok, ContentType::TikTokVideo, $photos);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'tiktok-privacy-level');
+
+    $page->assertMissing("@composer-type-{$id}-tiktok_video")
+        ->assertMissing("@composer-type-{$id}-tiktok_photo")
+        ->assertVisible("@composer-{$id}-media-item-0");
+
+    $page->assertVisible('@tiktok-auto-add-music')
+        ->assertAttribute('@tiktok-auto-add-music', 'data-state', 'unchecked')
+        ->click('@tiktok-auto-add-music');
+    waitForChannelSettingsCondition($page, "document.querySelector('[data-testid=\"tiktok-auto-add-music\"]')?.dataset.state === 'checked'");
+    $page->click('@composer-save-draft');
+    waitForChannelSettingsCondition($page, "!document.querySelector('[data-testid=\"post-composer-dialog\"]')");
+
+    expect($postPlatform->fresh()->meta['auto_add_music'] ?? null)->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('tiktok takes photos or a single video, never both, and says so in its card', function (array $kinds, string $warning, array $params) {
+    fakeChannelSettingsApis();
+    $media = collect($kinds)->map(fn (string $kind, int $index): array => $kind === 'image'
+        ? ['id' => (string) Str::uuid(), 'type' => 'image', 'path' => "medias/photo-{$index}.jpg", 'url' => "https://example.com/photo-{$index}.jpg", 'mime_type' => 'image/jpeg', 'original_filename' => "photo-{$index}.jpg"]
+        : ['id' => (string) Str::uuid(), 'type' => 'video', 'path' => "medias/clip-{$index}.mp4", 'url' => "https://example.com/clip-{$index}.mp4", 'mime_type' => 'video/mp4', 'original_filename' => "clip-{$index}.mp4"])->all();
+    $postPlatform = seedChannelSettingsPost(Platform::TikTok, ContentType::TikTokVideo, $media);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, "composer-media-warning-{$id}");
+
+    $page->assertSeeIn("@composer-media-warning-{$id}", __("posts.form.warnings.{$warning}", $params))
+        ->assertNoJavaScriptErrors();
+})->with([
+    'photos and a video' => [['image', 'video'], 'no_mixed_media', []],
+    'two videos' => [['video', 'video'], 'max_files_exceeded', ['max' => '1', 'current' => '2']],
+]);
+
+test('every action on a media tile shows its name in a tooltip', function () {
+    fakeChannelSettingsApis();
+    $media = collect(range(1, 2))->map(fn (int $index): array => ['id' => (string) Str::uuid(), 'type' => 'image', 'path' => "medias/photo-{$index}.jpg", 'url' => "https://example.com/photo-{$index}.jpg", 'mime_type' => 'image/jpeg', 'original_filename' => "photo-{$index}.jpg"])->all();
+    $postPlatform = seedChannelSettingsPost(Platform::Instagram, ContentType::InstagramFeed, $media);
+    $id = $postPlatform->social_account_id;
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, "composer-{$id}-media-item-1");
+
+    foreach ([
+        "composer-{$id}-drag-handle-0" => 'reorder',
+        "composer-{$id}-remove-0" => 'remove',
+        "composer-{$id}-tag-0" => 'tag_people',
+        "composer-{$id}-alt-0" => 'alt',
+        "composer-{$id}-edit-0" => 'edit',
+    ] as $testId => $key) {
+        $page->hover('@composer-save-draft');
+        waitForChannelSettingsCondition($page, "!document.querySelector('[data-slot=\"tooltip-content\"]')");
+        $page->hover("@composer-{$id}-media-item-0")->hover("@{$testId}");
+        waitForChannelSettingsCondition($page, "[...document.querySelectorAll('[data-slot=\"tooltip-content\"]')].some((tip) => tip.textContent.includes(".json_encode(__("posts.composer.media_actions.{$key}")).'))');
+
+        expect($page->script("[...document.querySelectorAll('[data-slot=\"tooltip-content\"]')].map((tip) => tip.textContent.trim()).join('|')"))
+            ->toContain(__("posts.composer.media_actions.{$key}"));
+    }
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the tiktok preview shows a photo on black, with no blurred fill around it', function () {
+    fakeChannelSettingsApis();
+    $photo = [['id' => (string) Str::uuid(), 'type' => 'image', 'path' => 'medias/photo.jpg', 'url' => 'https://example.com/photo.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'photo.jpg']];
+    $postPlatform = seedChannelSettingsPost(Platform::TikTok, ContentType::TikTokPhoto, $photo);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'tiktok-preview');
+
+    expect($page->script("document.querySelectorAll('[data-testid=\"tiktok-preview\"] img[aria-hidden=\"true\"]').length"))->toBe(0)
+        ->and($page->script("document.querySelectorAll('[data-testid=\"tiktok-preview\"] img').length"))->toBeGreaterThan(0);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the google business button select is sized to its options, not the full row', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::GoogleBusiness, ContentType::GoogleBusinessPost);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'google-business-cta');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const trigger = document.querySelector('[data-testid="google-business-cta"]').getBoundingClientRect();
+            const row = document.querySelector('[data-testid="google-business-cta"]').closest('[data-testid="channel-settings-row"]').lastElementChild.getBoundingClientRect();
+            return trigger.width < row.width / 2;
+        })()
+    JS))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the google business event times follow the user clock and pick from a list', function (TimeFormat $format, string $typed, string $shown, string $typedShown) {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::GoogleBusiness, ContentType::GoogleBusinessPost);
+    auth()->user()->update(['time_format' => $format]);
+    $postPlatform->update(['meta' => ['topic_type' => 'EVENT', 'event' => ['title' => 'Launch night', 'start_date' => '2037-03-10', 'end_date' => '2037-03-12', 'start_time' => '09:00']]]);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1280, 900);
+    waitForChannelSettingsTestId($page, 'google-business-start-time');
+
+    expect($page->script("document.querySelector('[data-testid=\"google-business-start-time\"]').type"))->toBe('text');
+
+    $page->click('@google-business-start-time');
+    waitForChannelSettingsTestId($page, 'time-field-option-0900');
+    expect($page->script("document.querySelector('[data-testid=\"time-field-option-1830\"]').textContent.trim()"))->toBe($shown);
+    $page->assertAttribute('@time-field-option-0900', 'aria-selected', 'true')
+        ->click('@time-field-option-1830');
+
+    expect($page->script("document.querySelector('[data-testid=\"google-business-start-time\"]').value"))->toBe($shown);
+
+    $page->fill('@google-business-end-time', $typed)
+        ->keys('@google-business-end-time', 'Enter');
+
+    expect($page->script("document.querySelector('[data-testid=\"google-business-end-time\"]').value"))->toBe($typedShown);
+
+    $page->assertNoJavaScriptErrors()
+        ->click('@composer-save-draft')
+        ->assertMissing('@post-composer-dialog');
+
+    expect(data_get($postPlatform->fresh()->meta, 'event.start_time'))->toBe('18:30')
+        ->and(data_get($postPlatform->fresh()->meta, 'event.end_time'))->toBe('21:00');
+})->with([
+    '12h' => [TimeFormat::TwelveHour, '9 pm', '6:30 PM', '9:00 PM'],
+    '24h' => [TimeFormat::TwentyFourHour, '21', '18:30', '21:00'],
+]);

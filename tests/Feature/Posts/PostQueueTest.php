@@ -65,7 +65,7 @@ function postQueueStore(object $test, SocialAccount $channel, string $position =
     $test->actingAs($test->user)
         ->post(route('app.posts.store'), postQueuePayload([$channel], ['queue' => $position]))
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('app.posts.index'));
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 
     return Post::findOrFail(session('created_post_ids')[0]);
 }
@@ -86,7 +86,7 @@ test('storing with queue next gives each channel its own first slot', function (
     $this->actingAs($this->user)
         ->post(route('app.posts.store'), postQueuePayload([$this->channel, $other]))
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('app.posts.index'));
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 
     $posts = Post::query()->with('postPlatforms')->whereIn('id', session('created_post_ids'))->get()
         ->keyBy(fn (Post $post): string => $post->postPlatforms->first()->social_account_id);
@@ -623,7 +623,7 @@ test('recovering an empty legacy draft into the queue gives it a slot', function
     $this->actingAs($this->user)
         ->post(route('app.posts.store'), postQueuePayload([$this->channel], ['recover_post_id' => $legacy->id]))
         ->assertSessionHasNoErrors()
-        ->assertRedirect(route('app.posts.index'));
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 
     $recovered = Post::findOrFail(session('created_post_ids')[0]);
 

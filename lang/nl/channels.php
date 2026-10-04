@@ -166,7 +166,6 @@ return [
         'refresh_before' => 'Problemen met de verbinding? Probeer eerst',
         'refresh_after' => '.',
         'irreversible' => 'Dit kan niet ongedaan worden gemaakt.',
-        'type_to_confirm' => 'Typ ":keyword" om te bevestigen.',
         'description' => 'Hiermee worden alle berichten van dit kanaal in TryPost verwijderd, inclusief concepten, ingeplande berichten en de publicatiegeschiedenis. Berichten die al op het netwerk staan, blijven daar.',
         'confirm' => 'Loskoppelen',
         'keyword' => 'ontkoppelen',

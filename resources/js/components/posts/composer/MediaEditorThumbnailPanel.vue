@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 
 import { formatCoverOffset, type MediaEdit } from '@/lib/mediaEditor';
+import { rangeFill } from '@/lib/rangeFill';
 
 const props = defineProps<{
     duration: number | null;
@@ -44,6 +45,7 @@ const seconds = computed({
             <input
                 v-model.number="seconds"
                 data-testid="media-editor-cover"
+                :style="rangeFill(seconds, 0, maxSeconds)"
                 type="range"
                 min="0"
                 :max="maxSeconds"

@@ -698,6 +698,8 @@ enum ContentType: string
             self::BlueskyPost => false,
             // LinkedIn publishes images XOR one video XOR one document — never mixed.
             self::LinkedInPost, self::LinkedInPagePost => false,
+            // TikTok publishes photos (up to 35) XOR one video.
+            self::TikTokVideo, self::TikTokPhoto => false,
             default => true,
         };
     }

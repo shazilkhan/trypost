@@ -141,12 +141,12 @@ export const getMediaValidationWarning = (
     return firstWarning(
         rules.requiresMedia && total === 0 && warning('requires_media'),
         rules.maxFiles === 0 && total > 0 && warning('text_only'),
+        rules.forbidsMixedMedia && videos.length > 0 && images.length > 0 && warning('no_mixed_media'),
         total > rules.maxFiles && warning('max_files_exceeded', { max: String(rules.maxFiles), current: String(total) }),
         total < (rules.minFiles ?? 0) && warning('min_files_required', { min: String(rules.minFiles), current: String(total) }),
         ! rules.acceptVideos && videos.length > 0 && warning('no_video_allowed'),
         ! rules.acceptImages && images.length > 0 && warning('no_image_allowed'),
         ! rules.acceptDocuments && documents.length > 0 && warning('no_document_allowed'),
-        rules.forbidsMixedMedia && videos.length > 0 && images.length > 0 && warning('no_mixed_media'),
         rules.acceptDocuments && documents.length > 0 && total > 1 && warning('document_not_alone'),
         ! rules.acceptsGif && media.some(isGif) && warning('gif_not_allowed'),
         ! rules.acceptsMov && media.some(isMov) && warning('mov_not_allowed'),

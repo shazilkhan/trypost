@@ -12,6 +12,7 @@ import {
 } from '@tabler/icons-vue';
 
 import type { CropPreset, CropPresetValue, MediaEdit } from '@/lib/mediaEditor';
+import { rangeFill } from '@/lib/rangeFill';
 
 defineProps<{
     presets: CropPreset[];
@@ -171,6 +172,7 @@ const rotate = (direction: 1 | -1): void => {
                 <input
                     v-model.number="edit.straighten"
                     data-testid="media-editor-straighten"
+                    :style="rangeFill(edit.straighten, -45, 45, 0)"
                     type="range"
                     min="-45"
                     max="45"

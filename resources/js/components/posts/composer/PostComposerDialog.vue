@@ -930,7 +930,7 @@ const filteredAccounts = computed(() => {
                   account.display_name,
                   account.username,
                   getPlatformLabel(account.platform),
-              ].some((value) => value.toLocaleLowerCase().includes(query)),
+              ].some((value) => (value ?? '').toLocaleLowerCase().includes(query)),
           )
         : props.socialAccounts;
 });
@@ -1304,7 +1304,11 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
         destination.media,
     );
     const remaining = remainingCharacters(account);
-    const meta = evaluatePlatformMeta(account.platform, destination.meta ?? {});
+    const meta = evaluatePlatformMeta(
+        account.platform,
+        destination.meta ?? {},
+        htmlToPlainText(destination.content ?? ''),
+    );
     const issues: DestinationIssue[] = [];
 
     if (
@@ -1425,14 +1429,38 @@ const blockingIssue = computed(() => {
 
     return null;
 });
-const requiresMediaWarning = (account: ComposerAccount | undefined): boolean => {
-    if (!account) return false;
+const metaRequirement = (account: ComposerAccount): string | null => {
     const destination = composition.resolvedDestination(account);
-
-    return (
-        getMediaValidationWarning(destination.content_type, destination.media)
-            ?.key === 'requires_media'
+    const result = evaluatePlatformMeta(
+        account.platform,
+        destination.meta ?? {},
+        htmlToPlainText(destination.content ?? ''),
     );
+
+    return result.valid ? null : result.tooltipKey;
+};
+/** Media rules about the set as a whole; a single item's issue shows on that item. */
+const SET_MEDIA_WARNINGS = new Set([
+    'requires_media',
+    'no_mixed_media',
+    'max_files_exceeded',
+    'min_files_required',
+    'no_video_allowed',
+    'no_image_allowed',
+    'no_document_allowed',
+    'document_not_alone',
+]);
+const setMediaWarning = (
+    account: ComposerAccount | undefined,
+): MediaValidationWarning | null => {
+    if (!account) return null;
+    const destination = composition.resolvedDestination(account);
+    const warning = getMediaValidationWarning(
+        destination.content_type,
+        destination.media,
+    );
+
+    return warning && SET_MEDIA_WARNINGS.has(warning.key) ? warning : null;
 };
 const hasBlockingIssues = computed(() => blockingIssue.value !== null);
 const isBatch = computed(
@@ -2335,17 +2363,29 @@ const close = (): void => emit('update:open', false);
                                 </template>
                                 <template #warnings>
                                     <div
-                                        v-if="requiresMediaWarning(group.anchor)"
+                                        v-if="metaRequirement(group.anchor)"
+                                        role="status"
+                                        class="flex items-center gap-2 rounded-md bg-warning/15 px-3 py-1.5 text-sm"
+                                        :data-testid="`composer-meta-warning-${group.anchor.id}`"
+                                    >
+                                        <IconAlertTriangle
+                                            class="size-4 shrink-0 text-warning"
+                                        />
+                                        {{ $t(metaRequirement(group.anchor)!) }}
+                                    </div>
+                                    <div
+                                        v-if="setMediaWarning(group.anchor)"
                                         role="status"
                                         class="flex items-center gap-2 rounded-md bg-warning/15 px-3 py-1.5 text-sm"
                                         :data-testid="`composer-media-warning-${group.anchor.id}`"
                                     >
                                         <IconAlertTriangle
-                                            class="size-4 text-warning"
+                                            class="size-4 shrink-0 text-warning"
                                         />
                                         {{
                                             $t(
-                                                'posts.form.warnings.requires_media',
+                                                `posts.form.warnings.${setMediaWarning(group.anchor)!.key}`,
+                                                setMediaWarning(group.anchor)!.params,
                                             )
                                         }}
                                     </div>

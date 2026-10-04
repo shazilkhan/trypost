@@ -45,6 +45,19 @@ class YouTubeMetadata
     }
 
     /**
+     * YouTube rejects an upload without a title (`invalidTitle`), so a post with
+     * neither a title nor any text cannot publish there.
+     *
+     * @param  array<string, mixed>|null  $meta
+     * @param  string  $content  the post text after ContentSanitizer
+     * @return array{0: string, 1: string}|null
+     */
+    public static function missingTitleViolation(?array $meta, string $content): ?array
+    {
+        return self::title($meta, $content) === '' ? ['title', __('posts.form.youtube.title_required')] : null;
+    }
+
+    /**
      * @return array{0: string, 1: string}|null
      */
     public static function violation(mixed $meta): ?array

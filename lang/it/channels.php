@@ -166,7 +166,6 @@ return [
         'refresh_before' => 'Problemi con la connessione? Prova prima',
         'refresh_after' => '.',
         'irreversible' => 'Questa azione non può essere annullata.',
-        'type_to_confirm' => 'Digita ":keyword" per confermare.',
         'description' => 'Questo elimina tutti i post di questo canale in TryPost, compresi bozze, post programmati e la cronologia dei pubblicati. I post già presenti sul social restano lì.',
         'confirm' => 'Scollega',
         'keyword' => 'disconnetti',

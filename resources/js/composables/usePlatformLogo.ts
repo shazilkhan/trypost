@@ -1,3 +1,5 @@
+import { derivesContentType } from '@/lib/derivedContentType';
+
 const PLATFORM_LOGOS: Record<string, string> = {
     linkedin: '/images/accounts/linkedin.png',
     'linkedin-page': '/images/accounts/linkedin.png',
@@ -80,13 +82,15 @@ const LONE_CONTENT_TYPE_RADIO_PLATFORMS = new Set(['youtube']);
 
 /**
  * The content types the composer offers as radios. A single type shows only
- * where it gets a lone radio (YouTube "Short"); Pinterest derives its type from the media.
+ * where it gets a lone radio (YouTube "Short"); networks that derive their type
+ * from the media (Pinterest, TikTok) offer none.
  */
 export const getPickableContentTypeOptions = (
     platform: string,
 ): ContentTypeOption[] => {
-    const options =
-        platform === 'pinterest' ? [] : getContentTypeOptions(platform);
+    const options = derivesContentType(platform)
+        ? []
+        : getContentTypeOptions(platform);
 
     return options.length > 1 || LONE_CONTENT_TYPE_RADIO_PLATFORMS.has(platform)
         ? options

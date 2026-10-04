@@ -81,7 +81,7 @@ function storeChannelAltTextComposition(object $test): void
                 'media' => [channelAltTextItem($test->upload)],
             ],
         ],
-    ])->assertRedirect(route('app.posts.index'));
+    ])->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
 }
 
 test('the shared alt text reaches every channel and a channel override stays on its own post', function () {

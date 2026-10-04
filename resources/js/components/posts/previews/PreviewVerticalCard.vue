@@ -10,8 +10,9 @@ withDefaults(
     defineProps<{
         media: MediaItem[];
         actions?: PreviewAction[];
+        backdrop?: 'blur' | 'black';
     }>(),
-    { actions: () => [] },
+    { actions: () => [], backdrop: 'blur' },
 );
 </script>
 
@@ -19,7 +20,7 @@ withDefaults(
     <div
         class="relative aspect-[9/16] w-full overflow-hidden bg-black text-[13px] leading-[18px] text-white"
     >
-        <VerticalMediaCanvas :media="media">
+        <VerticalMediaCanvas :media="media" :backdrop="backdrop">
             <template #placeholder>
                 <div
                     class="flex size-full items-center justify-center bg-gradient-to-b from-white/5 to-white/15"

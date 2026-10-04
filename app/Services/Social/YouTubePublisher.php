@@ -23,7 +23,6 @@ use Google\Service\YouTube\VideoStatus;
 use Google_Http_MediaFileUpload;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class YouTubePublisher
 {
@@ -106,9 +105,11 @@ class YouTubePublisher
      */
     private function publishShort(MediaItem $media, SocialAccount $account, ?string $content, string $description, array $meta): array
     {
-        if (blank($content) && blank(Str::trim((string) data_get($meta, 'title')))) {
+        $missingTitle = YouTubeMetadata::missingTitleViolation($meta, (string) $content);
+
+        if ($missingTitle !== null) {
             throw new YouTubePublishException(
-                userMessage: 'YouTube Shorts require a title. Please add text to your post.',
+                userMessage: $missingTitle[1],
                 category: ErrorCategory::ContentPolicy,
             );
         }

@@ -36,11 +36,13 @@ export type CropPreset = {
 export const FILTER_PRESETS = ['original', 'vivid', 'mono', 'sepia'] as const;
 export type FilterPreset = (typeof FILTER_PRESETS)[number];
 
-const FILTER_CSS: Record<FilterPreset, string> = {
-    original: '',
-    vivid: 'saturate(1.3) contrast(1.08)',
-    mono: 'grayscale(1)',
-    sepia: 'sepia(1)',
+/** Each filter at an intensity from 0 (no effect) to 1 (full effect). */
+const FILTER_CSS: Record<FilterPreset, (intensity: number) => string> = {
+    original: () => '',
+    vivid: (intensity) =>
+        `saturate(${1 + 0.3 * intensity}) contrast(${1 + 0.08 * intensity})`,
+    mono: (intensity) => `grayscale(${intensity})`,
+    sepia: (intensity) => `sepia(${intensity})`,
 };
 
 export const ADJUSTMENTS = [
@@ -59,6 +61,8 @@ export type MediaEdit = {
     flipY: boolean;
     straighten: number;
     filter: FilterPreset;
+    /** How strongly the filter applies, 0 to 100. */
+    filterIntensity: number;
     adjustments: Record<Adjustment, number>;
     altText: string;
     userTags: MediaUserTag[];
@@ -163,6 +167,7 @@ export const blankMediaEdit = (
     flipY: false,
     straighten: 0,
     filter: 'original',
+    filterIntensity: 100,
     adjustments: { brightness: 0, contrast: 0, saturation: 0, warmth: 0 },
     altText: '',
     userTags: [],
@@ -183,7 +188,7 @@ export const hasPixelChanges = (edit: MediaEdit): boolean =>
     edit.flipX ||
     edit.flipY ||
     edit.straighten !== 0 ||
-    edit.filter !== 'original' ||
+    (edit.filter !== 'original' && edit.filterIntensity > 0) ||
     ADJUSTMENTS.some((key) => edit.adjustments[key] !== 0);
 
 export const hasMetaChanges = (edit: MediaEdit, item: MediaItem): boolean =>
@@ -253,7 +258,7 @@ export const presetRatio = (
 
 export const cssFilter = (edit: MediaEdit): string =>
     [
-        FILTER_CSS[edit.filter],
+        FILTER_CSS[edit.filter](edit.filterIntensity / 100),
         `brightness(${1 + edit.adjustments.brightness / 100})`,
         `contrast(${1 + edit.adjustments.contrast / 100})`,
         `saturate(${1 + edit.adjustments.saturation / 100})`,

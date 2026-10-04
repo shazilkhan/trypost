@@ -21,6 +21,7 @@ use App\Http\Controllers\App\LinkPreviewController;
 use App\Http\Controllers\App\LinkPreviewMediaController;
 use App\Http\Controllers\App\McpSettingsController;
 use App\Http\Controllers\App\MediaAltTextController;
+use App\Http\Controllers\App\MediaFileController;
 use App\Http\Controllers\App\MediaImportController;
 use App\Http\Controllers\App\MediaUploadController;
 use App\Http\Controllers\App\PinterestBoardController;
@@ -279,6 +280,7 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
 
     // Media (temporary uploads)
     Route::post('media/chunked', [MediaUploadController::class, 'storeChunked'])->name('app.media.store-chunked');
+    Route::get('media/{media}/file', [MediaFileController::class, 'show'])->whereUuid('media')->name('app.media.file');
     Route::post('media/from-url', [MediaUploadController::class, 'storeFromUrl'])
         ->middleware('throttle:media-imports')
         ->name('app.media.store-from-url');

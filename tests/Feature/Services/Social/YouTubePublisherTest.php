@@ -356,7 +356,7 @@ test('youtube publisher throws exception with null content', function () {
     ]);
 
     expect(fn () => $this->publisher->publish($this->postPlatform))
-        ->toThrow(Exception::class, 'YouTube Shorts require a title');
+        ->toThrow(Exception::class, __('posts.form.youtube.title_required'));
 });
 
 test('youtube publisher derives the title from the first non-empty line like the composer', function (string $content, string $expected) {

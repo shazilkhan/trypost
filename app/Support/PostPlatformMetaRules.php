@@ -16,6 +16,7 @@ use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Rules\ValidYouTubeDescription;
+use App\Services\Social\ContentSanitizer;
 use Closure;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -273,7 +274,8 @@ class PostPlatformMetaRules
         $errors = [];
 
         foreach ($platforms as $index => $postPlatform) {
-            $violation = self::requiredMetaViolation($postPlatform->socialAccount ?? $postPlatform->platform, $postPlatform->meta);
+            $violation = self::requiredMetaViolation($postPlatform->socialAccount ?? $postPlatform->platform, $postPlatform->meta)
+                ?? self::contentMetaViolation($postPlatform->platform, $postPlatform->meta, (string) $post->content);
 
             if ($violation !== null) {
                 [$field, $message] = $violation;
@@ -388,6 +390,24 @@ class PostPlatformMetaRules
                 && blank(data_get($meta, 'call_to_action.url')) => ['call_to_action.url', trans('posts.form.google_business.cta_url_required')],
             default => null,
         };
+    }
+
+    /**
+     * Required meta that the post text can stand in for, so it is only missing
+     * once the text is known: a YouTube title falls back to the first line.
+     *
+     * @return array{0: string, 1: string}|null [field, message]
+     */
+    public static function contentMetaViolation(Platform $platform, mixed $meta, string $content): ?array
+    {
+        if ($platform !== Platform::YouTube) {
+            return null;
+        }
+
+        return YouTubeMetadata::missingTitleViolation(
+            is_array($meta) ? $meta : null,
+            app(ContentSanitizer::class)->sanitize($content, $platform),
+        );
     }
 
     /**

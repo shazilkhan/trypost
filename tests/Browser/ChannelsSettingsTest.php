@@ -206,3 +206,31 @@ test('refresh connection in the disconnect dialog closes it instead of disconnec
 
     expect(SocialAccount::find($channel->id))->not->toBeNull();
 });
+
+test('the disconnect dialog shows the keyword with a copy button, like the other confirmations', function () {
+    $user = channelsSettingsAdmin();
+    $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $keyword = __('channels.disconnect_modal.keyword');
+
+    $page = visit(route('app.workspace.channels'));
+    waitForChannelsSettingsTestId($page, "channel-row-{$channel->id}");
+    $page->click("@channel-menu-{$channel->id}");
+    waitForChannelsSettingsTestId($page, "channel-disconnect-{$channel->id}");
+    $page->click("@channel-disconnect-{$channel->id}");
+    waitForChannelsSettingsTestId($page, 'confirm-delete-copy-keyword');
+
+    $page->assertSeeIn('@confirm-delete-modal', __('common.confirm_modal.type'))
+        ->assertSeeIn('@confirm-delete-modal', __('common.confirm_modal.to_confirm'))
+        ->assertDontSee('"'.$keyword.'"');
+
+    expect($page->script("document.querySelector('[data-testid=\"confirm-delete-modal\"] code')?.textContent.trim()"))->toBe($keyword);
+
+    $page->script("Object.defineProperty(navigator, 'clipboard', { value: { writeText: (text) => { window.__copied = text; return Promise.resolve(); } }, configurable: true })");
+    $page->click('@confirm-delete-copy-keyword')
+        ->assertVisible('@confirm-delete-keyword-copied');
+
+    expect($page->script('window.__copied'))->toBe($keyword);
+    $page->assertNoJavaScriptErrors();
+});

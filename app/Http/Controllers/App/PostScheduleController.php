@@ -8,6 +8,7 @@ use App\Actions\Post\UpdatePost;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\Status as PostStatus;
+use App\Http\Controllers\App\Concerns\RendersPublishPage;
 use App\Http\Requests\App\Post\UpdatePostScheduleRequest;
 use App\Models\Post;
 use App\Support\PostStatusRules;
@@ -15,6 +16,8 @@ use Illuminate\Http\RedirectResponse;
 
 class PostScheduleController extends Controller
 {
+    use RendersPublishPage;
+
     public function update(UpdatePostScheduleRequest $request, Post $post): RedirectResponse
     {
         $workspace = $request->user()->currentWorkspace;
@@ -43,6 +46,12 @@ class PostScheduleController extends Controller
         if ($action === PostAction::Finalized) {
             session()->flash('flash.banner', __('posts.flash.cannot_edit_finalized'));
             session()->flash('flash.bannerStyle', 'danger');
+        }
+
+        if ($action === PostAction::Publishing || $action === PostAction::Scheduled) {
+            $queue = $this->publishPageReturnUrl(['tab' => 'queue']);
+
+            return $queue ? redirect($queue) : back();
         }
 
         return back();

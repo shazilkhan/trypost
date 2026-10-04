@@ -166,7 +166,6 @@ return [
         'refresh_before' => '连接有问题？请先尝试',
         'refresh_after' => '。',
         'irreversible' => '此操作无法撤销。',
-        'type_to_confirm' => '输入“:keyword”以确认。',
         'description' => '这会删除此频道在 TryPost 中的所有帖子，包括草稿、已排期的帖子和已发布历史。已在社交网络上的帖子会保留。',
         'confirm' => '断开连接',
         'keyword' => '断开连接',

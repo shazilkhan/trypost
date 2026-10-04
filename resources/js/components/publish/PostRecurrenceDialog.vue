@@ -20,9 +20,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
-    NativeSelect,
-    NativeSelectOption,
-} from '@/components/ui/native-select';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     isRecurring,
     MAX_RECURRENCE_INTERVAL,
@@ -146,36 +149,42 @@ const stop = (): void => {
                         v-model.number="form.interval"
                         type="number"
                         inputmode="numeric"
-                        class="w-16"
+                        class="w-12"
                         :aria-label="$t('posts.recurrence.interval_label')"
                         :aria-invalid="!!form.errors.interval"
                         :data-testid="`post-recurrence-interval-${testKey}`"
                     />
-                    <NativeSelect
-                        v-model="form.frequency"
-                        class="w-32"
-                        :aria-label="$t('posts.recurrence.frequency_label')"
-                        :data-testid="`post-recurrence-frequency-${testKey}`"
-                    >
-                        <NativeSelectOption
-                            v-for="frequency in RECURRENCE_FREQUENCIES"
-                            :key="frequency"
-                            :value="frequency"
+                    <Select v-model="form.frequency">
+                        <SelectTrigger
+                            class="w-auto gap-1.5"
+                            :aria-label="$t('posts.recurrence.frequency_label')"
+                            :data-testid="`post-recurrence-frequency-${testKey}`"
+                            :data-value="form.frequency"
                         >
-                            {{
-                                $tChoice(
-                                    `posts.recurrence.frequency.${frequency}`,
-                                    Number(form.interval) || 1,
-                                )
-                            }}
-                        </NativeSelectOption>
-                    </NativeSelect>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem
+                                v-for="frequency in RECURRENCE_FREQUENCIES"
+                                :key="frequency"
+                                :value="frequency"
+                                :data-testid="`post-recurrence-frequency-option-${frequency}`"
+                            >
+                                {{
+                                    $tChoice(
+                                        `posts.recurrence.frequency.${frequency}`,
+                                        Number(form.interval) || 1,
+                                    )
+                                }}
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <span>{{ $t('posts.recurrence.for') }}</span>
                     <Input
                         v-model.number="form.times"
                         type="number"
                         inputmode="numeric"
-                        class="w-16"
+                        class="w-12"
                         :aria-label="$t('posts.recurrence.times_label')"
                         :aria-invalid="!!form.errors.times"
                         :data-testid="`post-recurrence-times-${testKey}`"

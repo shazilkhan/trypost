@@ -1093,6 +1093,44 @@ it('rejects scheduling a youtube title with angle brackets', function () {
     ])->assertUnprocessable()->assertJsonValidationErrors('destinations.0.meta.title');
 });
 
+it('requires a youtube title when the post has no text to take it from', function (string $content, array $meta, bool $allowed) {
+    $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'content' => $content, 'status' => PostStatus::Draft,
+        'media' => [['id' => 'video-1', 'type' => 'video', 'path' => 'medias/video.mp4', 'url' => 'https://example.com/video.mp4', 'mime_type' => 'video/mp4', 'original_filename' => 'video.mp4']],
+    ]);
+    PostPlatform::factory()->youtube()->create(['post_id' => $post->id, 'social_account_id' => $account->id, 'enabled' => true]);
+
+    $response = $this->withHeaders($this->headers)->putJson(route('api.posts.update', $post), [
+        'status' => PostStatus::Scheduled->value,
+        'scheduled_at' => now()->addHour()->toIso8601String(),
+        'meta' => $meta,
+    ]);
+
+    if ($allowed) {
+        $response->assertOk();
+
+        return;
+    }
+
+    $response->assertUnprocessable()->assertJsonValidationErrors(['destinations.0.meta.title' => __('posts.form.youtube.title_required')]);
+})->with([
+    'no text and no title' => ['', [], false],
+    'blank title and no text' => ['', ['title' => '   '], false],
+    'a title without text' => ['', ['title' => 'My short'], true],
+    'text without a title' => ['First line', [], true],
+]);
+
+it('saves a youtube draft without a title or text', function () {
+    $account = SocialAccount::factory()->youtube()->create(['workspace_id' => $this->workspace->id]);
+
+    $this->withHeaders($this->headers)->postJson(route('api.posts.store'), [
+        'content' => '',
+        'media' => [['id' => 'video-1', 'type' => 'video', 'path' => 'medias/video.mp4', 'url' => 'https://example.com/video.mp4', 'mime_type' => 'video/mp4', 'original_filename' => 'video.mp4']],
+        'platforms' => [['social_account_id' => $account->id, 'content_type' => ContentType::YouTubeShort->value]],
+    ])->assertJsonMissingValidationErrors('destinations.0.meta.title');
+});
+
 it('persists instagram options', function () {
     $instagram = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::Instagram]);
     $meta = ['share_to_feed' => false, 'is_ai_generated' => true];

@@ -11,6 +11,12 @@ import {
 } from '@tabler/icons-vue';
 import { computed, onBeforeUnmount } from 'vue';
 
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { isRetryable, type UploadEntry } from '@/composables/useMediaUpload';
 import type { EditorTab } from '@/lib/mediaEditor';
 import { isImage, isVideo } from '@/lib/mediaType';
@@ -88,8 +94,9 @@ const revealClass =
     'opacity-0 transition-opacity group-hover/tile:opacity-100 group-focus-within/tile:opacity-100 [@media(hover:none)]:opacity-100';
 
 const actionShapeClass =
-    'flex size-7 items-center justify-center rounded-md transition-control focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50';
-const darkColorClass = 'bg-black/80 text-white hover:bg-black/90';
+    'flex size-6 items-center justify-center rounded-md shadow-xs transition-control focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-50';
+const darkColorClass =
+    'border border-border bg-background/90 text-foreground backdrop-blur-sm hover:bg-accent';
 const actionClass = `${actionShapeClass} ${darkColorClass}`;
 const uploadActionClass =
     'flex size-6 items-center justify-center rounded-md border border-border bg-background/90 text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring';
@@ -102,159 +109,198 @@ const uploadActionClass =
         class="group/tile relative size-30 shrink-0 overflow-hidden rounded-lg border"
         :class="{ 'border-destructive': error }"
     >
-        <img
-            v-if="isImage(item)"
-            :src="item.url"
-            alt=""
-            draggable="false"
-            class="size-full object-cover"
-        />
-        <template v-else-if="isVideo(item)">
-            <video
+        <TooltipProvider :delay-duration="300">
+            <img
+                v-if="isImage(item)"
                 :src="item.url"
-                class="size-full object-cover"
-                muted
-                playsinline
-                preload="metadata"
+                alt=""
                 draggable="false"
+                class="size-full object-cover"
             />
-            <IconPlayerPlayFilled
-                aria-hidden="true"
-                class="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white"
-            />
-        </template>
-        <span
-            v-else
-            class="flex size-full flex-col items-center justify-center gap-1 p-2 text-center text-xs break-all text-muted-foreground"
-        >
-            <IconFileTypePdf class="size-6" stroke-width="1.5" />
-            <span class="line-clamp-2">{{ item.original_filename }}</span>
-        </span>
-        <p
-            v-if="error"
-            role="alert"
-            :data-testid="`${testIdPrefix}-media-error-${index}`"
-            :title="error"
-            class="absolute inset-x-0 bottom-0 line-clamp-3 bg-destructive px-1.5 py-1 text-[11px] leading-tight text-destructive-foreground"
-            :style="
-                editButtonCount
-                    ? { paddingInlineEnd: `${editButtonCount * 32 + 4}px` }
-                    : undefined
-            "
-        >
-            {{ error }}
-        </p>
-        <button
-            v-show="movable"
-            type="button"
-            :class="[
-                'absolute start-1/2 top-1 -translate-x-1/2 cursor-grab active:cursor-grabbing rtl:translate-x-1/2',
-                revealClass,
-                actionClass,
-            ]"
-            data-media-handle
-            :data-testid="`${testIdPrefix}-drag-handle-${index}`"
-            :aria-label="
-                $t('posts.composer.media_reorder_handle', {
-                    name: item.original_filename ?? '',
-                })
-            "
-            :title="
-                $t('posts.composer.media_reorder_handle', {
-                    name: item.original_filename ?? '',
-                })
-            "
-            :aria-describedby="reorderHintId"
-            :disabled="disabled"
-            @keydown="onHandleKeydown"
-        >
-            <IconGripHorizontal class="size-4" />
-        </button>
-        <button
-            type="button"
-            :class="['absolute end-1 top-1', revealClass, actionClass]"
-            :data-testid="`${testIdPrefix}-remove-${index}`"
-            :aria-label="
-                $t('posts.composer.media_remove', {
-                    name: item.original_filename ?? '',
-                })
-            "
-            :disabled="disabled"
-            @click="emit('remove')"
-        >
-            <IconX class="size-4" />
-        </button>
-        <span
-            v-if="editButtonCount"
-            :class="['absolute end-1 bottom-1 flex gap-1', revealClass]"
-        >
-            <button
-                v-if="canvaEditable"
-                type="button"
-                :class="actionClass"
-                :data-testid="`${testIdPrefix}-edit-canva-${index}`"
-                :aria-label="
-                    $t('posts.composer.media_sources.edit_in_canva', {
-                        name: item.original_filename ?? '',
-                    })
-                "
-                :disabled="disabled"
-                @click="emit('edit-canva')"
+            <template v-else-if="isVideo(item)">
+                <video
+                    :src="item.url"
+                    class="size-full object-cover"
+                    muted
+                    playsinline
+                    preload="metadata"
+                    draggable="false"
+                />
+                <IconPlayerPlayFilled
+                    aria-hidden="true"
+                    class="absolute top-1/2 left-1/2 size-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white"
+                />
+            </template>
+            <span
+                v-else
+                class="flex size-full flex-col items-center justify-center gap-1 p-2 text-center text-xs break-all text-muted-foreground"
             >
-                <IconPalette class="size-4" />
-            </button>
-            <button
-                v-if="tabs?.includes('tags')"
-                type="button"
-                :class="actionClass"
-                :data-testid="`${testIdPrefix}-tag-${index}`"
-                :aria-label="
-                    $t('posts.composer.media_tag_people', {
-                        name: item.original_filename ?? '',
-                    })
+                <IconFileTypePdf class="size-6" stroke-width="1.5" />
+                <span class="line-clamp-2">{{ item.original_filename }}</span>
+            </span>
+            <p
+                v-if="error"
+                role="alert"
+                :data-testid="`${testIdPrefix}-media-error-${index}`"
+                :title="error"
+                class="absolute inset-x-0 bottom-0 line-clamp-3 bg-destructive px-1.5 py-1 text-[11px] leading-tight text-destructive-foreground"
+                :style="
+                    editButtonCount
+                        ? { paddingInlineEnd: `${editButtonCount * 28 + 4}px` }
+                        : undefined
                 "
-                :disabled="disabled"
-                @click="openEditor('tags')"
             >
-                <IconUserPlus class="size-4" />
-            </button>
-            <button
-                v-if="tabs?.includes('alt')"
-                type="button"
-                :class="[
-                    actionShapeClass,
-                    'text-[10px] font-semibold',
-                    item.meta?.alt_text
-                        ? 'bg-primary text-primary-foreground hover:bg-primary-hover'
-                        : darkColorClass,
-                ]"
-                :data-testid="`${testIdPrefix}-alt-${index}`"
-                :aria-label="
-                    $t('posts.composer.media_alt', {
-                        name: item.original_filename ?? '',
-                    })
-                "
-                :disabled="disabled"
-                @click="openEditor('alt')"
+                {{ error }}
+            </p>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                <button
+                    v-show="movable"
+                    type="button"
+                    :class="[
+                        'absolute start-1/2 top-1 -translate-x-1/2 cursor-grab active:cursor-grabbing rtl:translate-x-1/2',
+                        revealClass,
+                        actionClass,
+                    ]"
+                    data-media-handle
+                    :data-testid="`${testIdPrefix}-drag-handle-${index}`"
+                    :aria-label="
+                        $t('posts.composer.media_reorder_handle', {
+                            name: item.original_filename ?? '',
+                        })
+                    "
+                    :aria-describedby="reorderHintId"
+                    :disabled="disabled"
+                    @keydown="onHandleKeydown"
+                >
+                    <IconGripHorizontal class="size-3.5" />
+                </button>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                    $t('posts.composer.media_actions.reorder')
+                }}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+                <TooltipTrigger as-child>
+                <button
+                    type="button"
+                    :class="['absolute end-1 top-1', revealClass, actionClass]"
+                    :data-testid="`${testIdPrefix}-remove-${index}`"
+                    :aria-label="
+                        $t('posts.composer.media_remove', {
+                            name: item.original_filename ?? '',
+                        })
+                    "
+                    :disabled="disabled"
+                    @click="emit('remove')"
+                >
+                    <IconX class="size-3.5" />
+                </button>
+                </TooltipTrigger>
+                <TooltipContent>{{
+                    $t('posts.composer.media_actions.remove')
+                }}</TooltipContent>
+            </Tooltip>
+            <span
+                v-if="editButtonCount"
+                :class="['absolute end-1 bottom-1 flex gap-1', revealClass]"
             >
-                ALT
-            </button>
-            <button
-                v-if="editTab"
-                type="button"
-                :class="actionClass"
-                :data-testid="`${testIdPrefix}-edit-${index}`"
-                :aria-label="
-                    $t('posts.composer.media_edit', {
-                        name: item.original_filename ?? '',
-                    })
-                "
-                :disabled="disabled"
-                @click="openEditor(editTab)"
-            >
-                <IconPencil class="size-4" />
-            </button>
-        </span>
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                    <button
+                        v-if="canvaEditable"
+                        type="button"
+                        :class="actionClass"
+                        :data-testid="`${testIdPrefix}-edit-canva-${index}`"
+                        :aria-label="
+                            $t('posts.composer.media_sources.edit_in_canva', {
+                                name: item.original_filename ?? '',
+                            })
+                        "
+                        :disabled="disabled"
+                        @click="emit('edit-canva')"
+                    >
+                        <IconPalette class="size-3.5" />
+                    </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{
+                        $t('posts.composer.media_actions.edit_in_canva')
+                    }}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                    <button
+                        v-if="tabs?.includes('tags')"
+                        type="button"
+                        :class="actionClass"
+                        :data-testid="`${testIdPrefix}-tag-${index}`"
+                        :aria-label="
+                            $t('posts.composer.media_tag_people', {
+                                name: item.original_filename ?? '',
+                            })
+                        "
+                        :disabled="disabled"
+                        @click="openEditor('tags')"
+                    >
+                        <IconUserPlus class="size-3.5" />
+                    </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{
+                        $t('posts.composer.media_actions.tag_people')
+                    }}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                    <button
+                        v-if="tabs?.includes('alt')"
+                        type="button"
+                        :class="[
+                            actionShapeClass,
+                            'text-[9px] font-semibold',
+                            item.meta?.alt_text
+                                ? 'bg-primary text-primary-foreground hover:bg-primary-hover'
+                                : darkColorClass,
+                        ]"
+                        :data-testid="`${testIdPrefix}-alt-${index}`"
+                        :aria-label="
+                            $t('posts.composer.media_alt', {
+                                name: item.original_filename ?? '',
+                            })
+                        "
+                        :disabled="disabled"
+                        @click="openEditor('alt')"
+                    >
+                        ALT
+                    </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{
+                        $t('posts.composer.media_actions.alt')
+                    }}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                    <TooltipTrigger as-child>
+                    <button
+                        v-if="editTab"
+                        type="button"
+                        :class="actionClass"
+                        :data-testid="`${testIdPrefix}-edit-${index}`"
+                        :aria-label="
+                            $t('posts.composer.media_edit', {
+                                name: item.original_filename ?? '',
+                            })
+                        "
+                        :disabled="disabled"
+                        @click="openEditor(editTab)"
+                    >
+                        <IconPencil class="size-3.5" />
+                    </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{{
+                        $t('posts.composer.media_actions.edit')
+                    }}</TooltipContent>
+                </Tooltip>
+            </span>
+        </TooltipProvider>
     </div>
 
     <div

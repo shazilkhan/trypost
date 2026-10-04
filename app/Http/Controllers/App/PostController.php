@@ -14,6 +14,7 @@ use App\Actions\Post\RecoverEmptyDraft;
 use App\Actions\Post\UpdatePost;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\CreatedVia;
+use App\Enums\Post\Status as PostStatus;
 use App\Http\Controllers\App\Concerns\RendersPublishPage;
 use App\Http\Requests\App\Post\StorePostRequest;
 use App\Http\Requests\App\Post\UpdatePostRequest;
@@ -136,7 +137,13 @@ class PostController extends Controller
             $posts = CreatePosts::execute($workspace, $request->user(), $composition);
         }
 
-        return redirect($this->publishPageReturnUrl() ?? route('app.posts.index'))
+        $tab = match ($request->input('status')) {
+            PostStatus::Draft->value => ['tab' => 'drafts'],
+            PostStatus::Scheduled->value, PostStatus::Publishing->value => ['tab' => 'queue'],
+            default => [],
+        };
+
+        return redirect($this->publishPageReturnUrl($tab) ?? route('app.posts.index', $tab))
             ->with('created_post_ids', $posts->pluck('id')->all());
     }
 
@@ -207,10 +214,12 @@ class PostController extends Controller
             session()->flash('flash.banner', __('posts.flash.scheduled'));
             session()->flash('flash.bannerStyle', 'success');
 
-            return redirect($this->publishPageReturnUrl() ?? route('app.posts.index', ['post' => $post->id]));
+            return redirect($this->publishPageReturnUrl(['tab' => 'queue']) ?? route('app.posts.index', ['post' => $post->id]));
         }
 
-        $publishPage = $this->publishPageReturnUrl();
+        $publishPage = $this->publishPageReturnUrl(
+            $request->validated('status') === PostStatus::Draft->value ? ['tab' => 'drafts'] : [],
+        );
 
         return $publishPage ? redirect($publishPage) : back();
     }

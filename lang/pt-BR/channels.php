@@ -166,7 +166,6 @@ return [
         'refresh_before' => 'Problemas com a conexão? Tente',
         'refresh_after' => 'primeiro.',
         'irreversible' => 'Isso não pode ser desfeito.',
-        'type_to_confirm' => 'Digite ":keyword" para confirmar.',
         'description' => 'Isso apaga todos os posts deste canal no TryPost, incluindo rascunhos, agendados e o histórico de publicados. Os posts que já estão na rede continuam lá.',
         'confirm' => 'Desconectar',
         'keyword' => 'desconectar',

@@ -58,13 +58,13 @@ function publishRedirectUpdatePayload(Post $post, string $status): array
     ];
 }
 
-test('scheduling an edit from the channel page returns to that page without the edit param', function () {
+test('scheduling an edit from the channel page returns to that page queue tab without the edit param', function () {
     $post = publishRedirectPost($this->channel);
 
     $this->actingAs($this->user)
         ->from(route('app.channels.publish', [$this->channel, 'tab' => 'drafts', 'tz' => 'UTC', 'edit' => $post->id]))
         ->put(route('app.posts.update', $post), publishRedirectUpdatePayload($post, 'scheduled'))
-        ->assertRedirect(route('app.channels.publish', [$this->channel, 'tab' => 'drafts', 'tz' => 'UTC']))
+        ->assertRedirect(route('app.channels.publish', [$this->channel, 'tab' => 'queue', 'tz' => 'UTC']))
         ->assertSessionHas('flash.banner', __('posts.flash.scheduled'));
 
     expect($post->fresh()->status)->toBe(PostStatus::Scheduled);
@@ -114,7 +114,7 @@ test('creating from the channel page returns to that page', function () {
         ->assertSessionHas('created_post_ids');
 });
 
-test('creating from outside the publish page still lands on the all channels page', function () {
+test('a draft created from outside the publish page lands on the all channels drafts tab', function () {
     $this->actingAs($this->user)
         ->from(route('app.calendar'))
         ->post(route('app.posts.store'), [
@@ -127,7 +127,7 @@ test('creating from outside the publish page still lands on the all channels pag
                 'meta' => [],
             ]],
         ])
-        ->assertRedirect(route('app.posts.index'));
+        ->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
 });
 
 test('deleting from the channel page returns to that page', function () {

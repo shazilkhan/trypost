@@ -516,7 +516,7 @@ test('store post creates one independent draft per selected account', function (
             'content_type' => ContentType::LinkedInPost->value,
             'meta' => [],
         ])->all(),
-    ])->assertRedirect(route('app.posts.index'));
+    ])->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
 
     $posts = Post::where('workspace_id', $this->workspace->id)->with('postPlatforms')->get();
     expect($posts)->toHaveCount(4);
@@ -546,7 +546,7 @@ test('store post schedules each selected account independently', function () {
             'content_type' => ContentType::LinkedInPost->value,
             'meta' => [],
         ])->all(),
-    ])->assertRedirect(route('app.posts.index'));
+    ])->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 
     expect(Post::where('workspace_id', $this->workspace->id)->where('status', PostStatus::Scheduled)->count())->toBe(2);
     expect(Post::where('workspace_id', $this->workspace->id)->pluck('scheduled_at')->unique())->toHaveCount(1);
@@ -572,7 +572,7 @@ test('saving a zero-target legacy draft creates independent posts and removes th
             'content_type' => ContentType::LinkedInPost->value,
             'meta' => [],
         ], $accounts),
-    ])->assertRedirect(route('app.posts.index'));
+    ])->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
 
     expect(Post::find($legacy->id))->toBeNull()
         ->and(Post::where('workspace_id', $this->workspace->id)->count())->toBe(2)
@@ -2068,4 +2068,128 @@ test('composer data tells each channel time zone', function () {
         ->json('socialAccounts'))->keyBy('id');
 
     expect($accounts[$tokyo->id]['timezone'])->toBe('Asia/Tokyo');
+});
+
+function draftTabPost(mixed $test, array $attributes = []): array
+{
+    $post = Post::factory()->create([
+        'workspace_id' => $test->workspace->id,
+        'user_id' => $test->user->id,
+        'status' => PostStatus::Draft,
+        'content' => 'Test',
+        ...$attributes,
+    ]);
+    $postPlatform = PostPlatform::factory()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $test->socialAccount->id,
+    ]);
+
+    return [$post, $postPlatform];
+}
+
+test('saving a draft from the editor on the publish list goes to the drafts tab', function (string $from) {
+    [$post, $postPlatform] = draftTabPost($this);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => $from, 'edit' => $post->id]))
+        ->put(route('app.posts.update', $post), [
+            'status' => 'draft',
+            'content' => 'Edited',
+            'platforms' => [['id' => $postPlatform->id, 'content_type' => ContentType::LinkedInPost->value]],
+        ])
+        ->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
+})->with(['queue', 'drafts', 'sent']);
+
+test('moving a scheduled post to drafts from the editor goes to the drafts tab', function () {
+    [$post, $postPlatform] = draftTabPost($this, ['status' => PostStatus::Scheduled, 'scheduled_at' => now()->addDay()]);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => 'queue', 'edit' => $post->id]))
+        ->put(route('app.posts.update', $post), [
+            'status' => 'draft',
+            'content' => 'Test',
+            'platforms' => [['id' => $postPlatform->id, 'content_type' => ContentType::LinkedInPost->value]],
+        ])
+        ->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
+
+    expect($post->fresh()->status)->toBe(PostStatus::Draft);
+});
+
+test('saving a draft from a channel page goes to that channel drafts tab', function () {
+    [$post, $postPlatform] = draftTabPost($this);
+
+    $this->actingAs($this->user)
+        ->from(route('app.channels.publish', ['account' => $this->socialAccount, 'tab' => 'queue', 'edit' => $post->id]))
+        ->put(route('app.posts.update', $post), [
+            'status' => 'draft',
+            'content' => 'Edited',
+            'platforms' => [['id' => $postPlatform->id, 'content_type' => ContentType::LinkedInPost->value]],
+        ])
+        ->assertRedirect(route('app.channels.publish', ['account' => $this->socialAccount, 'tab' => 'drafts']));
+});
+
+test('saving a draft from the calendar stays on the calendar', function () {
+    [$post, $postPlatform] = draftTabPost($this);
+    $calendar = route('app.calendar', ['view' => 'month']);
+
+    $this->actingAs($this->user)
+        ->from($calendar)
+        ->put(route('app.posts.update', $post), [
+            'status' => 'draft',
+            'content' => 'Edited',
+            'platforms' => [['id' => $postPlatform->id, 'content_type' => ContentType::LinkedInPost->value]],
+        ])
+        ->assertRedirect($calendar);
+});
+
+test('a new draft goes to the drafts tab, from the publish list or anywhere else', function (?string $from) {
+    $request = $this->actingAs($this->user);
+
+    if ($from !== null) {
+        $request = $request->from($from);
+    }
+
+    $request->post(route('app.posts.store'), [
+        'status' => 'draft',
+        'content' => 'New draft',
+        'destinations' => [['social_account_id' => $this->socialAccount->id, 'content_type' => ContentType::LinkedInPost->value]],
+    ])->assertRedirect(route('app.posts.index', ['tab' => 'drafts']));
+})->with([
+    'the queue tab' => fn () => route('app.posts.index', ['tab' => 'queue', 'compose' => 1]),
+    'insights' => fn () => route('app.insights'),
+]);
+
+test('every way of scheduling from the editor lands on the queue tab', function (array $schedule) {
+    $this->socialAccount->update(['posting_schedule' => PostingSchedule::empty()->withTime(1, '10:00')]);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => 'drafts', 'compose' => 1]))
+        ->post(route('app.posts.store'), [
+            'content' => 'Scheduled caption',
+            'media' => [],
+            ...$schedule,
+            'destinations' => [['social_account_id' => $this->socialAccount->id, 'content_type' => ContentType::LinkedInPost->value, 'meta' => []]],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
+})->with([
+    'now' => [['status' => 'publishing']],
+    'next free slot' => [['status' => 'scheduled', 'queue' => 'next']],
+    'top of the queue' => [['status' => 'scheduled', 'queue' => 'top']],
+    'custom time' => [['status' => 'scheduled', 'scheduled_at' => '2037-01-01T10:00:00Z']],
+]);
+
+test('scheduling an existing post from the editor lands on the queue tab', function () {
+    [$post, $postPlatform] = draftTabPost($this);
+
+    $this->actingAs($this->user)
+        ->from(route('app.posts.index', ['tab' => 'drafts', 'edit' => $post->id]))
+        ->put(route('app.posts.update', $post), [
+            'status' => 'scheduled',
+            'scheduled_at' => '2037-01-01T10:00:00Z',
+            'content' => 'Test',
+            'platforms' => [['id' => $postPlatform->id, 'content_type' => ContentType::LinkedInPost->value]],
+        ])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('app.posts.index', ['tab' => 'queue']));
 });

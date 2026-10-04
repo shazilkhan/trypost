@@ -613,7 +613,7 @@ test('pasting an image into a channel caption adds it to that channel tray only'
     $page->assertNoJavaScriptErrors();
 });
 
-test('in a right-to-left layout dropping a tile on the start edge of another puts it before that tile', function () {
+test('while dragging, the tile moves into the slot under the pointer, right-to-left included, and dropping keeps it there', function () {
     [$page] = openComposerMediaTray($this);
     uploadComposerMediaTrayTiles($page, ['first.png', 'second.png']);
     $page->script("document.documentElement.dir = 'rtl'");
@@ -640,8 +640,9 @@ test('in a right-to-left layout dropping a tile on the start edge of another put
             fire(target, 'dragover');
         })();
     JS);
-    waitForComposerMediaTrayCondition($page, "document.querySelector('[data-testid=\"composer-drop-indicator\"]')?.dataset.edge === 'start'");
-    expect($page->script("document.querySelector('[data-testid=\"composer-drop-indicator\"]')?.dataset.edge"))->toBe('start');
+    waitForComposerMediaTrayCondition($page, "document.querySelector('[data-testid=\"composer-media-tray\"] > [data-index]')?.dataset.index === '1'");
+    expect($page->script("[...document.querySelectorAll('[data-testid=\"composer-media-tray\"] > [data-index]')].map((tile) => tile.dataset.index)"))->toBe(['1', '0'])
+        ->and($page->script("document.querySelector('[data-testid=\"composer-media-item-1\"]').hasAttribute('data-dragging')"))->toBeTrue();
     $page->script(<<<'JS'
         (() => {
             const { fire, source, target } = window.__trayDrag;

@@ -335,10 +335,16 @@
 }
 
 @layer components {
+    /* The filled part runs from --range-from to --range-to (set by rangeFill()). */
     .editor-range {
         appearance: none;
         height: 4px;
-        background: var(--border);
+        background: linear-gradient(
+            to right,
+            var(--border) 0 var(--range-from, 0%),
+            var(--primary-strong) var(--range-from, 0%) var(--range-to, 0%),
+            var(--border) var(--range-to, 0%) 100%
+        );
         border-radius: 9999px;
     }
 

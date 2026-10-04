@@ -31,9 +31,12 @@ const props = withDefaults(
         padding?: number;
         testIdPrefix: string;
         boxClass?: HTMLAttributes['class'];
+        /** Lets a fixed-ratio crop change size too (the profile photo's square). */
+        resizeAnyRatio?: boolean;
     }>(),
     {
         cropMode: true,
+        resizeAnyRatio: false,
         padding: 48,
         boxClass: undefined,
     },
@@ -47,12 +50,63 @@ const emit = defineEmits<{
     (e: 'press', point: { x: number; y: number }): void;
 }>();
 
-const HANDLES: Array<{ corner: Corner; class: string }> = [
-    { corner: 'nw', class: 'top-0 left-0 cursor-nwse-resize' },
-    { corner: 'ne', class: 'top-0 right-0 cursor-nesw-resize' },
-    { corner: 'sw', class: 'bottom-0 left-0 cursor-nesw-resize' },
-    { corner: 'se', class: 'right-0 bottom-0 cursor-nwse-resize' },
+const HANDLES: Array<{ corner: Corner; x: 'left' | 'right'; y: 'top' | 'bottom'; cursor: string }> = [
+    { corner: 'nw', x: 'left', y: 'top', cursor: 'cursor-nwse-resize' },
+    { corner: 'ne', x: 'right', y: 'top', cursor: 'cursor-nesw-resize' },
+    { corner: 'sw', x: 'left', y: 'bottom', cursor: 'cursor-nesw-resize' },
+    { corner: 'se', x: 'right', y: 'bottom', cursor: 'cursor-nwse-resize' },
 ];
+
+const FRAME_DARK = '#121414';
+const MARK_OUTLINE = '#d1d1d1';
+
+type Box = Record<string, string>;
+
+/**
+ * The marks drawn around a cropped frame, measured from the crop edge: an
+ * outline layer first and the white layer on top, so the corner of an L has no
+ * seam. Corner L: 4px thick, 15px arms, 1px light outline, 3px out of the edge
+ * (covering the outer frame line). Edge tabs: 20 by 4px, centred.
+ */
+const markLayers = computed((): Array<{ style: Box; class: string }> => {
+    const layers: Array<{ style: Box; class: string }> = [];
+    const outline = (box: Box): void => {
+        layers.push({ style: box, class: 'rounded-[3px]' });
+    };
+
+    HANDLES.forEach(({ x, y }) => {
+        outline({ [x]: '-5px', [y]: '-5px', width: '17px', height: '6px', backgroundColor: MARK_OUTLINE });
+        outline({ [x]: '-5px', [y]: '-5px', width: '6px', height: '17px', backgroundColor: MARK_OUTLINE });
+    });
+    (['top', 'bottom'] as const).forEach((side) =>
+        outline({ [side]: '-5px', left: 'calc(50% - 11px)', width: '22px', height: '6px', backgroundColor: MARK_OUTLINE }),
+    );
+    (['left', 'right'] as const).forEach((side) =>
+        outline({ [side]: '-5px', top: 'calc(50% - 11px)', width: '6px', height: '22px', backgroundColor: MARK_OUTLINE }),
+    );
+
+    const fill = (box: Box): void => {
+        layers.push({ style: { ...box, backgroundColor: '#ffffff' }, class: 'rounded-[2px]' });
+    };
+
+    HANDLES.forEach(({ x, y }) => {
+        fill({ [x]: '-4px', [y]: '-4px', width: '15px', height: '4px' });
+        fill({ [x]: '-4px', [y]: '-4px', width: '4px', height: '15px' });
+    });
+    (['top', 'bottom'] as const).forEach((side) =>
+        fill({ [side]: '-4px', left: 'calc(50% - 10px)', width: '20px', height: '4px' }),
+    );
+    (['left', 'right'] as const).forEach((side) =>
+        fill({ [side]: '-4px', top: 'calc(50% - 10px)', width: '4px', height: '20px' }),
+    );
+
+    return layers;
+});
+
+/** The crop edge line and a second line 3px outside it, white between them. */
+const frameStyle = {
+    boxShadow: `inset 0 0 0 1px ${FRAME_DARK}, 0 0 0 2px #ffffff, 0 0 0 3px ${FRAME_DARK}`,
+};
 
 const rootEl = ref<HTMLElement | null>(null);
 const boxEl = ref<HTMLElement | null>(null);
@@ -118,8 +172,12 @@ const selectionStyle = computed(() => ({
     top: px(crop.value.sy),
     width: px(crop.value.sw),
     height: px(crop.value.sh),
-    boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
 }));
+
+/** Only a freeform crop changes size; a chosen ratio keeps it and only moves. */
+const resizable = computed(
+    () => props.resizeAnyRatio || edit.value.preset === 'freeform',
+);
 
 const measure = (): void => {
     const el = rootEl.value;
@@ -140,7 +198,7 @@ const onImageLoad = (event: Event): void => {
 };
 
 const beginDrag = (mode: 'move' | Corner, event: PointerEvent): void => {
-    if (!ready.value || drag) return;
+    if (!ready.value || drag || (mode !== 'move' && !resizable.value)) return;
     drag = {
         mode,
         pointerId: event.pointerId,
@@ -257,27 +315,48 @@ onBeforeUnmount(() => {
             />
             <div
                 v-if="cropMode && ready"
+                aria-hidden="true"
+                class="pointer-events-none absolute inset-0 overflow-hidden"
+            >
+                <div
+                    class="absolute shadow-[0_0_0_9999px_color-mix(in_oklab,var(--color-background)_60%,transparent)]"
+                    :data-testid="`${testIdPrefix}-veil`"
+                    :style="selectionStyle"
+                />
+            </div>
+            <div
+                v-if="cropMode && ready"
                 class="absolute cursor-move"
                 :data-testid="`${testIdPrefix}-selection`"
                 :style="selectionStyle"
                 @pointerdown="beginDrag('move', $event)"
             >
                 <div
-                    class="pointer-events-none absolute inset-0 overflow-hidden border border-white"
-                >
-                    <span class="absolute inset-y-0 left-1/3 w-px bg-white/40" />
-                    <span class="absolute inset-y-0 left-2/3 w-px bg-white/40" />
-                    <span class="absolute inset-x-0 top-1/3 h-px bg-white/40" />
-                    <span class="absolute inset-x-0 top-2/3 h-px bg-white/40" />
-                </div>
-                <span
-                    v-for="handle in HANDLES"
-                    :key="handle.corner"
-                    :data-testid="`${testIdPrefix}-handle-${handle.corner}`"
-                    class="absolute size-3 rounded-full border border-foreground bg-white"
-                    :class="handle.class"
-                    @pointerdown.stop="beginDrag(handle.corner, $event)"
+                    class="pointer-events-none absolute inset-0"
+                    :style="frameStyle"
+                    :data-testid="`${testIdPrefix}-frame`"
                 />
+                <template v-if="edit.preset !== 'original'">
+                    <span
+                        v-for="(layer, index) in markLayers"
+                        :key="index"
+                        aria-hidden="true"
+                        class="pointer-events-none absolute"
+                        :class="layer.class"
+                        :style="layer.style"
+                    />
+                    <template v-if="resizable">
+                        <span
+                            v-for="handle in HANDLES"
+                            :key="handle.corner"
+                            :data-testid="`${testIdPrefix}-handle-${handle.corner}`"
+                            class="absolute size-5"
+                            :class="handle.cursor"
+                            :style="{ [handle.x]: '-8px', [handle.y]: '-8px' }"
+                            @pointerdown.stop="beginDrag(handle.corner, $event)"
+                        />
+                    </template>
+                </template>
             </div>
             <slot />
         </div>

@@ -208,6 +208,12 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
             return;
         }
 
+        if (count($media) > $contentType->maxMediaCount()) {
+            $fail(trans('posts.form.warnings.max_files_exceeded', ['max' => $contentType->maxMediaCount(), 'current' => count($media)]));
+
+            return;
+        }
+
         if ($this->failOnDimensionRules($contentType, $media, $fail, $this->aspectRatioFor($attribute))) {
             return;
         }
@@ -271,10 +277,10 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
         $hasDocument = $types->contains(MediaType::Document);
 
         $violations = [
+            'no_mixed_media' => $hasImage && $hasVideo && ! $contentType->supportsMixedMedia(),
             'no_video_allowed' => $hasVideo && ! $contentType->supportsVideo(),
             'no_image_allowed' => $hasImage && ! $contentType->supportsImage(),
             'no_document_allowed' => $hasDocument && ! $contentType->supportsDocument(),
-            'no_mixed_media' => $hasImage && $hasVideo && ! $contentType->supportsMixedMedia(),
             'document_not_alone' => $hasDocument && $items->count() > 1,
             'gif_not_allowed' => $items->contains($this->isGif(...)) && ! $contentType->acceptsGif(),
             'mov_not_allowed' => $items->contains($this->isMov(...)) && ! $contentType->acceptsMov(),

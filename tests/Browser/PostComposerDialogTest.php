@@ -1414,3 +1414,29 @@ test('the composer is wide enough for the preview on a desktop screen', function
     'large screen' => [1920, 1280],
     'laptop' => [1280, 1232],
 ]);
+
+test('the composer channel search finds channels by network name, even one without a display name', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $unnamed = SocialAccount::factory()->discord()->create(['workspace_id' => $workspace->id, 'display_name' => null, 'username' => 'server-bot']);
+    $linkedin = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id, 'display_name' => 'Acme']);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.create'));
+    waitForComposerReady($page);
+    $page->click('@composer-add-account')
+        ->fill('@composer-account-search', 'linkedin');
+    waitForComposerReady($page, "composer-account-option-{$linkedin->id}");
+
+    $page->assertVisible("@composer-account-option-{$linkedin->id}")
+        ->assertMissing("@composer-account-option-{$unnamed->id}")
+        ->fill('@composer-account-search', 'discord');
+    waitForComposerReady($page, "composer-account-option-{$unnamed->id}");
+
+    $page->assertVisible("@composer-account-option-{$unnamed->id}")
+        ->assertMissing("@composer-account-option-{$linkedin->id}")
+        ->assertNoJavaScriptErrors();
+});

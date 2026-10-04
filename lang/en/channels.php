@@ -166,7 +166,6 @@ return [
         'refresh_before' => 'Having issues with your connection? Try',
         'refresh_after' => 'first.',
         'irreversible' => 'This cannot be undone.',
-        'type_to_confirm' => 'Type ":keyword" to confirm.',
         'description' => 'This deletes every post of this channel in TryPost, including drafts, scheduled posts and published history. Posts already on the network stay there.',
         'confirm' => 'Disconnect',
         'keyword' => 'disconnect',

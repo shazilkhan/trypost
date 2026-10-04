@@ -5,6 +5,7 @@ import DatePicker from '@/components/DatePicker.vue';
 import InputError from '@/components/InputError.vue';
 import SettingsRow from '@/components/posts/editor/SettingsRow.vue';
 import SettingsSection from '@/components/posts/editor/SettingsSection.vue';
+import TimeField from '@/components/TimeField.vue';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -279,14 +280,13 @@ const ctaUrlError = findError('call_to_action.url');
                                 $t('posts.form.google_business.event_start_time')
                             }}</label
                         >
-                        <Input
+                        <TimeField
                             :id="`google-business-start-time-${platformIndex}`"
                             v-model="eventStartTime"
                             data-testid="google-business-start-time"
-                            type="time"
                             class="w-32"
                             :disabled="disabled"
-                            :aria-invalid="eventStartTimeError ? true : undefined"
+                            :invalid="!!eventStartTimeError"
                         />
                     </template>
                 </div>
@@ -324,14 +324,13 @@ const ctaUrlError = findError('call_to_action.url');
                                 $t('posts.form.google_business.event_end_time')
                             }}</label
                         >
-                        <Input
+                        <TimeField
                             :id="`google-business-end-time-${platformIndex}`"
                             v-model="eventEndTime"
                             data-testid="google-business-end-time"
-                            type="time"
                             class="w-32"
                             :disabled="disabled"
-                            :aria-invalid="eventEndTimeError ? true : undefined"
+                            :invalid="!!eventEndTimeError"
                         />
                     </template>
                 </div>
@@ -434,7 +433,7 @@ const ctaUrlError = findError('call_to_action.url');
             <Select v-model="ctaActionType" :disabled="disabled">
                 <SelectTrigger
                     :id="`google-business-cta-${platformIndex}`"
-                    class="w-full"
+                    class="w-56 max-w-full"
                     data-testid="google-business-cta"
                     :aria-invalid="ctaActionTypeError ? true : undefined"
                 >

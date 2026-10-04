@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue';
 
 import { getContentTypeOptions } from '@/composables/usePlatformLogo';
-import { pinterestContentTypeFor } from '@/lib/pinterestContentType';
+import { derivedContentTypeFor } from '@/lib/derivedContentType';
 import type { MediaItem } from '@/types/media';
 import { Platform } from '@/types/platform';
 import type { QueuePositionValue, ScheduleModeValue } from '@/types/post';
@@ -134,11 +134,10 @@ export const usePostComposition = (
         return {
             social_account_id: account.id,
             content_type:
-                account.platform === Platform.Pinterest
-                    ? pinterestContentTypeFor(resolvedMedia)
-                    : (override.content_type ??
-                      getContentTypeOptions(account.platform)[0]?.value ??
-                      ''),
+                derivedContentTypeFor(account.platform, resolvedMedia) ??
+                override.content_type ??
+                getContentTypeOptions(account.platform)[0]?.value ??
+                '',
             meta:
                 isInstagram && owns(meta, 'aspect_ratio')
                     ? { ...meta, aspect_ratio: null }

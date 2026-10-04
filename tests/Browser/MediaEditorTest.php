@@ -273,8 +273,7 @@ test('each channel\'s editor shows that channel\'s presets', function () {
     $page->click('@composer-next');
 
     $page->click("@composer-account-{$tiktok->id}");
-    waitForMediaEditor($page, "document.querySelector('[data-testid=\"composer-type-{$tiktok->id}-tiktok_photo\"]')");
-    $page->click("@composer-type-{$tiktok->id}-tiktok_photo");
+    $page->assertMissing("@composer-type-{$tiktok->id}-tiktok_photo");
     openMediaEditorPanel($page, $tiktok->id);
     expect(mediaEditorPresetIds($page))->toBe([
         'crop-aspect-freeform', 'crop-aspect-original', 'crop-aspect-4-3',
@@ -340,7 +339,7 @@ test('center and reset only enable once the geometry changes', function () {
     expect($isDisabled('media-editor-center'))->toBeTrue()
         ->and($isDisabled('media-editor-reset'))->toBeTrue();
 
-    $page->click('@crop-aspect-1-1')
+    $page->click('@crop-aspect-freeform')
         ->drag('@media-editor-handle-nw', '@media-editor-stage');
     waitForMediaEditor($page, "document.querySelector('[data-testid=\"media-editor-center\"]').disabled === false");
 
@@ -835,4 +834,157 @@ test('a video on an X post shows no pencil', function () {
     $page->assertPresent("@composer-{$accountId}-media-item-0")
         ->assertMissing("@composer-{$accountId}-edit-0")
         ->assertNoJavaScriptErrors();
+});
+
+test('only a freeform crop can be resized; a chosen ratio only moves', function () {
+    [$post, $postPlatform] = seedMediaEditorPost();
+    $page = visit(route('app.posts.edit', $post));
+    openMediaEditor($page, $postPlatform);
+
+    $page->click('@crop-aspect-4-5');
+    waitForMediaEditor($page, "!document.querySelector('[data-testid=\"media-editor-handle-nw\"]')");
+    $page->assertMissing('@media-editor-handle-nw')
+        ->assertPresent('@media-editor-selection')
+        ->click('@crop-aspect-freeform');
+    waitForMediaEditor($page, "document.querySelector('[data-testid=\"media-editor-handle-nw\"]')");
+
+    $page->assertPresent('@media-editor-handle-nw')
+        ->assertPresent('@media-editor-handle-se')
+        ->assertNoJavaScriptErrors();
+});
+
+test('filter intensity shows for a filter, not for the original, and sliders fill from their origin', function () {
+    [$post, $postPlatform] = seedMediaEditorPost();
+    $page = visit(route('app.posts.edit', $post));
+    openMediaEditor($page, $postPlatform);
+
+    $page->click('@media-editor-appearance-section');
+    waitForMediaEditor($page, "document.querySelector('[data-testid=\"media-filter-sepia\"]')");
+    $page->assertMissing('@media-filter-intensity')
+        ->click('@media-filter-sepia');
+    waitForMediaEditor($page, "document.querySelector('[data-testid=\"media-filter-intensity\"]')");
+
+    $page->script(<<<'JS'
+        (() => {
+            const set = (testId, value) => {
+                const input = document.querySelector(`[data-testid="${testId}"]`);
+                input.value = value;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            set('media-filter-intensity', 40);
+            set('media-adjust-brightness', 60);
+        })()
+    JS);
+    waitForMediaEditor($page, "document.querySelector('[data-testid=\"media-adjust-brightness\"]').style.getPropertyValue('--range-to').includes('0.8')");
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const fill = (testId) => {
+                const style = document.querySelector(`[data-testid="${testId}"]`).style;
+                return [style.getPropertyValue('--range-from'), style.getPropertyValue('--range-to')];
+            };
+            return { intensity: fill('media-filter-intensity'), brightness: fill('media-adjust-brightness'), contrast: fill('media-adjust-contrast') };
+        })()
+    JS))->toBe([
+        'intensity' => ['0%', 'calc(7px + (100% - 14px) * 0.4)'],
+        'brightness' => ['calc(7px + (100% - 14px) * 0.5)', 'calc(7px + (100% - 14px) * 0.8)'],
+        'contrast' => ['calc(7px + (100% - 14px) * 0.5)', 'calc(7px + (100% - 14px) * 0.5)'],
+    ]);
+
+    $page->click('@media-filter-original');
+    waitForMediaEditor($page, "!document.querySelector('[data-testid=\"media-filter-intensity\"]')");
+    $page->assertMissing('@media-filter-intensity')
+        ->assertNoJavaScriptErrors();
+});
+
+test('an image stored on another host is edited through the app, so applying works without CORS', function () {
+    [$post, $postPlatform] = seedMediaEditorPost();
+    $row = Media::factory()->ownedByPost($post)->create(['path' => 'uploads/remote.png', 'mime_type' => 'image/png', 'collection' => Media::COLLECTION_MEDIA]);
+    Storage::put('uploads/remote.png', (string) file_get_contents(base_path('tests/fixtures/crop-quadrants.png')));
+    $post->update(['media' => [[
+        'id' => $row->id,
+        'type' => 'image',
+        'mime_type' => 'image/png',
+        'path' => 'uploads/remote.png',
+        'url' => 'https://storage.example.test/uploads/remote.png',
+        'size' => 1024,
+        'meta' => ['width' => 200, 'height' => 200],
+    ]]]);
+    $page = visit(route('app.posts.edit', $post));
+    openMediaEditorPanel($page, $postPlatform->social_account_id);
+
+    $page->click('@media-editor-rotate-right')
+        ->click('@media-editor-apply');
+    waitForMediaEditor($page, "!document.querySelector('[data-testid=\"media-editor\"]') || document.querySelector('[data-testid=\"media-editor-error\"]')");
+
+    $page->assertMissing('@media-editor-error')
+        ->assertMissing('@media-editor');
+});
+
+/**
+ * @return array{red: int, green: int, blue: int}
+ */
+function mediaEditorSavedPixel(Post $post, int $x, int $y): array
+{
+    $image = imagecreatefromstring(Storage::get($post->ownedMedia()->sole()->path));
+    $color = imagecolorsforindex($image, imagecolorat($image, $x, $y));
+
+    return ['red' => $color['red'], 'green' => $color['green'], 'blue' => $color['blue']];
+}
+
+function setMediaEditorRange(mixed $page, string $testId, int $value): void
+{
+    $page->script("(() => { const input = document.querySelector('[data-testid=\"{$testId}\"]'); input.value = {$value}; input.dispatchEvent(new Event('input', { bubbles: true })); })()");
+}
+
+test('the filter intensity reaches the saved pixels', function (int $intensity) {
+    [$post, $postPlatform] = seedMediaEditorPost();
+    $page = visit(route('app.posts.edit', $post));
+    openMediaEditor($page, $postPlatform);
+
+    $page->click('@media-editor-appearance-section')->click('@media-filter-mono');
+    waitForMediaEditor($page, "document.querySelector('[data-testid=\"media-filter-intensity\"]')");
+    setMediaEditorRange($page, 'media-filter-intensity', $intensity);
+    $page->click('@media-editor-apply');
+    saveMediaEditorDraft($page);
+
+    $red = mediaEditorSavedPixel($post, 50, 50);
+
+    if ($intensity === 100) {
+        expect(abs($red['red'] - $red['green']))->toBeLessThan(6);
+
+        return;
+    }
+
+    expect($red['red'])->toBeGreaterThan($red['green'] + 60)
+        ->and($red['green'])->toBeGreaterThan(20);
+})->with([40, 100]);
+
+test('a crop with a filter on an image stored on another host is applied and saved', function () {
+    [$post, $postPlatform] = seedMediaEditorPost();
+    $row = Media::factory()->ownedByPost($post)->create(['path' => 'uploads/remote.png', 'mime_type' => 'image/png', 'collection' => Media::COLLECTION_MEDIA]);
+    Storage::put('uploads/remote.png', (string) file_get_contents(base_path('tests/fixtures/crop-quadrants.png')));
+    $post->update(['media' => [[
+        'id' => $row->id,
+        'type' => 'image',
+        'mime_type' => 'image/png',
+        'path' => 'uploads/remote.png',
+        'url' => 'https://storage.example.test/uploads/remote.png',
+        'size' => 1024,
+        'meta' => ['width' => 200, 'height' => 200],
+    ]]]);
+    $page = visit(route('app.posts.edit', $post));
+    openMediaEditorPanel($page, $postPlatform->social_account_id);
+
+    $page->click('@crop-aspect-1-91-1')
+        ->click('@media-editor-appearance-section')
+        ->click('@media-filter-sepia')
+        ->click('@media-editor-apply');
+    saveMediaEditorDraft($page);
+
+    $saved = $post->fresh()->ownedMedia()->get()->firstWhere('id', '!=', $row->id);
+    [$width, $height] = getimagesizefromstring(Storage::get($saved->path));
+
+    expect($width / $height)->toEqualWithDelta(1.91, 0.02);
+    $page->assertNoJavaScriptErrors();
 });

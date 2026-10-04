@@ -14,15 +14,25 @@ import { getYouTubeDescriptionIssue } from '@/lib/youtubeDescription';
 import { Platform } from '@/types/platform';
 import { isTikTokPrivacyLevel, TikTokPrivacyLevel } from '@/types/tiktok-privacy';
 
-type MetaRule = (meta: Record<string, any>) => { valid: boolean; tooltipKey: string | null };
+type MetaRule = (
+    meta: Record<string, any>,
+    content: string | null,
+) => { valid: boolean; tooltipKey: string | null };
 
 // Platforms whose `meta` blob has publish-time requirements. `valid` gates
 // scheduling; `tooltipKey` (when set) surfaces a platform-specific message
 // — null means "blocks the publish but no dedicated message, fall through
 // to the generic incomplete tooltip".
 const PLATFORM_META_RULES: Record<string, MetaRule> = {
-    [Platform.YouTube]: (meta) => {
-        const tooltipKey = getYouTubeDescriptionIssue(meta.description);
+    // Mirrors YouTubeMetadata::missingTitleViolation(): without a title the
+    // first non-empty line of the text is used, and YouTube rejects none.
+    [Platform.YouTube]: (meta, content) => {
+        const titleMissing = content !== null
+            && !String(meta.title ?? '').trim()
+            && !content.split('\n').some((line) => line.replace(/[<>]/g, '').trim() !== '');
+        const tooltipKey = titleMissing
+            ? 'posts.form.youtube.title_required'
+            : getYouTubeDescriptionIssue(meta.description);
         return { valid: tooltipKey === null, tooltipKey };
     },
     [Platform.TikTok]: (meta) => {
@@ -92,15 +102,17 @@ const PLATFORM_META_RULES: Record<string, MetaRule> = {
 
 /**
  * Evaluates a platform's publish-time meta requirements. Single source of truth
- * for the post editor's compliance gate.
+ * for the post editor's compliance gate. `content` is the post's plain text;
+ * without it, requirements the text can satisfy are not checked.
  */
 export const evaluatePlatformMeta = (
     platform: string,
     meta: Record<string, any>,
+    content: string | null = null,
 ): { valid: boolean; tooltipKey: string | null } => {
     const rule = PLATFORM_META_RULES[platform];
     if (!rule) return { valid: true, tooltipKey: null };
-    return rule(meta ?? {});
+    return rule(meta ?? {}, content);
 };
 
 /**

@@ -6,6 +6,7 @@ import {
     FILTER_PRESETS,
     type MediaEdit,
 } from '@/lib/mediaEditor';
+import { rangeFill } from '@/lib/rangeFill';
 
 defineProps<{
     src: string;
@@ -15,6 +16,7 @@ const edit = defineModel<MediaEdit>('edit', { required: true });
 
 const selectFilter = (filter: MediaEdit['filter']): void => {
     edit.value.filter = filter;
+    edit.value.filterIntensity = 100;
 };
 
 const previewFilter = (filter: MediaEdit['filter']): string =>
@@ -55,6 +57,28 @@ const previewFilter = (filter: MediaEdit['filter']): string =>
                     }}</span>
                 </button>
             </div>
+            <label
+                v-if="edit.filter !== 'original'"
+                class="block space-y-1 pt-2 text-sm"
+            >
+                <span class="flex justify-between">
+                    <span>{{
+                        $t('posts.composer.media_editor.filter_intensity')
+                    }}</span>
+                    <span class="text-muted-foreground"
+                        >{{ edit.filterIntensity }}%</span
+                    >
+                </span>
+                <input
+                    v-model.number="edit.filterIntensity"
+                    data-testid="media-filter-intensity"
+                    :style="rangeFill(edit.filterIntensity, 0, 100)"
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="editor-range w-full"
+                />
+            </label>
         </section>
 
         <section class="space-y-4">
@@ -75,6 +99,7 @@ const previewFilter = (filter: MediaEdit['filter']): string =>
                 <input
                     v-model.number="edit.adjustments[key]"
                     :data-testid="`media-adjust-${key}`"
+                    :style="rangeFill(edit.adjustments[key], -100, 100, 0)"
                     type="range"
                     min="-100"
                     max="100"

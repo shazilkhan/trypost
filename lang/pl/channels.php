@@ -166,7 +166,6 @@ return [
         'refresh_before' => 'Problemy z połączeniem? Najpierw spróbuj',
         'refresh_after' => '.',
         'irreversible' => 'Tej operacji nie można cofnąć.',
-        'type_to_confirm' => 'Wpisz „:keyword”, aby potwierdzić.',
         'description' => 'Spowoduje to usunięcie wszystkich postów tego kanału w TryPost, w tym wersji roboczych, zaplanowanych postów i historii publikacji. Posty, które są już w sieci, pozostaną tam.',
         'confirm' => 'Rozłącz',
         'keyword' => 'odłącz',

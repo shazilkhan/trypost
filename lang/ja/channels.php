@@ -166,7 +166,6 @@ return [
         'refresh_before' => '接続に問題がありますか？まず',
         'refresh_after' => 'をお試しください。',
         'irreversible' => 'この操作は元に戻せません。',
-        'type_to_confirm' => '確認のため「:keyword」と入力してください。',
         'description' => 'TryPost 内のこのチャンネルの投稿は、下書き、予約投稿、公開履歴を含めてすべて削除されます。ネットワーク上にすでにある投稿はそのまま残ります。',
         'confirm' => '接続解除',
         'keyword' => '接続解除',
