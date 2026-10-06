@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'Вас запросили приєднатися до :account',
-        'title' => 'Вас запросили приєднатися до :account',
-        'preview' => 'Вас запросили приєднатися до :account',
+        'subject' => 'Вас запросили приєднатися до :workspace',
+        'title' => 'Вас запросили приєднатися до :workspace',
+        'preview' => 'Вас запросили приєднатися до :workspace',
         'heading' => 'Вас запрошено!',
-        'intro' => 'Вас запросили до співпраці в робочому просторі <strong>:account</strong>.',
+        'intro' => 'Вас запросили до співпраці в робочому просторі <strong>:workspace</strong>.',
         'role' => 'Вас запросили як <strong>:role</strong>.',
         'roles' => ['admin' => 'Адміністратор', 'member' => 'Учасник', 'needs_approval' => 'Учасник (публікації потребують схвалення)'],
         'button' => 'Прийняти запрошення',

@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Webhooki',
             'api_keys' => 'Klucze API',
             'mcp' => 'MCP',
-            'account' => 'Konto',
             'billing' => 'Rozliczenia',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Ustawienia konta',
-        'description' => 'Zarządzaj nazwą konta i e-mailem rozliczeniowym',
-        'name' => 'Nazwa konta',
-        'name_placeholder' => 'Moja firma',
-        'billing_email' => 'E-mail rozliczeniowy',
-        'billing_email_placeholder' => 'rozliczenia@firma.com',
-        'billing_email_hint' => 'Ten e-mail będzie używany do faktur i komunikacji rozliczeniowej ze Stripe.',
-        'submit' => 'Zapisz',
-    ],
-
     'flash' => [
-        'account_updated' => 'Konto zostało pomyślnie zaktualizowane!',
         'profile_updated' => 'Profil został pomyślnie zaktualizowany!',
         'password_updated' => 'Hasło zostało pomyślnie zaktualizowane!',
         'workspace_updated' => 'Ustawienia zostały pomyślnie zaktualizowane!',

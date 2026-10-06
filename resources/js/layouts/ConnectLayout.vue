@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { IconArrowsLeftRight, IconX } from '@tabler/icons-vue';
-import { onMounted } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 
 import AppLogo from '@/components/AppLogo.vue';
 import PlatformLogo from '@/components/PlatformLogo.vue';
@@ -25,7 +25,10 @@ const clearOAuthFragment = () => {
     });
 };
 
+const stopClearingOnNavigate = router.on('navigate', clearOAuthFragment);
+
 onMounted(clearOAuthFragment);
+onUnmounted(stopClearingOnNavigate);
 </script>
 
 <template>

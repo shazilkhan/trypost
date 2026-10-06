@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => '요금제',
         'description' => '언제든지 업그레이드하거나 다운그레이드하세요.',
         'monthly' => '월간',
         'yearly' => '연간',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => '체험',
-        'cancelling' => '취소 중',
-        'trial_ends' => '체험 종료',
+    'current_plan' => [
+        'change' => '요금제 변경',
+        'price_monthly' => ':price/월',
+        'price_yearly' => ':price/년',
+        'trial_until' => ':date까지 체험',
+        'renews' => '자동 갱신',
+        'cancelled' => '취소됨, :date에 종료',
+        'workspaces_usage' => '워크스페이스: :count / :limit',
     ],
 
     'subscription' => [

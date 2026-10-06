@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Планы',
         'description' => 'Повышайте или понижайте план в любое время.',
         'monthly' => 'Ежемесячно',
         'yearly' => 'Ежегодно',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Пробный период',
-        'cancelling' => 'Отменяется',
-        'trial_ends' => 'Пробный период заканчивается',
+    'current_plan' => [
+        'change' => 'Сменить план',
+        'price_monthly' => ':price/месяц',
+        'price_yearly' => ':price/год',
+        'trial_until' => 'Пробный период до :date',
+        'renews' => 'Продлевается автоматически',
+        'cancelled' => 'Отменён, действует до :date',
+        'workspaces_usage' => 'Рабочие пространства: :count из :limit',
     ],
 
     'subscription' => [

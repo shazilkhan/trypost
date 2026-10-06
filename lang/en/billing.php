@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Plans',
         'description' => 'Upgrade or downgrade at any time.',
         'monthly' => 'Monthly',
         'yearly' => 'Yearly',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Trial',
-        'cancelling' => 'Cancelling',
-        'trial_ends' => 'Trial ends',
+    'current_plan' => [
+        'change' => 'Change plan',
+        'price_monthly' => ':price/month',
+        'price_yearly' => ':price/year',
+        'trial_until' => 'Trial until :date',
+        'renews' => 'Renews automatically',
+        'cancelled' => 'Cancelled, ends on :date',
+        'workspaces_usage' => 'Workspaces: :count of :limit',
     ],
 
     'subscription' => [

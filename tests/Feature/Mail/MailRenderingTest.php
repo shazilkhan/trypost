@@ -28,20 +28,23 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Notification as BaseNotification;
 use Illuminate\Support\Facades\Mail;
 
-test('the workspace invite renders in the requested locale', function () {
+test('the workspace invite renders in the requested locale and names the workspace', function () {
     $account = Account::factory()->create(['name' => 'Acme Co']);
+    $workspace = Workspace::factory()->create(['account_id' => $account->id, 'name' => 'Launch Team']);
     $invite = Invite::factory()->create([
         'account_id' => $account->id,
         'email' => 'invitee@example.com',
+        'workspaces' => [$workspace->id],
         ...membershipPivot('approval'),
     ]);
 
     $mailable = (new WorkspaceInvite($invite))->locale(Locale::PortugueseBrazil->value);
 
-    $mailable->assertHasSubject(__('mail.workspace_invite.subject', ['account' => 'Acme Co'], 'pt-BR'));
+    $mailable->assertHasSubject(__('mail.workspace_invite.subject', ['workspace' => 'Launch Team'], 'pt-BR'));
     $mailable->assertSeeInHtml(__('mail.workspace_invite.heading', [], 'pt-BR'));
     $mailable->assertSeeInHtml(__('mail.workspace_invite.expiry', [], 'pt-BR'));
-    $mailable->assertSeeInHtml('Acme Co');
+    $mailable->assertSeeInHtml(__('mail.workspace_invite.intro', ['workspace' => 'Launch Team'], 'pt-BR'), false);
+    $mailable->assertDontSeeInHtml('Acme Co');
     $mailable->assertSeeInHtml(__('mail.workspace_invite.roles.needs_approval', [], 'pt-BR'));
 });
 

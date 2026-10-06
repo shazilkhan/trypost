@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Planes',
         'description' => 'Mejora o cambia de plan cuando quieras.',
         'monthly' => 'Mensual',
         'yearly' => 'Anual',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Prueba',
-        'cancelling' => 'Cancelando',
-        'trial_ends' => 'La prueba termina en',
+    'current_plan' => [
+        'change' => 'Cambiar plan',
+        'price_monthly' => ':price/mes',
+        'price_yearly' => ':price/año',
+        'trial_until' => 'Prueba hasta el :date',
+        'renews' => 'Se renueva automáticamente',
+        'cancelled' => 'Cancelado, termina el :date',
+        'workspaces_usage' => 'Workspaces: :count de :limit',
     ],
 
     'subscription' => [

@@ -21,7 +21,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Tarife',
         'description' => 'Jederzeit upgraden oder downgraden.',
         'monthly' => 'Monatlich',
         'yearly' => 'Jährlich',
@@ -63,10 +62,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Testphase',
-        'cancelling' => 'Wird gekündigt',
-        'trial_ends' => 'Testphase endet',
+    'current_plan' => [
+        'change' => 'Tarif ändern',
+        'price_monthly' => ':price/Monat',
+        'price_yearly' => ':price/Jahr',
+        'trial_until' => 'Testphase bis :date',
+        'renews' => 'Verlängert sich automatisch',
+        'cancelled' => 'Gekündigt, endet am :date',
+        'workspaces_usage' => 'Workspaces: :count von :limit',
     ],
 
     'subscription' => [

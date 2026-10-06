@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Plan;
 use App\Models\User;
 use App\Models\Workspace;
+use Illuminate\Support\Facades\Route;
 
 beforeEach(function () {
     config(['trypost.billing.require_card_for_trial' => true]);
@@ -303,4 +304,74 @@ test('changePlan requires authentication', function () {
     $response = $this->post(route('app.billing.change-plan'));
 
     $response->assertRedirect(route('login'));
+});
+
+test('billing index exposes the plan usage and no account details', function (string $slug, ?int $limit) {
+    config(['trypost.self_hosted' => false]);
+
+    $this->account->update([
+        'plan_id' => Plan::where('slug', $slug)->value('id'),
+    ]);
+    subscribeAccount($this->account);
+
+    $this->actingAs($this->user->fresh())
+        ->get(route('app.billing.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('settings/account/Billing', false)
+            ->missing('account')
+            ->where('plan.slug', $slug)
+            ->where('workspaceCount', 1)
+            ->where('workspaceLimit', $limit)
+            ->where('subscription.ends_at', null)
+        );
+})->with([
+    'socials' => ['socials', 1],
+    'workspaces' => ['workspaces', null],
+]);
+
+test('billing index exposes the end date of a cancelled subscription', function () {
+    config(['trypost.self_hosted' => false]);
+
+    $endsAt = now()->addDays(10)->startOfSecond();
+    $this->account->subscriptions()->create([
+        'type' => Account::SUBSCRIPTION_NAME,
+        'stripe_id' => 'sub_test_'.fake()->uuid(),
+        'stripe_status' => 'active',
+        'stripe_price' => 'price_123',
+        'ends_at' => $endsAt,
+    ]);
+
+    $this->actingAs($this->user->fresh())
+        ->get(route('app.billing.index'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('hasSubscription', true)
+            ->where('onTrial', false)
+            ->where('subscription.stripe_status', 'active')
+            ->where('subscription.ends_at', $endsAt->toIso8601ZuluString('microsecond'))
+        );
+});
+
+test('billing index exposes a past due subscription', function () {
+    config(['trypost.self_hosted' => false]);
+
+    $this->account->subscriptions()->create([
+        'type' => Account::SUBSCRIPTION_NAME,
+        'stripe_id' => 'sub_test_'.fake()->uuid(),
+        'stripe_status' => 'past_due',
+        'stripe_price' => 'price_123',
+    ]);
+
+    $this->actingAs($this->user->fresh())
+        ->get(route('app.billing.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('subscription.stripe_status', 'past_due')
+            ->where('subscription.ends_at', null)
+        );
+});
+
+test('the account settings page no longer exists', function () {
+    expect(Route::has('app.account.edit'))->toBeFalse()
+        ->and(Route::has('app.account.update'))->toBeFalse();
 });

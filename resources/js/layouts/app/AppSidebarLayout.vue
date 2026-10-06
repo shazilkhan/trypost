@@ -75,7 +75,7 @@ watch(isCompactViewport, (isCompact) => {
             <SidebarTrigger
                 v-else
                 data-testid="app-sidebar-trigger"
-                class="absolute top-3 left-4 z-30 size-8 rounded-lg border border-border-strong bg-card text-foreground md:hidden md:group-has-data-[collapsible=offcanvas]/sidebar-wrapper:inline-flex"
+                class="absolute top-3 left-4 z-30 size-8 rounded-lg border border-border-strong bg-card text-foreground md:hidden"
             />
             <div
                 data-testid="app-layout-scroller"

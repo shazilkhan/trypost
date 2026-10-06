@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Webhook',
             'api_keys' => 'Chiavi API',
             'mcp' => 'MCP',
-            'account' => 'Account',
             'billing' => 'Fatturazione',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Impostazioni dell\'account',
-        'description' => 'Gestisci il nome del tuo account e l\'email di fatturazione',
-        'name' => 'Nome dell\'account',
-        'name_placeholder' => 'La mia azienda',
-        'billing_email' => 'Email di fatturazione',
-        'billing_email_placeholder' => 'fatturazione@azienda.com',
-        'billing_email_hint' => 'Questa email sarà usata per le fatture e le comunicazioni di fatturazione da Stripe.',
-        'submit' => 'Salva',
-    ],
-
     'flash' => [
-        'account_updated' => 'Account aggiornato con successo!',
         'profile_updated' => 'Profilo aggiornato con successo!',
         'password_updated' => 'Password aggiornata con successo!',
         'workspace_updated' => 'Impostazioni aggiornate con successo!',

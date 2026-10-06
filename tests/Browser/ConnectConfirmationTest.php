@@ -55,11 +55,11 @@ function connectConfirmAdmin(): User
  *
  * @param  array<string, string>  $callbackQuery
  */
-function stubConnectConfirmProvider(string $driver, string $callbackRoute, array $callbackQuery, ?SocialiteUser $login): void
+function stubConnectConfirmProvider(string $driver, string $callbackRoute, array $callbackQuery, ?SocialiteUser $login, string $fragment = ''): void
 {
     $stub = Mockery::mock();
     $stub->shouldReceive('redirect')->andReturn(Mockery::mock([
-        'getTargetUrl' => route($callbackRoute, $callbackQuery),
+        'getTargetUrl' => route($callbackRoute, $callbackQuery).$fragment,
     ]));
 
     if ($login === null) {
@@ -655,3 +655,15 @@ test('the stop state buttons stay on one line in every language, on a phone and 
     expect($wrapped)->toBe([]);
     $page->assertNoJavaScriptErrors();
 })->with(['phone' => 390, 'desktop' => 1280]);
+
+test('the fragment a network appends to the callback is gone once the confirmation page shows', function (string $fragment) {
+    $this->actingAs(connectConfirmAdmin());
+    stubConnectConfirmProvider('x', 'app.social.x.callback', ['code' => 'code-1'], connectConfirmXLogin(), $fragment);
+
+    $page = visit(route('app.social.x.connect'))->resize(1280, 900);
+    waitForConnectConfirmTestId($page, 'connect-finish');
+
+    expect(connectConfirmPollFor($page, "window.location.hash === '' && !window.location.href.includes('#')"))->toBeTrue();
+    expect($page->script('window.history.state?.page?.url ?? ""'))->not->toContain('#');
+    $page->assertNoJavaScriptErrors();
+})->with(['#_', '#_=_']);

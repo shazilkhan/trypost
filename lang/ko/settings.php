@@ -26,7 +26,6 @@ return [
             'webhooks' => '웹훅',
             'api_keys' => 'API 키',
             'mcp' => 'MCP',
-            'account' => '계정',
             'billing' => '결제',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => '계정 설정',
-        'description' => '계정 이름과 결제 이메일을 관리하세요',
-        'name' => '계정 이름',
-        'name_placeholder' => '내 회사',
-        'billing_email' => '결제 이메일',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => '이 이메일은 Stripe의 청구서 및 결제 관련 커뮤니케이션에 사용됩니다.',
-        'submit' => '저장',
-    ],
-
     'flash' => [
-        'account_updated' => '계정이 성공적으로 업데이트되었습니다!',
         'profile_updated' => '프로필이 성공적으로 업데이트되었습니다!',
         'password_updated' => '비밀번호가 성공적으로 업데이트되었습니다!',
         'workspace_updated' => '설정이 성공적으로 업데이트되었습니다!',

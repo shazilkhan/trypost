@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Вебхуки',
             'api_keys' => 'API-ключи',
             'mcp' => 'MCP',
-            'account' => 'Аккаунт',
             'billing' => 'Оплата',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Настройки аккаунта',
-        'description' => 'Управляйте названием аккаунта и email для счетов',
-        'name' => 'Название аккаунта',
-        'name_placeholder' => 'Моя компания',
-        'billing_email' => 'Email для счетов',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => 'Этот email будет использоваться для счетов и платёжных уведомлений от Stripe.',
-        'submit' => 'Сохранить',
-    ],
-
     'flash' => [
-        'account_updated' => 'Аккаунт успешно обновлён!',
         'profile_updated' => 'Профиль успешно обновлён!',
         'password_updated' => 'Пароль успешно обновлён!',
         'workspace_updated' => 'Настройки успешно обновлены!',

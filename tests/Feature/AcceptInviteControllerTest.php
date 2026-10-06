@@ -38,7 +38,8 @@ test('show invite displays invite details for guest when not self_hosted', funct
         ->has('invite')
         ->where('invite.id', $invite->id)
         ->where('invite.email', 'newuser@example.com')
-        ->where('invite.account.name', $this->account->name)
+        ->where('invite.workspace.name', $this->workspace->name)
+        ->missing('invite.account')
     );
 });
 

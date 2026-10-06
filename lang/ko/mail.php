@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => ':account에 초대되었습니다',
-        'title' => ':account에 초대되었습니다',
-        'preview' => ':account에 초대되었습니다',
+        'subject' => ':workspace에 초대되었습니다',
+        'title' => ':workspace에 초대되었습니다',
+        'preview' => ':workspace에 초대되었습니다',
         'heading' => '초대를 받았습니다',
-        'intro' => '워크스페이스 <strong>:account</strong>에서 함께 일하도록 초대되었습니다.',
+        'intro' => '워크스페이스 <strong>:workspace</strong>에서 함께 일하도록 초대되었습니다.',
         'role' => '<strong>:role</strong> 역할로 초대되었습니다.',
         'roles' => ['admin' => '관리자', 'member' => '멤버', 'needs_approval' => '멤버(게시물 승인 필요)'],
         'button' => '초대 수락',

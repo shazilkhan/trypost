@@ -20,10 +20,6 @@ const props = defineProps<{
             id: string;
             name: string;
         };
-        account: {
-            id: string;
-            name: string;
-        };
     } | null;
 }>();
 

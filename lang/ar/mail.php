@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'تمت دعوتك للانضمام إلى :account',
-        'title' => 'تمت دعوتك للانضمام إلى :account',
-        'preview' => 'تمت دعوتك للانضمام إلى :account',
+        'subject' => 'تمت دعوتك للانضمام إلى :workspace',
+        'title' => 'تمت دعوتك للانضمام إلى :workspace',
+        'preview' => 'تمت دعوتك للانضمام إلى :workspace',
         'heading' => 'تمت دعوتك!',
-        'intro' => 'تمت دعوتك للتعاون في مساحة العمل <strong>:account</strong>.',
+        'intro' => 'تمت دعوتك للتعاون في مساحة العمل <strong>:workspace</strong>.',
         'role' => 'تمت دعوتك بصفة <strong>:role</strong>.',
         'roles' => ['admin' => 'مشرف', 'member' => 'عضو', 'needs_approval' => 'عضو (منشوراته تحتاج إلى موافقة)'],
         'button' => 'قبول الدعوة',

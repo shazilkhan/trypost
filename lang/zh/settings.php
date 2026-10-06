@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Webhooks',
             'api_keys' => 'API 密钥',
             'mcp' => 'MCP',
-            'account' => '账户',
             'billing' => '账单',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => '账户设置',
-        'description' => '管理你的账户名称和账单邮箱',
-        'name' => '账户名称',
-        'name_placeholder' => '我的公司',
-        'billing_email' => '账单邮箱',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => '此邮箱将用于接收来自 Stripe 的发票和账单相关沟通。',
-        'submit' => '保存',
-    ],
-
     'flash' => [
-        'account_updated' => '账户更新成功！',
         'profile_updated' => '个人资料更新成功！',
         'password_updated' => '密码更新成功！',
         'workspace_updated' => '设置更新成功！',

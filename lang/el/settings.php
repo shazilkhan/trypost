@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Webhooks',
             'api_keys' => 'Κλειδιά API',
             'mcp' => 'MCP',
-            'account' => 'Λογαριασμός',
             'billing' => 'Χρέωση',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Ρυθμίσεις λογαριασμού',
-        'description' => 'Διαχειριστείτε το όνομα του λογαριασμού σας και το email χρέωσης',
-        'name' => 'Όνομα λογαριασμού',
-        'name_placeholder' => 'Η εταιρεία μου',
-        'billing_email' => 'Email χρέωσης',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => 'Αυτό το email θα χρησιμοποιηθεί για τιμολόγια και επικοινωνίες χρέωσης από το Stripe.',
-        'submit' => 'Αποθήκευση',
-    ],
-
     'flash' => [
-        'account_updated' => 'Ο λογαριασμός ενημερώθηκε με επιτυχία!',
         'profile_updated' => 'Το προφίλ ενημερώθηκε με επιτυχία!',
         'password_updated' => 'Ο κωδικός πρόσβασης ενημερώθηκε με επιτυχία!',
         'workspace_updated' => 'Οι ρυθμίσεις ενημερώθηκαν με επιτυχία!',

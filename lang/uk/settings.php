@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Вебхуки',
             'api_keys' => 'API-ключі',
             'mcp' => 'MCP',
-            'account' => 'Обліковий запис',
             'billing' => 'Оплата',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Налаштування облікового запису',
-        'description' => 'Керуйте назвою облікового запису та email для оплати',
-        'name' => 'Назва облікового запису',
-        'name_placeholder' => 'Моя компанія',
-        'billing_email' => 'Email для оплати',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => 'Цей email використовуватиметься для рахунків і повідомлень про оплату від Stripe.',
-        'submit' => 'Зберегти',
-    ],
-
     'flash' => [
-        'account_updated' => 'Обліковий запис успішно оновлено!',
         'profile_updated' => 'Профіль успішно оновлено!',
         'password_updated' => 'Пароль успішно оновлено!',
         'workspace_updated' => 'Налаштування успішно оновлено!',

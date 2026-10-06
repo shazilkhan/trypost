@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'Zaproszono Cię do :account',
-        'title' => 'Zaproszono Cię do :account',
-        'preview' => 'Zaproszono Cię do :account',
+        'subject' => 'Zaproszono Cię do :workspace',
+        'title' => 'Zaproszono Cię do :workspace',
+        'preview' => 'Zaproszono Cię do :workspace',
         'heading' => 'Masz zaproszenie!',
-        'intro' => 'Zaproszono Cię do współpracy w przestrzeni roboczej <strong>:account</strong>.',
+        'intro' => 'Zaproszono Cię do współpracy w przestrzeni roboczej <strong>:workspace</strong>.',
         'role' => 'Zaproszono Cię jako <strong>:role</strong>.',
         'roles' => ['admin' => 'Administrator', 'member' => 'Członek', 'needs_approval' => 'Członek (posty wymagają zatwierdzenia)'],
         'button' => 'Przyjmij zaproszenie',

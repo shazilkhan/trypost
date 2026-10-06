@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useId } from 'reka-ui';
-import { computed, toRefs, type HTMLAttributes } from 'vue';
+import { computed, ref, toRefs, watch, type HTMLAttributes } from 'vue';
 
+import { sidebarResizing } from '@/components/ui/sidebar/utils';
 import { cn } from '@/lib/utils';
 
 import { provideChartContext, type ChartConfig } from '.';
@@ -24,11 +25,19 @@ const colorStyles = computed(() =>
     ),
 );
 
+const root = ref<HTMLElement | null>(null);
+const frozenWidth = ref<number | null>(null);
+
+watch(sidebarResizing, (resizing) => {
+    frozenWidth.value = resizing ? (root.value?.offsetWidth ?? null) : null;
+});
+
 provideChartContext({ id, config });
 </script>
 
 <template>
     <div
+        ref="root"
         data-slot="chart"
         :data-chart="chartId"
         :class="
@@ -38,6 +47,9 @@ provideChartContext({ id, config });
             )
         "
         :style="{
+            ...(frozenWidth === null
+                ? {}
+                : { width: `${frozenWidth}px`, maxWidth: 'none', flexShrink: '0' }),
             '--vis-tooltip-padding': '0px',
             '--vis-tooltip-background-color': 'transparent',
             '--vis-tooltip-border-color': 'transparent',

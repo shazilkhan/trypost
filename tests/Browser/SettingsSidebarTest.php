@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 
@@ -113,3 +114,107 @@ test('the back to app link in the settings sidebar highlights on hover', functio
 
     $page->assertNoJavaScriptErrors();
 });
+
+test('the channels item shows how many channels the workspace has connected', function () {
+    $user = settingsSidebarUser('admin');
+    SocialAccount::factory()->count(3)->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.profile.edit'));
+    waitForSettingsSidebarTestId($page, 'settings-nav-channels-count');
+
+    $page->assertSeeIn('@settings-nav-channels-count', '3')
+        ->assertNoJavaScriptErrors();
+});
+
+test('with the sidebar collapsed the settings nav stays as icons and the footer toggle expands it', function () {
+    $this->actingAs(settingsSidebarUser('admin'));
+
+    $state = "document.querySelector('[data-slot=\"sidebar\"][data-state]')?.dataset.state";
+    $layout = <<<'JS'
+        (() => {
+            const profile = document.querySelector('[data-testid="settings-nav-profile"]');
+            const box = profile.getBoundingClientRect();
+            return {
+                state: document.querySelector('[data-slot="sidebar"][data-state]').dataset.state,
+                width: Math.round(box.width),
+                active: profile.dataset.active,
+                icon: profile.querySelector('svg').getBoundingClientRect().width > 0,
+                back: document.querySelector('[data-testid="settings-back"]').getBoundingClientRect().width > 0,
+                trigger: (document.querySelector('[data-testid="app-sidebar-trigger"]')?.getBoundingClientRect().width ?? 0) > 0,
+            };
+        })()
+    JS;
+
+    $page = visit(route('app.profile.edit'))->resize(1280, 900);
+    waitForSettingsSidebarTestId($page, 'sidebar-footer-toggle');
+    $page->click('@sidebar-footer-toggle');
+    waitForSettingsSidebarScript($page, "{$state} === 'collapsed'");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
+
+    expect($page->script($layout))->toBe([
+        'state' => 'collapsed',
+        'width' => 32,
+        'active' => 'true',
+        'icon' => true,
+        'back' => true,
+        'trigger' => false,
+    ]);
+    $page->assertMissing('@settings-nav-channels-count');
+
+    $page->script('location.reload()');
+    waitForSettingsSidebarTestId($page, 'settings-nav-profile');
+    waitForSettingsSidebarScript($page, "{$state} === 'collapsed'");
+    $page->assertVisible('@settings-nav-profile');
+
+    $page->click('@sidebar-footer-toggle');
+    waitForSettingsSidebarScript($page, "{$state} === 'expanded'");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
+
+    $expanded = $page->script($layout);
+
+    expect($expanded['state'])->toBe('expanded')
+        ->and($expanded['width'])->toBeGreaterThan(150)
+        ->and($expanded['active'])->toBe('true')
+        ->and($expanded['trigger'])->toBeFalse();
+
+    $page->assertSeeIn('@settings-nav-profile', 'Profile')
+        ->assertNoJavaScriptErrors();
+});
+
+test('the settings sidebar footer shows the user menu, expanded and collapsed', function () {
+    $user = settingsSidebarUser('admin');
+    $this->actingAs($user);
+
+    $state = "document.querySelector('[data-slot=\"sidebar\"][data-state]')?.dataset.state";
+
+    $page = visit(route('app.profile.edit'))->resize(1280, 900);
+    waitForSettingsSidebarTestId($page, 'sidebar-workspace-menu');
+
+    $page->assertSeeIn('@sidebar-workspace-menu', $user->name)
+        ->click('@sidebar-workspace-menu');
+
+    waitForSettingsSidebarTestId($page, 'logout-button');
+    $page->assertVisible('@logout-button');
+    $page->script("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+
+    $page->click('@sidebar-footer-toggle');
+    waitForSettingsSidebarScript($page, "{$state} === 'collapsed'");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
+
+    $page->assertVisible('@sidebar-workspace-menu')
+        ->assertVisible('[data-testid="sidebar-workspace-menu"] [data-slot="avatar"]')
+        ->assertNoJavaScriptErrors();
+});
+
+function waitForSettingsSidebarScript(mixed $page, string $condition): void
+{
+    $page->script(<<<JS
+        (async () => {
+            for (let i = 0; i < 100; i++) {
+                if ({$condition}) return;
+                await new Promise((r) => setTimeout(r, 50));
+            }
+        })();
+    JS);
+}

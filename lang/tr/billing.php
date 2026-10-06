@@ -21,7 +21,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Planlar',
         'description' => 'İstediğiniz zaman yükseltin veya düşürün.',
         'monthly' => 'Aylık',
         'yearly' => 'Yıllık',
@@ -63,10 +62,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Deneme',
-        'cancelling' => 'İptal ediliyor',
-        'trial_ends' => 'Deneme bitişi',
+    'current_plan' => [
+        'change' => 'Planı değiştir',
+        'price_monthly' => ':price/ay',
+        'price_yearly' => ':price/yıl',
+        'trial_until' => ':date tarihine kadar deneme',
+        'renews' => 'Otomatik olarak yenilenir',
+        'cancelled' => 'İptal edildi, :date tarihinde sona erer',
+        'workspaces_usage' => 'Çalışma alanları: :count / :limit',
     ],
 
     'subscription' => [

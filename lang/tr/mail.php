@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => ':account hesabına katılmaya davet edildin',
-        'title' => ':account hesabına katılmaya davet edildin',
-        'preview' => ':account hesabına katılmaya davet edildin',
+        'subject' => ':workspace hesabına katılmaya davet edildin',
+        'title' => ':workspace hesabına katılmaya davet edildin',
+        'preview' => ':workspace hesabına katılmaya davet edildin',
         'heading' => 'Davet edildin!',
-        'intro' => '<strong>:account</strong> çalışma alanında birlikte çalışmaya davet edildin.',
+        'intro' => '<strong>:workspace</strong> çalışma alanında birlikte çalışmaya davet edildin.',
         'role' => '<strong>:role</strong> olarak davet edildin.',
         'roles' => ['admin' => 'Yönetici', 'member' => 'Üye', 'needs_approval' => 'Üye (gönderileri onay gerektirir)'],
         'button' => 'Daveti kabul et',

@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Πλάνα',
         'description' => 'Αναβαθμίστε ή υποβαθμίστε οποιαδήποτε στιγμή.',
         'monthly' => 'Μηνιαία',
         'yearly' => 'Ετήσια',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Δοκιμαστική περίοδος',
-        'cancelling' => 'Ακυρώνεται',
-        'trial_ends' => 'Η δοκιμαστική περίοδος λήγει',
+    'current_plan' => [
+        'change' => 'Αλλαγή πλάνου',
+        'price_monthly' => ':price/μήνα',
+        'price_yearly' => ':price/έτος',
+        'trial_until' => 'Δοκιμαστική περίοδος έως :date',
+        'renews' => 'Ανανεώνεται αυτόματα',
+        'cancelled' => 'Ακυρώθηκε, λήγει στις :date',
+        'workspaces_usage' => 'Workspaces: :count από :limit',
     ],
 
     'subscription' => [

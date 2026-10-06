@@ -589,3 +589,40 @@ test('the destination post types sit centered in their settings panel', function
     JS))->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });
+
+test('on a phone the header puts the summary and the actions on their own rows', function () {
+    [$user, $workspace, $source, $destination] = repurposeOwnerWithAccounts();
+
+    $repurpose = Repurpose::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'source_social_account_id' => $source->id,
+        'source_format' => SourceFormat::Reel,
+        'destinations' => [[
+            'social_account_id' => $destination->id,
+            'content_type' => ContentType::TikTokVideo->value,
+            'meta' => [],
+        ]],
+    ]);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.repurposes.show', $repurpose))->resize(390, 844);
+    waitForRepurposeTestId($page, 'repurpose-summary');
+    waitForRepurposeTestId($page, 'repurpose-lifecycle');
+
+    $layout = $page->script(<<<'JS'
+        (() => {
+            const summary = document.querySelector('[data-testid="repurpose-summary"]').getBoundingClientRect();
+            const actions = document.querySelector('[data-testid="repurpose-lifecycle"]').getBoundingClientRect();
+            const title = document.querySelector('[data-testid="repurpose-status"]').getBoundingClientRect();
+            return { summaryWidth: Math.round(summary.width), summaryBelowTitle: summary.top >= title.bottom - 1, actionsBelow: actions.top >= summary.bottom - 1, overflow: document.documentElement.scrollWidth > window.innerWidth };
+        })()
+    JS);
+
+    expect($layout['summaryWidth'])->toBeGreaterThan(300)
+        ->and($layout['summaryBelowTitle'])->toBeTrue()
+        ->and($layout['actionsBelow'])->toBeTrue()
+        ->and($layout['overflow'])->toBeFalse();
+    $page->assertNoJavaScriptErrors();
+});

@@ -154,6 +154,46 @@ test('clear all, generate from goal and copy from another channel', function () 
     $page->assertNoJavaScriptErrors();
 });
 
+test('the copy from channel search filters the list and a pick asks to confirm', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $x = SocialAccount::factory()->x()->create([
+        'workspace_id' => $channel->workspace_id,
+        'posting_schedule' => PostingSchedule::empty()->withTime(6, '17:08'),
+    ]);
+    $bluesky = SocialAccount::factory()->bluesky()->create([
+        'workspace_id' => $channel->workspace_id,
+        'posting_schedule' => PostingSchedule::empty()->withTime(2, '10:00'),
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel));
+    waitForChannelSettingsPageTestId($page, 'schedule-generate');
+    $page->click('@schedule-generate');
+    waitForChannelSettingsPageTestId($page, 'schedule-generate-copy');
+    $page->click('@schedule-generate-copy');
+    waitForChannelSettingsPageTestId($page, 'schedule-generate-copy-search');
+    $page->assertVisible("@schedule-generate-copy-{$x->id}")
+        ->assertVisible("@schedule-generate-copy-{$bluesky->id}");
+
+    $page->type('@schedule-generate-copy-search', 'Bluesky');
+    $page->script(<<<JS
+        (async () => {
+            for (let i = 0; i < 100; i++) {
+                if (!document.querySelector('[data-testid="schedule-generate-copy-{$x->id}"]')) return;
+                await new Promise((r) => setTimeout(r, 50));
+            }
+        })();
+    JS);
+
+    $page->assertMissing("@schedule-generate-copy-{$x->id}")
+        ->assertVisible("@schedule-generate-copy-{$bluesky->id}");
+
+    $page->click("@schedule-generate-copy-{$bluesky->id}");
+    waitForChannelSettingsPageTestId($page, 'schedule-generate-confirm');
+    $page->assertVisible('@schedule-generate-confirm')
+        ->assertNoJavaScriptErrors();
+});
+
 test('a fifth time on a day is blocked', function () {
     [$user, $channel] = channelSettingsPageSetup(
         PostingSchedule::empty()->withTime(2, '08:00')->withTime(2, '09:00')->withTime(2, '10:00')->withTime(2, '11:00'),

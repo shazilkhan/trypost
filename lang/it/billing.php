@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Piani',
         'description' => 'Fai upgrade o downgrade in qualsiasi momento.',
         'monthly' => 'Mensile',
         'yearly' => 'Annuale',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Prova',
-        'cancelling' => 'In cancellazione',
-        'trial_ends' => 'La prova termina',
+    'current_plan' => [
+        'change' => 'Cambia piano',
+        'price_monthly' => ':price/mese',
+        'price_yearly' => ':price/anno',
+        'trial_until' => 'Prova fino al :date',
+        'renews' => 'Si rinnova automaticamente',
+        'cancelled' => 'Annullato, termina il :date',
+        'workspaces_usage' => 'Workspace: :count di :limit',
     ],
 
     'subscription' => [

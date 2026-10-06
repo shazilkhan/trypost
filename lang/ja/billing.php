@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'プラン',
         'description' => 'いつでもアップグレードまたはダウングレードできます。',
         'monthly' => '月額',
         'yearly' => '年額',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'トライアル',
-        'cancelling' => '解約手続き中',
-        'trial_ends' => 'トライアル終了',
+    'current_plan' => [
+        'change' => 'プランを変更',
+        'price_monthly' => ':price/月',
+        'price_yearly' => ':price/年',
+        'trial_until' => ':dateまでトライアル',
+        'renews' => '自動更新',
+        'cancelled' => '解約済み、:dateに終了',
+        'workspaces_usage' => 'ワークスペース: :count / :limit',
     ],
 
     'subscription' => [

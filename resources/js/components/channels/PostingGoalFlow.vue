@@ -7,9 +7,7 @@ import {
     IconCircleCheckFilled,
     IconHelpCircle,
     IconLoader2,
-    IconMinus,
     IconPencil,
-    IconPlus,
 } from '@tabler/icons-vue';
 import { trans, transChoice } from 'laravel-vue-i18n';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -25,6 +23,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Stepper } from '@/components/ui/stepper';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import { activeLocale } from '@/language';
@@ -160,10 +159,6 @@ const setChoice = (value: unknown): void => {
     choice.value = value === 'custom' ? 'custom' : (Number(value) as Choice);
 };
 
-const stepCustom = (delta: number): void => {
-    custom.value = Math.min(MAX_GOAL, Math.max(1, custom.value + delta));
-};
-
 const save = async (): Promise<void> => {
     saving.value = true;
 
@@ -286,50 +281,31 @@ const rows = computed(() =>
                                     :class="option.badge"
                                     data-testid="goal-option-badge"
                                 >
-                                    <IconPencil v-if="option.value === 'custom'" class="size-5" />
-                                    <template v-else>{{ option.value }}x</template>
+                                    <template v-if="option.value !== 'custom'">{{ option.value }}x</template>
+                                    <template v-else-if="choice === 'custom'">{{ custom }}x</template>
+                                    <IconPencil v-else class="size-5" />
                                 </span>
                                 <span class="flex-1 text-base font-medium text-foreground">
                                     {{ $t(`channels.goal_dialog.options.${option.label}`) }}<template v-if="option.value !== 'custom'"> · {{ perWeek(option.value) }}</template>
                                 </span>
+                                <Stepper
+                                    v-if="option.value === 'custom' && choice === 'custom'"
+                                    v-model="custom"
+                                    :max="MAX_GOAL"
+                                    :decrease-label="$t('channels.settings_page.goal_decrease')"
+                                    :increase-label="$t('channels.settings_page.goal_increase')"
+                                    decrease-test-id="goal-custom-decrease"
+                                    increase-test-id="goal-custom-increase"
+                                    value-test-id="goal-custom-value"
+                                    :aria-label="perWeek(custom)"
+                                    @click.prevent
+                                />
                                 <RadioGroupItem
                                     :id="`goal-radio-${option.value}`"
                                     :value="String(option.value)"
                                     data-testid="goal-option-radio"
                                 />
                             </Label>
-                            <div
-                                v-if="option.value === 'custom' && choice === 'custom'"
-                                class="mx-auto mb-3 flex h-8 w-fit items-center overflow-hidden rounded-md border border-border-strong bg-card"
-                            >
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    class="rounded-none"
-                                    :disabled="custom <= 1"
-                                    :aria-label="$t('channels.settings_page.goal_decrease')"
-                                    data-testid="goal-custom-decrease"
-                                    @click="stepCustom(-1)"
-                                >
-                                    <IconMinus class="size-4" />
-                                </Button>
-                                <span class="min-w-24 px-1 text-center text-sm text-foreground tabular-nums" data-testid="goal-custom-value">{{
-                                    perWeek(custom)
-                                }}</span>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    class="rounded-none"
-                                    :disabled="custom >= MAX_GOAL"
-                                    :aria-label="$t('channels.settings_page.goal_increase')"
-                                    data-testid="goal-custom-increase"
-                                    @click="stepCustom(1)"
-                                >
-                                    <IconPlus class="size-4" />
-                                </Button>
-                            </div>
                         </div>
                     </RadioGroup>
                 </template>

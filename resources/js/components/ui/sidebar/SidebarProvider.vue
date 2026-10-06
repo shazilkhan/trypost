@@ -2,9 +2,9 @@
 import type { HTMLAttributes, Ref } from "vue"
 import { useMediaQuery, useVModel } from "@vueuse/core"
 import { TooltipProvider } from "reka-ui"
-import { computed, ref } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import { cn } from "@/lib/utils"
-import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from "./utils"
+import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_RESIZE_SETTLE_MS, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON, sidebarResizing } from "./utils"
 
 const props = withDefaults(defineProps<{
   defaultOpen?: boolean
@@ -34,6 +34,23 @@ const setOpen = (value: boolean) => {
     document.cookie = `${SIDEBAR_COOKIE_NAME}=${value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
   }
 }
+
+let resizeSettleTimer: ReturnType<typeof setTimeout> | undefined
+
+const markResizing = () => {
+  sidebarResizing.value = true
+  clearTimeout(resizeSettleTimer)
+  resizeSettleTimer = setTimeout(() => {
+    sidebarResizing.value = false
+  }, SIDEBAR_RESIZE_SETTLE_MS)
+}
+
+watch(open, markResizing)
+
+onBeforeUnmount(() => {
+  clearTimeout(resizeSettleTimer)
+  sidebarResizing.value = false
+})
 
 const setOpenMobile = (value: boolean) => {
   openMobile.value = value

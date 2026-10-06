@@ -8,6 +8,13 @@ import SettingsListRow from '@/components/settings/SettingsListRow.vue';
 import SettingsSection from '@/components/settings/SettingsSection.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import date from '@/date';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
@@ -19,6 +26,7 @@ import type { AuthPlan, SharedData } from '@/types';
 import {
     DEFAULT_BILLING_INTERVAL,
     deniedPlanIdsFor,
+    isPricedPlanSlug,
     type BillingInterval,
     type PlanOption,
 } from '@/types/plan';
@@ -50,6 +58,7 @@ const props = defineProps<{
     subscription: Subscription | null;
     plan: PlanOption | null;
     workspaceCount: number;
+    workspaceLimit: number | null;
     invoices: Invoice[];
     defaultPaymentMethod: PaymentMethod | null;
 }>();
@@ -86,6 +95,19 @@ const deniedPlanIds = computed((): string[] =>
 );
 
 const selectedInterval = ref<BillingInterval>(currentInterval.value);
+const isPlanDialogOpen = ref(false);
+
+const priceKey = computed((): string | null => {
+    if (!props.plan || !isPricedPlanSlug(props.plan.slug)) {
+        return null;
+    }
+
+    return `billing.subscribe.prices.${props.plan.slug}.${currentInterval.value === 'yearly' ? 'yearly' : 'monthly'}`;
+});
+
+const priceLabelKey = computed(
+    (): string => `billing.current_plan.price_${currentInterval.value}`,
+);
 
 const planForm = useForm<{
     plan_id: string | null;
@@ -95,14 +117,26 @@ const planForm = useForm<{
     interval: DEFAULT_BILLING_INTERVAL,
 });
 
-const changePlan = (planId: string, interval: BillingInterval): void => {
+const openPlanDialog = (): void => {
+    selectedInterval.value = currentInterval.value;
+    isPlanDialogOpen.value = true;
+};
+
+const closePlanDialog = (): void => {
+    isPlanDialogOpen.value = false;
+};
+
+const selectPlan = (planId: string): void => {
     if (planForm.processing) {
         return;
     }
 
     planForm.plan_id = planId;
-    planForm.interval = interval;
-    planForm.post(changePlanRoute.url(), { preserveScroll: true });
+    planForm.interval = selectedInterval.value;
+    planForm.post(changePlanRoute.url(), {
+        preserveScroll: true,
+        onSuccess: closePlanDialog,
+    });
 };
 </script>
 
@@ -113,43 +147,114 @@ const changePlan = (planId: string, interval: BillingInterval): void => {
         <div class="flex flex-col gap-10">
             <SettingsSection
                 v-if="hasSubscription"
-                :title="$t('billing.plans.title')"
-                :description="$t('billing.plans.description')"
+                :title="$t('billing.plans.current')"
             >
                 <div
-                    v-if="
-                        subscriptionStatus === 'trial' ||
-                        subscriptionStatus === 'cancelling'
-                    "
-                    class="-mt-2 flex flex-wrap items-center gap-2"
+                    class="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-4 py-6"
+                    data-testid="billing-current-plan"
                 >
-                    <Badge variant="secondary">
-                        {{
-                            subscriptionStatus === 'trial'
-                                ? $t('billing.plan.trial')
-                                : $t('billing.plan.cancelling')
-                        }}
-                    </Badge>
-                    <p
-                        v-if="onTrial && trialEndsAt"
-                        class="text-sm text-muted-foreground"
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <div class="flex flex-wrap items-baseline gap-x-2">
+                            <p
+                                class="text-base leading-tight font-emphasis text-foreground"
+                                data-testid="billing-current-plan-name"
+                            >
+                                {{ plan?.name }}
+                            </p>
+                            <p
+                                v-if="priceKey"
+                                class="text-sm text-muted-foreground tabular-nums"
+                                data-testid="billing-current-plan-price"
+                            >
+                                {{
+                                    $t(priceLabelKey, {
+                                        price: $t(priceKey),
+                                    })
+                                }}
+                            </p>
+                        </div>
+                        <p
+                            class="text-sm text-muted-foreground"
+                            data-testid="billing-current-plan-status"
+                        >
+                            <template
+                                v-if="subscriptionStatus === 'trial' && trialEndsAt"
+                            >
+                                {{
+                                    $t('billing.current_plan.trial_until', {
+                                        date: date.formatDate(trialEndsAt),
+                                    })
+                                }}
+                            </template>
+                            <template
+                                v-else-if="
+                                    subscriptionStatus === 'cancelling' &&
+                                    subscription?.ends_at
+                                "
+                            >
+                                {{
+                                    $t('billing.current_plan.cancelled', {
+                                        date: date.formatDate(
+                                            subscription.ends_at,
+                                        ),
+                                    })
+                                }}
+                            </template>
+                            <template v-else-if="subscriptionStatus === 'past_due'">
+                                {{ $t('billing.past_due_notice.title') }}
+                            </template>
+                            <template v-else>
+                                {{ $t('billing.current_plan.renews') }}
+                            </template>
+                        </p>
+                        <p
+                            class="text-sm text-muted-foreground tabular-nums"
+                            data-testid="billing-current-plan-usage"
+                        >
+                            {{
+                                workspaceLimit === null
+                                    ? $t('billing.plans.workspaces_unlimited')
+                                    : $t('billing.current_plan.workspaces_usage', {
+                                          count: workspaceCount.toString(),
+                                          limit: workspaceLimit.toString(),
+                                      })
+                            }}
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        class="shrink-0"
+                        data-testid="billing-change-plan"
+                        @click="openPlanDialog"
                     >
-                        {{ $t('billing.plan.trial_ends') }}:
-                        <span class="font-emphasis text-foreground">{{
-                            date.formatDate(trialEndsAt)
-                        }}</span>
-                    </p>
+                        {{ $t('billing.current_plan.change') }}
+                    </Button>
                 </div>
 
-                <PlanPicker
-                    :plans="plans"
-                    v-model:interval="selectedInterval"
-                    :current-plan-id="plan?.id ?? null"
-                    :current-interval="currentInterval"
-                    :disabled-plan-ids="deniedPlanIds"
-                    :processing="planForm.processing"
-                    @select="(planId) => changePlan(planId, selectedInterval)"
-                />
+                <Dialog v-model:open="isPlanDialogOpen">
+                    <DialogContent
+                        class="sm:max-w-3xl"
+                        data-testid="billing-plan-dialog"
+                    >
+                        <DialogHeader>
+                            <DialogTitle>
+                                {{ $t('billing.current_plan.change') }}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {{ $t('billing.plans.description') }}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <PlanPicker
+                            :plans="plans"
+                            v-model:interval="selectedInterval"
+                            :current-plan-id="plan?.id ?? null"
+                            :current-interval="currentInterval"
+                            :disabled-plan-ids="deniedPlanIds"
+                            :processing="planForm.processing"
+                            @select="selectPlan"
+                        />
+                    </DialogContent>
+                </Dialog>
             </SettingsSection>
 
             <Separator v-if="hasSubscription" />

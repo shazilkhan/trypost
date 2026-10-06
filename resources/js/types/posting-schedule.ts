@@ -1,3 +1,5 @@
+import type { VerifiedBadge } from '@/types/social-account';
+
 export interface PostingScheduleDay {
     day: number;
     enabled: boolean;
@@ -17,3 +19,17 @@ export interface TimezoneOption {
     label: string;
     offset: string;
 }
+
+export interface OtherChannel {
+    id: string;
+    display_name: string | null;
+    username: string;
+    platform: string;
+    avatar_url: string | null;
+    verified_badge?: VerifiedBadge | null;
+}
+
+export type ScheduleGenerateAction =
+    | { kind: 'goal' }
+    | { kind: 'recommended' }
+    | { kind: 'copy'; from: string };

@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Webhooks',
             'api_keys' => 'مفاتيح API',
             'mcp' => 'MCP',
-            'account' => 'الحساب',
             'billing' => 'الفوترة',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'إعدادات الحساب',
-        'description' => 'إدارة اسم حسابك والبريد الإلكتروني للفوترة',
-        'name' => 'اسم الحساب',
-        'name_placeholder' => 'شركتي',
-        'billing_email' => 'البريد الإلكتروني للفوترة',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => 'سيُستخدم هذا البريد الإلكتروني للفواتير ومراسلات الفوترة من Stripe.',
-        'submit' => 'حفظ',
-    ],
-
     'flash' => [
-        'account_updated' => 'تم تحديث الحساب بنجاح!',
         'profile_updated' => 'تم تحديث الملف الشخصي بنجاح!',
         'password_updated' => 'تم تحديث كلمة المرور بنجاح!',
         'workspace_updated' => 'تم تحديث الإعدادات بنجاح!',

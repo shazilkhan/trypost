@@ -26,7 +26,6 @@ return [
             'webhooks' => 'Webhooks',
             'api_keys' => 'API-sleutels',
             'mcp' => 'MCP',
-            'account' => 'Account',
             'billing' => 'Facturatie',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Accountinstellingen',
-        'description' => 'Beheer je accountnaam en factuur-e-mailadres',
-        'name' => 'Accountnaam',
-        'name_placeholder' => 'Mijn bedrijf',
-        'billing_email' => 'Factuur-e-mailadres',
-        'billing_email_placeholder' => 'facturatie@bedrijf.com',
-        'billing_email_hint' => 'Dit e-mailadres wordt gebruikt voor facturen en factuurcommunicatie van Stripe.',
-        'submit' => 'Opslaan',
-    ],
-
     'flash' => [
-        'account_updated' => 'Account succesvol bijgewerkt!',
         'profile_updated' => 'Profiel succesvol bijgewerkt!',
         'password_updated' => 'Wachtwoord succesvol bijgewerkt!',
         'workspace_updated' => 'Instellingen succesvol bijgewerkt!',

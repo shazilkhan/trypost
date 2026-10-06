@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Plannen',
         'description' => 'Upgrade of downgrade wanneer je wilt.',
         'monthly' => 'Maandelijks',
         'yearly' => 'Jaarlijks',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Proefperiode',
-        'cancelling' => 'Wordt opgezegd',
-        'trial_ends' => 'Proefperiode eindigt',
+    'current_plan' => [
+        'change' => 'Plan wijzigen',
+        'price_monthly' => ':price/maand',
+        'price_yearly' => ':price/jaar',
+        'trial_until' => 'Proefperiode tot :date',
+        'renews' => 'Wordt automatisch verlengd',
+        'cancelled' => 'Opgezegd, eindigt op :date',
+        'workspaces_usage' => 'Workspaces: :count van :limit',
     ],
 
     'subscription' => [

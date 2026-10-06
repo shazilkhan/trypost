@@ -11,7 +11,6 @@ import {
     IconAdjustmentsHorizontal,
     IconTag,
     IconUser,
-    IconUserCircle,
     IconUsers,
     IconWebhook,
 } from '@tabler/icons-vue';
@@ -20,7 +19,6 @@ import { computed } from 'vue';
 
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { members } from '@/routes/app';
-import { edit as accountEdit } from '@/routes/app/account';
 import { index as apiKeys } from '@/routes/app/api-keys';
 import { edit as authenticationEdit } from '@/routes/app/authentication';
 import { index as billing } from '@/routes/app/billing';
@@ -37,7 +35,7 @@ import type { NavItem } from '@/types';
 export interface SettingsNavGroup {
     key: string;
     label: string;
-    items: (NavItem & { name: string })[];
+    items: (NavItem & { name: string; count?: number })[];
 }
 
 export const useSettingsNavigation = () => {
@@ -54,12 +52,16 @@ export const useSettingsNavigation = () => {
         Boolean(page.props.auth?.currentWorkspace),
     );
     const selfHosted = computed(() => Boolean(page.props.selfHosted));
+    const channelCount = computed(
+        () => ((page.props.channels as unknown[] | undefined) ?? []).length,
+    );
 
     const item = (
         name: string,
         href: string,
         icon: NavItem['icon'],
         visible: boolean,
+        count?: number,
     ) =>
         visible
             ? [
@@ -68,6 +70,7 @@ export const useSettingsNavigation = () => {
                       title: trans(`settings.sidebar.items.${name}`),
                       href,
                       icon,
+                      count,
                   },
               ]
             : [];
@@ -115,6 +118,7 @@ export const useSettingsNavigation = () => {
                         channels.url(),
                         IconLayoutGrid,
                         workspace && canManageAccounts.value,
+                        channelCount.value,
                     ),
                     ...item(
                         'members',
@@ -165,12 +169,6 @@ export const useSettingsNavigation = () => {
                 key: 'account',
                 label: trans('settings.sidebar.groups.account'),
                 items: [
-                    ...item(
-                        'account',
-                        accountEdit.url(),
-                        IconUserCircle,
-                        canManageBilling.value && !selfHosted.value,
-                    ),
                     ...item(
                         'billing',
                         billing.url(),

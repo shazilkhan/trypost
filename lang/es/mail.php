@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'Te han invitado a unirte a :account',
-        'title' => 'Te han invitado a unirte a :account',
-        'preview' => 'Te han invitado a unirte a :account',
+        'subject' => 'Te han invitado a unirte a :workspace',
+        'title' => 'Te han invitado a unirte a :workspace',
+        'preview' => 'Te han invitado a unirte a :workspace',
         'heading' => '¡Te han invitado!',
-        'intro' => 'Te han invitado a colaborar en el espacio de trabajo <strong>:account</strong>.',
+        'intro' => 'Te han invitado a colaborar en el espacio de trabajo <strong>:workspace</strong>.',
         'role' => 'Te han invitado como <strong>:role</strong>.',
         'roles' => ['admin' => 'Administrador', 'member' => 'Miembro', 'needs_approval' => 'Miembro (sus publicaciones necesitan aprobación)'],
         'button' => 'Aceptar invitación',

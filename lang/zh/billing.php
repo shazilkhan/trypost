@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => '套餐',
         'description' => '随时可以升级或降级。',
         'monthly' => '按月',
         'yearly' => '按年',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => '试用',
-        'cancelling' => '取消中',
-        'trial_ends' => '试用结束',
+    'current_plan' => [
+        'change' => '更改套餐',
+        'price_monthly' => ':price/月',
+        'price_yearly' => ':price/年',
+        'trial_until' => '试用至 :date',
+        'renews' => '自动续订',
+        'cancelled' => '已取消，将于 :date 结束',
+        'workspaces_usage' => '工作区：:count / :limit',
     ],
 
     'subscription' => [

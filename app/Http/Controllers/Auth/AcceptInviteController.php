@@ -22,8 +22,6 @@ class AcceptInviteController extends Controller
      */
     public function show(Invite $invite): Response
     {
-        $invite->load('account');
-
         $workspaces = ResolveInviteWorkspaces::execute($invite);
         $expired = $workspaces->isEmpty();
 
@@ -43,10 +41,6 @@ class AcceptInviteController extends Controller
             'invite' => [
                 'id' => $invite->id,
                 'email' => $invite->email,
-                'account' => [
-                    'id' => $invite->account->id,
-                    'name' => $invite->account->name,
-                ],
                 'workspace' => [
                     'id' => $workspace->id,
                     'name' => $workspace->name,

@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'Je bent uitgenodigd voor :account',
-        'title' => 'Je bent uitgenodigd voor :account',
-        'preview' => 'Je bent uitgenodigd voor :account',
+        'subject' => 'Je bent uitgenodigd voor :workspace',
+        'title' => 'Je bent uitgenodigd voor :workspace',
+        'preview' => 'Je bent uitgenodigd voor :workspace',
         'heading' => 'Je bent uitgenodigd!',
-        'intro' => 'Je bent uitgenodigd om samen te werken in de werkruimte <strong>:account</strong>.',
+        'intro' => 'Je bent uitgenodigd om samen te werken in de werkruimte <strong>:workspace</strong>.',
         'role' => 'Je bent uitgenodigd als <strong>:role</strong>.',
         'roles' => ['admin' => 'Beheerder', 'member' => 'Lid', 'needs_approval' => 'Lid (berichten vereisen goedkeuring)'],
         'button' => 'Uitnodiging accepteren',

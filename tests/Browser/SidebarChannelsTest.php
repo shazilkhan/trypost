@@ -448,3 +448,42 @@ test('a verified x channel shows its badge on the avatar', function () {
         ->assertMissing("@channel-avatar-verified-{$plain->id}")
         ->assertNoJavaScriptErrors();
 });
+
+test('the collapsed sidebar shows every channel network badge without clipping it', function () {
+    $user = sidebarChannelsUser('admin');
+    $channels = collect([
+        SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]),
+        SocialAccount::factory()->x()->create(['workspace_id' => $user->current_workspace_id]),
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channels->first()->id))->resize(1280, 900);
+    waitForSidebarChannelsTestId($page, 'sidebar-footer-toggle');
+    $page->click('@sidebar-footer-toggle');
+    waitForSidebarChannelsScript($page, "document.querySelector('[data-slot=\"sidebar\"][data-state]')?.dataset.state === 'collapsed'");
+    $page->script('new Promise((resolve) => setTimeout(resolve, 400))');
+
+    foreach ($channels as $channel) {
+        $clipping = $page->script(<<<JS
+            (() => {
+                const link = document.querySelector('[data-testid="sidebar-channel-{$channel->id}"]');
+                const badge = [...link.querySelectorAll('*')].find((el) => getComputedStyle(el).position === 'absolute' && el.querySelector('img'));
+                const box = badge.getBoundingClientRect();
+                const clipped = [];
+                for (let el = badge.parentElement; el && el !== document.body; el = el.parentElement) {
+                    const style = getComputedStyle(el);
+                    if (style.overflowX === 'visible' && style.overflowY === 'visible') continue;
+                    const area = el.getBoundingClientRect();
+                    if (box.left < area.left || box.top < area.top || box.right > area.right || box.bottom > area.bottom) {
+                        clipped.push(el.dataset.testid ?? el.dataset.sidebar ?? el.tagName);
+                    }
+                }
+                return { width: Math.round(box.width), clipped };
+            })()
+        JS);
+
+        expect($clipping)->toBe(['width' => 18, 'clipped' => []]);
+    }
+
+    $page->assertNoJavaScriptErrors();
+});

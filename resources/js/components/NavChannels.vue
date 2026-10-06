@@ -13,6 +13,11 @@ import { computed, ref } from 'vue';
 
 import ChannelAvatar from '@/components/ChannelAvatar.vue';
 import PlatformBrandIcon from '@/components/PlatformBrandIcon.vue';
+import {
+    HoverCard,
+    HoverCardContent,
+    HoverCardTrigger,
+} from '@/components/ui/hover-card';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import {
     SidebarGroup,
@@ -24,6 +29,7 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import {
     Tooltip,
@@ -91,6 +97,12 @@ const listEntries = computed<ChannelListEntry[]>(() => {
     return entries;
 });
 const { urlIsActive } = useActiveUrl();
+const { state: sidebarState, isMobile: sidebarIsMobile } = useSidebar();
+const isCollapsedRail = computed(
+    () => sidebarState.value === 'collapsed' && !sidebarIsMobile.value,
+);
+const channelCardItemClass =
+    'flex min-h-8 items-center gap-2 rounded-md py-2 ps-2 pe-3 text-sm leading-4 font-medium outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-muted-foreground';
 const { open: openConnectDialog } = useConnectChannelDialog();
 const { open: openCommandPalette } = useCommandPalette();
 const isMacPlatform = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -333,6 +345,7 @@ const reconnect = (channel: SidebarChannel): void => {
                             :name="channelName(draggedChannel)"
                             :size="28"
                             ring="sidebar"
+                            :reserve-space="!isCollapsedRail"
                         />
                         <span
                             class="truncate text-sm group-data-[collapsible=icon]:hidden"
@@ -359,33 +372,73 @@ const reconnect = (channel: SidebarChannel): void => {
                     >
                         <IconGripVertical class="size-3.5" />
                     </button>
-                    <SidebarMenuButton
-                        as-child
-                        :is-active="isCurrentChannel(channel)"
-                        class="h-9 gap-2 py-1 ps-2 max-md:pe-16 group-hover/channel:pe-16 group-has-focus-visible/channel:pe-16 data-[active=true]:bg-transparent data-[active=true]:hover:bg-sidebar-accent [&:has(~[data-sidebar=group-action]:hover)]:bg-sidebar-accent group-data-[collapsible=icon]:p-0.5! group-data-[collapsible=icon]:data-[active=true]:bg-sidebar-accent"
-                        :tooltip="
-                            isConnectionLost(channel) && !canManageAccounts
-                                ? `${channelName(channel)} - ${$t('channels.connection_lost_hint')}`
-                                : channelName(channel)
-                        "
+                    <HoverCard
+                        :open-delay="100"
+                        :close-delay="150"
+                        :open="isCollapsedRail ? undefined : false"
                     >
-                        <Link
-                            :href="publish.url(channel.id)"
-                            :data-testid="`sidebar-channel-${channel.id}`"
+                        <HoverCardTrigger as-child>
+                            <SidebarMenuButton
+                                as-child
+                                :is-active="isCurrentChannel(channel)"
+                                class="h-9 gap-2 py-1 ps-2 max-md:pe-16 group-hover/channel:pe-16 group-has-focus-visible/channel:pe-16 data-[active=true]:bg-transparent data-[active=true]:hover:bg-sidebar-accent [&:has(~[data-sidebar=group-action]:hover)]:bg-sidebar-accent group-data-[collapsible=icon]:overflow-visible group-data-[collapsible=icon]:p-0.5! group-data-[collapsible=icon]:data-[active=true]:bg-sidebar-accent"
+                            >
+                                <Link
+                                    :href="publish.url(channel.id)"
+                                    :data-testid="`sidebar-channel-${channel.id}`"
+                                >
+                                    <ChannelAvatar
+                                        :platform="channel.platform"
+                                        :src="channel.avatar_url"
+                                        :verified="channel.verified_badge"
+                                        :name="channelName(channel)"
+                                        :size="28"
+                                        ring="sidebar"
+                                        :reserve-space="!isCollapsedRail"
+                                        :status="canManageAccounts ? null : channel.status"
+                                        :account-id="channel.id"
+                                    />
+                                    <span class="truncate text-sm group-data-[collapsible=icon]:hidden">{{ channelName(channel) }}</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </HoverCardTrigger>
+                        <HoverCardContent
+                            side="right"
+                            align="start"
+                            :side-offset="10"
+                            class="w-auto min-w-[140px] rounded-xl border-0 px-2 py-3 shadow-md dark:border dark:border-border"
+                            :data-testid="`sidebar-channel-${channel.id}-card`"
                         >
-                            <ChannelAvatar
-                                :platform="channel.platform"
-                                :src="channel.avatar_url"
-                                :verified="channel.verified_badge"
-                                :name="channelName(channel)"
-                                :size="28"
-                                ring="sidebar"
-                                :status="canManageAccounts ? null : channel.status"
-                                :account-id="channel.id"
-                            />
-                            <span class="truncate text-sm">{{ channelName(channel) }}</span>
-                        </Link>
-                    </SidebarMenuButton>
+                            <p
+                                class="truncate px-2 py-1.5 text-xs text-muted-foreground"
+                                :data-testid="`sidebar-channel-${channel.id}-card-name`"
+                            >
+                                {{ channelName(channel) }}
+                            </p>
+                            <p
+                                v-if="isConnectionLost(channel) && !canManageAccounts"
+                                class="px-2 pb-1.5 text-xs text-destructive"
+                            >
+                                {{ $t('channels.connection_lost_hint') }}
+                            </p>
+                            <Link
+                                :href="publish.url(channel.id)"
+                                :class="channelCardItemClass"
+                                :data-testid="`sidebar-channel-${channel.id}-card-publish`"
+                            >
+                                <IconCalendarEvent />
+                                {{ $t('channels.publish') }}
+                            </Link>
+                            <Link
+                                :href="insights.url(channel.id)"
+                                :class="channelCardItemClass"
+                                :data-testid="`sidebar-channel-${channel.id}-card-insights`"
+                            >
+                                <IconTrendingUp />
+                                {{ $t('channels.insights') }}
+                            </Link>
+                        </HoverCardContent>
+                    </HoverCard>
                     <TooltipProvider
                         v-if="isConnectionLost(channel) && canManageAccounts"
                         :delay-duration="200"

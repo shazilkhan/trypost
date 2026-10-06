@@ -46,8 +46,8 @@ const { urlIsActive } = useActiveUrl();
                 </SidebarMenuBadge>
                 <Badge
                     v-else-if="item.badge"
-                    variant="warning"
-                    class="pointer-events-none absolute top-1/2 end-2 -translate-y-1/2 group-data-[collapsible=icon]:hidden"
+                    variant="secondary"
+                    class="pointer-events-none absolute top-1/2 end-2 h-5 -translate-y-1/2 px-1.5 group-data-[collapsible=icon]:hidden"
                 >
                     {{ item.badge }}
                 </Badge>

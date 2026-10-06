@@ -32,7 +32,6 @@ class CreateUser
             $requiresCardForTrial = (bool) config('trypost.billing.require_card_for_trial', true);
             $accountAttributes = [
                 'name' => data_get($data, 'name')."'s Account",
-                'billing_email' => data_get($data, 'email'),
             ];
 
             if (! $requiresCardForTrial) {

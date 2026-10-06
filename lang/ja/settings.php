@@ -26,7 +26,6 @@ return [
             'webhooks' => 'ウェブフック',
             'api_keys' => 'API キー',
             'mcp' => 'MCP',
-            'account' => 'アカウント',
             'billing' => 'お支払い',
         ],
     ],
@@ -272,19 +271,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'アカウント設定',
-        'description' => 'アカウント名と請求用メールアドレスを管理します',
-        'name' => 'アカウント名',
-        'name_placeholder' => 'マイカンパニー',
-        'billing_email' => '請求用メールアドレス',
-        'billing_email_placeholder' => 'billing@company.com',
-        'billing_email_hint' => 'このメールアドレスは、Stripe からの請求書や請求関連の連絡に使用されます。',
-        'submit' => '保存',
-    ],
-
     'flash' => [
-        'account_updated' => 'アカウントを正常に更新しました！',
         'profile_updated' => 'プロフィールを正常に更新しました！',
         'password_updated' => 'パスワードを正常に更新しました！',
         'workspace_updated' => '設定を正常に更新しました！',

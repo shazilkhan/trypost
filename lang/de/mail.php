@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'Du wurdest zu :account eingeladen',
-        'title' => 'Du wurdest zu :account eingeladen',
-        'preview' => 'Du wurdest zu :account eingeladen',
+        'subject' => 'Du wurdest zu :workspace eingeladen',
+        'title' => 'Du wurdest zu :workspace eingeladen',
+        'preview' => 'Du wurdest zu :workspace eingeladen',
         'heading' => 'Du wurdest eingeladen!',
-        'intro' => 'Du wurdest eingeladen, im Workspace <strong>:account</strong> mitzuarbeiten.',
+        'intro' => 'Du wurdest eingeladen, im Workspace <strong>:workspace</strong> mitzuarbeiten.',
         'role' => 'Du wurdest als <strong>:role</strong> eingeladen.',
         'roles' => ['admin' => 'Admin', 'member' => 'Mitglied', 'needs_approval' => 'Mitglied (Beiträge brauchen Freigabe)'],
         'button' => 'Einladung annehmen',

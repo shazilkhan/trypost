@@ -28,7 +28,6 @@ return [
             'webhooks' => 'Webhooks',
             'api_keys' => 'API-Keys',
             'mcp' => 'MCP',
-            'account' => 'Konto',
             'billing' => 'Abrechnung',
         ],
     ],
@@ -274,19 +273,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Kontoeinstellungen',
-        'description' => 'Verwalte deinen Kontonamen und deine Rechnungs-E-Mail',
-        'name' => 'Kontoname',
-        'name_placeholder' => 'Meine Firma',
-        'billing_email' => 'Rechnungs-E-Mail',
-        'billing_email_placeholder' => 'rechnung@firma.com',
-        'billing_email_hint' => 'Diese E-Mail-Adresse wird für Rechnungen und Abrechnungskommunikation von Stripe verwendet.',
-        'submit' => 'Speichern',
-    ],
-
     'flash' => [
-        'account_updated' => 'Konto erfolgreich aktualisiert!',
         'profile_updated' => 'Profil erfolgreich aktualisiert!',
         'password_updated' => 'Passwort erfolgreich aktualisiert!',
         'workspace_updated' => 'Einstellungen erfolgreich aktualisiert!',

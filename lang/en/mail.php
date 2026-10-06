@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => 'You\'ve been invited to join :account',
-        'title' => 'You\'ve been invited to join :account',
-        'preview' => 'You\'ve been invited to join :account',
+        'subject' => 'You\'ve been invited to join :workspace',
+        'title' => 'You\'ve been invited to join :workspace',
+        'preview' => 'You\'ve been invited to join :workspace',
         'heading' => 'You\'ve been invited!',
-        'intro' => 'You\'ve been invited to collaborate on the <strong>:account</strong> workspace.',
+        'intro' => 'You\'ve been invited to collaborate on the <strong>:workspace</strong> workspace.',
         'role' => 'You\'ve been invited as <strong>:role</strong>.',
         'roles' => ['admin' => 'Admin', 'member' => 'Member', 'needs_approval' => 'Member (posts need approval)'],
         'button' => 'Accept Invite',

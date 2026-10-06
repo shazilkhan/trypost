@@ -69,7 +69,7 @@
                     {{ __('mail.workspace_invite.heading') }}
                   </h1>
                   <p style="margin: 0; line-height: 24px">
-                    {!! __('mail.workspace_invite.intro', ['account' => '<strong>'.e($accountName).'</strong>']) !!}
+                    {!! __('mail.workspace_invite.intro', ['workspace' => e($workspaceName)]) !!}
                   </p>
                   <p style="margin: 16px 0 0; line-height: 24px">
                     @if($isAdmin)

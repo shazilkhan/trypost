@@ -74,7 +74,7 @@ const lastSyncedAt = computed<string | null>(() =>
                     }}
                 </p>
             </div>
-            <ul class="flex flex-col gap-3 px-4 py-3 text-sm text-foreground">
+            <ul class="flex flex-col gap-3 px-4 py-3 text-xs text-foreground">
                 <li class="flex gap-2.5" data-testid="insights-sync-new-posts">
                     <IconRefresh
                         class="mt-0.5 size-4 shrink-0 text-muted-foreground"

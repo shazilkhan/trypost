@@ -42,7 +42,6 @@ use App\Http\Controllers\App\RepurposeController;
 use App\Http\Controllers\App\RssFeedCollectionController;
 use App\Http\Controllers\App\RssFeedController;
 use App\Http\Controllers\App\RssFeedItemController;
-use App\Http\Controllers\App\Settings\AccountController;
 use App\Http\Controllers\App\Settings\AuthenticationController;
 use App\Http\Controllers\App\Settings\NotificationPreferenceController;
 use App\Http\Controllers\App\Settings\PreferencesController;
@@ -381,9 +380,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('settings/workspace/webhooks/{webhook}/rotate-secret', [WebhookController::class, 'rotateSecret'])->name('app.webhooks.rotate-secret');
     Route::post('settings/workspace/webhooks/{webhook}/logs/{webhookLog}/replay', [WebhookController::class, 'replay'])->name('app.webhooks.replay');
     Route::delete('settings/workspace/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('app.webhooks.destroy');
-
-    Route::get('settings/account', [AccountController::class, 'edit'])->name('app.account.edit');
-    Route::put('settings/account', [AccountController::class, 'update'])->name('app.account.update');
 
     Route::get('settings/account/billing', [BillingController::class, 'index'])->name('app.billing.index');
     Route::get('settings/account/billing/portal', [BillingController::class, 'portal'])->name('app.billing.portal');

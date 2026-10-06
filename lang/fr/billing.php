@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'Offres',
         'description' => 'Passez à une offre supérieure ou inférieure à tout moment.',
         'monthly' => 'Mensuel',
         'yearly' => 'Annuel',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'Essai',
-        'cancelling' => 'Annulation en cours',
-        'trial_ends' => 'Fin de l\'essai',
+    'current_plan' => [
+        'change' => 'Changer d\'offre',
+        'price_monthly' => ':price/mois',
+        'price_yearly' => ':price/an',
+        'trial_until' => 'Essai jusqu\'au :date',
+        'renews' => 'Renouvellement automatique',
+        'cancelled' => 'Annulé, se termine le :date',
+        'workspaces_usage' => 'Workspaces : :count sur :limit',
     ],
 
     'subscription' => [

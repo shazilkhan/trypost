@@ -19,7 +19,6 @@ return [
     ],
 
     'plans' => [
-        'title' => 'الخطط',
         'description' => 'يمكنك الترقية أو التخفيض في أي وقت.',
         'monthly' => 'شهري',
         'yearly' => 'سنوي',
@@ -61,10 +60,14 @@ return [
         ],
     ],
 
-    'plan' => [
-        'trial' => 'تجريبي',
-        'cancelling' => 'قيد الإلغاء',
-        'trial_ends' => 'تنتهي الفترة التجريبية',
+    'current_plan' => [
+        'change' => 'تغيير الخطة',
+        'price_monthly' => ':price/شهر',
+        'price_yearly' => ':price/سنة',
+        'trial_until' => 'فترة تجريبية حتى :date',
+        'renews' => 'يتجدد تلقائيًا',
+        'cancelled' => 'تم الإلغاء، ينتهي في :date',
+        'workspaces_usage' => 'مساحات العمل: :count من :limit',
     ],
 
     'subscription' => [

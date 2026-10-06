@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
-    IconAlertTriangle,
     IconBulb,
     IconCalendarEvent,
-    IconLayoutSidebarLeftCollapse,
-    IconLayoutSidebarLeftExpand,
     IconTrendingUp,
     IconFileText,
     IconLayoutGrid,
@@ -21,7 +18,7 @@ import AppLogo from '@/components/AppLogo.vue';
 import InviteMemberDialog from '@/components/members/InviteMemberDialog.vue';
 import NavChannels from '@/components/NavChannels.vue';
 import NavMain from '@/components/NavMain.vue';
-import { Avatar } from '@/components/ui/avatar';
+import SidebarUserMenu from '@/components/SidebarUserMenu.vue';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -37,41 +34,23 @@ import {
     SidebarHeader,
     useSidebar,
 } from '@/components/ui/sidebar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import WorkspaceMenuContent from '@/components/WorkspaceMenuContent.vue';
-import WorkspaceUpgradeDialog from '@/components/workspaces/WorkspaceUpgradeDialog.vue';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { insights } from '@/routes/app';
-import { portal } from '@/routes/app/billing';
 import { index as ideasIndex, create as createIdea } from '@/routes/app/create/ideas';
 import { index as repurposes } from '@/routes/app/repurposes';
-import type { NavItem, User } from '@/types';
+import type { NavItem } from '@/types';
 import type { SidebarChannel } from '@/types/channel';
 
-interface Workspace {
-    id: string;
-    name: string;
-    logo_url: string | null;
-}
-
 const page = usePage();
-const user = computed(() => page.props.auth.user as User);
-const currentWorkspace = computed<Workspace | null>(
-    () => page.props.auth.currentWorkspace as Workspace | null,
-);
-const workspaces = computed<Workspace[]>(
-    () => page.props.auth.workspaces as Workspace[],
-);
-const subscriptionPastDue = computed<boolean>(() =>
-    Boolean(page.props.auth.subscriptionPastDue),
+const currentWorkspace = computed(
+    () => page.props.auth.currentWorkspace,
 );
 
 const {
     canCreatePost,
     canManageRepurposes,
-    canCreateWorkspace,
     canManageAccounts,
     canManageTeam,
 } = useWorkspaceAbilities();
@@ -83,13 +62,7 @@ const openInviteMemberDialog = (): void => {
     inviteMemberDialogOpen.value = true;
 };
 
-const { isMobile, state: sidebarState, toggleSidebar } = useSidebar();
-
-const workspaceUpgradeDialogOpen = ref(false);
-
-const openWorkspaceUpgradeDialog = (): void => {
-    workspaceUpgradeDialogOpen.value = true;
-};
+const { isMobile, state: sidebarState } = useSidebar();
 
 const scheduledPostsCount = computed(() =>
     ((page.props.channels as SidebarChannel[] | undefined) ?? []).reduce(
@@ -263,117 +236,9 @@ const mainNavItems = computed<NavItem[]>(() => [
             <NavChannels v-if="currentWorkspace" />
         </SidebarContent>
         <SidebarFooter class="gap-0 p-0">
-            <div
-                v-if="subscriptionPastDue"
-                class="mx-4 mb-2 rounded-xl border border-destructive bg-destructive/10 p-3 group-data-[collapsible=icon]:hidden"
-            >
-                <div class="flex items-center gap-2 text-destructive">
-                    <IconAlertTriangle class="size-4 shrink-0" />
-                    <span class="text-sm font-medium">{{
-                        $t('billing.past_due_notice.title')
-                    }}</span>
-                </div>
-                <p class="mt-1 text-xs text-muted-foreground">
-                    {{ $t('billing.past_due_notice.description') }}
-                </p>
-                <Button
-                    as="a"
-                    :href="portal.url()"
-                    variant="destructive"
-                    size="sm"
-                    class="mt-2 w-full"
-                >
-                    {{ $t('billing.past_due_notice.cta') }}
-                </Button>
-            </div>
-            <div
-                class="flex items-center gap-2 border-t border-sidebar-border px-4 py-2.5 group-data-[collapsible=icon]:flex-col-reverse group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-2.5"
-            >
-                <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                        <button
-                            type="button"
-                            class="-ms-1.5 flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-lg py-1 ps-2 pe-0 text-start outline-hidden transition-control hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:ms-0 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:py-0 group-data-[collapsible=icon]:ps-0"
-                            data-test="sidebar-menu-button"
-                            data-testid="sidebar-workspace-menu"
-                        >
-                            <Avatar
-                                :src="user.photo_url"
-                                :name="user.name"
-                                class="size-8 shrink-0 rounded-lg"
-                                fallback-class="bg-primary-subtle text-primary-text text-xs font-medium"
-                            />
-                            <span
-                                class="grid min-w-0 flex-1 group-data-[collapsible=icon]:hidden"
-                            >
-                                <span
-                                    class="truncate text-sm font-medium text-sidebar-foreground"
-                                >
-                                    {{ user.name }}
-                                </span>
-                                <span
-                                    class="truncate text-xs text-muted-foreground"
-                                >
-                                    {{
-                                        currentWorkspace?.name ??
-                                        $t('sidebar.select_workspace')
-                                    }}
-                                </span>
-                            </span>
-                        </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                        class="w-64"
-                        align="start"
-                        side="top"
-                        :side-offset="4"
-                    >
-                        <WorkspaceMenuContent
-                            :user="user"
-                            :current-workspace="currentWorkspace"
-                            :workspaces="workspaces"
-                            :can-create-workspace="canCreateWorkspace"
-                            @upgrade-required="openWorkspaceUpgradeDialog"
-                        />
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <Tooltip v-if="!isMobile">
-                    <TooltipTrigger as-child>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            class="size-8 shrink-0 text-muted-foreground"
-                            :aria-label="
-                                sidebarState === 'collapsed'
-                                    ? $t('sidebar.expand')
-                                    : $t('sidebar.collapse')
-                            "
-                            data-testid="sidebar-footer-toggle"
-                            @click="toggleSidebar"
-                        >
-                            <IconLayoutSidebarLeftExpand
-                                v-if="sidebarState === 'collapsed'"
-                                class="size-4"
-                            />
-                            <IconLayoutSidebarLeftCollapse
-                                v-else
-                                class="size-4"
-                            />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent :side="sidebarState === 'collapsed' ? 'right' : 'top'">
-                        {{
-                            sidebarState === 'collapsed'
-                                ? $t('sidebar.expand')
-                                : $t('sidebar.collapse')
-                        }}
-                    </TooltipContent>
-                </Tooltip>
-            </div>
+            <SidebarUserMenu />
         </SidebarFooter>
 
-        <WorkspaceUpgradeDialog v-model:open="workspaceUpgradeDialogOpen" />
         <InviteMemberDialog
             v-if="canManageTeam"
             v-model:open="inviteMemberDialogOpen"

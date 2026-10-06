@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => '你被邀请加入 :account',
-        'title' => '你被邀请加入 :account',
-        'preview' => '你被邀请加入 :account',
+        'subject' => '你被邀请加入 :workspace',
+        'title' => '你被邀请加入 :workspace',
+        'preview' => '你被邀请加入 :workspace',
         'heading' => '你收到一份邀请',
-        'intro' => '你被邀请加入工作区 <strong>:account</strong> 一起协作。',
+        'intro' => '你被邀请加入工作区 <strong>:workspace</strong> 一起协作。',
         'role' => '你被邀请的角色是 <strong>:role</strong>。',
         'roles' => ['admin' => '管理员', 'member' => '成员', 'needs_approval' => '成员（帖子需要审批）'],
         'button' => '接受邀请',

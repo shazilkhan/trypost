@@ -78,5 +78,4 @@ test('a settings page description fits on one line in every language', function 
     'webhooks' => ['app.webhooks.index', 'webhooks.description'],
     'api keys' => ['app.api-keys.index', 'settings.api_keys.description'],
     'mcp' => ['app.mcp.index', 'mcp.subtitle'],
-    'account' => ['app.account.edit', 'settings.account.description'],
 ]);

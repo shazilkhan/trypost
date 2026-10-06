@@ -593,3 +593,54 @@ test('on desktop the workspace insights range keeps the segmented control', func
     $page->assertScript('document.querySelector("[data-testid=insights-range-mobile-trigger]").getBoundingClientRect().height', 0)
         ->assertNoJavaScriptErrors();
 });
+
+test('charts keep their width while the sidebar animates and resize once it settles', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+
+    $account = SocialAccount::factory()->create([
+        'workspace_id' => $workspace->id,
+        'platform' => Platform::Instagram,
+        'username' => 'first',
+    ]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'platform' => Platform::Instagram,
+        'network' => Platform::Instagram->network(),
+        'platform_user_id' => $account->platform_user_id,
+        'account_username' => 'first',
+        'date' => '2026-09-23',
+        'followers_count' => 120,
+    ]);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'))->resize(1440, 900);
+    waitForWorkspaceInsightsTestId($page, 'accounts-unovis-bar-chart');
+    waitForWorkspaceInsightsTestId($page, 'sidebar-footer-toggle');
+
+    $widths = $page->script(<<<'JS'
+        (async () => {
+            const chart = () => document.querySelector('[data-testid="accounts-unovis-bar-chart"] [data-vis-xy-container]');
+            const before = chart().getBoundingClientRect().width;
+            document.querySelector('[data-testid="sidebar-footer-toggle"]').click();
+            const during = [];
+            const started = performance.now();
+            while (performance.now() - started < 180) {
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                during.push(Math.round(chart().getBoundingClientRect().width));
+            }
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            return { before: Math.round(before), during, after: Math.round(chart().getBoundingClientRect().width) };
+        })();
+    JS);
+
+    expect(array_unique($widths['during']))->toBe([$widths['before']])
+        ->and($widths['after'])->toBeGreaterThan($widths['before']);
+    $page->assertNoJavaScriptErrors();
+});

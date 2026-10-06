@@ -28,7 +28,6 @@ return [
             'webhooks' => 'Webhooklar',
             'api_keys' => 'API Anahtarları',
             'mcp' => 'MCP',
-            'account' => 'Hesap',
             'billing' => 'Faturalandırma',
         ],
     ],
@@ -274,19 +273,7 @@ return [
         ],
     ],
 
-    'account' => [
-        'title' => 'Hesap Ayarları',
-        'description' => 'Hesap adınızı ve faturalandırma e-postanızı yönetin',
-        'name' => 'Hesap Adı',
-        'name_placeholder' => 'Şirketim',
-        'billing_email' => 'Faturalandırma E-postası',
-        'billing_email_placeholder' => 'fatura@sirket.com',
-        'billing_email_hint' => 'Bu e-posta, Stripe\'tan gelen faturalar ve faturalandırma iletişimleri için kullanılacak.',
-        'submit' => 'Kaydet',
-    ],
-
     'flash' => [
-        'account_updated' => 'Hesap başarıyla güncellendi!',
         'profile_updated' => 'Profil başarıyla güncellendi!',
         'password_updated' => 'Parola başarıyla güncellendi!',
         'workspace_updated' => 'Ayarlar başarıyla güncellendi!',

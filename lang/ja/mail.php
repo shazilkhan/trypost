@@ -143,11 +143,11 @@ return [
     ],
 
     'workspace_invite' => [
-        'subject' => ':account への招待が届いています',
-        'title' => ':account への招待が届いています',
-        'preview' => ':account への招待が届いています',
+        'subject' => ':workspace への招待が届いています',
+        'title' => ':workspace への招待が届いています',
+        'preview' => ':workspace への招待が届いています',
         'heading' => '招待が届いています',
-        'intro' => 'ワークスペース <strong>:account</strong> での共同作業に招待されました。',
+        'intro' => 'ワークスペース <strong>:workspace</strong> での共同作業に招待されました。',
         'role' => '<strong>:role</strong> として招待されました。',
         'roles' => ['admin' => '管理者', 'member' => 'メンバー', 'needs_approval' => 'メンバー（投稿は承認が必要）'],
         'button' => '招待を承認',
