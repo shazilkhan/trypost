@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
 
 /**
@@ -16,7 +17,7 @@ function cropPresetRatio(string $preset): float
 }
 
 test('every crop preset ratio sits inside the content type aspect ratio bounds', function (ContentType $type) {
-    $bounds = $type->aspectRatioBounds();
+    $bounds = $type->aspectRatioBounds(MediaType::Image);
 
     if ($bounds === null) {
         expect($type->cropPresets())->not->toBeEmpty();

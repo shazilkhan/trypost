@@ -66,8 +66,8 @@ class BuildChannelMetricSeries
             'previous' => $this->indexByDate($previousBuckets),
         ];
 
-        foreach ($this->publications($channel, $accountKey, $previous->start, $current->observedThrough, $filter) as $row) {
-            $day = min(substr((string) $row->provider_published_at, 0, 10), $current->end->toDateString());
+        foreach ($this->publications($channel, $accountKey, $previous->startsAt(), $current->endsAt(), $filter) as $row) {
+            $day = $current->localDate($row->provider_published_at);
             $period = array_key_exists($day, data_get($indexes, 'current')) ? 'current' : 'previous';
             $index = data_get($indexes, "{$period}.{$day}");
 

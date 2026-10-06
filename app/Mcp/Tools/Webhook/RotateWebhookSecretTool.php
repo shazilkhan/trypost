@@ -33,7 +33,7 @@ class RotateWebhookSecretTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate(['webhook_id' => ['required', 'string']]);
+        $validated = $request->validate(['webhook_id' => ['required', 'string', 'uuid']]);
 
         $webhook = $this->webhookInWorkspace($workspace, data_get($validated, 'webhook_id'));
 

@@ -12,6 +12,7 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -914,4 +915,55 @@ it('shows the origin of imported and trypost posts', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->getJson(route('api.posts.show', $ours))
         ->assertJsonPath('origin', 'trypost');
+});
+
+it('orders the post list the same way on every page with null and tied scheduled_at', function () {
+    config(['app.pagination.default' => 2]);
+    $tied = now()->addDays(3)->startOfSecond();
+
+    $make = fn (?CarbonInterface $scheduledAt, CarbonInterface $createdAt) => Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'scheduled_at' => $scheduledAt,
+        'created_at' => $createdAt,
+    ]);
+
+    $draftOld = $make(null, now()->subDays(5));
+    $draftNew = $make(null, now()->subDays(1));
+    $tiedOld = $make($tied, now()->subDays(4));
+    $tiedNew = $make($tied, now()->subDays(2));
+    $later = $make($tied->copy()->addDay(), now()->subDays(6));
+
+    $expected = [$draftNew->id, $draftOld->id, $later->id, $tiedNew->id, $tiedOld->id];
+
+    $ids = [];
+    foreach ([1, 2, 3] as $page) {
+        $ids = array_merge($ids, collect($this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+            ->getJson(route('api.posts.index', ['page' => $page]))
+            ->assertOk()
+            ->json('data'))->pluck('id')->all());
+    }
+
+    expect($ids)->toBe($expected);
+});
+
+it('edits a draft whose kept time has passed', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Draft,
+        'scheduled_at' => now()->subDay(),
+    ]);
+    PostPlatform::factory()->linkedin()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->socialAccount->id,
+        'enabled' => true,
+    ]);
+
+    $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+        ->putJson(route('api.posts.update', $post), ['content' => 'New text'])
+        ->assertOk();
+
+    expect($post->fresh()->content)->toBe('New text')
+        ->and($post->fresh()->status)->toBe(PostStatus::Draft);
 });

@@ -14,6 +14,8 @@ use Inertia\Inertia;
 
 class BuildIdeasPageProps
 {
+    public const UNASSIGNED = 'unassigned';
+
     /**
      * @param  array<string, mixed>|null  $editor
      * @return array<string, mixed>
@@ -37,6 +39,7 @@ class BuildIdeasPageProps
                 Idea::query()->where('workspace_id', $workspace->id)->whereNull('idea_stage_id'),
                 $filters,
             )->count(),
+            'hasData' => $workspace->ideas()->exists(),
             'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
             'filters' => $filters,
             'editor' => $editor,
@@ -44,16 +47,30 @@ class BuildIdeasPageProps
 
         if ($isGallery) {
             $props['ideas'] = Inertia::scroll(fn () => IdeaCardResource::collection(
-                ListIdeas::query($workspace, $filters)->paginate((int) config('app.pagination.default'))
+                ListIdeas::query($workspace, $filters)->forCards()->paginate((int) config('app.pagination.default'))
             ));
 
             return $props;
         }
 
-        $props['board'] = fn () => IdeaCardResource::collection(
-            ListIdeas::board($workspace, $filters)->get()
-        );
+        $props['columns'] = $workspace->ideaStages()->pluck('id')
+            ->prepend(null)
+            ->mapWithKeys(fn (?string $stageId): array => [
+                $stageId ?? self::UNASSIGNED => Inertia::scroll(fn () => IdeaCardResource::collection(
+                    ListIdeas::column($workspace, $stageId, $filters)
+                        ->forCards()
+                        ->paginate(ListIdeas::BOARD_PAGE_SIZE, pageName: self::columnPageName($stageId))
+                ))->matchOn('data.id'),
+            ])
+            ->all();
 
         return $props;
+    }
+
+    public static function columnPageName(?string $stageId): string
+    {
+        $key = $stageId ?? self::UNASSIGNED;
+
+        return "page_{$key}";
     }
 }

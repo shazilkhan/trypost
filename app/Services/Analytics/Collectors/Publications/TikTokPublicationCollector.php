@@ -45,6 +45,7 @@ class TikTokPublicationCollector extends AbstractPublicationHistoryCollector
 
             $category = match ($errorCode) {
                 'rate_limit_exceeded' => 'rate_limited',
+                'access_token_invalid' => 'authentication',
                 'internal_error' => 'transient',
                 default => 'permission',
             };

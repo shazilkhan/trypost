@@ -7,6 +7,7 @@ use App\Enums\SocialAccount\Status;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\Social\PendingConnection;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
 use Laravel\Socialite\Facades\Socialite;
@@ -53,13 +54,11 @@ test('x connect redirects to oauth provider', function () {
 
     $response->assertRedirect('https://twitter.com/i/oauth2/authorize?test=1');
 
-    expect(session('social_connect_workspace'))->toBe($this->workspace->id);
+    expect(PendingConnection::current()?->workspaceId())->toBe($this->workspace->id);
 });
 
 test('x oauth callback creates account', function () {
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace, Platform::X);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('123456789');
@@ -77,16 +76,15 @@ test('x oauth callback creates account', function () {
             'user' => $socialiteUser,
         ]));
 
-    $response = $this->actingAs($this->user)->get(route('app.social.x.callback'));
+    $this->actingAs($this->user)
+        ->get(route('app.social.x.callback'))
+        ->assertRedirect(route('app.social.connect.show', Platform::X));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page
-        ->component('accounts/PopupCallback')
-        ->where('success', true)
-        ->where('message', null)
-        ->where('accountId', $this->workspace->socialAccounts()->sole()->id)
-        ->where('created', true)
-    );
+    $this->assertDatabaseCount('social_accounts', 0);
+
+    assertFinishedOnChannel(finishSocialConnect(Platform::X))
+        ->assertInertiaFlash('connectedChannel.accountId', $this->workspace->socialAccounts()->sole()->id)
+        ->assertInertiaFlash('connectedChannel.created', true);
 
     $this->assertDatabaseHas('social_accounts', [
         'workspace_id' => $this->workspace->id,
@@ -98,9 +96,7 @@ test('x oauth callback creates account', function () {
 });
 
 test('x oauth callback stores the subscription tier', function () {
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace, Platform::X);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('123456789');
@@ -116,7 +112,8 @@ test('x oauth callback stores the subscription tier', function () {
         ->with('x')
         ->andReturn(Mockery::mock(['user' => $socialiteUser]));
 
-    $this->actingAs($this->user)->get(route('app.social.x.callback'))->assertOk();
+    $this->actingAs($this->user)->get(route('app.social.x.callback'))->assertRedirect();
+    finishSocialConnect(Platform::X)->assertRedirect();
 
     $account = $this->workspace->socialAccounts()->sole();
 
@@ -128,11 +125,15 @@ test('x oauth callback stores the subscription tier', function () {
 test('x callback fails with expired session', function () {
     // No session data - simulating expired session
 
-    $response = $this->actingAs($this->user)->get(route('app.social.x.callback'));
+    $this->actingAs($this->user)
+        ->get(route('app.social.x.callback'))
+        ->assertRedirect(route('app.social.connect.show', Platform::X));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('message', 'Session expired. Please try again.'));
+    $this->get(route('app.social.connect.show', Platform::X))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('accounts/ConnectFinish')
+            ->where('state', 'expired')
+        );
 });
 
 test('user can connect multiple x accounts', function () {
@@ -142,9 +143,7 @@ test('user can connect multiple x accounts', function () {
         'platform_user_id' => '123456789',
     ]);
 
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace, Platform::X);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('987654321');
@@ -162,10 +161,8 @@ test('user can connect multiple x accounts', function () {
             'user' => $socialiteUser,
         ]));
 
-    $response = $this->actingAs($this->user)->get(route('app.social.x.callback'));
-
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $this->actingAs($this->user)->get(route('app.social.x.callback'))->assertRedirect();
+    finishSocialConnect(Platform::X)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::X)->count())->toBe(2);
 });
@@ -178,10 +175,7 @@ test('x callback reconnects the original card', function () {
         'access_token' => 'expired-token',
     ]);
 
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-        'social_reconnect_id' => $account->id,
-    ]);
+    startSocialConnect($this->workspace, Platform::X, $account);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('123456789');
@@ -197,15 +191,11 @@ test('x callback reconnects the original card', function () {
         ->with('x')
         ->andReturn(Mockery::mock(['user' => $socialiteUser]));
 
-    $this->actingAs($this->user)
-        ->get(route('app.social.x.callback'))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('success', true)
-            ->where('message', null)
-            ->where('accountId', $account->id)
-            ->where('created', false)
-        );
+    $this->actingAs($this->user)->get(route('app.social.x.callback'))->assertRedirect();
+
+    finishSocialConnect(Platform::X)
+        ->assertInertiaFlash('connectedChannel.accountId', $account->id)
+        ->assertInertiaFlash('connectedChannel.created', false);
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::X)->count())->toBe(1)
         ->and($account->fresh()->access_token)->toBe('fresh-access-token')
@@ -213,9 +203,7 @@ test('x callback reconnects the original card', function () {
 });
 
 test('x callback handles oauth errors gracefully', function () {
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace, Platform::X);
 
     $mock = Mockery::mock();
     $mock->shouldReceive('user')->andThrow(new Exception('OAuth error'));
@@ -224,11 +212,11 @@ test('x callback handles oauth errors gracefully', function () {
         ->with('x')
         ->andReturn($mock);
 
-    $response = $this->actingAs($this->user)->get(route('app.social.x.callback'));
+    $this->actingAs($this->user)
+        ->get(route('app.social.x.callback'))
+        ->assertRedirect(route('app.social.connect.show', Platform::X));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('message', 'Error connecting account. Please try again.'));
+    expect(socialConnectFailure())->toBe('error_connecting');
 });
 
 test('x reconnect that authorizes another account says so', function () {
@@ -239,10 +227,7 @@ test('x reconnect that authorizes another account says so', function () {
         'username' => 'brand',
     ]);
 
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-        'social_reconnect_id' => $account->id,
-    ]);
+    startSocialConnect($this->workspace, Platform::X, $account);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('x-personal');
@@ -259,11 +244,9 @@ test('x reconnect that authorizes another account says so', function () {
 
     $this->actingAs($this->user)
         ->get(route('app.social.x.callback'))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('success', false)
-            ->where('message', __('accounts.popup_callback.wrong_account'))
-        );
+        ->assertRedirect(route('app.social.connect.show', Platform::X));
+
+    expect(socialConnectFailure())->toBe('wrong_account');
 
     expect($account->fresh()->platform_user_id)->toBe('x-brand');
 });

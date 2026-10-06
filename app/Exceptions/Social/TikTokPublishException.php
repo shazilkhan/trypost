@@ -40,12 +40,12 @@ class TikTokPublishException extends SocialPublishException
             default => [$errorMessage, ErrorCategory::Unknown],
         };
 
-        return new static(
+        return (new static(
             userMessage: $message,
             category: $category,
             platformErrorCode: $errorCode !== null ? (string) $errorCode : null,
             rawResponse: $rawResponse,
-        );
+        ))->withNetworkReset($response);
     }
 
     public static function fromFailReason(string $failReason, ?string $rawResponse = null): static

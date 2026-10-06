@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconTrendingDown, IconTrendingUp } from '@tabler/icons-vue';
+import { IconMinus, IconTrendingDown, IconTrendingUp } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import {
@@ -123,8 +123,13 @@ const changeLabel = (key: string, change: number | null): string | null => {
                         class="inline-flex items-center gap-1 text-xs text-foreground tabular-nums"
                     >
                         <IconTrendingUp
-                            v-if="card.metric.change! >= 0"
+                            v-if="card.metric.change! > 0"
                             class="size-4 shrink-0 text-success-text"
+                            aria-hidden="true"
+                        />
+                        <IconMinus
+                            v-else-if="card.metric.change === 0"
+                            class="size-4 shrink-0 text-muted-foreground"
                             aria-hidden="true"
                         />
                         <IconTrendingDown

@@ -680,6 +680,39 @@ test('a failed post without a stored reason explains it generically', function (
         ->assertNoJavaScriptErrors();
 });
 
+test('a publishing post waiting for a network limit shows when it retries', function () {
+    [$user, $workspace, $channel] = publishQueueSetup();
+    $user->update(['time_format' => TimeFormat::TwentyFourHour]);
+    $retryAt = now()->addHours(2)->startOfMinute();
+    $waiting = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $user->id,
+        'status' => PostStatus::Publishing,
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => now()->subMinute(),
+        'content' => 'Waiting for the limit',
+    ]);
+    PostPlatform::factory()->create([
+        'post_id' => $waiting->id,
+        'social_account_id' => $channel->id,
+        'platform' => $channel->platform,
+        'enabled' => true,
+        'status' => PostPlatformStatus::Retrying,
+        'retry_at' => $retryAt,
+        'error_message' => 'LinkedIn rate limit reached. Please try again later.',
+        'error_context' => ['category' => ErrorCategory::RateLimit->value, 'limit_retries' => 1],
+    ]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    waitForPublishQueueTestId($page, "post-limit-retry-{$waiting->id}");
+
+    $page->assertVisible("@post-publishing-{$waiting->id}")
+        ->assertSeeIn("@post-limit-retry-{$waiting->id}", __('posts.publish.retrying_at', ['time' => $retryAt->utc()->format('H:i')]))
+        ->assertDontSeeIn("@post-publishing-{$waiting->id}", __('posts.publish.publishing_on', ['network' => $channel->platform->label()]))
+        ->assertNoJavaScriptErrors();
+});
+
 test('a publishing post sits in its own queue group and moves to sent once it settles', function () {
     [$user, $workspace, $channel] = publishQueueSetup();
     $scheduled = publishQueuePost($user, $channel);

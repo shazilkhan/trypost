@@ -31,7 +31,7 @@ class UpdateLabelTool extends Tool
         }
 
         $validated = $request->validate([
-            'label_id' => ['required', 'string'],
+            'label_id' => ['required', 'string', 'uuid'],
             ...LabelRequestRules::rules(),
         ]);
 

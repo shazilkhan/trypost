@@ -84,6 +84,7 @@ export const useIdeaBoard = (options: {
         el: HTMLElement,
         list: HTMLElement,
         column: IdeaBoardColumnItem,
+        scroller?: HTMLElement,
     ) => () => void;
     registerColumnHandle: (
         handle: HTMLElement,
@@ -99,6 +100,7 @@ export const useIdeaBoard = (options: {
     const cards = new Map<HTMLElement, IdeaBoardCardItem>();
     const columns = new Map<HTMLElement, IdeaBoardColumnItem>();
     const lists = new Map<HTMLElement, HTMLElement>();
+    const scrollers = new Map<HTMLElement, HTMLElement>();
     let board: HTMLElement | null = null;
     let origin: { stageId: string | null; index: number } | null = null;
     let pointer: Pointer | null = null;
@@ -299,7 +301,7 @@ export const useIdeaBoard = (options: {
             if (cardPreview.value) {
                 placeCard(pointer, hoveredColumn);
                 listScroller.update(
-                    hoveredColumn ? (lists.get(hoveredColumn) ?? null) : null,
+                    hoveredColumn ? (scrollers.get(hoveredColumn) ?? null) : null,
                     pointer,
                 );
             } else {
@@ -384,9 +386,11 @@ export const useIdeaBoard = (options: {
         el: HTMLElement,
         list: HTMLElement,
         column: IdeaBoardColumnItem,
+        scroller: HTMLElement = list,
     ): (() => void) => {
         columns.set(el, column);
         lists.set(el, list);
+        scrollers.set(el, scroller);
 
         if (column.stageId !== null) {
             el.dataset.sortableStage = column.stageId;
@@ -401,6 +405,7 @@ export const useIdeaBoard = (options: {
         return () => {
             columns.delete(el);
             lists.delete(el);
+            scrollers.delete(el);
             delete el.dataset.sortableStage;
             cleanup();
         };

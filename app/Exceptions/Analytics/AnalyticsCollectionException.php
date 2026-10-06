@@ -15,6 +15,7 @@ class AnalyticsCollectionException extends Exception
         public readonly string $category,
         string $message,
         public readonly ?CarbonImmutable $retryAt = null,
+        public readonly bool $gone = false,
     ) {
         parent::__construct($message);
     }
@@ -27,6 +28,11 @@ class AnalyticsCollectionException extends Exception
     public static function malformed(string $message): self
     {
         return new self('malformed', $message);
+    }
+
+    public static function gone(string $message): self
+    {
+        return new self('malformed', $message, gone: true);
     }
 
     public static function fromResponse(Response $response, string $operation): self
@@ -45,6 +51,7 @@ class AnalyticsCollectionException extends Exception
             $category,
             "{$operation} failed with HTTP {$response->status()}",
             RetryAfter::from($response),
+            in_array($response->status(), [404, 410], true),
         );
     }
 }

@@ -27,6 +27,7 @@ const emit = defineEmits<{
 const open = ref(false);
 const error = ref('');
 const idea = ref<IdeaDraft | null>(null);
+let requestId = 0;
 
 const http = useHttp<
     { business: string; audience: string; notes: string },
@@ -38,6 +39,9 @@ const http = useHttp<
 });
 
 watch(open, (isOpen) => {
+    requestId++;
+    http.cancel();
+
     if (!isOpen) {
         return;
     }
@@ -71,9 +75,15 @@ const submit = async (): Promise<void> => {
     }
 
     error.value = '';
+    http.cancel();
+    const currentRequest = ++requestId;
 
     try {
         const result = await http.post(generate.url());
+
+        if (currentRequest !== requestId) {
+            return;
+        }
 
         if (!result) {
             error.value =
@@ -85,6 +95,10 @@ const submit = async (): Promise<void> => {
 
         idea.value = result;
     } catch (exception) {
+        if (currentRequest !== requestId) {
+            return;
+        }
+
         error.value =
             extractErrorMessage(exception) ??
             trans('create.ideas.errors.generate_failed');

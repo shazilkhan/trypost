@@ -47,7 +47,7 @@ test('the api exposes exactly the channel list, boards, discord channels, insigh
         ->values()
         ->all();
 
-    expect($apiChannelRoutes)->toEqual(['api.social-accounts.index', 'api.social-accounts.boards', 'api.social-accounts.boards.store', 'api.social-accounts.channels', 'api.channels.insights.show', 'api.channels.insights.publications', 'api.channels.posting-schedule.show', 'api.channels.posting-schedule.update', 'api.channels.posting-schedule.generate', 'api.channels.posting-schedule.copy', 'api.channels.queue.slots', 'api.channels.queue.order', 'api.channels.queue.slot'])
+    expect($apiChannelRoutes)->toEqual(['api.social-accounts.index', 'api.social-accounts.boards', 'api.social-accounts.boards.store', 'api.social-accounts.tiktok-creator-info', 'api.social-accounts.channels', 'api.channels.insights.show', 'api.channels.insights.publications', 'api.channels.posting-schedule.show', 'api.channels.posting-schedule.update', 'api.channels.posting-schedule.generate', 'api.channels.posting-schedule.copy', 'api.channels.queue.slots', 'api.channels.queue.order', 'api.channels.queue.slot'])
         ->and(Route::has('app.channels.disconnect'))->toBeTrue()
         ->and(Route::has('app.channels.posting-schedule.update'))->toBeTrue()
         ->and(Route::has('app.channels.reorder'))->toBeTrue();

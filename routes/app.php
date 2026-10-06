@@ -9,6 +9,7 @@ use App\Http\Controllers\App\CanvaController;
 use App\Http\Controllers\App\ChannelController;
 use App\Http\Controllers\App\ChannelPostingScheduleController;
 use App\Http\Controllers\App\ChannelQueueController;
+use App\Http\Controllers\App\ComposerAccountDataController;
 use App\Http\Controllers\App\ComposerLiveDataController;
 use App\Http\Controllers\App\DiscordController as AppDiscordController;
 use App\Http\Controllers\App\GoogleMediaController;
@@ -62,6 +63,7 @@ use App\Http\Controllers\Auth\InstagramFacebookController;
 use App\Http\Controllers\Auth\LinkedInController;
 use App\Http\Controllers\Auth\MastodonController;
 use App\Http\Controllers\Auth\PinterestController;
+use App\Http\Controllers\Auth\SocialConnectionController;
 use App\Http\Controllers\Auth\SocialController;
 use App\Http\Controllers\Auth\TelegramController;
 use App\Http\Controllers\Auth\ThreadsController;
@@ -74,7 +76,6 @@ use App\Http\Middleware\App\EnsureHasWorkspace;
 use App\Support\TemplateLibrary;
 use Illuminate\Support\Facades\Route;
 
-// Subscription selection (requires auth but not subscription)
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/', function () {
@@ -101,7 +102,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('workspaces', [WorkspaceController::class, 'store'])->name('app.workspaces.store');
 });
 
-// Social Connect routes
 Route::middleware(['auth'])->group(function () {
     // Starting a connection reads the user's current workspace, so these require
     // one — during onboarding they redirect to workspace creation. Disconnecting
@@ -109,9 +109,7 @@ Route::middleware(['auth'])->group(function () {
     // subscription exists; the controller still authorizes workspace ownership.
     Route::middleware(EnsureHasWorkspace::class)->group(function () {
         Route::get('connect/linkedin', [LinkedInController::class, 'connect'])->name('app.social.linkedin.connect');
-        Route::put('channels/{account}/posting-schedule', [ChannelPostingScheduleController::class, 'update'])->name('app.channels.posting-schedule.update');
         Route::post('channels/{account}/posting-schedule/generate', [ChannelPostingScheduleController::class, 'generate'])->name('app.channels.posting-schedule.generate');
-        Route::post('channels/{account}/posting-schedule/copy', [ChannelPostingScheduleController::class, 'copy'])->name('app.channels.posting-schedule.copy');
         Route::get('connect/x', [XController::class, 'connect'])->name('app.social.x.connect');
         Route::get('connect/tiktok', [TikTokController::class, 'connect'])->name('app.social.tiktok.connect');
         Route::get('connect/youtube', [YouTubeController::class, 'connect'])->name('app.social.youtube.connect');
@@ -131,13 +129,14 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('channels/{account}', [SocialController::class, 'disconnect'])->name('app.channels.disconnect');
     });
 
-    // OAuth callbacks and identity selection resolve their workspace from the
-    // session set when the flow started, then self-close the popup. They run
-    // without the current-workspace gate so a momentarily missing current
-    // workspace can't HTML-redirect the popup instead of closing it cleanly.
+    // OAuth callbacks and the confirmation page resolve their workspace from the
+    // pending connection stored when the flow started. They run without the
+    // current-workspace gate so a momentarily missing current workspace cannot
+    // send the user elsewhere mid-connection.
+    Route::get('connect/{platform}/finish', [SocialConnectionController::class, 'show'])->name('app.social.connect.show');
+    Route::post('connect/{platform}/finish', [SocialConnectionController::class, 'store'])->name('app.social.connect.finish');
+
     Route::get('accounts/linkedin/callback', [LinkedInController::class, 'callback'])->name('app.social.linkedin.callback');
-    Route::get('accounts/linkedin/select', [LinkedInController::class, 'selectIdentity'])->name('app.social.linkedin.select-identity');
-    Route::post('accounts/linkedin/select', [LinkedInController::class, 'select'])->name('app.social.linkedin.select');
 
     Route::get('accounts/x/callback', [XController::class, 'callback'])->name('app.social.x.callback');
 
@@ -146,16 +145,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('accounts/youtube/callback', [YouTubeController::class, 'callback'])->name('app.social.youtube.callback');
 
     Route::get('accounts/facebook/callback', [FacebookController::class, 'callback'])->name('app.social.facebook.callback');
-    Route::get('accounts/facebook/select', [FacebookController::class, 'selectPage'])->name('app.social.facebook.select-page');
-    Route::post('accounts/facebook/select', [FacebookController::class, 'select'])->name('app.social.facebook.select');
 
     Route::get('accounts/instagram/callback', [InstagramController::class, 'callback'])->name('app.social.instagram.callback');
-    Route::get('accounts/instagram/select', [InstagramController::class, 'selectAccount'])->name('app.social.instagram.select-account');
-    Route::post('accounts/instagram/select', [InstagramController::class, 'select'])->name('app.social.instagram.select');
 
     Route::get('accounts/instagram-facebook/callback', [InstagramFacebookController::class, 'callback'])->name('app.social.instagram-facebook.callback');
-    Route::get('accounts/instagram-facebook/select-page', [InstagramFacebookController::class, 'selectPage'])->name('app.social.instagram-facebook.select-page');
-    Route::post('accounts/instagram-facebook/select', [InstagramFacebookController::class, 'select'])->name('app.social.instagram-facebook.select');
 
     Route::get('accounts/threads/callback', [ThreadsController::class, 'callback'])->name('app.social.threads.callback');
 
@@ -166,11 +159,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('accounts/discord/callback', [DiscordController::class, 'callback'])->name('app.social.discord.callback');
 
     Route::get('accounts/google-business/callback', [GoogleBusinessController::class, 'callback'])->name('app.social.google-business.callback');
-    Route::get('accounts/google-business/select', [GoogleBusinessController::class, 'selectLocation'])->name('app.social.google-business.select-location');
-    Route::post('accounts/google-business/select', [GoogleBusinessController::class, 'select'])->name('app.social.google-business.select');
 });
 
-// Routes that require account access and a current workspace
 Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class])->group(function () {
     Route::get('favicon/{domain}', FaviconController::class)->where('domain', '.*')->name('app.favicon');
 
@@ -190,18 +180,15 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->middleware('throttle:10,1')
         ->name('app.pinterest.boards.store');
 
-    // Workspaces
     Route::get('workspaces', [WorkspaceController::class, 'index'])->name('app.workspaces.index');
     Route::post('workspaces/{workspace}/switch', [WorkspaceController::class, 'switch'])->name('app.workspaces.switch');
     Route::delete('workspaces/{workspace}', [WorkspaceController::class, 'destroy'])->name('app.workspaces.destroy');
 
-    // Workspace settings
     Route::get('settings/workspace', [WorkspaceController::class, 'settings'])->name('app.workspace.settings');
     Route::put('settings/workspace', [WorkspaceController::class, 'updateSettings'])->name('app.workspace.settings.update');
     Route::post('settings/workspace/logo', [WorkspaceController::class, 'uploadLogo'])->name('app.workspace.upload-logo');
     Route::delete('settings/workspace/logo', [WorkspaceController::class, 'deleteLogo'])->name('app.workspace.delete-logo');
 
-    // Channels
     Route::get('settings/workspace/channels', [ChannelController::class, 'index'])->name('app.workspace.channels');
     Route::put('settings/workspace/channels/order', [ChannelController::class, 'reorder'])->name('app.channels.reorder');
     Route::get('channels/{account}/publish', [ChannelController::class, 'publish'])->name('app.channels.publish');
@@ -214,10 +201,11 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->whereIn('format', ExportFormat::values())
         ->name('app.channels.insights.download');
     Route::get('channels/{account}/settings', [ChannelController::class, 'settings'])->name('app.channels.settings');
+    Route::put('channels/{account}/posting-schedule', [ChannelPostingScheduleController::class, 'update'])->name('app.channels.posting-schedule.update');
+    Route::post('channels/{account}/posting-schedule/copy', [ChannelPostingScheduleController::class, 'copy'])->name('app.channels.posting-schedule.copy');
     Route::put('channels/{account}/queue/order', [ChannelQueueController::class, 'reorder'])->name('app.channels.queue.order');
     Route::put('channels/{account}/queue/slot', [ChannelQueueController::class, 'moveToSlot'])->name('app.channels.queue.slot');
 
-    // Insights
     Route::get('insights', [InsightsController::class, 'index'])->name('app.insights');
     Route::get('insights/download/{format}', [InsightsController::class, 'download'])
         ->whereIn('format', ExportFormat::values())
@@ -226,14 +214,14 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->whereUuid('publication')
         ->name('app.insights.publications.details');
 
-    // Schedule
     Route::get('schedule', [PostController::class, 'index'])->name('app.posts.index');
     Route::get('schedule/calendar/{view?}', [PostController::class, 'calendar'])
         ->where('view', 'week|month')
         ->name('app.calendar');
 
-    // Posts
     Route::get('posts/composer/live', ComposerLiveDataController::class)->name('app.posts.composer.live');
+    Route::get('posts/composer/accounts/{account}', [ComposerAccountDataController::class, 'show'])->name('app.posts.composer.account');
+    Route::get('posts/composer/accounts/{account}/taken-slots', [ComposerAccountDataController::class, 'takenSlots'])->name('app.posts.composer.taken-slots');
     Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');
@@ -255,7 +243,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->middleware('throttle:media-imports')
         ->name('app.posts.link-preview-media');
 
-    // Post AI
     Route::post('posts/ai/assist', PostAiAssistantController::class)
         ->middleware('throttle:10,1')
         ->name('app.posts.ai.assist');
@@ -263,26 +250,22 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->middleware('throttle:10,1')
         ->name('app.posts.ai.alt-text');
 
-    // Post notes
     Route::get('posts/{post}/notes', [PostNoteController::class, 'index'])->name('app.posts.notes.index');
     Route::post('posts/{post}/notes', [PostNoteController::class, 'store'])->name('app.posts.notes.store');
     Route::put('posts/{post}/notes/{note}', [PostNoteController::class, 'update'])->name('app.posts.notes.update');
     Route::delete('posts/{post}/notes/{note}', [PostNoteController::class, 'destroy'])->name('app.posts.notes.destroy');
 
-    // Members
     Route::get('settings/workspace/members', [WorkspaceInviteController::class, 'index'])->name('app.members');
     Route::post('settings/workspace/members/invites', [WorkspaceInviteController::class, 'store'])->name('app.invites.store');
     Route::delete('settings/workspace/members/invites/{invite}', [WorkspaceInviteController::class, 'destroy'])->name('app.invites.destroy');
     Route::delete('settings/workspace/members/{user}', [WorkspaceInviteController::class, 'removeMember'])->name('app.members.remove');
     Route::put('settings/workspace/members/{user}', [WorkspaceInviteController::class, 'updateMember'])->name('app.members.update');
 
-    // Signatures
     Route::get('settings/workspace/signatures', [WorkspaceSignatureController::class, 'index'])->name('app.signatures.index');
     Route::post('settings/workspace/signatures', [WorkspaceSignatureController::class, 'store'])->name('app.signatures.store');
     Route::put('settings/workspace/signatures/{signature}', [WorkspaceSignatureController::class, 'update'])->name('app.signatures.update');
     Route::delete('settings/workspace/signatures/{signature}', [WorkspaceSignatureController::class, 'destroy'])->name('app.signatures.destroy');
 
-    // Media (temporary uploads)
     Route::post('media/chunked', [MediaUploadController::class, 'storeChunked'])->name('app.media.store-chunked');
     Route::get('media/{media}/file', [MediaFileController::class, 'show'])->whereUuid('media')->name('app.media.file');
     Route::post('media/from-url', [MediaUploadController::class, 'storeFromUrl'])
@@ -306,7 +289,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->where('session', GooglePhotosSessionController::SESSION_ROUTE_PATTERN)
         ->name('app.media.google-photos.sessions.destroy');
 
-    // Media sources > Google Drive and Google Photos (popup)
     Route::get('integrations/google/start', [GoogleMediaController::class, 'start'])
         ->middleware('throttle:media-imports')
         ->name('app.integrations.google.start');
@@ -318,7 +300,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->middleware('throttle:60,1')
         ->name('app.integrations.google.returns.claim');
 
-    // Media sources > Canva (popup)
     Route::get('integrations/canva/designs/create', [CanvaController::class, 'createDesign'])
         ->middleware('throttle:media-imports')
         ->name('app.integrations.canva.designs.create');
@@ -332,13 +313,11 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->middleware('throttle:60,1')
         ->name('app.integrations.canva.returns.show');
 
-    // Create > Idea stages
     Route::post('create/idea-stages', [IdeaStageController::class, 'store'])->name('app.create.idea-stages.store');
     Route::put('create/idea-stages/order', [IdeaStageController::class, 'reorder'])->name('app.create.idea-stages.reorder');
     Route::put('create/idea-stages/{ideaStage}', [IdeaStageController::class, 'update'])->whereUuid('ideaStage')->name('app.create.idea-stages.update');
     Route::delete('create/idea-stages/{ideaStage}', [IdeaStageController::class, 'destroy'])->whereUuid('ideaStage')->name('app.create.idea-stages.destroy');
 
-    // Create > Ideas
     Route::get('create/ideas', [IdeaController::class, 'index'])->name('app.create.ideas.index');
     Route::get('create/ideas/new', [IdeaController::class, 'create'])->name('app.create.ideas.create');
     Route::post('create/ideas/generate', IdeaGenerateController::class)->middleware('throttle:10,1')->name('app.create.ideas.generate');
@@ -350,7 +329,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('create/ideas/{idea}/duplicate', [IdeaController::class, 'duplicate'])->whereUuid('idea')->name('app.create.ideas.duplicate');
     Route::put('create/ideas/{idea}/move', [IdeaController::class, 'move'])->whereUuid('idea')->name('app.create.ideas.move');
 
-    // Create > Feeds
     Route::get('create/feeds', [RssFeedController::class, 'index'])->name('app.create.feeds.index');
     Route::get('create/feeds/collections/{rssFeedCollection}', [RssFeedController::class, 'collection'])->whereUuid('rssFeedCollection')->name('app.create.feeds.collections.show');
     Route::get('create/feeds/{rssFeed}', [RssFeedController::class, 'show'])->whereUuid('rssFeed')->name('app.create.feeds.show');
@@ -364,7 +342,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('create/feed-items/{rssFeedItem}/import-image', [RssFeedItemController::class, 'importImage'])->whereUuid('rssFeedItem')->middleware('throttle:30,1')->name('app.create.feed-items.import-image');
     Route::post('create/feed-items/{rssFeedItem}/idea', [RssFeedItemController::class, 'saveAsIdea'])->whereUuid('rssFeedItem')->middleware('throttle:30,1')->name('app.create.feed-items.idea');
 
-    // Create > Templates
     Route::get('create/templates', [PostTemplateController::class, 'index'])->name('app.create.templates.index');
     Route::get('create/templates/picker', PostTemplatePickerController::class)->name('app.create.templates.picker');
     Route::post('create/templates/library/{key}/duplicate', [LibraryTemplateController::class, 'duplicate'])->whereIn('key', TemplateLibrary::keys())->name('app.create.templates.library.duplicate');
@@ -373,23 +350,19 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::delete('create/templates/{postTemplate}', [PostTemplateController::class, 'destroy'])->whereUuid('postTemplate')->name('app.create.templates.destroy');
     Route::post('create/templates/{postTemplate}/duplicate', [PostTemplateController::class, 'duplicate'])->whereUuid('postTemplate')->name('app.create.templates.duplicate');
 
-    // Labels
     Route::get('settings/workspace/labels', [WorkspaceLabelController::class, 'index'])->name('app.labels.index');
     Route::post('settings/workspace/labels', [WorkspaceLabelController::class, 'store'])->name('app.labels.store');
     Route::put('settings/workspace/labels/{label}', [WorkspaceLabelController::class, 'update'])->name('app.labels.update');
     Route::delete('settings/workspace/labels/{label}', [WorkspaceLabelController::class, 'destroy'])->name('app.labels.destroy');
 
-    // API Keys
     Route::get('settings/workspace/api-keys', [ApiKeyController::class, 'index'])->name('app.api-keys.index');
     Route::post('settings/workspace/api-keys', [ApiKeyController::class, 'store'])->name('app.api-keys.store');
     Route::post('settings/workspace/api-keys/{tokenId}/regenerate', [ApiKeyController::class, 'regenerate'])->name('app.api-keys.regenerate');
     Route::delete('settings/workspace/api-keys/{tokenId}', [ApiKeyController::class, 'destroy'])->name('app.api-keys.destroy');
 
-    // MCP
     Route::get('settings/workspace/mcp', [McpSettingsController::class, 'index'])->name('app.mcp.index');
     Route::delete('settings/workspace/mcp/{client}', [McpSettingsController::class, 'disconnect'])->name('app.mcp.disconnect');
 
-    // Repurpose
     Route::get('repurposes', [RepurposeController::class, 'index'])->name('app.repurposes.index');
     Route::post('repurposes', [RepurposeController::class, 'store'])->name('app.repurposes.store');
     Route::get('repurposes/{repurpose}', [RepurposeController::class, 'show'])->name('app.repurposes.show');
@@ -400,7 +373,6 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('repurposes/{repurpose}/disable', [RepurposeController::class, 'disable'])->name('app.repurposes.disable');
     Route::delete('repurposes/{repurpose}', [RepurposeController::class, 'destroy'])->name('app.repurposes.destroy');
 
-    // Webhooks
     Route::get('settings/workspace/webhooks', [WebhookController::class, 'index'])->name('app.webhooks.index');
     Route::post('settings/workspace/webhooks', [WebhookController::class, 'store'])->name('app.webhooks.store');
     Route::get('settings/workspace/webhooks/{webhook}', [WebhookController::class, 'show'])->name('app.webhooks.show');
@@ -410,18 +382,15 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::post('settings/workspace/webhooks/{webhook}/logs/{webhookLog}/replay', [WebhookController::class, 'replay'])->name('app.webhooks.replay');
     Route::delete('settings/workspace/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('app.webhooks.destroy');
 
-    // Account Settings
     Route::get('settings/account', [AccountController::class, 'edit'])->name('app.account.edit');
     Route::put('settings/account', [AccountController::class, 'update'])->name('app.account.update');
 
-    // Billing
     Route::get('settings/account/billing', [BillingController::class, 'index'])->name('app.billing.index');
     Route::get('settings/account/billing/portal', [BillingController::class, 'portal'])->name('app.billing.portal');
     Route::post('settings/account/billing/change-plan', [BillingController::class, 'changePlan'])->name('app.billing.change-plan');
 
 });
 
-// Settings (auth required)
 Route::middleware(['auth'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('app.profile.edit');

@@ -46,4 +46,50 @@ class MoveIdea
             }
         });
     }
+
+    /**
+     * Places the idea right after another idea of the stage, or first when none is given.
+     */
+    public static function after(Idea $idea, ?string $stageId, ?string $afterIdeaId): void
+    {
+        DB::transaction(function () use ($idea, $stageId, $afterIdeaId): void {
+            $locked = Idea::query()
+                ->where('workspace_id', $idea->workspace_id)
+                ->where(function ($query) use ($idea, $stageId): void {
+                    $query->whereKey($idea->id)->orWhere('idea_stage_id', $stageId);
+                })
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id', 'idea_stage_id', 'position', 'created_at']);
+
+            if (! $locked->contains('id', $idea->id)) {
+                throw (new ModelNotFoundException)->setModel(Idea::class, [$idea->id]);
+            }
+
+            $siblings = $locked
+                ->reject(fn (Idea $candidate): bool => $candidate->id === $idea->id)
+                ->sortBy([['position', 'asc'], ['created_at', 'asc'], ['id', 'asc']])
+                ->pluck('id')
+                ->values();
+
+            $anchor = $afterIdeaId === null ? -1 : $siblings->search($afterIdeaId, true);
+
+            if ($anchor === false) {
+                throw ValidationException::withMessages([
+                    'after_idea_id' => __('create.ideas.errors.stale_idea_order'),
+                ]);
+            }
+
+            $ordered = $siblings->take($anchor + 1)->push($idea->id)->concat($siblings->slice($anchor + 1));
+            $positions = $locked->pluck('position', 'id');
+
+            $idea->update(['idea_stage_id' => $stageId]);
+
+            foreach ($ordered->values() as $position => $id) {
+                if ($positions->get($id) !== $position) {
+                    Idea::query()->whereKey($id)->update(['position' => $position]);
+                }
+            }
+        });
+    }
 }

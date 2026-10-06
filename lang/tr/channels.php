@@ -167,7 +167,6 @@ return [
         'refresh_after' => 'deneyin.',
         'irreversible' => 'Bu işlem geri alınamaz.',
         'description' => 'Bu işlem, taslaklar, zamanlanmış gönderiler ve yayın geçmişi dahil olmak üzere bu kanalın TryPost’taki tüm gönderilerini siler. Ağda zaten bulunan gönderiler orada kalır.',
-        'confirm' => 'Bağlantıyı kes',
         'keyword' => 'bağlantıyı kes',
         'cancel' => 'İptal',
     ],

@@ -24,6 +24,8 @@ class CollectAccountDailySnapshot implements ShouldQueue
 
     public int $tries = 0;
 
+    public int $maxExceptions = 3;
+
     public int $timeout = 150;
 
     public function __construct(
@@ -43,9 +45,15 @@ class CollectAccountDailySnapshot implements ShouldQueue
         ];
     }
 
+    /** @return list<int> */
+    public function backoff(): array
+    {
+        return [300, 1800, 3600];
+    }
+
     public function retryUntil(): CarbonImmutable
     {
-        return CarbonImmutable::parse($this->observationDate, 'UTC')->endOfDay();
+        return CarbonImmutable::parse($this->observationDate, 'UTC')->addDay()->endOfDay();
     }
 
     public function handle(
@@ -54,6 +62,14 @@ class CollectAccountDailySnapshot implements ShouldQueue
         WriteAccountDailySnapshot $writer,
         AnalyticsJobLog $log,
     ): void {
+        $today = CarbonImmutable::now('UTC')->toDateString();
+
+        if ($this->observationDate < $today) {
+            self::dispatch($this->socialAccountId, $today);
+
+            return;
+        }
+
         $account = SocialAccount::query()
             ->connected()
             ->find($this->socialAccountId);
@@ -66,7 +82,7 @@ class CollectAccountDailySnapshot implements ShouldQueue
         $alreadyCollected = AnalyticsAccountDailySnapshot::query()
             ->where('workspace_id', $account->workspace_id)
             ->where('social_account_key', $accountKeys->for($account))
-            ->whereDate('date', $this->observationDate)
+            ->where('date', $this->observationDate)
             ->where('provenance', ObservationProvenance::Actual)
             ->exists();
 

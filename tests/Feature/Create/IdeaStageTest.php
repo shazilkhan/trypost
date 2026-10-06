@@ -132,11 +132,11 @@ test('another workspace stage cannot be updated or deleted', function () {
 
     $this->actingAs($this->user)
         ->put(route('app.create.idea-stages.update', $foreign), ['name' => 'Nope'])
-        ->assertForbidden();
+        ->assertNotFound();
 
     $this->actingAs($this->user)
         ->delete(route('app.create.idea-stages.destroy', $foreign))
-        ->assertForbidden();
+        ->assertNotFound();
 
     expect($foreign->fresh()->name)->not->toBe('Nope');
 });

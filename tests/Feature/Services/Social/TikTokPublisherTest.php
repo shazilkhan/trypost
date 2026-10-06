@@ -838,6 +838,10 @@ test('tiktok publisher sends meta settings in video publish request', function (
         $this->api.'/post/publish/status/fetch/' => Http::response([
             'data' => ['status' => 'PUBLISH_COMPLETE'],
         ], 200),
+        $this->api.'/video/list/*' => Http::response([
+            'data' => ['videos' => [], 'has_more' => false],
+            'error' => ['code' => 'ok'],
+        ]),
     ]);
 
     $this->publisher->publish($this->postPlatform);
@@ -984,6 +988,10 @@ test('tiktok publisher uses default settings when only privacy_level is set', fu
         $this->api.'/post/publish/status/fetch/' => Http::response([
             'data' => ['status' => 'PUBLISH_COMPLETE'],
         ], 200),
+        $this->api.'/video/list/*' => Http::response([
+            'data' => ['videos' => [], 'has_more' => false],
+            'error' => ['code' => 'ok'],
+        ]),
     ]);
 
     $this->publisher->publish($this->postPlatform);

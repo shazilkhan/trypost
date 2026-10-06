@@ -289,6 +289,9 @@ test('an idea opened as a post neither prompts nor overwrites the unfinished pos
 
 test('a custom date still in the future is restored with its mode', function () {
     [$user, $workspace, $account] = composerAutosaveWorkspace();
+    $user->update(['timezone' => 'UTC']);
+    $account->update(['timezone' => 'UTC']);
+    $at = now('UTC')->addDays(3);
     $this->actingAs($user);
 
     $page = visit(route('app.posts.index'));
@@ -297,16 +300,17 @@ test('a custom date still in the future is restored with its mode', function () 
         'content' => 'Planned post',
         'accountIds' => [$account->id],
         'scheduleMode' => 'custom',
-        'scheduledAt' => now()->addDays(3)->format('Y-m-d\TH:i'),
+        'scheduledAt' => $at->format('Y-m-d\TH:i'),
     ]);
 
     openComposerForAutosave($page);
     waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
     $page->click('@composer-resume-confirm');
     waitForComposerAutosaveTestId($page, 'composer-submit');
+    waitForComposerAutosaveCondition($page, "JSON.parse(localStorage.getItem('{$key}') ?? 'null')?.scheduledAt !== '{$at->format('Y-m-d\TH:i')}'");
 
     expect($page->script('document.querySelector("[data-testid=composer-submit]").dataset.scheduleMode'))->toBe('custom')
-        ->and($page->script("JSON.parse(localStorage.getItem('{$key}')).scheduledAt"))->toBe(now()->addDays(3)->format('Y-m-d\TH:i'));
+        ->and($page->script("JSON.parse(localStorage.getItem('{$key}')).scheduledAt"))->toBe($at->format('Y-m-d\TH:i:00P'));
     $page->assertNoJavaScriptErrors();
 });
 
@@ -437,6 +441,39 @@ test('a restored custom time keeps its moment in the channel zone', function () 
 
     expect(Post::query()->where('workspace_id', $workspace->id)->sole()->scheduled_at->toIso8601String())
         ->toBe($local->utc()->toIso8601String());
+    $page->assertNoJavaScriptErrors();
+});
+
+test('a custom time is kept as its instant, so a later zone change does not move it', function () {
+    [$user, $workspace, $account] = composerAutosaveWorkspace();
+    $user->update(['timezone' => 'Asia/Tokyo', 'time_format' => TimeFormat::TwentyFourHour]);
+    $account->update(['timezone' => 'America/Sao_Paulo']);
+    $instant = now('UTC')->addDays(3)->setTime(13, 0);
+    $this->actingAs($user);
+
+    $page = visit(route('app.posts.index'));
+    $key = composerAutosaveKeyFor($user, $workspace);
+    seedComposerAutosave($page, $key, [
+        'content' => 'Saved as an instant',
+        'accountIds' => [$account->id],
+        'scheduleMode' => 'custom',
+        'scheduledAt' => $instant->format('Y-m-d\TH:i:00\Z'),
+    ]);
+
+    openComposerForAutosave($page);
+    waitForComposerAutosaveTestId($page, 'composer-resume-dialog');
+    $page->click('@composer-resume-confirm');
+    waitForComposerAutosaveTestId($page, 'composer-submit');
+
+    $local = $instant->copy()->setTimezone('America/Sao_Paulo');
+    expect(trim((string) $page->script('document.querySelector("[data-testid=composer-schedule-trigger]").textContent')))
+        ->toBe($local->format($local->year === now()->year ? 'M j' : 'M j, Y').', '.$local->format('H:i'));
+
+    $page->click('@composer-submit');
+    waitForComposerAutosaveCondition($page, '!document.querySelector(\'[data-testid="post-composer-dialog"]\')');
+
+    expect(Post::query()->where('workspace_id', $workspace->id)->sole()->scheduled_at->toIso8601String())
+        ->toBe($instant->toIso8601String());
     $page->assertNoJavaScriptErrors();
 });
 

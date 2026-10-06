@@ -14,6 +14,7 @@ use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Mcp\Concerns\DescribesPostMedia;
 use App\Models\Post;
 use App\Models\Workspace;
+use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
 use App\Support\Requests\Post\PostRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -73,7 +74,7 @@ class CreatePostsTool extends Tool
                     'content_type' => $destination->string()->description('Format for this destination. Optional. Omitted, it is chosen as the web composer does: on pinterest a video makes pinterest_video_pin, several images pinterest_carousel, else pinterest_pin; on tiktok images only make tiktok_photo, else tiktok_video; every other network takes its default_content_type (list-content-types-tool). A type sent explicitly is validated against the media and refused when they do not match.'),
                     'content' => $destination->string()->description('Caption override.'),
                     'media' => $this->mediaSchema($schema, 'Media override for this destination; same item shape as the shared media.'),
-                    'meta' => $destination->object()->description('Platform settings.'),
+                    'meta' => $destination->object()->description(PostPlatformMetaRules::documentation()),
                 ]))
                 ->required(),
         ];

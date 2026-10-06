@@ -55,8 +55,27 @@ trait HasSocialHttpClient
         );
     }
 
+    private bool $interactiveHttp = false;
+
+    /**
+     * A copy for reads a person is waiting on (the composer): each call gives
+     * up after a few seconds and a 429 is not retried, so one slow or
+     * rate-limited network cannot hold the page.
+     */
+    public function interactive(): static
+    {
+        $copy = clone $this;
+        $copy->interactiveHttp = true;
+
+        return $copy;
+    }
+
     protected function socialHttp(): PendingRequest
     {
+        if ($this->interactiveHttp) {
+            return Http::connectTimeout(3)->timeout(5);
+        }
+
         return Http::retry(
             times: 3,
             sleepMilliseconds: 5000,

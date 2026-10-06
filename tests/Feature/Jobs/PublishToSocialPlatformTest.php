@@ -279,6 +279,10 @@ test('publish reports token expiry so Nightwatch sees it', function () {
 
     $this->app->instance(LinkedInPublisher::class, $publisher);
 
+    $verifier = Mockery::mock(ConnectionVerifier::class);
+    $verifier->shouldReceive('verify')->andReturnTrue();
+    $this->app->instance(ConnectionVerifier::class, $verifier);
+
     (new PublishToSocialPlatform($this->postPlatform))->handle();
 
     Exceptions::assertReportedCount(1);
@@ -2072,7 +2076,7 @@ test('a published sibling stays unpublished at the post while google business is
     Queue::assertNotPushed(SendNotification::class);
 });
 
-test('a google business create that is rate limited fails the target', function () {
+test('a google business create that is rate limited waits for a retry instead of failing', function () {
     $account = SocialAccount::factory()->googleBusiness()->create([
         'workspace_id' => $this->workspace->id,
         'token_expires_at' => now()->addHour(),
@@ -2095,8 +2099,10 @@ test('a google business create that is rate limited fails the target', function 
 
     (new PublishToSocialPlatform($postPlatform))->handle();
 
-    expect($postPlatform->fresh()->status)->toBe(PlatformStatus::Failed)
-        ->and($post->fresh()->status)->toBe(PostStatus::Failed);
+    expect($postPlatform->fresh()->status)->toBe(PlatformStatus::Retrying)
+        ->and($postPlatform->fresh()->retry_at)->not->toBeNull()
+        ->and(Storage::exists("google-business-derivatives/{$postPlatform->id}.jpg"))->toBeFalse()
+        ->and($post->fresh()->status)->not->toBe(PostStatus::Failed);
 });
 
 test('a google business target already in review is not published a second time', function () {

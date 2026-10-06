@@ -47,6 +47,7 @@ export interface PostCardPlatform {
     platform_url?: string | null;
     error_message?: string | null;
     error_context?: { category?: string | null; failed_at?: string | null } | null;
+    retry_at?: string | null;
     social_account: PublishSocialAccount | null;
     content_type?: string;
     meta?: Record<string, any>;

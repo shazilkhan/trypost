@@ -383,3 +383,19 @@ test('approval emails name the canonical zone of a legacy alias', function () {
 
     expect((new PostApproved([$post->id], $approver, $author))->render())->toContain('October 7, 2026 20:30 (Asia/Kolkata)');
 });
+
+test('the email layout carries the recipient locale and direction', function (Locale $locale, string $direction) {
+    $account = Account::factory()->create(['name' => 'Acme Co']);
+    $invite = Invite::factory()->create([
+        'account_id' => $account->id,
+        'email' => 'invitee@example.com',
+        ...membershipPivot('approval'),
+    ]);
+
+    $mailable = (new WorkspaceInvite($invite))->locale($locale->value);
+
+    $mailable->assertSeeInHtml("<html lang=\"{$locale->value}\" dir=\"{$direction}\"", false);
+})->with([
+    'arabic' => [Locale::Arabic, 'rtl'],
+    'portuguese' => [Locale::PortugueseBrazil, 'ltr'],
+]);

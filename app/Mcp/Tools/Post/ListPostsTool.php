@@ -73,7 +73,7 @@ class ListPostsTool extends Tool
             $query->whereLike('content', '%'.$search.'%');
         }
 
-        $posts = $query->latest('scheduled_at')
+        $posts = $query->latestScheduledFirst()
             ->paginate((int) config('app.pagination.default'), page: (int) data_get($validated, 'page', 1));
 
         return Response::structured([

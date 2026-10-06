@@ -235,7 +235,18 @@ test('a repurpose from another workspace is not reachable', function () {
 
     $this->withHeaders(apiHeaders($this->token))
         ->getJson(route('api.repurposes.show', $stranger))
-        ->assertForbidden();
+        ->assertNotFound();
+});
+
+test('updating a repurpose from another workspace is not found before any validation', function () {
+    $stranger = Repurpose::factory()->create();
+
+    $this->withHeaders(apiHeaders($this->token))
+        ->putJson(route('api.repurposes.update', $stranger), [
+            'source_social_account_id' => 'not-an-account',
+            'destinations' => 'nope',
+        ])
+        ->assertNotFound();
 });
 
 test('an account from another workspace is rejected as a source', function () {

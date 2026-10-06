@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Actions\Post\Approval\ApprovePost;
 use App\Actions\Post\CreateChannelPost;
 use App\Actions\Post\Queue\ReflowChannelQueue;
+use App\Actions\Post\UpdatePost;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
@@ -467,6 +469,32 @@ test('a time zone change moves a pending holder to the first free slot when its 
     expect(postQueueSlot($holder, 'UTC'))->toBe('Wed 09:00');
 });
 
+test('a time zone change with no slot left turns a pending holder custom at its time', function () {
+    $this->travelTo(CarbonImmutable::parse('2037-12-27 08:00', 'America/Sao_Paulo'));
+    $requester = workspaceMember($this->workspace, 'approval');
+
+    postQueueStoreAtSlot($this, $requester, $this->channel, CarbonImmutable::parse('2037-12-30 09:00', 'America/Sao_Paulo'))
+        ->assertSessionHasNoErrors();
+    $holder = Post::query()->sole();
+    $custom = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => CarbonImmutable::parse('2037-12-30 09:00', 'UTC'), 'schedule_mode' => ScheduleMode::Custom]);
+    PostPlatform::factory()->create(['post_id' => $custom->id, 'social_account_id' => $this->channel->id, 'enabled' => true]);
+    $queued = postQueueStore($this, $this->channel);
+    $at = $holder->refresh()->scheduled_at;
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'UTC',
+            'posting_goal' => 3,
+            'posting_schedule' => $this->channel->posting_schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect(postQueueSlot($queued, 'UTC'))->toBe('Mon 09:00')
+        ->and($holder->refresh()->status)->toBe(PostStatus::PendingApproval)
+        ->and($holder->schedule_mode)->toBe(ScheduleMode::Custom)
+        ->and($holder->scheduled_at->equalTo($at))->toBeTrue();
+});
+
 function postQueueStoreAtSlot(object $test, User $user, SocialAccount $channel, CarbonImmutable $slot): TestResponse
 {
     $at = $slot->utc()->toIso8601String();
@@ -652,4 +680,27 @@ test('enqueueing rolls back when the channel has no slot left', function () {
     });
 
     expect(Post::count())->toBe(0);
+});
+
+test('a member who needs approval editing a queued post without queue keeps its slot reserved', function () {
+    $queued = postQueueStore($this, $this->channel);
+    $requester = workspaceMember($this->workspace, 'approval');
+
+    UpdatePost::execute($this->workspace, $queued, ['status' => 'scheduled', 'content' => 'Edited by a requester'], $requester);
+
+    $queued->refresh();
+    $next = postQueueStore($this, $this->channel);
+
+    expect($queued->status)->toBe(PostStatus::PendingApproval)
+        ->and($queued->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and($queued->approval_queue_position)->toBeNull()
+        ->and(postQueueSlot($queued))->toBe('Mon 09:00')
+        ->and(postQueueSlot($next))->toBe('Wed 09:00');
+
+    ApprovePost::execute($queued, $this->user);
+
+    expect($queued->refresh()->status)->toBe(PostStatus::Scheduled)
+        ->and($queued->schedule_mode)->toBe(ScheduleMode::Queue)
+        ->and(postQueueSlot($queued))->toBe('Mon 09:00')
+        ->and(postQueueSlot($next))->toBe('Wed 09:00');
 });

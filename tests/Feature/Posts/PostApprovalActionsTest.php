@@ -17,6 +17,7 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Webhook;
 use App\Models\Workspace;
+use App\Support\PostApproval;
 use App\Support\PostingSchedule;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Cache\Lock;
@@ -238,7 +239,7 @@ test('approving while another approval holds the post reports the queue as busy'
     $request = approvalActionsPost($this, $this->requester);
     $lock = Mockery::mock(Lock::class);
     $lock->shouldReceive('block')->andThrow(new LockTimeoutException);
-    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", 30)->andReturn($lock);
+    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", PostApproval::LOCK_SECONDS)->andReturn($lock);
 
     $this->actingAs($this->owner)
         ->put(route('app.posts.approve', $request))
@@ -274,7 +275,7 @@ test('rejecting while another approval holds the post reports the queue as busy'
     $request = approvalActionsPost($this, $this->requester);
     $lock = Mockery::mock(Lock::class);
     $lock->shouldReceive('block')->andThrow(new LockTimeoutException);
-    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", 30)->andReturn($lock);
+    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", PostApproval::LOCK_SECONDS)->andReturn($lock);
 
     $this->actingAs($this->owner)
         ->put(route('app.posts.reject', $request))
@@ -287,7 +288,7 @@ test('approving from the composer waits for the same approval lock', function ()
     $request = approvalActionsPost($this, $this->requester);
     $lock = Mockery::mock(Lock::class);
     $lock->shouldReceive('block')->andThrow(new LockTimeoutException);
-    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", 30)->andReturn($lock);
+    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", PostApproval::LOCK_SECONDS)->andReturn($lock);
 
     $this->actingAs($this->owner)
         ->put(route('app.posts.update', $request), ['status' => 'scheduled', 'queue' => 'next', 'content' => 'Approved in the composer'])

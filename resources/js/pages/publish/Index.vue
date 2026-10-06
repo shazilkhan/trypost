@@ -120,7 +120,6 @@ interface Props {
     filterAccounts: PublishSocialAccount[];
     openComposer?: boolean;
     openComposerAssistant?: boolean;
-    initialComposerDate?: string | null;
     editPost?: PostCard | null;
 }
 
@@ -650,19 +649,6 @@ const listProps = computed<string[]>(() =>
     props.tab === 'queue' ? ['posts', 'queue'] : ['posts'],
 );
 
-const hasActiveFilters = computed(
-    () =>
-        selectedLabelIds.value.length > 0 ||
-        selectedUntagged.value ||
-        selectedChannelIds.value.length > 0,
-);
-
-const isListLoaded = computed(() =>
-    listProps.value.every(
-        (key) => props[key as 'posts' | 'queue'] !== undefined,
-    ),
-);
-
 const showsQueueSlots = computed(
     () => props.tab === 'queue' && (showSlots.value || !props.channel),
 );
@@ -671,11 +657,7 @@ const hasListData = computed(
     () => props.hasData || (showsQueueSlots.value && props.hasQueueSlots),
 );
 
-const showFirstUse = computed(
-    () =>
-        !hasListData.value ||
-        (isListLoaded.value && isEmpty.value && !hasActiveFilters.value),
-);
+const showFirstUse = computed(() => !hasListData.value);
 
 const skeletonVariant = computed<'list' | 'timeline'>(() =>
     showsQueueSlots.value ? 'timeline' : 'list',
@@ -696,11 +678,27 @@ provide(deletePostCardKey, (post: PostCard) => {
     deleteModal.value?.open({ url: destroyPost.url(post.id) });
 });
 
-const refresh = (): void =>
+let refreshAfterReorder = false;
+
+const refresh = (): void => {
+    if (reordering.value) {
+        refreshAfterReorder = true;
+
+        return;
+    }
+
     router.reload({
         only: ['queue', 'posts', 'counts', 'hasData', 'channels'],
         reset: ['posts'],
     });
+};
+
+watch(reordering, (isReordering) => {
+    if (!isReordering && refreshAfterReorder) {
+        refreshAfterReorder = false;
+        refresh();
+    }
+});
 
 useWorkspaceEcho(
     ['.post.created', '.post.deleted', '.post.platform.status.updated'],
@@ -784,76 +782,66 @@ const onComposerOpenChange = (open: boolean): void => {
     router.visit(listUrl(), { replace: true, preserveScroll: true });
 };
 
-const submitComposition = (
-    composition: PostComposition,
-    createAnother: boolean,
-): void => {
+const submitComposition = (composition: PostComposition): void => {
+    const editPost = props.editPost;
+    if (!editPost) return;
     composerSubmitting.value = true;
     const options = {
         preserveScroll: true,
         onSuccess: () => {
             composerOpen.value = false;
-            if (createAnother) {
-                openPostComposer();
-            }
         },
         onFinish: () => {
             composerSubmitting.value = false;
         },
     };
-    const createOptions = {
-        ...options,
-        onSuccess: () => {
-            if (composition.queue) {
-                const count = composition.destinations.length;
-                toast.success(
-                    transChoice('posts.composer.queue.added', count, {
-                        count: String(count),
-                    }),
-                    { testId: 'queue-added-toast' },
-                );
-            }
-            options.onSuccess();
-        },
-    };
-    if (props.editPost) {
-        if (!initialPost.value) {
-            const data: Record<string, any> = {
-                ...composition,
-                recover_post_id: props.editPost.id,
-            };
-            router.post(storePost.url(), data, createOptions);
-            return;
-        }
-        const destination = composition.destinations[0];
+    if (!initialPost.value) {
         const data: Record<string, any> = {
-            status: composition.status,
-            content: destination.content ?? composition.content,
-            media: destination.media ?? composition.media,
-            content_type: destination.content_type,
-            meta: destination.meta,
-            label_ids: composition.label_ids,
-            ...(composition.queue
-                ? { queue: composition.queue }
-                : { scheduled_at: composition.scheduled_at }),
+            ...composition,
+            recover_post_id: editPost.id,
         };
-        router.put(updatePost.url(props.editPost.id), data, {
+        router.post(storePost.url(), data, {
             ...options,
             onSuccess: () => {
-                options.onSuccess();
-
-                if (new URLSearchParams(window.location.search).has('edit')) {
-                    router.visit(listUrl(), {
-                        replace: true,
-                        preserveScroll: true,
-                    });
+                if (composition.queue) {
+                    const count = composition.destinations.length;
+                    toast.success(
+                        transChoice('posts.composer.queue.added', count, {
+                            count: String(count),
+                        }),
+                        { testId: 'queue-added-toast' },
+                    );
                 }
+                options.onSuccess();
             },
         });
         return;
     }
-    const data: Record<string, any> = { ...composition };
-    router.post(storePost.url(), data, createOptions);
+    const destination = composition.destinations[0];
+    const data: Record<string, any> = {
+        status: composition.status,
+        content: destination.content ?? composition.content,
+        media: destination.media ?? composition.media,
+        content_type: destination.content_type,
+        meta: destination.meta,
+        label_ids: composition.label_ids,
+        ...(composition.queue
+            ? { queue: composition.queue }
+            : { scheduled_at: composition.scheduled_at }),
+    };
+    router.put(updatePost.url(editPost.id), data, {
+        ...options,
+        onSuccess: () => {
+            options.onSuccess();
+
+            if (new URLSearchParams(window.location.search).has('edit')) {
+                router.visit(listUrl(), {
+                    replace: true,
+                    preserveScroll: true,
+                });
+            }
+        },
+    });
 };
 </script>
 
@@ -1168,7 +1156,6 @@ const submitComposition = (
         :open-assistant="openComposerAssistant"
         :labels="composerLabels"
         :signatures="composerSignatures"
-        :initial-date="initialComposerDate"
         :submitting="composerSubmitting"
         :platform-configs="composerPlatformConfigs"
         :pinterest-boards="composerPinterestBoards"

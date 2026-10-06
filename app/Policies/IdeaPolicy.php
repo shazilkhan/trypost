@@ -6,6 +6,7 @@ namespace App\Policies;
 
 use App\Models\Idea;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 class IdeaPolicy
 {
@@ -20,18 +21,25 @@ class IdeaPolicy
         return $this->create($user);
     }
 
-    public function view(User $user, Idea $idea): bool
+    public function view(User $user, Idea $idea): bool|Response
     {
         return $this->update($user, $idea);
     }
 
-    public function update(User $user, Idea $idea): bool
+    /**
+     * An idea of another workspace is denied as not found, so its existence
+     * does not leak across tenants.
+     */
+    public function update(User $user, Idea $idea): bool|Response
     {
-        return $idea->workspace_id === $user->current_workspace_id
-            && $this->create($user);
+        if ($idea->workspace_id !== $user->current_workspace_id) {
+            return Response::denyAsNotFound();
+        }
+
+        return $this->create($user);
     }
 
-    public function delete(User $user, Idea $idea): bool
+    public function delete(User $user, Idea $idea): bool|Response
     {
         return $this->update($user, $idea);
     }

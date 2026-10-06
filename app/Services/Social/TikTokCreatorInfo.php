@@ -5,15 +5,37 @@ declare(strict_types=1);
 namespace App\Services\Social;
 
 use App\Enums\TikTok\PrivacyLevel;
+use App\Exceptions\PlatformUnavailableException;
 use App\Models\SocialAccount;
 use App\Services\Social\Concerns\HasSocialHttpClient;
+use App\Support\Social\NetworkLimitReset;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\Response;
 
 class TikTokCreatorInfo
 {
     use HasSocialHttpClient;
+
+    /**
+     * Error codes with which TikTok answers that the creator cannot post.
+     */
+    private const array CANNOT_POST_CODES = [
+        'spam_risk_user_banned_from_posting',
+    ];
+
+    /**
+     * Error codes with which TikTok answers that a limit was reached (daily
+     * post cap, daily active-user quota, rate limit). Not "can't post": a
+     * scheduled post retries once the limit lifts.
+     */
+    private const array LIMIT_CODES = [
+        'spam_risk_too_many_posts',
+        'reached_active_user_cap',
+        'rate_limit_exceeded',
+    ];
 
     private string $baseUrl;
 
@@ -45,7 +67,56 @@ class TikTokCreatorInfo
             return $cached;
         }
 
-        $creatorInfo = $this->fetchFresh($account);
+        try {
+            $creatorInfo = $this->fetchFresh($account);
+        } catch (PlatformUnavailableException) {
+            return $this->emptyPayload();
+        }
+
+        if ($creatorInfo === null) {
+            return $this->emptyPayload();
+        }
+
+        Cache::put($cacheKey, $creatorInfo, now()->addMinutes(5));
+
+        return $creatorInfo;
+    }
+
+    /**
+     * Like fetch(), but a TikTok that did not answer throws instead of looking
+     * like a creator who cannot post: 503 on a timeout, 429 on a limit (daily
+     * post cap, active-user quota, rate limit; retryDelaySeconds when TikTok
+     * says when it lifts), 502 on any other failure. A creator TikTok bans from
+     * posting is an answer and comes back with no privacy options. Failures
+     * are not cached.
+     *
+     * @return array{
+     *     creator_nickname: ?string,
+     *     creator_username: ?string,
+     *     creator_avatar_url: ?string,
+     *     privacy_level_options: array<int, string>,
+     *     comment_disabled: bool,
+     *     duet_disabled: bool,
+     *     stitch_disabled: bool,
+     *     max_video_post_duration_sec: ?int,
+     * }
+     *
+     * @throws PlatformUnavailableException
+     */
+    public function fetchOrFail(SocialAccount $account): array
+    {
+        $cacheKey = "tiktok:creator_info:{$account->id}";
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        try {
+            $creatorInfo = $this->fetchFresh($account);
+        } catch (ConnectionException) {
+            throw new PlatformUnavailableException(__('posts.form.tiktok.creator_info_unavailable'), Response::HTTP_SERVICE_UNAVAILABLE);
+        }
 
         if ($creatorInfo === null) {
             return $this->emptyPayload();
@@ -67,6 +138,8 @@ class TikTokCreatorInfo
      *     stitch_disabled: bool,
      *     max_video_post_duration_sec: ?int,
      * }|null
+     *
+     * @throws PlatformUnavailableException
      */
     private function fetchFresh(SocialAccount $account): ?array
     {
@@ -86,7 +159,24 @@ class TikTokCreatorInfo
                 'body' => $this->redactResponseBody($response->body()),
             ]);
 
-            return null;
+            $errorCode = data_get($response->json(), 'error.code');
+
+            if (in_array($errorCode, self::CANNOT_POST_CODES, true)) {
+                return null;
+            }
+
+            if (in_array($errorCode, self::LIMIT_CODES, true)) {
+                $resetAt = NetworkLimitReset::from($response);
+
+                throw new PlatformUnavailableException(
+                    __('posts.form.tiktok.creator_info_limit_reached'),
+                    Response::HTTP_TOO_MANY_REQUESTS,
+                    ['platform_error_code' => $errorCode],
+                    $resetAt === null ? null : (int) ceil(now()->diffInSeconds($resetAt)),
+                );
+            }
+
+            throw new PlatformUnavailableException(__('posts.form.tiktok.creator_info_unavailable'), Response::HTTP_BAD_GATEWAY);
         }
 
         $data = data_get($response->json(), 'data', []);

@@ -24,6 +24,12 @@ const labelIds = defineModel<string[]>('labelIds', { required: true });
 const untagged = defineModel<boolean>('untagged', { required: true });
 const unassigned = defineModel<boolean>('unassigned', { required: true });
 
+const changeView = (key: IdeasView): void => {
+    if (props.view !== key) {
+        emit('changeView', key);
+    }
+};
+
 const clearUnassigned = (): void => {
     unassigned.value = false;
 };
@@ -111,7 +117,7 @@ const views: { key: IdeasView; label: string; icon: typeof IconColumns3 }[] = [
                         ? 'bg-primary-selected text-primary-text'
                         : 'text-foreground hover:bg-accent'
                 "
-                @click="view !== option.key && emit('changeView', option.key)"
+                @click="changeView(option.key)"
             >
                 <component :is="option.icon" class="size-4" />
                 <span class="hidden sm:inline">{{ $t(option.label) }}</span>

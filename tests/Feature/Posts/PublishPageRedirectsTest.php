@@ -65,7 +65,7 @@ test('scheduling an edit from the channel page returns to that page queue tab wi
         ->from(route('app.channels.publish', [$this->channel, 'tab' => 'drafts', 'tz' => 'UTC', 'edit' => $post->id]))
         ->put(route('app.posts.update', $post), publishRedirectUpdatePayload($post, 'scheduled'))
         ->assertRedirect(route('app.channels.publish', [$this->channel, 'tab' => 'queue', 'tz' => 'UTC']))
-        ->assertSessionHas('flash.banner', __('posts.flash.scheduled'));
+        ->assertSessionMissing('flash.banner');
 
     expect($post->fresh()->status)->toBe(PostStatus::Scheduled);
 });
@@ -137,7 +137,7 @@ test('deleting from the channel page returns to that page', function () {
         ->from(route('app.channels.publish', [$this->channel, 'tab' => 'drafts']))
         ->delete(route('app.posts.destroy', $post))
         ->assertRedirect(route('app.channels.publish', [$this->channel, 'tab' => 'drafts']))
-        ->assertSessionHas('flash.banner', __('posts.flash.deleted'));
+        ->assertSessionMissing('flash.banner');
 
     expect(Post::find($post->id))->toBeNull();
 });

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\Notification\Channel;
 use App\Enums\Notification\Type;
 use App\Mail\PostApprovalRequested;
 use App\Models\Post;
@@ -17,11 +18,15 @@ use Throwable;
 
 class SendNotification implements ShouldQueue
 {
-    use Queueable;
+    use Queueable {
+        __unserialize as restoreQueuedProperties;
+    }
 
     public int $tries = 3;
 
     public int $backoff = 10;
+
+    private bool $deliversEmail = true;
 
     public function __construct(
         public User $user,
@@ -31,11 +36,26 @@ class SendNotification implements ShouldQueue
 
     public function handle(): void
     {
-        if (! $this->user->wantsEmailFor($this->type) || ! $this->keepsPendingApprovalPosts()) {
+        if (! $this->deliversEmail || ! $this->user->wantsEmailFor($this->type) || ! $this->keepsPendingApprovalPosts()) {
             return;
         }
 
         Mail::to($this->user)->send($this->mailable);
+    }
+
+    /**
+     * @param  array<string, mixed>  $values
+     */
+    public function __unserialize(array $values): void
+    {
+        $deliversEmail = data_get($values, 'channel') !== Channel::InApp && data_get($values, 'mailable') instanceof Mailable;
+
+        if (! $deliversEmail) {
+            unset($values['mailable']);
+        }
+
+        $this->restoreQueuedProperties($values);
+        $this->deliversEmail = $deliversEmail;
     }
 
     /**

@@ -6,14 +6,16 @@ namespace App\Http\Requests\Api\Repurpose;
 
 use App\Models\Repurpose;
 use App\Support\Requests\Repurpose\RepurposeRequestRules;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
 class UpdateRepurposeRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response
     {
-        return true;
+        return Gate::forUser($this->user())->inspect('update', $this->repurpose());
     }
 
     private function workspaceId(): ?string

@@ -31,7 +31,7 @@ class UpdateSignatureTool extends Tool
         }
 
         $validated = $request->validate([
-            'signature_id' => ['required', 'string'],
+            'signature_id' => ['required', 'string', 'uuid'],
             ...SignatureRequestRules::rules(),
         ]);
 

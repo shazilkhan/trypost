@@ -188,7 +188,7 @@ test('receiver deletes the cloud object when media registration fails after mult
         13,
         14,
         'attempt-1',
-    ))->toThrow(InvalidArgumentException::class);
+    ))->toThrow(ValidationException::class, __('posts.composer.upload_errors.unsupported_type'));
 
     Storage::assertMissing('medias/orphan.mp4');
     expect($this->workspace->getMedia(Media::COLLECTION_UPLOADS)->count())->toBe(0);

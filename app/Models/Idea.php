@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Dto\MediaItem;
 use Database\Factories\IdeaFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,6 +24,8 @@ class Idea extends Model
     public const int MAX_MEDIA = 10;
 
     public const int MAX_BATCH = 500;
+
+    public const int EXCERPT_LENGTH = 300;
 
     protected $fillable = [
         'workspace_id',
@@ -52,6 +55,17 @@ class Idea extends Model
         return Attribute::make(
             get: fn () => collect($this->media ?? [])->map(fn (array $item) => MediaItem::fromArray($item)),
         );
+    }
+
+    /**
+     * Only what a board card renders; the body is cut to the card excerpt length in SQL.
+     *
+     * @param  Builder<Idea>  $query
+     */
+    public function scopeForCards(Builder $query): void
+    {
+        $query->select(['id', 'workspace_id', 'idea_stage_id', 'title', 'media', 'position', 'created_at'])
+            ->selectRaw('SUBSTR(body, 1, ?) as body', [self::EXCERPT_LENGTH]);
     }
 
     public function workspace(): BelongsTo

@@ -8,8 +8,11 @@ use App\Actions\Ai\AssistPostContent;
 use App\Enums\Ai\PostAssistantMode;
 use App\Enums\SocialAccount\Platform;
 use App\Http\Requests\App\Ai\AssistPostContentRequest;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
+use Laravel\Ai\Exceptions\AiException;
 use Symfony\Component\HttpFoundation\Response;
 
 class PostAiAssistantController extends Controller
@@ -25,8 +28,8 @@ class PostAiAssistantController extends Controller
             return response()->json(['message' => $gate->message()], Response::HTTP_PAYMENT_REQUIRED);
         }
 
-        return response()->json([
-            'content' => AssistPostContent::execute(
+        try {
+            $content = AssistPostContent::execute(
                 workspace: $workspace,
                 user: $request->user(),
                 mode: PostAssistantMode::from($request->string('mode')->toString()),
@@ -37,7 +40,11 @@ class PostAiAssistantController extends Controller
                 account: $request->filled('social_account_id')
                     ? $workspace->socialAccounts()->find($request->input('social_account_id'))
                     : null,
-            ),
-        ]);
+            );
+        } catch (AiException|RequestException|ConnectionException) {
+            return response()->json(['message' => __('posts.composer.assistant_error')], Response::HTTP_BAD_GATEWAY);
+        }
+
+        return response()->json(['content' => $content]);
     }
 }

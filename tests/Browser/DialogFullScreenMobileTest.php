@@ -116,7 +116,6 @@ test('on a phone an alert dialog fills the screen with its footer in view', func
 
     $page = visit(route('app.workspace.channels'))->resize(390, 844);
     waitForDialogFullScreenTestId($page, 'channels-empty-connect');
-    $page->script('window.open = () => ({ closed: false, focus() {} });');
     $page->click('@channels-empty-connect');
     waitForDialogFullScreenTestId($page, 'connect-channel-instagram');
     $page->click('@connect-channel-instagram');

@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'Όνομα συλλογής',
         'all_feeds' => 'Όλες οι ροές',
         'feeds_root' => 'Ροές',
-        'collection_feeds' => 'Ροές σε αυτή τη συλλογή',
         'collection_menu' => 'Εμφάνιση ροών στο :name',
         'last_refreshed' => 'Ανανεώθηκε :time',
         'never_refreshed' => 'Δεν έχει ανανεωθεί ακόμα',

@@ -25,10 +25,6 @@ function fetchRssFeedItemImageTestItem(string $url, array $attributes = []): Rss
     return RssFeedItem::factory()->create(['url' => $url, 'image_url' => null, 'image_checked_at' => null, ...$attributes]);
 }
 
-beforeEach(function () {
-    Http::preventStrayRequests();
-});
-
 test('stores the og:image of the item page', function () {
     Http::fake(['http://93.184.216.34/post' => Http::response(fetchRssFeedItemImageTestFixture('page_with_og_image.html'))]);
     $item = fetchRssFeedItemImageTestItem('http://93.184.216.34/post');

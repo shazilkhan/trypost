@@ -141,9 +141,7 @@ const accountColors = computed<Record<string, string>>(() => {
                         :bounds="report.bounds"
                         :url="insightsRoute.url()"
                         :range="report.range"
-                        :previous-range="report.previous_range"
                         :keep="filterQuery"
-                        hide-caption
                     />
                     <div
                         class="flex min-w-0 flex-wrap items-center gap-2"

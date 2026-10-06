@@ -2,15 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Actions\Post\CreatePosts;
 use App\Actions\Post\UpdatePost;
+use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\Status as PlatformStatus;
+use App\Jobs\PublishPost;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Social\GoogleBusinessDerivativeCleaner;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -178,3 +182,43 @@ test('disabled youtube metadata does not block scheduling', function (bool $resu
     'omitted platforms' => [false],
     'deselected platforms' => [true],
 ]);
+
+test('an edit does not land on a post the scheduler claimed after it was loaded', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+    $post = CreatePosts::execute($workspace, $user, [
+        'status' => 'scheduled',
+        'scheduled_at' => now()->addHour()->toIso8601String(),
+        'content' => 'Original',
+        'destinations' => [['social_account_id' => $account->id]],
+    ])->sole();
+
+    Post::query()->whereKey($post->id)->update(['status' => PostStatus::Publishing]);
+
+    $result = UpdatePost::execute($workspace, $post, ['status' => 'draft', 'content' => 'Edited']);
+
+    expect($result['action'])->toBe(PostAction::Finalized)
+        ->and($post->fresh()->status)->toBe(PostStatus::Publishing)
+        ->and($post->fresh()->content)->toBe('Original');
+});
+
+test('a second publish now after the post settled is a no-op', function () {
+    Queue::fake();
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+    $post = CreatePosts::execute($workspace, $user, [
+        'status' => 'draft',
+        'content' => 'Original',
+        'destinations' => [['social_account_id' => $account->id]],
+    ])->sole();
+
+    Post::query()->whereKey($post->id)->update(['status' => PostStatus::Published]);
+
+    $result = UpdatePost::execute($workspace, $post, ['status' => 'publishing']);
+
+    expect($result['action'])->toBe(PostAction::Finalized)
+        ->and($post->fresh()->status)->toBe(PostStatus::Published);
+    Queue::assertNotPushed(PublishPost::class);
+});

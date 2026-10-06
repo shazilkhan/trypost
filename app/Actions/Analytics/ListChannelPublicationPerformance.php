@@ -49,7 +49,7 @@ class ListChannelPublicationPerformance
         }
 
         $paginator = $this->latestSnapshots
-            ->execute($channel->workspace_id, [$accountKey ?? $this->accountKey->for($channel)], $range->start, $range->observedThrough)
+            ->execute($channel->workspace_id, [$accountKey ?? $this->accountKey->for($channel)], $range->startsAt(), $range->endsAt())
             ->leftJoin((new PostPlatform)->getTable().' as destination', 'destination.id', '=', 'publication.post_platform_id')
             ->when($filter !== null, fn (Builder $filtered): Builder => $filter->apply($filtered))
             ->select([

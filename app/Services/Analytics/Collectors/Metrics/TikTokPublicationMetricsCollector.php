@@ -25,7 +25,12 @@ class TikTokPublicationMetricsCollector extends AbstractPublicationMetricsCollec
 
         if (is_string($errorCode) && ! in_array($errorCode, ['', 'ok'], true)) {
             throw new AnalyticsCollectionException(
-                $errorCode === 'rate_limit_exceeded' ? 'rate_limited' : 'permission',
+                match ($errorCode) {
+                    'rate_limit_exceeded' => 'rate_limited',
+                    'access_token_invalid' => 'authentication',
+                    'internal_error' => 'transient',
+                    default => 'permission',
+                },
                 'TikTok video metrics query rejected the request.',
             );
         }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { InfiniteScroll, Link } from '@inertiajs/vue3';
 import {
     IconDots,
     IconGripHorizontal,
@@ -54,6 +54,7 @@ const props = defineProps<{
         el: HTMLElement,
         list: HTMLElement,
         column: IdeaBoardColumnItem,
+        scroller?: HTMLElement,
     ) => () => void;
     registerColumnHandle: (
         handle: HTMLElement,
@@ -70,6 +71,7 @@ const emit = defineEmits<{
 
 const key = columnKey(props.stage?.id ?? null);
 const columnEl = ref<HTMLElement | null>(null);
+const scrollEl = ref<HTMLElement | null>(null);
 const listGroup = ref<ComponentPublicInstance | null>(null);
 const handleEl = ref<HTMLElement | null>(null);
 const renameInput = ref<HTMLInputElement | null>(null);
@@ -80,14 +82,17 @@ const cleanups: (() => void)[] = [];
 onMounted(() => {
     const list = listGroup.value?.$el;
 
-    if (!columnEl.value || !(list instanceof HTMLElement)) {
+    if (!columnEl.value || !scrollEl.value || !(list instanceof HTMLElement)) {
         return;
     }
 
     cleanups.push(
-        props.registerColumn(columnEl.value, list, {
-            stageId: props.stage?.id ?? null,
-        }),
+        props.registerColumn(
+            columnEl.value,
+            list,
+            { stageId: props.stage?.id ?? null },
+            scrollEl.value,
+        ),
     );
 
     if (props.stage && handleEl.value) {
@@ -310,70 +315,83 @@ const finishRename = (save: boolean): void => {
             </DropdownMenu>
         </header>
 
-        <TransitionGroup
-            ref="listGroup"
-            tag="div"
-            move-class="transition-transform duration-200 ease-out motion-reduce:transition-none"
-            class="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-[9px] pt-1 pb-2"
-            :data-testid="`idea-column-list-${key}`"
+        <div
+            ref="scrollEl"
+            class="min-h-0 flex-1 overflow-y-auto px-[9px] pt-1 pb-2"
+            :data-testid="`idea-column-scroll-${key}`"
         >
-            <template v-for="entry in entries" :key="entry.key">
-                <div
-                    v-if="entry.card === null"
-                    aria-hidden="true"
-                    class="shrink-0 cursor-grabbing rounded-lg"
-                    :class="
-                        draggedCard
-                            ? null
-                            : 'border border-dashed border-border bg-secondary'
-                    "
-                    :style="{ height: `${cardPreview?.height ?? 0}px` }"
-                    data-testid="idea-card-placeholder"
-                >
-                    <div
-                        v-if="draggedCard"
-                        class="pointer-events-none rounded-lg shadow-md ring-1 ring-border"
-                    >
-                        <IdeaCard
-                            :card="draggedCard"
-                            view="board"
-                            :stages="stages"
-                            :labels="labels"
-                            :selected="false"
-                            :selecting="false"
-                            preview
-                        />
-                    </div>
-                </div>
-                <div
-                    v-else
-                    v-idea-card="sortableItem(entry.card)"
-                    class="relative"
-                    :class="{ hidden: cardPreview?.ideaId === entry.card.id }"
-                >
-                    <IdeaCard
-                        :card="entry.card"
-                        view="board"
-                        :stages="stages"
-                        :labels="labels"
-                        :selected="selectedIds.has(entry.card.id)"
-                        :selecting="selectedIds.size > 0"
-                    />
-                </div>
-            </template>
-
-            <Link
-                key="new"
-                :href="newIdeaHref"
-                preserve-state
-                preserve-scroll
-                :only="['editor']"
-                class="flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-control hover:bg-secondary hover:text-foreground"
-                :data-testid="`idea-column-new-${key}`"
+            <InfiniteScroll
+                :data="`columns.${key}`"
+                :buffer="200"
+                only-next
+                preserve-url
             >
-                <IconPlus class="size-4" />
-                {{ $t('create.ideas.new') }}
-            </Link>
-        </TransitionGroup>
+                <TransitionGroup
+                    ref="listGroup"
+                    tag="div"
+                    move-class="transition-transform duration-200 ease-out motion-reduce:transition-none"
+                    class="relative flex flex-col gap-2"
+                    :data-testid="`idea-column-list-${key}`"
+                >
+                    <template v-for="entry in entries" :key="entry.key">
+                        <div
+                            v-if="entry.card === null"
+                            aria-hidden="true"
+                            class="shrink-0 cursor-grabbing rounded-lg"
+                            :class="
+                                draggedCard
+                                    ? null
+                                    : 'border border-dashed border-border bg-secondary'
+                            "
+                            :style="{ height: `${cardPreview?.height ?? 0}px` }"
+                            data-testid="idea-card-placeholder"
+                        >
+                            <div
+                                v-if="draggedCard"
+                                class="pointer-events-none rounded-lg shadow-md ring-1 ring-border"
+                            >
+                                <IdeaCard
+                                    :card="draggedCard"
+                                    view="board"
+                                    :stages="stages"
+                                    :labels="labels"
+                                    :selected="false"
+                                    :selecting="false"
+                                    preview
+                                />
+                            </div>
+                        </div>
+                        <div
+                            v-else
+                            v-idea-card="sortableItem(entry.card)"
+                            class="relative"
+                            :class="{ hidden: cardPreview?.ideaId === entry.card.id }"
+                        >
+                            <IdeaCard
+                                :card="entry.card"
+                                view="board"
+                                :stages="stages"
+                                :labels="labels"
+                                :selected="selectedIds.has(entry.card.id)"
+                                :selecting="selectedIds.size > 0"
+                            />
+                        </div>
+                    </template>
+
+                    <Link
+                        key="new"
+                        :href="newIdeaHref"
+                        preserve-state
+                        preserve-scroll
+                        :only="['editor']"
+                        class="flex h-8 shrink-0 items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-control hover:bg-secondary hover:text-foreground"
+                        :data-testid="`idea-column-new-${key}`"
+                    >
+                        <IconPlus class="size-4" />
+                        {{ $t('create.ideas.new') }}
+                    </Link>
+                </TransitionGroup>
+            </InfiniteScroll>
+        </div>
     </section>
 </template>

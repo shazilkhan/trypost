@@ -75,7 +75,7 @@ const remove = (): void => {
             v-if="removable"
             type="button"
             :data-testid="`composer-remove-account-${account.id}`"
-            :aria-label="`${$t('settings.remove')} ${account.handle_label}`"
+            :aria-label="$t('posts.composer.remove_account', { name: account.handle_label })"
             class="absolute -top-2.5 -right-3 z-10 flex size-6 items-center justify-center rounded-md border border-border-strong bg-background text-muted-foreground opacity-100 transition-[opacity,background-color] hover:bg-accent sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
             @click.stop="remove"
         >

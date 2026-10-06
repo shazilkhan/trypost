@@ -176,3 +176,20 @@ test('publication collector factory distinguishes supported Meta platforms', fun
     [Platform::Facebook, FacebookPublicationCollector::class],
     [Platform::Threads, ThreadsPublicationCollector::class],
 ]);
+
+test('Meta history skips a media row with an unparseable timestamp as provider limited', function () {
+    Http::fake([
+        '*' => Http::response([
+            'data' => [
+                ['id' => 'feed-1', 'media_type' => 'IMAGE', 'media_product_type' => 'FEED', 'permalink' => 'https://instagram.com/p/feed', 'timestamp' => 'not-a-date'],
+                ['id' => 'feed-2', 'media_type' => 'IMAGE', 'media_product_type' => 'FEED', 'permalink' => 'https://instagram.com/p/feed-2', 'timestamp' => '2026-09-20T12:00:00+0000'],
+            ],
+        ]),
+    ]);
+    $account = SocialAccount::factory()->instagram()->create();
+
+    $page = app(InstagramPublicationCollector::class)->page($account, null, CarbonImmutable::parse('2026-09-01', 'UTC'));
+
+    expect(array_column($page->publications, 'providerPostId'))->toContain('feed-2')->not->toContain('feed-1')
+        ->and($page->providerLimited)->toBeTrue();
+});

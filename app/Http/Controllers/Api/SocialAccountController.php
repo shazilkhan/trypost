@@ -18,7 +18,9 @@ use App\Http\Resources\Api\ChannelFreeSlotsResource;
 use App\Http\Resources\Api\ChannelPostingScheduleResource;
 use App\Http\Resources\Api\PinterestBoardResource;
 use App\Http\Resources\Api\SocialAccountResource;
+use App\Http\Resources\Api\TikTokCreatorInfoResource;
 use App\Models\SocialAccount;
+use App\Services\Social\TikTokCreatorInfo;
 use App\Support\Social\PinterestBoardFailure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
@@ -102,6 +104,30 @@ class SocialAccountController extends Controller
                 Response::HTTP_BAD_GATEWAY,
             );
         }
+    }
+
+    public function tiktokCreatorInfo(SocialAccount $account, TikTokCreatorInfo $tikTokCreatorInfo): JsonResponse
+    {
+        $this->authorize('view', $account);
+
+        if ($account->platform !== Platform::TikTok) {
+            return response()->json(
+                ['message' => 'Creator info is only available for TikTok accounts.'],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        try {
+            $creatorInfo = $tikTokCreatorInfo->interactive()->fetchOrFail($account);
+        } catch (PlatformUnavailableException $e) {
+            return response()->json(
+                ['message' => $e->getMessage()],
+                $e->httpStatus ?? Response::HTTP_BAD_GATEWAY,
+                $e->retryDelaySeconds === null ? [] : ['Retry-After' => (string) $e->retryDelaySeconds],
+            );
+        }
+
+        return (new TikTokCreatorInfoResource($creatorInfo))->response();
     }
 
     public function postingSchedule(SocialAccount $account): ChannelPostingScheduleResource

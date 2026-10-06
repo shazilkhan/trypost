@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'اسم المجموعة',
         'all_feeds' => 'كل الموجزات',
         'feeds_root' => 'الموجزات',
-        'collection_feeds' => 'الموجزات في هذه المجموعة',
         'collection_menu' => 'عرض الخلاصات في :name',
         'last_refreshed' => 'آخر تحديث :time',
         'never_refreshed' => 'لم يُحدَّث بعد',

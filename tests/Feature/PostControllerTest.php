@@ -439,12 +439,11 @@ test('opening the composer creates no draft', function () {
     expect(Post::where('workspace_id', $this->workspace->id)->count())->toBe(0);
 });
 
-test('composer live data is loaded on demand for the current workspace', function () {
+test('composer taken slots are loaded on demand for a channel of the current workspace', function () {
     $this->actingAs($this->user)
-        ->getJson(route('app.posts.composer.live'))
+        ->getJson(route('app.posts.composer.taken-slots', ['account' => $this->socialAccount, 'from' => now()->toIso8601String(), 'to' => now()->addDay()->toIso8601String()]))
         ->assertOk()
-        ->assertJsonPath("takenSlots.{$this->socialAccount->id}", [])
-        ->assertJsonStructure(['takenSlots', 'pinterestBoards', 'tiktokCreatorInfos']);
+        ->assertExactJson(['takenSlots' => []]);
 });
 
 test('composer data tells whether each channel has posting times', function () {
@@ -724,6 +723,27 @@ test('edit allows draft and scheduled posts', function () {
             ->get(route('app.posts.edit', $post))
             ->assertRedirect(route('app.posts.index', ['edit' => $post->id]));
     }
+});
+
+test('edit opens the note an email links to and ignores the old comments tab', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => PostStatus::Draft,
+    ]);
+
+    PostPlatform::factory()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->socialAccount->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.edit', ['post' => $post, 'comment' => 'note-id']))
+        ->assertRedirect(route('app.posts.index', ['notes' => $post->id, 'note' => 'note-id']));
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.edit', ['post' => $post, 'tab' => 'comments']))
+        ->assertRedirect(route('app.posts.index', ['edit' => $post->id]));
 });
 
 // Update tests
@@ -2021,13 +2041,13 @@ test('composer data lists the instants already scheduled on each channel', funct
     $disabled = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => now()->addDays(4)]);
     PostPlatform::factory()->disabled()->create(['post_id' => $disabled->id, 'social_account_id' => $this->socialAccount->id]);
 
-    $takenSlots = $this->actingAs($this->user)
-        ->getJson(route('app.posts.composer.live'))
+    $takenSlotsOn = fn (SocialAccount $account): array => $this->actingAs($this->user)
+        ->getJson(route('app.posts.composer.taken-slots', ['account' => $account, 'from' => now()->addDays(2)->startOfDay()->toIso8601String(), 'to' => now()->addDays(4)->startOfDay()->toIso8601String()]))
         ->assertOk()
         ->json('takenSlots');
 
-    expect($takenSlots[$this->socialAccount->id])->toBe([$taken->scheduled_at->toIso8601ZuluString()])
-        ->and($takenSlots[$other->id])->toBe([]);
+    expect($takenSlotsOn($this->socialAccount))->toBe([$taken->scheduled_at->toIso8601ZuluString()])
+        ->and($takenSlotsOn($other))->toBe([]);
 });
 
 test('channel filters do not carry posting schedules', function () {

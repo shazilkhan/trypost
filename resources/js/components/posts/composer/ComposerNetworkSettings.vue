@@ -44,13 +44,13 @@ const props = withDefaults(
 
 const emit = defineEmits<{ 'update:meta': [value: Record<string, any>] }>();
 
-const { loaded: liveLoaded } = useComposerLiveState();
+const { accountLoaded } = useComposerLiveState();
 
 const waitsForLiveData = computed(
     () =>
-        !liveLoaded.value &&
         (props.account.platform === Platform.TikTok ||
-            props.account.platform === Platform.Pinterest),
+            props.account.platform === Platform.Pinterest) &&
+        !accountLoaded(props.account.id),
 );
 
 const videoDurationSec = computed(

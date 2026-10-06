@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { usePage } from '@inertiajs/vue3';
 import { IconPlus } from '@tabler/icons-vue';
 import {
     computed,
@@ -53,6 +54,11 @@ const {
         emit('reorderStages', orderedStageIds),
 });
 
+const page = usePage();
+
+const hasColumn = (stageId: string | null): boolean =>
+    page.scrollProps?.[`columns.${columnKey(stageId)}`] !== undefined;
+
 const boardGroup = ref<ComponentPublicInstance | null>(null);
 let stopBoard: (() => void) | null = null;
 
@@ -88,10 +94,12 @@ type StageEntry =
     | { key: 'stage-placeholder'; stage: null };
 
 const stageEntries = computed<StageEntry[]>(() => {
-    const entries: StageEntry[] = props.stages.map((stage) => ({
-        key: stage.id,
-        stage,
-    }));
+    const entries: StageEntry[] = props.stages
+        .filter((stage) => hasColumn(stage.id))
+        .map((stage) => ({
+            key: stage.id,
+            stage,
+        }));
     const preview = stagePreview.value;
 
     if (!preview) {
@@ -156,6 +164,7 @@ const submitStage = (): void => {
         data-testid="ideas-board"
     >
         <IdeaColumn
+            v-if="hasColumn(null)"
             key="unassigned"
             :stage="null"
             :count="counts[UNASSIGNED] ?? 0"

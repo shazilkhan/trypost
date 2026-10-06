@@ -8,6 +8,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Workspace;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
 use Laravel\Ai\Files\StoredImage;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Symfony\Component\HttpFoundation\Response;
@@ -92,4 +93,13 @@ test('alt text is written in the requesting user locale', function () {
         ->assertOk();
 
     MediaAltTextGenerator::assertPrompted(fn (AgentPrompt $prompt): bool => str_contains($prompt->agent->instructions(), 'German (de)'));
+});
+
+test('a failing provider returns a translated bad gateway', function () {
+    MediaAltTextGenerator::fake([fn () => throw new ProviderOverloadedException('overloaded')]);
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.alt-text'), ['media_id' => $this->asset->id])
+        ->assertStatus(Response::HTTP_BAD_GATEWAY)
+        ->assertJsonPath('message', __('posts.composer.media_editor.alt_generate_error'));
 });

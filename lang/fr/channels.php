@@ -167,7 +167,6 @@ return [
         'refresh_after' => 'd\'abord.',
         'irreversible' => 'Cette action est irréversible.',
         'description' => 'Cela supprime toutes les publications de ce canal dans TryPost, y compris les brouillons, les publications programmées et l’historique des publications. Les publications déjà en ligne sur le réseau y restent.',
-        'confirm' => 'Déconnecter',
         'keyword' => 'déconnecter',
         'cancel' => 'Annuler',
     ],

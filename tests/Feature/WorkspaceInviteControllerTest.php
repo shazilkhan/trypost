@@ -401,3 +401,16 @@ test('store invite validates email format', function () {
 
     $response->assertSessionHasErrors('email');
 });
+
+test('update member of a user outside the workspace is not found and revokes nothing', function () {
+    $stranger = User::factory()->create();
+    $result = $stranger->createToken('Stranger Key');
+    $token = AccessToken::query()->findOrFail($result->token->id);
+    $token->forceFill(['workspace_id' => $this->workspace->id])->saveQuietly();
+
+    $this->actingAs($this->user)
+        ->put(route('app.members.update', $stranger), ['is_admin' => '0', 'requires_approval' => '0'])
+        ->assertNotFound();
+
+    expect($token->fresh()->revoked)->toBeFalse();
+});

@@ -12,6 +12,7 @@ use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
 use Illuminate\Auth\Access\Response as AuthResponse;
 use Illuminate\Support\Facades\Gate;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
 
 function waitForCreateIdeaEditorTestId(mixed $page, string $testId, string $text = ''): void
 {
@@ -561,6 +562,41 @@ test('generate ideas shows the payment required message inline when AI is denied
         ->assertNoJavaScriptErrors();
     expect(Idea::where('workspace_id', $workspace->id)->exists())->toBeFalse();
     IdeaGenerator::assertNeverPrompted();
+});
+
+test('generate ideas shows the failure inline when the provider fails and a retry recovers', function () {
+    [$user, $workspace] = createIdeaEditorSetup();
+    $attempts = 0;
+    IdeaGenerator::fake(function () use (&$attempts): array {
+        if (++$attempts === 1) {
+            throw new ProviderOverloadedException('overloaded');
+        }
+
+        return ['title' => 'Behind the kiln', 'body' => 'Show the firing process.'];
+    });
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'));
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate');
+    $page->click('@ideas-generate');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-dialog');
+    $page->fill('@ideas-generate-business', 'A handmade ceramics studio')
+        ->fill('@ideas-generate-audience', 'Home decor lovers')
+        ->click('@ideas-generate-submit');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-error', __('create.ideas.errors.generate_failed'));
+
+    $page->assertSeeIn('@ideas-generate-error', __('create.ideas.errors.generate_failed'))
+        ->assertMissing('@ideas-generate-result')
+        ->assertEnabled('@ideas-generate-submit')
+        ->click('@ideas-generate-submit');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-result', 'Behind the kiln');
+
+    waitForCreateIdeaEditorCondition($page, "!document.querySelector('[data-testid=\"ideas-generate-error\"]')");
+
+    $page->assertSeeIn('@ideas-generate-result', 'Show the firing process.')
+        ->assertMissing('@ideas-generate-error')
+        ->assertNoJavaScriptErrors();
+    expect(Idea::where('workspace_id', $workspace->id)->exists())->toBeFalse();
 });
 
 test('the editor footer renders cancel, then create post, then save', function () {

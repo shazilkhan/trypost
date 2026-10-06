@@ -104,8 +104,9 @@ class HostInlineMedia
                 $url = (string) data_get($item, 'url');
 
                 if (! array_key_exists($url, $fetched)) {
-                    $upload = app(MediaAttacher::class)->hostUpload($workspace, $allowedTypes, $url)
-                        ?? throw ValidationException::withMessages(["{$key}.url" => __('posts.errors.media_url_unreachable', ['url' => $url])]);
+                    $imported = app(MediaAttacher::class)->importUpload($workspace, $allowedTypes, $url);
+                    $upload = $imported->media
+                        ?? throw ValidationException::withMessages(["{$key}.url" => MediaAttacher::failureMessage($imported, $url)]);
 
                     $fetched[$url] = $upload->id;
                 }

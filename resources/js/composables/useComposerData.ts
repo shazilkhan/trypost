@@ -4,18 +4,24 @@ import {
     inject,
     type InjectionKey,
     provide,
+    reactive,
     type Ref,
     ref,
     shallowRef,
 } from 'vue';
 
 import type { ComposerAccount } from '@/composables/usePostComposition';
-import { live as composerLive } from '@/routes/app/posts/composer';
+import {
+    account as composerAccount,
+    live as composerLive,
+    takenSlots as composerTakenSlots,
+} from '@/routes/app/posts/composer';
 import type { PinterestBoardsPayload, SharedData } from '@/types';
 import type {
     ChannelTikTokCreatorInfo,
     SidebarChannel,
 } from '@/types/channel';
+import { Platform } from '@/types/platform';
 import type { PostingSchedule } from '@/types/posting-schedule';
 
 export interface ComposerSharedData {
@@ -33,31 +39,41 @@ export interface ComposerSharedData {
 }
 
 interface ComposerLiveData {
-    takenSlots: Record<string, string[]>;
-    pinterestBoards: Record<string, PinterestBoardsPayload>;
-    tiktokCreatorInfos: Record<string, ChannelTikTokCreatorInfo>;
     composer?: ComposerSharedData;
     composerKey?: string;
 }
 
+interface ComposerAccountData {
+    pinterestBoards?: PinterestBoardsPayload;
+    tiktokCreatorInfo?: ChannelTikTokCreatorInfo | null;
+}
+
 export interface ComposerLiveState {
-    loaded: Readonly<Ref<boolean>>;
     failed: Readonly<Ref<boolean>>;
+    /** Bumped on each retry so per-day reads ask again. */
+    attempt: Readonly<Ref<number>>;
     retry: () => void;
+    /** Whether a Pinterest or TikTok channel's own data has arrived. */
+    accountLoaded: (accountId: string) => boolean;
+    /** The instants already held on a channel between two UTC instants. */
+    takenSlots: (accountId: string, from: string, to: string) => Promise<string[]>;
 }
 
 export const composerLiveKey: InjectionKey<ComposerLiveState> =
     Symbol('composerLive');
 
 /**
- * Whether the per-open data (taken slots, Pinterest boards, TikTok creator
- * info) has arrived. Outside a composer it is always loaded.
+ * The per-open data: the bundle check, each Pinterest and TikTok channel's
+ * boards or creator info, and the taken slots of the day the picker shows.
+ * Outside a composer everything counts as loaded and no slot is taken.
  */
 export const useComposerLiveState = (): ComposerLiveState =>
     inject(composerLiveKey, {
-        loaded: ref(true),
         failed: ref(false),
+        attempt: ref(0),
         retry: () => {},
+        accountLoaded: () => true,
+        takenSlots: () => Promise.resolve([]),
     });
 
 /**
@@ -80,9 +96,21 @@ const refreshedBundle = shallowRef<{
 export const useComposerData = () => {
     const page = usePage<SharedData>();
     const http = useHttp<Record<string, never>, ComposerLiveData>({});
-    const live = shallowRef<ComposerLiveData | null>(null);
-    const loaded = ref(false);
+    const accountHttp = useHttp<Record<string, never>, ComposerAccountData>(
+        {},
+    );
+    const slotsHttp = useHttp<Record<string, never>, { takenSlots: string[] }>(
+        {},
+    );
+    const pinterestBoards = shallowRef<Record<string, PinterestBoardsPayload>>(
+        {},
+    );
+    const tiktokCreatorInfos = shallowRef<
+        Record<string, ChannelTikTokCreatorInfo>
+    >({});
+    const loadedAccounts = reactive(new Set<string>());
     const failed = ref(false);
+    const attempt = ref(0);
     let latestLoad = 0;
 
     const pageKey = computed(
@@ -105,22 +133,22 @@ export const useComposerData = () => {
             null,
     );
 
-    const socialAccounts = computed<ComposerAccount[]>(() =>
-        ((page.props.channels as SidebarChannel[] | undefined) ?? []).map(
-            (channel) => {
-                const details = composer.value?.accounts[channel.id];
+    const channels = computed(
+        () => (page.props.channels as SidebarChannel[] | undefined) ?? [],
+    );
 
-                return {
-                    ...channel,
-                    display_name: channel.display_name ?? '',
-                    timezone: details?.timezone ?? channel.timezone,
-                    has_posting_schedule:
-                        details?.has_posting_schedule ?? false,
-                    posting_schedule: details?.posting_schedule ?? null,
-                    taken_slots: live.value?.takenSlots[channel.id] ?? [],
-                };
-            },
-        ),
+    const socialAccounts = computed<ComposerAccount[]>(() =>
+        channels.value.map((channel) => {
+            const details = composer.value?.accounts[channel.id];
+
+            return {
+                ...channel,
+                display_name: channel.display_name ?? '',
+                timezone: details?.timezone ?? channel.timezone,
+                has_posting_schedule: details?.has_posting_schedule ?? false,
+                posting_schedule: details?.posting_schedule ?? null,
+            };
+        }),
     );
 
     const platformConfigs = computed<Record<string, any>>(() =>
@@ -133,35 +161,53 @@ export const useComposerData = () => {
 
     const signatures = computed(() => composer.value?.signatures ?? []);
     const labels = computed(() => composer.value?.labels ?? []);
-    const pinterestBoards = computed(
-        () => live.value?.pinterestBoards ?? {},
-    );
-    const tiktokCreatorInfos = computed(
-        () => live.value?.tiktokCreatorInfos ?? {},
-    );
 
-    const load = async (): Promise<void> => {
-        const loadId = ++latestLoad;
+    const loadBundle = async (loadId: number): Promise<void> => {
         const replacedKey = pageKey.value;
-        live.value = null;
-        loaded.value = false;
-        failed.value = false;
+        const result = (await http.get(
+            composerLive.url({
+                query: { key: refreshed.value?.key ?? replacedKey },
+            }),
+        )) as ComposerLiveData;
+        if (loadId !== latestLoad) return;
+        if (result.composer && result.composerKey) {
+            refreshedBundle.value = {
+                replacedKey,
+                key: result.composerKey,
+                bundle: result.composer,
+            };
+        }
+    };
+
+    const loadAccount = async (
+        loadId: number,
+        accountId: string,
+    ): Promise<void> => {
+        const result = (await accountHttp.get(
+            composerAccount.url(accountId),
+        )) as ComposerAccountData;
+        if (loadId !== latestLoad) return;
+        if (result.pinterestBoards) {
+            pinterestBoards.value = {
+                ...pinterestBoards.value,
+                [accountId]: result.pinterestBoards,
+            };
+        }
+        if (result.tiktokCreatorInfo) {
+            tiktokCreatorInfos.value = {
+                ...tiktokCreatorInfos.value,
+                [accountId]: result.tiktokCreatorInfo,
+            };
+        }
+        loadedAccounts.add(accountId);
+    };
+
+    const guarded = async (
+        loadId: number,
+        request: Promise<void>,
+    ): Promise<void> => {
         try {
-            const result = (await http.get(
-                composerLive.url({
-                    query: { key: refreshed.value?.key ?? replacedKey },
-                }),
-            )) as ComposerLiveData;
-            if (loadId !== latestLoad) return;
-            if (result.composer && result.composerKey) {
-                refreshedBundle.value = {
-                    replacedKey,
-                    key: result.composerKey,
-                    bundle: result.composer,
-                };
-            }
-            live.value = result;
-            loaded.value = true;
+            await request;
         } catch {
             if (loadId === latestLoad) failed.value = true;
         }
@@ -169,16 +215,57 @@ export const useComposerData = () => {
 
     const reset = (): void => {
         ++latestLoad;
-        live.value = null;
-        loaded.value = false;
+        pinterestBoards.value = {};
+        tiktokCreatorInfos.value = {};
+        loadedAccounts.clear();
         failed.value = false;
     };
 
+    const load = async (): Promise<void> => {
+        reset();
+        const loadId = latestLoad;
+        const liveAccounts = channels.value.filter(
+            (channel) =>
+                channel.platform === Platform.Pinterest ||
+                channel.platform === Platform.TikTok,
+        );
+        await Promise.all([
+            guarded(loadId, loadBundle(loadId)),
+            ...liveAccounts.map((channel) =>
+                guarded(loadId, loadAccount(loadId, channel.id)),
+            ),
+        ]);
+    };
+
+    const takenSlots = async (
+        accountId: string,
+        from: string,
+        to: string,
+    ): Promise<string[]> => {
+        try {
+            const result = (await slotsHttp.get(
+                composerTakenSlots.url(accountId, { query: { from, to } }),
+            )) as { takenSlots: string[] };
+
+            return result.takenSlots;
+        } catch (exception) {
+            failed.value = true;
+            throw exception;
+        }
+    };
+
     const retry = (): void => {
+        attempt.value++;
         void load();
     };
 
-    provide(composerLiveKey, { loaded, failed, retry });
+    provide(composerLiveKey, {
+        failed,
+        attempt,
+        retry,
+        accountLoaded: (accountId) => loadedAccounts.has(accountId),
+        takenSlots,
+    });
 
     return {
         composer,

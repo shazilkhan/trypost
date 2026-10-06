@@ -10,6 +10,8 @@ use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\User;
 use App\Support\Media\MediaCopyBatch;
+use App\Support\PostPlatformMetaRules;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -59,7 +61,7 @@ class DuplicatePost
             ], $original->media ?? []),
             'social_account_id' => $target->social_account_id,
             'content_type' => $target->content_type->value,
-            'meta' => $target->meta ?? [],
+            'meta' => Arr::except($target->meta ?? [], PostPlatformMetaRules::SYSTEM_KEYS),
             'label_ids' => $original->labels()->pluck('workspace_labels.id')->all(),
             'legacy_media' => $original->media ?? [],
         ];

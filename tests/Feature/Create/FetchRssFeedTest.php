@@ -19,7 +19,6 @@ function fetchRssFeedTestFixture(string $name): string
 }
 
 beforeEach(function () {
-    Http::preventStrayRequests();
     $this->travelTo(CarbonImmutable::parse('2026-10-01 12:00:00', 'UTC'));
 });
 

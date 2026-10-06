@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 
-import ConnectPopupHeader from '@/components/channels/ConnectPopupHeader.vue';
 import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import PopupLayout from '@/layouts/PopupLayout.vue';
+import ConnectLayout from '@/layouts/ConnectLayout.vue';
 import { authorize as authorizeMastodon } from '@/routes/app/social/mastodon';
+
+defineProps<{ backUrl: string }>();
 
 const form = useForm({ instance: 'https://mastodon.social' });
 
@@ -17,13 +18,23 @@ const onSubmit = (): void => {
 </script>
 
 <template>
-    <PopupLayout :title="$t('accounts.mastodon.title')">
-        <div class="mx-auto flex max-w-md flex-col gap-8 pt-4">
-            <ConnectPopupHeader
-                platform="mastodon"
-                :title="$t('accounts.mastodon.title')"
-                :description="$t('accounts.mastodon.description')"
-            />
+    <ConnectLayout
+        :title="$t('accounts.mastodon.title')"
+        platform="mastodon"
+        :close-url="backUrl"
+    >
+        <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-2">
+                <h1
+                    class="text-xl leading-tight font-medium text-foreground"
+                    data-testid="connect-title"
+                >
+                    {{ $t('accounts.mastodon.title') }}
+                </h1>
+                <p class="text-sm text-muted-foreground">
+                    {{ $t('accounts.mastodon.description') }}
+                </p>
+            </div>
 
             <form class="flex flex-col gap-4" @submit.prevent="onSubmit">
                 <div class="grid gap-2">
@@ -57,5 +68,5 @@ const onSubmit = (): void => {
                 </Button>
             </form>
         </div>
-    </PopupLayout>
+    </ConnectLayout>
 </template>

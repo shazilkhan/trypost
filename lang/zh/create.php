@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => '合集名称',
         'all_feeds' => '全部订阅源',
         'feeds_root' => '订阅源',
-        'collection_feeds' => '此合集中的订阅源',
         'collection_menu' => '显示 :name 中的订阅源',
         'last_refreshed' => '上次刷新：:time',
         'never_refreshed' => '尚未刷新',

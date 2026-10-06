@@ -163,14 +163,31 @@ test('a workspace admin cannot store a workspace on the shared account', functio
     expect(Workspace::where('name', 'Admin Workspace')->exists())->toBeFalse();
 });
 
-test('a member who needs approval can save a draft and delete it', function () {
+test('a member who needs approval can save a draft and delete their own post but not another member post', function () {
+    $own = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->requester->id]);
+
     $this->actingAs($this->requester)
-        ->put(route('app.posts.update', $this->post), ['status' => Status::Draft->value])
+        ->put(route('app.posts.update', $own), ['status' => Status::Draft->value])
         ->assertRedirect();
 
     $this->actingAs($this->requester)
         ->delete(route('app.posts.destroy', $this->post))
+        ->assertForbidden();
+
+    $this->actingAs($this->requester)
+        ->delete(route('app.posts.destroy', $own))
         ->assertRedirect();
 
-    expect(Post::query()->find($this->post->id))->toBeNull();
+    expect(Post::query()->find($own->id))->toBeNull()
+        ->and(Post::query()->find($this->post->id))->not->toBeNull();
+});
+
+test('a requester cannot delete the other member post once approved', function () {
+    $this->post->update(['status' => Status::Scheduled, 'scheduled_at' => now()->addDay(), 'approval_requested_by' => $this->requester->id]);
+
+    $this->actingAs($this->requester)
+        ->delete(route('app.posts.destroy', $this->post))
+        ->assertForbidden();
+
+    expect(Post::query()->find($this->post->id))->not->toBeNull();
 });

@@ -31,6 +31,12 @@ use Illuminate\Validation\Validator;
 class PostPlatformMetaRules
 {
     /**
+     * Keys TryPost writes itself once a post is live (Telegram reactions): never
+     * taken from a request, and kept when the post's settings are edited.
+     */
+    public const SYSTEM_KEYS = ['reactions'];
+
+    /**
      * Validation rules for `platforms.*.meta` and all its per-platform sub-keys.
      * Spread into a FormRequest/MCP tool rule set as the complete meta contract.
      *
@@ -41,13 +47,10 @@ class PostPlatformMetaRules
         return [
             'platforms.*.meta' => ['sometimes', 'nullable', 'array'],
 
-            // Instagram
             'platforms.*.meta.share_to_feed' => ['sometimes', 'boolean'],
 
-            // Mastodon — content warning, counted against the post limit
             'platforms.*.meta.spoiler_text' => ['sometimes', 'nullable', 'string', 'max:500'],
 
-            // Threads of posts (Bluesky, Mastodon, X) — per-network checks in ThreadReplies
             'platforms.*.meta.thread_replies' => ['sometimes', 'nullable', 'array', 'max:'.ThreadReplies::MAX_REPLIES],
             'platforms.*.meta.thread_replies.*' => ['nullable', function (string $attribute, mixed $value, Closure $fail): void {
                 if (! is_string($value) && ! is_array($value)) {
@@ -64,10 +67,8 @@ class PostPlatformMetaRules
             'platforms.*.meta.thread_replies.*.media.*.id' => ['sometimes', 'nullable', 'string'],
             'platforms.*.meta.thread_replies.*.media.*.upload_token' => ['sometimes', 'nullable', 'string'],
 
-            // LinkedIn — title shown on a document (PDF carousel) post
             'platforms.*.meta.document_title' => ['sometimes', 'nullable', 'string', 'max:300'],
 
-            // TikTok
             'platforms.*.meta.privacy_level' => ['sometimes', 'nullable', 'string', Rule::enum(PrivacyLevel::class)],
             'platforms.*.meta.auto_add_music' => ['sometimes', 'boolean'],
             'platforms.*.meta.allow_comments' => ['sometimes', 'boolean'],
@@ -78,12 +79,10 @@ class PostPlatformMetaRules
             'platforms.*.meta.brand_content_toggle' => ['sometimes', 'boolean'],
             'platforms.*.meta.brand_organic_toggle' => ['sometimes', 'boolean'],
 
-            // Pinterest
             'platforms.*.meta.board_id' => ['sometimes', 'nullable', 'string'],
             'platforms.*.meta.title' => ['sometimes', 'nullable', 'string', 'max:100'],
             'platforms.*.meta.link' => ['sometimes', 'nullable', 'url:http,https', 'max:2048'],
 
-            // YouTube
             'platforms.*.meta.description' => ['sometimes', 'nullable', 'string', new ValidYouTubeDescription],
             'platforms.*.meta.category_id' => ['sometimes', 'nullable', Rule::in(array_column(Category::cases(), 'value'))],
             'platforms.*.meta.privacy_status' => ['sometimes', 'nullable', 'string', Rule::enum(PrivacyStatus::class)],
@@ -92,20 +91,16 @@ class PostPlatformMetaRules
             'platforms.*.meta.embeddable' => ['sometimes', 'boolean'],
             'platforms.*.meta.made_for_kids' => ['sometimes', 'boolean'],
 
-            // YouTube + Instagram — self-disclosed AI content
             'platforms.*.meta.is_ai_generated' => ['sometimes', 'boolean'],
 
-            // Facebook, Bluesky, LinkedIn
             'platforms.*.meta.link_preview' => ['sometimes', 'boolean:strict'],
 
-            // Threads
             'platforms.*.meta.topic_tag' => ['sometimes', 'nullable', 'string', function (string $attribute, mixed $value, Closure $fail): void {
                 if (! self::isThreadsTopicTag((string) $value)) {
                     $fail(__('posts.form.threads.topic_invalid'));
                 }
             }],
 
-            // Discord
             'platforms.*.meta.channel_id' => ['sometimes', 'nullable', 'string'],
             'platforms.*.meta.channel_name' => ['sometimes', 'nullable', 'string'],
             'platforms.*.meta.mentions' => ['sometimes', 'nullable', 'array'],
@@ -118,7 +113,6 @@ class PostPlatformMetaRules
             'platforms.*.meta.embeds.*.image' => ['sometimes', 'nullable', 'url'],
             'platforms.*.meta.embeds.*.color' => ['sometimes', 'nullable', 'string', 'regex:/^#?[0-9A-Fa-f]{6}$/'],
 
-            // Google Business Profile
             'platforms.*.meta.topic_type' => ['sometimes', 'nullable', 'string', Rule::enum(TopicType::class)],
             'platforms.*.meta.call_to_action' => ['sometimes', 'nullable', 'array'],
             'platforms.*.meta.call_to_action.action_type' => ['sometimes', 'nullable', 'string', Rule::enum(CtaAction::class)],
@@ -151,6 +145,22 @@ class PostPlatformMetaRules
             ->all();
 
         return array_intersect_key($meta, array_flip($known));
+    }
+
+    /**
+     * The meta to store on an edited target: the known keys of `$meta` plus the
+     * system keys already stored on the target.
+     *
+     * @param  array<string, mixed>  $stored
+     * @param  array<string, mixed>  $meta
+     * @return array<string, mixed>
+     */
+    public static function forStorage(array $stored, array $meta): array
+    {
+        return [
+            ...self::onlyKnown($meta),
+            ...array_intersect_key($stored, array_flip(self::SYSTEM_KEYS)),
+        ];
     }
 
     /**
@@ -225,16 +235,19 @@ class PostPlatformMetaRules
     {
         return implode(' ', [
             'Per-platform metadata.',
-            'TikTok: privacy_level PUBLIC_TO_EVERYONE|MUTUAL_FOLLOW_FRIENDS|FOLLOWER_OF_CREATOR|SELF_ONLY (required to publish) + flags (allow_comments, allow_duet, allow_stitch, disclose, brand_content_toggle, brand_organic_toggle, is_aigc, auto_add_music). SELF_ONLY cannot be combined with brand_content_toggle.',
+            'TikTok: privacy_level PUBLIC_TO_EVERYONE|MUTUAL_FOLLOW_FRIENDS|FOLLOWER_OF_CREATOR|SELF_ONLY (required to publish; call get-tiktok-creator-info-tool first and pick one of its privacy_level_options, and keep allow_comments/allow_duet/allow_stitch false when it reports them disabled) + flags allow_comments, disclose (commercial content), brand_content_toggle (paid partnership), brand_organic_toggle (your own brand); on tiktok_video also allow_duet, allow_stitch and is_aigc (AI-generated content label), on tiktok_photo also auto_add_music. SELF_ONLY cannot be combined with brand_content_toggle.',
             'Mastodon: spoiler_text (content warning, ≤500; counts toward the 500-character post limit).',
-            'Pinterest: board_id (required to publish — call ListPinterestBoardsTool first), title (≤100), link (destination URL). Pin description comes from the post content.',
-            'Discord: channel_id (required to publish — call ListDiscordChannelsTool first), mentions ([{token,label}]), embeds ([{title,description,url,image,color}]).',
+            'Pinterest: board_id (required to publish — call list-pinterest-boards-tool first, or create-pinterest-board-tool), title (≤100), link (destination URL). Pin description comes from the post content; a video pin cover frame is the media item meta.cover_offset_ms.',
+            'Discord: channel_id (required to publish — call list-discord-channels-tool first), channel_name (the channel name shown in the app), mentions ([{token,label}], e.g. {token: "@everyone"} or {token: "<@&roleId>"}), embeds (up to 10 [{title ≤256, description ≤4096, url, image (URL), color (#RRGGBB)}]).',
             'YouTube Shorts: title (≤100, no < or >; omitted, it is derived from the first non-empty line of the content with < and > removed, cut to 100 characters), description (plain text, at most 5000 bytes; omit or null to use the content), category_id (YouTube category id: '.collect(Category::cases())->map(fn (Category $category): string => "{$category->value}=".__($category->labelKey(), [], 'en'))->implode(', ').'; default '.Category::DEFAULT->value.'), privacy_status (public|unlisted|private, default public), license (youtube|creativeCommon), notify_subscribers (default true), embeddable (default true), made_for_kids (default false), is_ai_generated (discloses altered or synthetic content).',
-            'Instagram: is_ai_generated (feed, reels, carousels), share_to_feed (reels, default true).',
+            'Instagram: is_ai_generated (feed, reels, stories, carousels), share_to_feed (reels, default true). People tags are the media item meta.user_tags and a video cover frame is meta.cover_offset_ms.',
             'X: is_ai_generated (sent as made_with_ai, discloses AI-generated media on the post).',
             'Threads: topic_tag (1-50 characters after a leading # is dropped, no . or &). Use content_type threads_ghost_post for a text-only post archived after 24 hours (no media, no topic).',
             'Facebook, Bluesky, LinkedIn: link_preview (default true; false publishes a text post with a link without its preview card).',
-            'Threads of posts: thread_replies (list of up to '.ThreadReplies::MAX_REPLIES.' replies published under the post as a thread, each {text, media} where media is a list of up to 4 media items ({id} or {upload_token}) for that reply alone; a plain string is a text-only reply) on Bluesky, Mastodon and X only; each reply needs text or media, its media follows the rules of a post on that network, and its text must fit the account limit (Bluesky 300, Mastodon 500 including the content warning, which every reply repeats, X 280 or 25000 for accounts with long posts).',
+            'LinkedIn (profile and page): document_title (≤300, the title shown on a PDF document post; defaults to the file name).',
+            'Google Business Profile: topic_type STANDARD (default)|EVENT|OFFER; call_to_action {action_type: '.implode('|', array_column(CtaAction::cases(), 'value')).', url} (not on OFFER; url required unless NONE or CALL); event {title ≤'.TopicType::TITLE_MAX_LENGTH.', start_date, end_date (YYYY-MM-DD), start_time, end_time (HH:MM)} (required on EVENT and OFFER, the title being the offer title); offer {coupon_code, redeem_online_url, terms_conditions ≤5000} (OFFER only).',
+            'Telegram, Facebook reels and stories, Instagram stories: no settings.',
+            'Threads of posts: thread_replies (list of up to '.ThreadReplies::MAX_REPLIES.' replies published under the post as a thread, each {text, media} where media is a list of up to 4 media items ({id} or {upload_token}, with optional meta.alt_text) for that reply alone; a plain string is a text-only reply) on Bluesky, Mastodon and X only; each reply needs text or media, its media follows the rules of a post on that network, and its text must fit the account limit (Bluesky 300, Mastodon 500 including the content warning, which every reply repeats, X 280 or 25000 for accounts with long posts).',
         ]);
     }
 

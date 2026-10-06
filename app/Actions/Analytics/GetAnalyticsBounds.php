@@ -13,10 +13,12 @@ use Illuminate\Support\Facades\DB;
 class GetAnalyticsBounds
 {
     /**
+     * Account snapshots keep the network's calendar date; publications are dated in the viewer's zone.
+     *
      * @param  list<string>|null  $accountKeys  Analytics account keys to scope to; null means every account.
      * @return array{min: ?string, max: ?string}
      */
-    public function execute(Workspace $workspace, ?array $accountKeys = null): array
+    public function execute(Workspace $workspace, ?array $accountKeys = null, string $timezone = 'UTC'): array
     {
         $accounts = DB::table('analytics_account_daily_snapshots')
             ->where('workspace_id', $workspace->id)
@@ -30,12 +32,17 @@ class GetAnalyticsBounds
             ->when($accountKeys !== null, fn (Builder $query): Builder => $query->whereIn('social_account_key', $accountKeys))
             ->selectRaw('MIN(provider_published_at) as earliest, MAX(provider_published_at) as latest')
             ->first();
-        $minimum = array_filter([$accounts?->earliest, $publications?->earliest]);
-        $maximum = array_filter([$accounts?->latest, $publications?->latest]);
+        $minimum = array_filter([$this->day($accounts?->earliest, 'UTC'), $this->day($publications?->earliest, $timezone)]);
+        $maximum = array_filter([$this->day($accounts?->latest, 'UTC'), $this->day($publications?->latest, $timezone)]);
 
         return [
-            'min' => $minimum ? CarbonImmutable::parse(min($minimum), 'UTC')->toDateString() : null,
-            'max' => $maximum ? CarbonImmutable::parse(max($maximum), 'UTC')->toDateString() : null,
+            'min' => $minimum ? min($minimum) : null,
+            'max' => $maximum ? max($maximum) : null,
         ];
+    }
+
+    private function day(?string $value, string $timezone): ?string
+    {
+        return $value === null ? null : CarbonImmutable::parse($value, 'UTC')->setTimezone($timezone)->toDateString();
     }
 }

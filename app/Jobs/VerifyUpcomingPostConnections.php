@@ -103,11 +103,6 @@ class VerifyUpcomingPostConnections implements ShouldBeUnique, ShouldQueue
                 continue;
             }
 
-            // This job can take real wall-clock time working through a
-            // workspace, so re-check fresh (deleted since then shouldn't
-            // burn an API call or warn about it). Keep workspace
-            // eager-loaded — SocialAccountObserver reads it when
-            // markAsTokenExpired() below updates the account (#255).
             $account = SocialAccount::query()->with('workspace')->find($account->id);
 
             if (! $account) {

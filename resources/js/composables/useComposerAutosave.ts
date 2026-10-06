@@ -35,6 +35,7 @@ export interface AutosaveSnapshot {
     media: AutosaveMediaRef[];
     labelIds: string[];
     scheduleMode: string | null;
+    /** The custom time as a UTC instant; older snapshots hold a composer-zone wall clock. */
     scheduledAt: string | null;
 }
 

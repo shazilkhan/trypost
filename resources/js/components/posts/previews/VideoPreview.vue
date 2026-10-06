@@ -50,7 +50,7 @@ const toggle = () => {
             v-show="!isPlaying"
             type="button"
             class="absolute inset-0 flex cursor-pointer items-center justify-center"
-            aria-label="Play"
+            :aria-label="$t('common.play')"
         >
             <span
                 class="flex size-12 items-center justify-center rounded-full bg-white/90 transition-transform hover:scale-105"

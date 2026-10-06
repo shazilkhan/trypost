@@ -300,6 +300,40 @@ test('an active repurpose cannot be updated into a state it could not be activat
     ]]]))->toThrow(ValidationException::class);
 });
 
+test('an active repurpose cannot switch to a source that is not connected', function () {
+    [$workspace, $user, $account] = repurposeWorkspace();
+
+    $repurpose = Repurpose::factory()->active()->create([
+        'workspace_id' => $workspace->id,
+        'source_social_account_id' => $account->id,
+        'destinations' => [tiktokDestination($workspace)],
+    ]);
+
+    $disconnected = SocialAccount::factory()->for($workspace)->disconnected()->create(['platform' => Platform::Instagram]);
+
+    expect(fn () => UpdateRepurpose::execute($repurpose, ['source_social_account_id' => $disconnected->id]))
+        ->toThrow(ValidationException::class);
+
+    expect($repurpose->fresh()->source_social_account_id)->toBe($account->id);
+});
+
+test('an active repurpose cannot drop the meta a destination needs to publish', function () {
+    [$workspace, $user, $account] = repurposeWorkspace();
+
+    $destination = tiktokDestination($workspace);
+
+    $repurpose = Repurpose::factory()->active()->create([
+        'workspace_id' => $workspace->id,
+        'source_social_account_id' => $account->id,
+        'destinations' => [$destination],
+    ]);
+
+    expect(fn () => UpdateRepurpose::execute($repurpose, ['destinations' => [[...$destination, 'meta' => []]]]))
+        ->toThrow(ValidationException::class);
+
+    expect($repurpose->fresh()->destinations)->toEqual([$destination]);
+});
+
 test('a repurpose can only be resumed from paused', function () {
     $repurpose = Repurpose::factory()->disabled()->create();
 

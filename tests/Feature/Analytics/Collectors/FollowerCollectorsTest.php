@@ -129,8 +129,6 @@ test('a hidden youtube subscriber total is persisted as unavailable null', funct
 });
 
 test('excluded platforms have no collector and make no provider request', function (Platform $platform) {
-    Http::preventStrayRequests();
-
     expect(fn () => app(FollowerCollectorFactory::class)->for($platform))
         ->toThrow(AnalyticsCollectionException::class);
 

@@ -7,7 +7,7 @@ use App\Enums\SocialAccount\Status;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
-use Inertia\Testing\AssertableInertia;
+use App\Support\Social\PendingConnection;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
@@ -44,13 +44,11 @@ test('pinterest connect redirects to oauth provider', function () {
 
     $response->assertRedirect('https://www.pinterest.com/oauth?test=1');
 
-    expect(session('social_connect_workspace'))->toBe($this->workspace->id);
+    expect(PendingConnection::current()?->workspaceId())->toBe($this->workspace->id);
 });
 
 test('pinterest oauth callback creates account', function () {
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('pinterest_user_123');
@@ -70,9 +68,9 @@ test('pinterest oauth callback creates account', function () {
 
     $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->component('accounts/PopupCallback'));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Pinterest));
+
+    finishSocialConnect(Platform::Pinterest)->assertRedirect();
 
     $this->assertDatabaseHas('social_accounts', [
         'workspace_id' => $this->workspace->id,
@@ -99,16 +97,16 @@ function fakePinterestCallbackUser(string $id): void
 }
 
 test('pinterest callback reports the new account id and created true on a first connect', function () {
-    session(['social_connect_workspace' => $this->workspace->id]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest);
     fakePinterestCallbackUser('pin-new-1');
 
-    $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
+    $this->actingAs($this->user)->get(route('app.social.pinterest.callback'))->assertRedirect();
 
+    $response = finishSocialConnect(Platform::Pinterest);
     $accountId = SocialAccount::where('platform_user_id', 'pin-new-1')->value('id');
-    $response->assertInertia(fn (AssertableInertia $page) => $page
-        ->component('accounts/PopupCallback')
-        ->where('accountId', $accountId)
-        ->where('created', true));
+
+    $response->assertInertiaFlash('connectedChannel.accountId', $accountId)
+        ->assertInertiaFlash('connectedChannel.created', true);
 });
 
 test('pinterest callback reports created false on a reconnect', function () {
@@ -116,28 +114,27 @@ test('pinterest callback reports created false on a reconnect', function () {
         'workspace_id' => $this->workspace->id,
         'platform_user_id' => 'pin-old-1',
     ]);
-    session(['social_connect_workspace' => $this->workspace->id, 'social_reconnect_id' => $account->id]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest, $account->id);
     fakePinterestCallbackUser('pin-old-1');
 
-    $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
+    $this->actingAs($this->user)->get(route('app.social.pinterest.callback'))->assertRedirect();
 
-    $response->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('success', true)
-        ->where('accountId', $account->id)
-        ->where('created', false));
+    finishSocialConnect(Platform::Pinterest)
+        ->assertInertiaFlash('connectedChannel.accountId', $account->id)
+        ->assertInertiaFlash('connectedChannel.created', false);
 });
 
-test('pinterest callback failure reports no account and created false', function () {
-    $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
+test('pinterest callback failure connects nothing and flashes no channel', function () {
+    $this->actingAs($this->user)
+        ->get(route('app.social.pinterest.callback'))
+        ->assertRedirect(route('app.social.connect.show', Platform::Pinterest))
+        ->assertInertiaFlashMissing('connectedChannel');
 
-    $response->assertInertia(fn (AssertableInertia $page) => $page
-        ->where('success', false)
-        ->where('accountId', null)
-        ->where('created', false));
+    $this->assertDatabaseCount('social_accounts', 0);
 });
 
 test('pinterest oauth callback splits space-separated approvedScopes before saving', function () {
-    session(['social_connect_workspace' => $this->workspace->id]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('pin-user-xyz');
@@ -157,6 +154,7 @@ test('pinterest oauth callback splits space-separated approvedScopes before savi
         ->andReturn(Mockery::mock(['user' => $socialiteUser]));
 
     $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
+    finishSocialConnect(Platform::Pinterest)->assertRedirect();
 
     $account = SocialAccount::where('platform_user_id', 'pin-user-xyz')->first();
     expect($account->scopes)->toEqualCanonicalizing([
@@ -169,9 +167,9 @@ test('pinterest callback fails with expired session', function () {
 
     $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('message', 'Session expired. Please try again.'));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Pinterest));
+
+    expect(socialConnectFailure())->toBeNull();
 });
 
 test('user can connect multiple pinterest accounts', function () {
@@ -181,9 +179,7 @@ test('user can connect multiple pinterest accounts', function () {
         'platform_user_id' => 'pinterest_user_123',
     ]);
 
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('pinterest_user_456');
@@ -203,23 +199,21 @@ test('user can connect multiple pinterest accounts', function () {
 
     $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Pinterest));
+    finishSocialConnect(Platform::Pinterest)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Pinterest)->count())->toBe(2);
 });
 
 test('pinterest callback reconnects the same identity via updateOrCreate', function () {
 
-    SocialAccount::factory()->pinterest()->create([
+    $account = SocialAccount::factory()->pinterest()->create([
         'workspace_id' => $this->workspace->id,
         'platform_user_id' => 'pinterest_user_123',
         'username' => 'oldpinner',
     ]);
 
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest, $account);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('pinterest_user_123');
@@ -239,17 +233,15 @@ test('pinterest callback reconnects the same identity via updateOrCreate', funct
 
     $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Pinterest));
+    finishSocialConnect(Platform::Pinterest)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Pinterest)->count())->toBe(1)
         ->and($this->workspace->socialAccounts()->first()->username)->toBe('pinner');
 });
 
 test('pinterest callback handles oauth errors gracefully', function () {
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-    ]);
+    startSocialConnect($this->workspace->id, Platform::Pinterest);
 
     $mock = Mockery::mock();
     $mock->shouldReceive('user')->andThrow(new Exception('OAuth error'));
@@ -260,7 +252,7 @@ test('pinterest callback handles oauth errors gracefully', function () {
 
     $response = $this->actingAs($this->user)->get(route('app.social.pinterest.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('message', 'Error connecting account. Please try again.'));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Pinterest));
+
+    expect(socialConnectFailure())->toBe('error_connecting');
 });

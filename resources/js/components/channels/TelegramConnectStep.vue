@@ -26,7 +26,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-    connected: [{ accountId: string; created: boolean }];
+    connected: [{ accountId: string | null; created: boolean }];
 }>();
 
 type Phase = 'loading' | 'ready' | 'expired' | 'error';
@@ -81,7 +81,7 @@ const clearExpiry = () => {
     }
 };
 
-useWorkspaceEcho<{ nonce: string; account_id: string; created: boolean }>(
+useWorkspaceEcho<{ nonce: string; account_id: string | null; created: boolean }>(
     '.telegram.channel.connected',
     (payload) => {
         if (phase.value !== 'ready' || payload.nonce !== nonce.value) {
@@ -91,7 +91,7 @@ useWorkspaceEcho<{ nonce: string; account_id: string; created: boolean }>(
         clearExpiry();
         nonce.value = '';
         emit('connected', {
-            accountId: payload.account_id,
+            accountId: payload.account_id ?? null,
             created: Boolean(payload.created),
         });
     },

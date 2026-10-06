@@ -49,7 +49,7 @@ class PostController extends Controller
             ->onChannels(data_get($filters, 'channels') ?: null)
             ->matchingLabelFilter(data_get($filters, 'labels'), data_get($filters, 'untagged'))
             ->with(['postPlatforms.socialAccount', 'user', 'approvalRequestedBy', 'approver', 'labels'])
-            ->latest('scheduled_at')
+            ->latestScheduledFirst()
             ->paginate((int) config('app.pagination.default'));
 
         return PostResource::collection($posts);
@@ -96,7 +96,7 @@ class PostController extends Controller
             'destinations' => [$data['platforms'][0]],
         ])->sole();
 
-        $post->load(['postPlatforms.socialAccount']);
+        $post->load(['postPlatforms.socialAccount', 'labels']);
 
         return (new PostResource($post))
             ->response()
@@ -144,7 +144,7 @@ class PostController extends Controller
         }
 
         $updated = data_get($result, 'post');
-        $updated->load(['postPlatforms.socialAccount']);
+        $updated->load(['postPlatforms.socialAccount', 'labels']);
 
         return new PostResource($updated);
     }

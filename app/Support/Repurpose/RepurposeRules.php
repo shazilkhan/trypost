@@ -52,6 +52,7 @@ class RepurposeRules
         return [
             'destinations' => ['sometimes', 'array'],
             'destinations.*.social_account_id' => [
+                'bail',
                 'required',
                 'string',
                 'uuid',

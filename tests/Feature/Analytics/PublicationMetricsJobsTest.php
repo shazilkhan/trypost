@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Analytics\QueuePublicationMetricsForPage;
+use App\Enums\Analytics\PublicationAvailability;
 use App\Enums\Analytics\PublicationContentType;
 use App\Enums\Analytics\PublicationOrigin;
 use App\Enums\PostPlatform\ContentType;
@@ -17,6 +18,8 @@ use App\Models\AnalyticsPublicationDailySnapshot;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
+use App\Services\Analytics\Collectors\Metrics\MastodonPublicationMetricsCollector;
+use App\Services\Analytics\Collectors\Metrics\PublicationMetricsCollectorFactory;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
@@ -234,4 +237,120 @@ test('an old publication with an unsuccessful baseline is retried by the next da
     Bus::assertDispatched(CollectPublicationMetrics::class, fn (CollectPublicationMetrics $job): bool => $job->publicationId === $publication->id
         && $job->observationDate === '2026-09-24'
         && $job->baseline);
+});
+
+test('analytics jobs are rate limited per account with a shared guard only where the network limits per app', function (Platform $platform, ?string $sharedKey) {
+    $publication = metricJobPublication($platform, CarbonImmutable::now('UTC')->subDay());
+    $job = new CollectPublicationMetrics($publication->id, CarbonImmutable::now('UTC')->toDateString());
+
+    $limits = collect($job->analyticsRateLimits());
+
+    expect($limits->first()->key)->toBe("{$platform->network()}:account:{$publication->social_account_id}")
+        ->and($limits->first()->maxAttempts)->toBe(30)
+        ->and($limits->get(1)?->key)->toBe($sharedKey);
+})->with([
+    'instagram is limited per token' => [Platform::Instagram, null],
+    'facebook is limited per page token' => [Platform::Facebook, null],
+    'x shares the app limit' => [Platform::X, 'x:app'],
+    'youtube shares the project quota' => [Platform::YouTube, 'youtube:project'],
+    'tiktok shares the app limit' => [Platform::TikTok, 'tiktok:app'],
+]);
+
+test('metric and follower jobs back off and stop after a few unexpected exceptions', function () {
+    $metrics = new CollectPublicationMetrics(fake()->uuid(), '2026-09-23');
+    $followers = new CollectAccountDailySnapshot(fake()->uuid(), '2026-09-23');
+
+    expect($metrics->maxExceptions)->toBe(3)
+        ->and($metrics->backoff())->toBe([300, 1800, 3600])
+        ->and($followers->maxExceptions)->toBe(3)
+        ->and($followers->backoff())->toBe([300, 1800, 3600]);
+});
+
+test('an unexpected collector exception is thrown so the worker counts it against max exceptions', function () {
+    $date = CarbonImmutable::parse('2026-09-23 12:00:00', 'UTC');
+    CarbonImmutable::setTestNow($date);
+    $publication = metricJobPublication(Platform::Mastodon, $date->subDay());
+    $collector = Mockery::mock(MastodonPublicationMetricsCollector::class);
+    $collector->shouldReceive('collect')->andThrow(new RuntimeException('Unexpected payload'));
+    $factory = Mockery::mock(PublicationMetricsCollectorFactory::class);
+    $factory->shouldReceive('for')->andReturn($collector);
+
+    expect(fn () => app()->call([new CollectPublicationMetrics($publication->id, $date->toDateString()), 'handle'], ['collectors' => $factory]))
+        ->toThrow(RuntimeException::class, 'Unexpected payload');
+});
+
+test('a metric job that outlives its observation day hands off to the current day', function () {
+    Bus::fake([CollectPublicationMetrics::class]);
+    $now = CarbonImmutable::parse('2026-09-24 00:30:00', 'UTC');
+    CarbonImmutable::setTestNow($now);
+    $publication = metricJobPublication(Platform::Mastodon, $now->subDays(2));
+    $job = new CollectPublicationMetrics($publication->id, '2026-09-23', baseline: true);
+
+    app()->call([$job, 'handle']);
+
+    expect($job->retryUntil()->toDateTimeString())->toBe('2026-09-24 23:59:59')
+        ->and(AnalyticsPublicationDailySnapshot::query()->count())->toBe(0);
+    Bus::assertDispatched(CollectPublicationMetrics::class, fn (CollectPublicationMetrics $next): bool => $next->publicationId === $publication->id
+        && $next->observationDate === '2026-09-24'
+        && $next->baseline);
+});
+
+test('a follower job that outlives its observation day hands off to the current day', function () {
+    Bus::fake([CollectAccountDailySnapshot::class]);
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-09-24 00:30:00', 'UTC'));
+    $account = SocialAccount::factory()->create(['platform' => Platform::Mastodon]);
+    $job = new CollectAccountDailySnapshot($account->id, '2026-09-23');
+
+    app()->call([$job, 'handle']);
+
+    expect($job->retryUntil()->toDateTimeString())->toBe('2026-09-24 23:59:59');
+    Bus::assertDispatched(CollectAccountDailySnapshot::class, fn (CollectAccountDailySnapshot $next): bool => $next->socialAccountId === $account->id
+        && $next->observationDate === '2026-09-24');
+});
+
+test('a publication the network reports as gone is marked deleted and no longer dispatched', function () {
+    CarbonImmutable::setTestNow('2026-09-23 12:00:00 UTC');
+    $publication = metricJobPublication(Platform::Mastodon, CarbonImmutable::now('UTC')->subDays(180));
+    Http::fake(['*' => Http::response(['error' => 'Record not found'], 404)]);
+
+    app()->call([new CollectPublicationMetrics($publication->id, '2026-09-23', baseline: true), 'handle']);
+
+    expect($publication->fresh()->availability)->toBe(PublicationAvailability::Deleted);
+
+    CarbonImmutable::setTestNow('2026-09-24 03:00:00 UTC');
+    Bus::fake([CollectPublicationMetrics::class]);
+    $this->artisan('analytics:dispatch-publication-metrics')->assertSuccessful();
+
+    Bus::assertNotDispatched(CollectPublicationMetrics::class, fn (CollectPublicationMetrics $job): bool => $job->publicationId === $publication->id);
+});
+
+test('a baseline that keeps failing is marked unavailable after the failure cap', function () {
+    CarbonImmutable::setTestNow('2026-09-23 12:00:00 UTC');
+    $publication = metricJobPublication(Platform::Mastodon, CarbonImmutable::now('UTC')->subDays(180));
+    Http::fake(['*' => Http::response(['unexpected' => true])]);
+
+    foreach (['2026-09-23', '2026-09-24'] as $day) {
+        CarbonImmutable::setTestNow("{$day} 12:00:00 UTC");
+        app()->call([new CollectPublicationMetrics($publication->id, $day, baseline: true), 'handle']);
+    }
+
+    expect($publication->fresh()->availability)->toBe(PublicationAvailability::Available)
+        ->and($publication->fresh()->metric_failures)->toBe(2);
+
+    CarbonImmutable::setTestNow('2026-09-25 12:00:00 UTC');
+    app()->call([new CollectPublicationMetrics($publication->id, '2026-09-25', baseline: true), 'handle']);
+
+    expect($publication->fresh()->availability)->toBe(PublicationAvailability::Unavailable)
+        ->and($publication->fresh()->metric_failures)->toBe(CollectPublicationMetrics::MAX_METRIC_FAILURES);
+});
+
+test('a malformed reading of a recent publication is not counted against it', function () {
+    CarbonImmutable::setTestNow('2026-09-23 12:00:00 UTC');
+    $publication = metricJobPublication(Platform::Mastodon, CarbonImmutable::now('UTC')->subDay());
+    Http::fake(['*' => Http::response(['unexpected' => true])]);
+
+    app()->call([new CollectPublicationMetrics($publication->id, '2026-09-23'), 'handle']);
+
+    expect($publication->fresh()->metric_failures)->toBe(0)
+        ->and($publication->fresh()->availability)->toBe(PublicationAvailability::Available);
 });

@@ -143,12 +143,11 @@ const changePlan = (planId: string, interval: BillingInterval): void => {
 
                 <PlanPicker
                     :plans="plans"
-                    :interval="selectedInterval"
+                    v-model:interval="selectedInterval"
                     :current-plan-id="plan?.id ?? null"
                     :current-interval="currentInterval"
                     :disabled-plan-ids="deniedPlanIds"
                     :processing="planForm.processing"
-                    @update:interval="(value) => (selectedInterval = value)"
                     @select="(planId) => changePlan(planId, selectedInterval)"
                 />
             </SettingsSection>

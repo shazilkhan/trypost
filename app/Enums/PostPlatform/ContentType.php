@@ -134,7 +134,7 @@ enum ContentType: string
      *
      * @return array{width: int, height: int}
      */
-    public function aiImageDimensions(): array
+    public function preferredImageDimensions(): array
     {
         return match ($this) {
             // Vertical 4:5 (Instagram preferred portrait, Threads mirrors it)
@@ -337,20 +337,45 @@ enum ContentType: string
 
     /**
      * Aspect-ratio window (width / height) enforced by the editor and by
-     * ContentTypeCompatibleWithMedia at save and publish. Threads (10:1,
-     * https://developers.facebook.com/docs/threads/overview) and Telegram
-     * sendPhoto (ratio at most 20, https://core.telegram.org/bots/api#sendphoto)
-     * are the documented hard limits among the "any ratio" networks.
+     * ContentTypeCompatibleWithMedia at save and publish, per kind of media. Only
+     * the ratios each network documents as accepted are enforced; a ratio it only
+     * recommends (9:16 for Reels, Stories and Shorts) is not. GIFs and still
+     * images the publisher fits into the story frame (autoFitsImage) are never
+     * checked. Sources (checked 2026-10-06):
+     *
+     * - Instagram (https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media):
+     *   images 4:5 to 1.91:1 (3:4 accepted live, see .ai/rules/post-platform.md);
+     *   Reels 0.01:1 to 10:1, and a single feed video is published as a Reel;
+     *   story videos 0.1:1 to 10:1.
+     * - Facebook Reels (https://developers.facebook.com/docs/video-api/guides/reels-publishing) and
+     *   Page Stories (https://developers.facebook.com/docs/page-stories-api): video 9 x 16.
+     * - YouTube publishes a wider video as a regular video, not a Short
+     *   (https://support.google.com/youtube/answer/15424877), so no limit.
+     * - Threads images 10:1 (https://developers.facebook.com/docs/threads/overview) and Telegram
+     *   sendPhoto at most 20 (https://core.telegram.org/bots/api#sendphoto).
      *
      * @return array{min: float, max: float}|null
      */
-    public function aspectRatioBounds(): ?array
+    public function aspectRatioBounds(MediaType $type, bool $isGif = false): ?array
+    {
+        if ($isGif) {
+            return null;
+        }
+
+        return match ($type) {
+            MediaType::Image => $this->imageAspectRatioBounds(),
+            MediaType::Video => $this->videoAspectRatioBounds(),
+            default => null,
+        };
+    }
+
+    /**
+     * @return array{min: float, max: float}|null
+     */
+    private function imageAspectRatioBounds(): ?array
     {
         return match ($this) {
             self::InstagramFeed => ['min' => 0.75, 'max' => 1.91],
-            self::InstagramReel, self::InstagramStory,
-            self::FacebookReel, self::FacebookStory,
-            self::YouTubeShort => ['min' => 0.5, 'max' => 0.6],
             self::ThreadsPost => ['min' => 0.1, 'max' => 10.0],
             self::TelegramPost => ['min' => 0.05, 'max' => 20.0],
             default => null,
@@ -358,15 +383,15 @@ enum ContentType: string
     }
 
     /**
-     * Whether aspectRatioBounds() applies to this kind of media. Threads (image
-     * specs) and Telegram (sendPhoto) document their ratio limit for still
-     * photos only; their videos and GIFs (sendAnimation) have none.
+     * @return array{min: float, max: float}|null
      */
-    public function aspectRatioBoundsApplyTo(MediaType $type, bool $isGif = false): bool
+    private function videoAspectRatioBounds(): ?array
     {
         return match ($this) {
-            self::ThreadsPost, self::TelegramPost => $type === MediaType::Image && ! $isGif,
-            default => true,
+            self::InstagramFeed, self::InstagramReel => ['min' => 0.01, 'max' => 10.0],
+            self::InstagramStory => ['min' => 0.1, 'max' => 10.0],
+            self::FacebookReel, self::FacebookStory => ['min' => 0.5, 'max' => 0.6],
+            default => null,
         };
     }
 
@@ -410,7 +435,7 @@ enum ContentType: string
     /**
      * Fixed crop presets the media editor offers after Freeform and Original,
      * in display order for this content type. Every ratio must
-     * sit inside aspectRatioBounds() (CropPresetBoundsTest).
+     * sit inside the image aspectRatioBounds() (CropPresetBoundsTest).
      *
      * @return list<string>
      */
@@ -494,8 +519,9 @@ enum ContentType: string
      *     max_video_duration_sec: int|null,
      *     aspect_ratio_min: float|null,
      *     aspect_ratio_max: float|null,
+     *     video_aspect_ratio_min: float|null,
+     *     video_aspect_ratio_max: float|null,
      *     auto_fits_image: bool,
-     *     aspect_ratio_images_only: bool,
      *     crop_presets: list<string>,
      *     supports_alt_text: bool,
      *     supports_user_tags: bool,
@@ -509,7 +535,8 @@ enum ContentType: string
      */
     public function mediaRules(): array
     {
-        $bounds = $this->aspectRatioBounds();
+        $imageBounds = $this->aspectRatioBounds(MediaType::Image);
+        $videoBounds = $this->aspectRatioBounds(MediaType::Video);
         $dimensions = $this->imageDimensionBounds();
         $minFiles = $this->minMediaCount();
 
@@ -527,10 +554,11 @@ enum ContentType: string
             'max_video_bytes' => $this->maxVideoBytes(),
             'max_document_bytes' => $this->maxDocumentBytes(),
             'max_video_duration_sec' => $this->maxVideoDurationSec(),
-            'aspect_ratio_min' => $bounds['min'] ?? null,
-            'aspect_ratio_max' => $bounds['max'] ?? null,
+            'aspect_ratio_min' => $imageBounds['min'] ?? null,
+            'aspect_ratio_max' => $imageBounds['max'] ?? null,
+            'video_aspect_ratio_min' => $videoBounds['min'] ?? null,
+            'video_aspect_ratio_max' => $videoBounds['max'] ?? null,
             'auto_fits_image' => $this->autoFitsImage(),
-            'aspect_ratio_images_only' => ! $this->aspectRatioBoundsApplyTo(MediaType::Video),
             'crop_presets' => $this->cropPresets(),
             'supports_alt_text' => $this->supportsAltText(),
             'supports_user_tags' => $this->supportsUserTags(),
@@ -563,11 +591,25 @@ enum ContentType: string
      *     max_video_duration_sec: int|null,
      *     max_image_bytes: int|null,
      *     max_video_bytes: int|null,
-     *     max_document_bytes: int|null
+     *     max_document_bytes: int|null,
+     *     aspect_ratio_min: float|null,
+     *     aspect_ratio_max: float|null,
+     *     video_aspect_ratio_min: float|null,
+     *     video_aspect_ratio_max: float|null,
+     *     auto_fits_image: bool,
+     *     image_min_width: int|null,
+     *     image_min_height: int|null,
+     *     image_max_width: int|null,
+     *     image_max_height: int|null,
+     *     supports_alt_text: bool,
+     *     supports_user_tags: bool,
+     *     supports_video_cover: bool
      * }
      */
     public function toListingArray(): array
     {
+        $rules = $this->mediaRules();
+
         return [
             'value' => $this->value,
             'label' => $this->label(),
@@ -585,6 +627,20 @@ enum ContentType: string
             'max_image_bytes' => $this->maxImageBytes(),
             'max_video_bytes' => $this->maxVideoBytes(),
             'max_document_bytes' => $this->maxDocumentBytes(),
+            ...array_intersect_key($rules, array_flip([
+                'aspect_ratio_min',
+                'aspect_ratio_max',
+                'video_aspect_ratio_min',
+                'video_aspect_ratio_max',
+                'auto_fits_image',
+                'image_min_width',
+                'image_min_height',
+                'image_max_width',
+                'image_max_height',
+                'supports_alt_text',
+                'supports_user_tags',
+                'supports_video_cover',
+            ])),
         ];
     }
 

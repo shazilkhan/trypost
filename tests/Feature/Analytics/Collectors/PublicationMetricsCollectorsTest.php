@@ -837,3 +837,98 @@ test('an Instagram story collects profile metrics and its navigation breakdown',
     Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'metric') === 'navigation'
         && data_get($request->data(), 'breakdown') === 'story_navigation_action_type');
 });
+
+test('youtube reads statistics for every due video of the channel in one videos call', function () {
+    $analyticsApi = rtrim((string) config('trypost.platforms.youtube.analytics_api'), '/');
+    $dataApi = rtrim((string) config('trypost.platforms.youtube.data_api'), '/');
+    Http::fake([
+        "{$analyticsApi}/reports*" => Http::response(['columnHeaders' => [], 'rows' => []]),
+        "{$dataApi}/videos*" => fn (Request $request) => Http::response(['items' => collect(explode(',', (string) $request['id']))
+            ->map(fn (string $id): array => ['id' => $id, 'statistics' => ['viewCount' => (string) strlen($id), 'likeCount' => '1', 'commentCount' => '0']])
+            ->all()]),
+    ]);
+    $date = CarbonImmutable::parse('2026-09-23', 'UTC');
+    $account = SocialAccount::factory()->youtube()->create();
+    $publications = collect(['video-a', 'video-bb', 'video-ccc'])->map(fn (string $id, int $index) => AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => $id,
+        'provider_published_at' => $date->subDays($index + 1),
+    ]));
+    $collector = app(YouTubePublicationMetricsCollector::class);
+
+    $views = $publications->map(fn (AnalyticsPublication $publication) => collect($collector->collect($publication, $date)->metrics)
+        ->firstWhere('key', MetricKey::Views)->value);
+
+    expect($views->all())->toBe([7, 8, 9]);
+    expect(collect(Http::recorded())->filter(fn (array $pair): bool => str_contains($pair[0]->url(), '/videos'))->count())->toBe(1);
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/videos')
+        && collect(explode(',', (string) $request['id']))->sort()->values()->all() === ['video-a', 'video-bb', 'video-ccc']);
+});
+
+test('youtube keeps current video statistics when Analytics rejects the report as malformed', function () {
+    $analyticsApi = rtrim((string) config('trypost.platforms.youtube.analytics_api'), '/');
+    $dataApi = rtrim((string) config('trypost.platforms.youtube.data_api'), '/');
+    Http::fake([
+        "{$analyticsApi}/reports*" => Http::response(['error' => [
+            'code' => 400,
+            'message' => 'The query is not supported.',
+            'errors' => [['message' => 'The query is not supported.', 'domain' => 'global', 'reason' => 'badRequest']],
+        ]], 400),
+        "{$dataApi}/videos*" => Http::response(['items' => [[
+            'id' => 'short-1',
+            'statistics' => ['viewCount' => '1144', 'likeCount' => '26', 'commentCount' => '3'],
+        ]]]),
+    ]);
+    $account = SocialAccount::factory()->youtube()->create();
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'short-1',
+    ]);
+
+    $observation = app(YouTubePublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+
+    expect(collect($observation->metrics)->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value])->all())
+        ->toEqual(['views' => 1144, 'reactions' => 26, 'comments' => 3, 'engagements' => 29]);
+});
+
+test('youtube reports a video it no longer returns as gone', function () {
+    $dataApi = rtrim((string) config('trypost.platforms.youtube.data_api'), '/');
+    Http::fake(["{$dataApi}/videos*" => Http::response(['items' => []])]);
+    $account = SocialAccount::factory()->youtube()->create();
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::YouTube,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'removed-video',
+    ]);
+
+    try {
+        app(YouTubePublicationMetricsCollector::class)->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC'));
+        $this->fail('Expected the collector to report the video as gone.');
+    } catch (AnalyticsCollectionException $exception) {
+        expect($exception->gone)->toBeTrue();
+    }
+});
+
+test('TikTok classifies an invalid access token as an authentication failure', function () {
+    $account = SocialAccount::factory()->create(['platform' => Platform::TikTok]);
+    $publication = AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::TikTok,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => '123456789',
+    ]);
+    Http::fake(['*' => Http::response(['error' => ['code' => 'access_token_invalid'], 'data' => []])]);
+
+    expect(fn () => app(TikTokPublicationMetricsCollector::class)->collect($publication, CarbonImmutable::today('UTC')))
+        ->toThrow(fn (AnalyticsCollectionException $exception): bool => $exception->category === 'authentication');
+});

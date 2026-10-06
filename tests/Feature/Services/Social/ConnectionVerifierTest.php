@@ -708,6 +708,9 @@ test('threads verify treats a dead token reported under a non-190 code as genuin
     // from issue #230, which the old code === 190-only check let through
     // as a silent, un-flagged "still valid".
     Http::fake([
+        config('trypost.platforms.threads.auth_api').'/refresh_access_token*' => Http::response([
+            'error' => ['message' => 'Error validating access token', 'type' => 'OAuthException', 'code' => 190],
+        ], 400),
         config('trypost.platforms.threads.graph_api').'/me*' => Http::response([
             'error' => ['message' => 'The requested resource does not exist', 'type' => 'OAuthException', 'code' => 100],
         ], 400),
@@ -829,6 +832,9 @@ test('facebook verify treats a non-JSON failure body as platform unavailable, no
 
 test('instagram verify treats a dead token reported under a non-190 code as genuinely expired', function () {
     Http::fake([
+        config('trypost.platforms.instagram.auth_api').'/refresh_access_token*' => Http::response([
+            'error' => ['message' => 'Error validating access token', 'type' => 'OAuthException', 'code' => 190],
+        ], 400),
         config('trypost.platforms.instagram.graph_api').'/me*' => Http::response([
             'error' => ['message' => 'The requested resource does not exist', 'type' => 'OAuthException', 'code' => 100],
         ], 400),
@@ -893,6 +899,9 @@ test('threads verify treats a failed response with a valid but unrecognized JSON
     // an unrecognized 4xx shape still disconnects rather than being
     // silently ignored, which is the exact bug this class replaced.
     Http::fake([
+        config('trypost.platforms.threads.auth_api').'/refresh_access_token*' => Http::response([
+            'error' => ['message' => 'Error validating access token', 'type' => 'OAuthException', 'code' => 190],
+        ], 400),
         config('trypost.platforms.threads.graph_api').'/me*' => Http::response(['data' => ['id' => '123']], 400),
     ]);
 

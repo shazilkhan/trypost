@@ -54,6 +54,7 @@ test('x reads one owned timeline page with only discovery fields', function () {
         ->and($page->providerExhausted)->toBeFalse();
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), "/users/{$account->platform_user_id}/tweets")
         && $request['pagination_token'] === 'x-cursor'
+        && $request['exclude'] === 'retweets,replies'
         && $request['tweet.fields'] === 'created_at,attachments,note_tweet'
         && $request['media.fields'] === 'media_key,type,preview_image_url,url,variants'
         && ! str_contains((string) $request['tweet.fields'], 'public_metrics'));
@@ -89,6 +90,7 @@ test('pinterest reads one pin page and records lifetime metric semantics', funct
         ->and($page->nextCursor)->toBe('pin-next');
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/v5/pins')
         && $request['bookmark'] === 'pin-cursor'
+        && $request['pin_filter'] === 'exclude_repins'
         && $request['page_size'] === 250);
 });
 
@@ -360,4 +362,23 @@ test('x keeps the full text of long posts and the attached media for the import'
                 ['content_type' => 'application/x-mpegURL', 'url' => 'https://video.example.test/pl.m3u8'],
             ]],
         ]]);
+});
+
+test('youtube resolves the uploads playlist once and reuses it on every later discovery page', function () {
+    $api = config('trypost.platforms.youtube.data_api');
+    Http::fake([
+        "{$api}/channels*" => Http::response([
+            'items' => [['contentDetails' => ['relatedPlaylists' => ['uploads' => 'uploads-1']]]],
+        ]),
+        "{$api}/playlistItems*" => Http::response(['items' => [], 'nextPageToken' => 'youtube-next']),
+    ]);
+    $account = SocialAccount::factory()->create(['platform' => Platform::YouTube]);
+    $collector = app(YouTubePublicationCollector::class);
+
+    $collector->page($account, null, CarbonImmutable::parse('2026-01-01', 'UTC'));
+    $collector->page($account, 'youtube-next', CarbonImmutable::parse('2026-01-01', 'UTC'));
+    $collector->page($account, null, CarbonImmutable::parse('2026-01-01', 'UTC'));
+
+    Http::assertSentCount(4);
+    expect(collect(Http::recorded())->filter(fn (array $pair): bool => str_contains($pair[0]->url(), '/channels'))->count())->toBe(1);
 });

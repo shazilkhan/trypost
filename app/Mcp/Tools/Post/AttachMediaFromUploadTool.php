@@ -7,6 +7,7 @@ namespace App\Mcp\Tools\Post;
 use App\Actions\Media\ResolveWorkspaceMedia;
 use App\Actions\Post\AppendPostMedia;
 use App\Dto\MediaItem;
+use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
@@ -18,7 +19,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Attach a Media uploaded via request-media-upload-tool to a post. The upload_token is the value returned by request-media-upload-tool; the Media is resolved by that token within the current workspace, then appended to the post. The media type must be accepted by the post\'s channel and content type. Size, video duration, GIF and MOV caps per content_type (see list-content-types-tool) are checked when the post is scheduled or published, not here.')]
+#[Description('Attach a Media uploaded via request-media-upload-tool to a post. The upload_token is the value returned by request-media-upload-tool; the Media is resolved by that token within the current workspace, then appended after the post\'s current media (to reorder or remove media, call update-post-tool with the media ids in the new order). The media type must be accepted by the post\'s channel and content type. A post that is publishing or already published cannot change; a scheduled post edited by a member who needs approval goes back to pending_approval. Size, video duration, GIF and MOV caps per content_type (see list-content-types-tool) are checked when the post is scheduled or published, not here.')]
 class AttachMediaFromUploadTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -54,7 +55,11 @@ class AttachMediaFromUploadTool extends Tool
             return Response::error($violation);
         }
 
-        AppendPostMedia::execute($post, [MediaItem::fromMedia($media, data_get($validated, 'alt'))->toArray()], $request->user());
+        try {
+            AppendPostMedia::execute($post, [MediaItem::fromMedia($media, data_get($validated, 'alt'))->toArray()], $request->user());
+        } catch (QueueBusyException) {
+            return Response::error(__('posts.errors.queue_busy'));
+        }
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);
 

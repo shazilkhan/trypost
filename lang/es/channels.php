@@ -167,7 +167,6 @@ return [
         'refresh_after' => 'primero.',
         'irreversible' => 'Esto no se puede deshacer.',
         'description' => 'Esto elimina todas las publicaciones de este canal en TryPost, incluidos borradores, programadas y el historial de publicadas. Las publicaciones que ya están en la red se quedan allí.',
-        'confirm' => 'Desconectar',
         'keyword' => 'desconectar',
         'cancel' => 'Cancelar',
     ],

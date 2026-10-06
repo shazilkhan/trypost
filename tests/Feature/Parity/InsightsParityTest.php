@@ -551,3 +551,60 @@ test('channel publications paginate with the app default on the api and mcp in t
             ->where('last_page', 2)
             ->etc());
 });
+
+test('the web, api and mcp count a sao paulo evening post on the viewer local day alike', function () {
+    $this->user->update(['timezone' => 'America/Sao_Paulo']);
+    [$account, $publication] = ($this->seedInsightsParityChannel)(Platform::Instagram, 50, 4, 'alpha');
+    $publication->update(['provider_published_at' => '2026-09-11 01:00:00']);
+    $range = ['start' => '2026-09-10', 'end' => '2026-09-10'];
+
+    $this->actingAs($this->user)
+        ->get(route('app.insights', $range))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('report.summary.posts.value', 1)
+            ->where('report.posts.buckets.0.start', '2026-09-10')
+            ->where('report.posts.buckets.0.total', 1)
+            ->etc());
+    $web = webChannelInsightsProps($this, $this->user, $account, $range);
+
+    $api = $this->withHeaders(parityApi($this->token))
+        ->getJson(route('api.analytics.index', $range))
+        ->assertOk()
+        ->assertJsonPath('summary.posts.value', 1)
+        ->assertJsonPath('posts.buckets.0.total', 1)
+        ->json();
+    $channel = $this->withHeaders(parityApi($this->token))
+        ->getJson(route('api.channels.insights.show', [$account, ...$range]))
+        ->assertOk()
+        ->assertJsonPath('summary.summary.posts.value', 1)
+        ->assertJsonPath('metric_series.current.0.values.posts', 1)
+        ->json();
+    $list = $this->withHeaders(parityApi($this->token))
+        ->getJson(route('api.channels.insights.publications', [$account, ...$range]))
+        ->assertOk()
+        ->assertJsonPath('data.0.id', $publication->id)
+        ->json('data');
+
+    expect($channel['summary'])->toEqual($web['report'])
+        ->and($channel['metric_series'])->toEqual($web['metricSeries'])
+        ->and($list)->toEqual(data_get($web, 'publications.data'));
+
+    TryPostServer::actingAs($this->user)
+        ->tool(GetAnalyticsReportTool::class, $range)
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('summary', $api['summary'])
+            ->where('posts', $api['posts'])
+            ->etc());
+    TryPostServer::actingAs($this->user)
+        ->tool(GetChannelInsightsTool::class, ['account_id' => $account->id, ...$range])
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('summary', $channel['summary'])
+            ->where('metric_series', $channel['metric_series'])
+            ->etc());
+    TryPostServer::actingAs($this->user)
+        ->tool(ListChannelPublicationsTool::class, ['account_id' => $account->id, ...$range])
+        ->assertStructuredContent(fn (AssertableJson $json) => $json
+            ->where('publications', $list)
+            ->etc());
+});

@@ -151,7 +151,7 @@ class SocialAccount extends Model
         array $values,
         ?self $reconnect = null,
     ): self {
-        // Two popups finishing at once for the same network must not interleave
+        // Two connections finishing at once for the same network must not interleave
         // a reconnect's update-and-realign transaction with a fresh insert.
         try {
             $account = Cache::lock("social_connect:{$workspace->id}:{$platform->network()}", 10)

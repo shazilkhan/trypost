@@ -159,14 +159,11 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     {
         $preference = $this->notificationPreference;
 
-        if (! $preference) {
-            return true;
-        }
-
         return match ($type) {
-            NotificationType::PostPublished => $preference->post_published,
-            NotificationType::PostFailed => $preference->post_failed,
-            NotificationType::AccountDisconnected, NotificationType::PostAtRisk => $preference->account_disconnected,
+            NotificationType::PostReady, NotificationType::MentionedInComment => false,
+            NotificationType::PostPublished => $preference->post_published ?? true,
+            NotificationType::PostFailed => $preference->post_failed ?? true,
+            NotificationType::AccountDisconnected, NotificationType::PostAtRisk => $preference->account_disconnected ?? true,
             NotificationType::PostNoteAdded => $preference->post_note_added ?? true,
             NotificationType::Collaboration => $preference->collaboration ?? true,
         };

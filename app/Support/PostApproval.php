@@ -23,6 +23,13 @@ use Illuminate\Validation\ValidationException;
  */
 class PostApproval
 {
+    /**
+     * How long the approval lock outlives a crashed holder. Approving and
+     * attaching media copy files under it, so it sits well above the slowest
+     * save; a finished save releases it at once.
+     */
+    public const LOCK_SECONDS = 120;
+
     /** @var array<string, true> */
     private static array $held = [];
 
@@ -70,7 +77,7 @@ class PostApproval
         }
 
         try {
-            return Cache::lock("post-approval:{$post->id}", 30)->block(10, function () use ($post, $work): mixed {
+            return Cache::lock("post-approval:{$post->id}", self::LOCK_SECONDS)->block(10, function () use ($post, $work): mixed {
                 self::$held[$post->id] = true;
 
                 try {

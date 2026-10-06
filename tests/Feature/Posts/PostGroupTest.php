@@ -179,6 +179,30 @@ test('an ungrouped post is its own group', function () {
         ->assertJsonPath('0.id', $post->id);
 });
 
+test('the group endpoint hides another member pending request from a member who needs approval', function () {
+    $groupId = '0190a3b2-0000-7000-8000-00000000000e';
+    $requester = workspaceMember($this->workspace, 'approval');
+    $viewer = workspaceMember($this->workspace, 'approval');
+    $approved = groupedPost($this->channels[0], $this->user, $groupId);
+    groupedPost($this->channels[1], $requester, $groupId, ['status' => PostStatus::PendingApproval, 'approval_requested_by' => $requester->id]);
+
+    $this->actingAs($viewer)
+        ->getJson(route('app.posts.group.show', $approved))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonPath('0.id', $approved->id);
+
+    $this->actingAs($requester)
+        ->getJson(route('app.posts.group.show', $approved))
+        ->assertOk()
+        ->assertJsonCount(2);
+
+    $this->actingAs($this->user)
+        ->getJson(route('app.posts.group.show', $approved))
+        ->assertOk()
+        ->assertJsonCount(2);
+});
+
 test('the group endpoint is tenancy scoped', function () {
     $foreignChannel = SocialAccount::factory()->create(['workspace_id' => Workspace::factory()->create()->id]);
     $foreign = groupedPost($foreignChannel, User::factory()->create(), '0190a3b2-0000-7000-8000-00000000000d');

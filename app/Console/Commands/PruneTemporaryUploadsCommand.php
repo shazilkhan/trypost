@@ -10,7 +10,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Signature('media:prune-uploads {--dry-run : Count the files without deleting anything}')]
-#[Description('Delete unused temporary uploads past their retention and stale publish crops')]
+#[Description('Delete unused temporary uploads past their retention, stale publish crops and abandoned chunk files')]
 class PruneTemporaryUploadsCommand extends Command
 {
     public function handle(): int
@@ -25,7 +25,7 @@ class PruneTemporaryUploadsCommand extends Command
         $result = PruneTemporaryUploads::execute(now(), $dryRun);
         $verb = $dryRun ? 'would be deleted' : 'deleted';
 
-        $this->info("{$result['uploads']} temporary upload(s) and {$result['crops']} crop(s) {$verb}.");
+        $this->info("{$result['uploads']} temporary upload(s), {$result['crops']} crop(s) and {$result['chunks']} abandoned chunk file(s) {$verb}.");
 
         return self::SUCCESS;
     }

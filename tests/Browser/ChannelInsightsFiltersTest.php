@@ -152,6 +152,26 @@ test('the label filter narrows the publications and clear all resets it', functi
         ->assertNoJavaScriptErrors();
 });
 
+test('history navigation re-syncs the label filter with the page', function () {
+    $page = visit(route('app.channels.insights', $this->instagram));
+    waitForInsightsFilterTestId($page, 'insights-label-filter');
+
+    $page->script('window.__labelTrigger0 = document.querySelector("[data-testid=insights-label-filter]").textContent.trim()');
+    $page->click('@insights-range-7d');
+    waitForInsightsFilterScript($page, 'new URLSearchParams(location.search).get("range") === "7d"');
+    $page->click('@insights-label-filter');
+    waitForInsightsFilterTestId($page, "insights-label-option-{$this->label->id}");
+    $page->click("@insights-label-option-{$this->label->id}");
+    waitForInsightsFilterScript($page, 'location.search.includes("labels") && document.querySelectorAll("#insights-posts-body tr").length === 1');
+    $page->assertScript('document.querySelector("[data-testid=insights-label-filter]").textContent.trim() !== window.__labelTrigger0', true);
+
+    $page->script('history.back()');
+    waitForInsightsFilterScript($page, '!location.search.includes("range=7d") && !location.search.includes("labels") && document.querySelectorAll("#insights-posts-body tr").length === 3');
+
+    $page->assertScript('document.querySelector("[data-testid=insights-label-filter]").textContent.trim() === window.__labelTrigger0', true)
+        ->assertNoJavaScriptErrors();
+});
+
 test('on a phone both filters show only their icon and chevron', function () {
     $page = visit(route('app.channels.insights', $this->instagram))->resize(390, 844);
     waitForInsightsFilterTestId($page, 'insights-post-type-filter');

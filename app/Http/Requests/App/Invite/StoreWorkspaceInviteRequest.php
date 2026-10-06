@@ -7,6 +7,7 @@ namespace App\Http\Requests\App\Invite;
 use App\Http\Requests\App\Invite\Concerns\ValidatesMemberAccess;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class StoreWorkspaceInviteRequest extends FormRequest
 {
@@ -18,6 +19,13 @@ class StoreWorkspaceInviteRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('email'))) {
+            $this->merge(['email' => Str::lower(trim($this->input('email')))]);
+        }
     }
 
     /**

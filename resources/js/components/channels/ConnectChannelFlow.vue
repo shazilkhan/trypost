@@ -26,7 +26,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     close: [];
-    connected: [{ accountId: string; created: boolean }];
+    connected: [{ accountId: string | null; created: boolean }];
 }>();
 
 const { goTo, back, showDetails } = useConnectChannelDialog();

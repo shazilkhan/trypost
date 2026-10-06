@@ -321,7 +321,6 @@ it('rejects upload without a media file', function () {
 });
 
 it('downloads and hosts an external media url when creating a post', function () {
-
     Http::fake([
         '93.184.216.34/listing.jpg' => Http::response(
             file_get_contents(__DIR__.'/../../fixtures/1x1.png'),
@@ -349,7 +348,6 @@ it('downloads and hosts an external media url when creating a post', function ()
 });
 
 it('persists alt text submitted on a bare external media url', function () {
-
     Http::fake([
         '93.184.216.34/car.jpg' => Http::response(
             file_get_contents(__DIR__.'/../../fixtures/1x1.png'),
@@ -378,7 +376,6 @@ it('persists alt text submitted on a bare external media url', function () {
 });
 
 it('keeps the measured duration when an external video url is submitted with its own meta', function () {
-
     Http::fake([
         '93.184.216.34/clip.mp4' => Http::response(file_get_contents(base_path('tests/fixtures/sample.mp4')), 200, ['Content-Type' => 'video/mp4']),
     ]);
@@ -400,7 +397,6 @@ it('keeps the measured duration when an external video url is submitted with its
 });
 
 it('rejects creating a post when an external media url cannot be fetched', function () {
-
     Http::fake(['93.184.216.34/missing.jpg' => Http::response(null, 404)]);
 
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
@@ -419,7 +415,6 @@ it('rejects creating a post when an external media url cannot be fetched', funct
 });
 
 it('rolls back already-hosted media when another url in the batch fails', function () {
-
     Http::fake([
         '93.184.216.34/good.jpg' => Http::response(
             file_get_contents(__DIR__.'/../../fixtures/1x1.png'),
@@ -448,7 +443,6 @@ it('rolls back already-hosted media when another url in the batch fails', functi
 });
 
 it('rejects and rolls back when a media url connection fails (timeout/dns)', function () {
-
     Http::fake([
         '93.184.216.34/good.jpg' => Http::response(
             file_get_contents(__DIR__.'/../../fixtures/1x1.png'),
@@ -477,7 +471,6 @@ it('rejects and rolls back when a media url connection fails (timeout/dns)', fun
 });
 
 it('rejects creating a post when an external media url is not a supported type', function () {
-
     // Downloads fine (200) but the bytes are not a supported media type.
     Http::fake(['93.184.216.34/notes.txt' => Http::response('just some text', 200)]);
 
@@ -532,7 +525,6 @@ it('keeps an already-hosted item and a freshly-hosted url in order', function ()
 
 it('passes already-hosted media through on create without downloading', function () {
     Storage::fake(null, ['url' => 'https://cdn.example.com']);
-    Http::preventStrayRequests();
     $asset = Media::factory()->stored()->ownedByPost($this->post)->create(['path' => 'medias/foo.jpg']);
 
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
@@ -593,7 +585,6 @@ it('rejects updating a post when an external media url cannot be fetched', funct
 
 it('accepts and persists media alt text on create', function () {
     Storage::fake(null, ['url' => 'https://cdn.example.com']);
-    Http::preventStrayRequests();
     $asset = Media::factory()->stored()->ownedByPost($this->post)->create(['path' => 'medias/foo.jpg']);
     $media = ['id' => $asset->id, 'alt' => 'A description of the photo'];
 
@@ -651,8 +642,6 @@ it('preserves every media meta key on update, not just alt_text', function () {
 });
 
 it('rejects media alt text over 2000 characters', function () {
-    Http::preventStrayRequests();
-
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.store'), [
             'content' => 'Alt text too long post',

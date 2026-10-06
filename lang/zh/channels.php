@@ -167,7 +167,6 @@ return [
         'refresh_after' => '。',
         'irreversible' => '此操作无法撤销。',
         'description' => '这会删除此频道在 TryPost 中的所有帖子，包括草稿、已排期的帖子和已发布历史。已在社交网络上的帖子会保留。',
-        'confirm' => '断开连接',
         'keyword' => '断开连接',
         'cancel' => '取消',
     ],

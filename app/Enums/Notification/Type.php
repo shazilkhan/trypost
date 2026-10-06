@@ -12,4 +12,6 @@ enum Type: string
     case PostAtRisk = 'post_at_risk';
     case PostNoteAdded = 'post_note_added';
     case Collaboration = 'collaboration';
+    case PostReady = 'post_ready';
+    case MentionedInComment = 'mentioned_in_comment';
 }

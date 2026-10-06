@@ -189,7 +189,7 @@ test('a repurpose from another workspace is not reachable', function () {
 
     $this->actingAs($this->user)
         ->get(route('app.repurposes.show', $stranger))
-        ->assertForbidden();
+        ->assertNotFound();
 });
 
 test('an account from another workspace cannot become a source', function () {

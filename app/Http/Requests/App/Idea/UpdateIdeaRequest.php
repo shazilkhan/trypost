@@ -6,14 +6,16 @@ namespace App\Http\Requests\App\Idea;
 
 use App\Models\Idea;
 use App\Support\Requests\Idea\IdeaRequestRules;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class UpdateIdeaRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response
     {
-        return $this->user()->can('update', $this->route('idea'));
+        return Gate::forUser($this->user())->inspect('update', $this->route('idea'));
     }
 
     /**

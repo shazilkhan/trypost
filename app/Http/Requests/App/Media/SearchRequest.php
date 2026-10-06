@@ -10,9 +10,12 @@ class SearchRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()->can('createPost', $this->user()->currentWorkspace);
     }
 
+    /**
+     * @return array<string, array<int, mixed>>
+     */
     public function rules(): array
     {
         return [

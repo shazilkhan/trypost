@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Post\Status as PostStatus;
 use App\Events\PostNoteChanged;
 use App\Jobs\SendNotification;
 use App\Mail\PostNoteAdded;
@@ -112,8 +113,7 @@ test('store emails every workspace member except the author', function () {
 test('store emails the workspace owner when a member adds a note', function () {
     Mail::fake();
 
-    $member = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
-    $this->workspace->members()->attach($member->id, membershipPivot('member'));
+    $member = workspaceMember($this->workspace);
 
     $this->actingAs($member)
         ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Looks good'])
@@ -121,6 +121,29 @@ test('store emails the workspace owner when a member adds a note', function () {
 
     Mail::assertQueuedCount(1);
     Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($this->user->email));
+});
+
+test('a note on a pending request emails only the approvers and the requester', function () {
+    Mail::fake();
+
+    $requester = workspaceMember($this->workspace, 'approval');
+    $bystander = workspaceMember($this->workspace, 'approval');
+    $approver = workspaceMember($this->workspace);
+    $pending = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $requester->id,
+        'status' => PostStatus::PendingApproval,
+        'approval_requested_by' => $requester->id,
+    ]);
+
+    $this->actingAs($approver)
+        ->postJson(route('app.posts.notes.store', $pending), ['body' => 'Pricing changes Friday'])
+        ->assertCreated();
+
+    Mail::assertQueuedCount(2);
+    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($this->user->email));
+    Mail::assertQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($requester->email));
+    Mail::assertNotQueued(PostNoteAdded::class, fn (PostNoteAdded $mail) => $mail->hasTo($bystander->email));
 });
 
 test('store respects a member who turned note emails off', function () {
@@ -252,5 +275,64 @@ test('cannot comment on post from other workspace', function () {
             'body' => 'Cross-workspace comment.',
         ]);
 
-    $response->assertForbidden();
+    $response->assertNotFound();
+});
+
+test('notes expose only the author id, name and photo', function () {
+    $this->user->update([
+        'registration_ip' => '203.0.113.7',
+        'google_id' => 'google-123',
+        'utm_source' => 'newsletter',
+    ]);
+    PostNote::factory()->create(['post_id' => $this->post->id, 'user_id' => $this->user->id]);
+
+    $index = $this->actingAs($this->user)
+        ->getJson(route('app.posts.notes.index', $this->post))
+        ->assertOk();
+    $store = $this->actingAs($this->user)
+        ->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Hi'])
+        ->assertCreated();
+    $update = $this->actingAs($this->user)
+        ->putJson(route('app.posts.notes.update', [$this->post, $store->json('id')]), ['body' => 'Edited'])
+        ->assertOk();
+
+    foreach ([$index->json('data.0.user'), $store->json('user'), $update->json('user')] as $author) {
+        expect(array_keys($author))->toEqualCanonicalizing(['id', 'name', 'photo_url'])
+            ->and($author['id'])->toBe($this->user->id);
+    }
+
+    foreach ([$index, $store, $update] as $response) {
+        foreach (['email', 'registration_ip', 'google_id', 'github_id', 'utm_source', 'persona', '203.0.113.7', $this->user->email] as $leak) {
+            expect($response->getContent())->not->toContain($leak);
+        }
+    }
+
+    expect($index->json('meta.current_page'))->toBe(1)
+        ->and($index->json('meta.last_page'))->toBe(1);
+});
+
+test('a member who needs approval cannot see notes of another member pending request', function () {
+    $requester = workspaceMember($this->workspace, 'approval');
+    $other = workspaceMember($this->workspace, 'approval');
+    $pending = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $requester->id,
+        'status' => PostStatus::PendingApproval,
+        'approval_requested_by' => $requester->id,
+    ]);
+    $note = PostNote::factory()->create(['post_id' => $pending->id, 'user_id' => $other->id]);
+
+    $this->actingAs($other)->getJson(route('app.posts.notes.index', $pending))->assertNotFound();
+    $this->actingAs($other)->postJson(route('app.posts.notes.store', $pending), ['body' => 'Hi'])->assertNotFound();
+    $this->actingAs($other)->putJson(route('app.posts.notes.update', [$pending, $note]), ['body' => 'Hi'])->assertNotFound();
+    $this->actingAs($other)->deleteJson(route('app.posts.notes.destroy', [$pending, $note]))->assertNotFound();
+
+    expect(PostNote::query()->count())->toBe(1);
+});
+
+test('a user outside the workspace cannot read or add notes', function () {
+    $outsider = workspaceOutsider($this->workspace);
+
+    $this->actingAs($outsider)->getJson(route('app.posts.notes.index', $this->post))->assertForbidden();
+    $this->actingAs($outsider)->postJson(route('app.posts.notes.store', $this->post), ['body' => 'Hi'])->assertForbidden();
 });

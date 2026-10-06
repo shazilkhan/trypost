@@ -30,7 +30,7 @@ class DeleteLabelTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate(['label_id' => ['required', 'string']]);
+        $validated = $request->validate(['label_id' => ['required', 'string', 'uuid']]);
 
         $label = WorkspaceLabel::where('workspace_id', $workspace->id)
             ->find(data_get($validated, 'label_id'));

@@ -110,6 +110,30 @@ const applyFilters = (): void => {
     );
 };
 
+const sameIds = (left: string[], right: string[]): boolean =>
+    left.length === right.length && left.every((id) => right.includes(id));
+
+watch(
+    () => props.filters,
+    (filters) => {
+        if (!filters) {
+            return;
+        }
+
+        if (!sameIds(selectedLabelIds.value, filters.labels)) {
+            selectedLabelIds.value = [...filters.labels];
+        }
+
+        if (selectedUntagged.value !== filters.untagged) {
+            selectedUntagged.value = filters.untagged;
+        }
+
+        if (!sameIds(selectedTypes.value, filters.types)) {
+            selectedTypes.value = [...filters.types];
+        }
+    },
+);
+
 watch(selectedLabelIds, applyFilters, { deep: true });
 watch(selectedUntagged, applyFilters);
 watch(selectedTypes, applyFilters, { deep: true });
@@ -166,9 +190,7 @@ watch(selectedTypes, applyFilters, { deep: true });
                         :bounds="report.bounds"
                         :url="url"
                         :range="report.range"
-                        :previous-range="report.previous_range"
                         :keep="keep"
-                        hide-caption
                     />
                     <div
                         class="flex shrink-0 items-center gap-2"

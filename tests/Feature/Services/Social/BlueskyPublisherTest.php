@@ -2015,11 +2015,19 @@ test('a bluesky thread embeds each reply media in that reply only', function () 
 test('a bluesky thread resumes from the stored segments without posting the root again', function () {
     $this->postPlatform->update(['meta' => ['thread_replies' => ['Two', 'Three']]]);
     $service = data_get($this->socialAccount->meta, 'service');
-    Http::fake(["{$service}/xrpc/com.atproto.repo.createRecord" => Http::sequence()
-        ->push(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r1', 'cid' => 'c1'])
-        ->push(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r2', 'cid' => 'c2'])
-        ->push(['error' => 'InvalidRequest', 'message' => 'Bad'], 400)
-        ->push(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r3', 'cid' => 'c3'])]);
+    $appView = config('trypost.platforms.bluesky.public_appview');
+    Http::fake([
+        "{$appView}/xrpc/app.bsky.feed.getPostThread*" => Http::response(['thread' => [
+            '$type' => 'app.bsky.feed.defs#threadViewPost',
+            'post' => ['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r2', 'cid' => 'c2'],
+            'replies' => [],
+        ]]),
+        "{$service}/xrpc/com.atproto.repo.createRecord" => Http::sequence()
+            ->push(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r1', 'cid' => 'c1'])
+            ->push(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r2', 'cid' => 'c2'])
+            ->push(['error' => 'InvalidRequest', 'message' => 'Bad'], 400)
+            ->push(['uri' => 'at://did:plc:testuser123/app.bsky.feed.post/r3', 'cid' => 'c3']),
+    ]);
 
     expect(fn () => $this->publisher->publish($this->postPlatform->fresh()))->toThrow(BlueskyPublishException::class);
 

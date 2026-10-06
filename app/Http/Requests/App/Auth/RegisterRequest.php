@@ -53,7 +53,7 @@ class RegisterRequest extends FormRequest
         $validator->after(function (Validator $validator): void {
             $invite = $this->invite();
 
-            if ($invite && $invite->email !== $this->input('email')) {
+            if ($invite && ! $invite->isFor($this->string('email')->toString())) {
                 $validator->errors()->add(
                     'email',
                     __('settings.members.flash.wrong_email'),

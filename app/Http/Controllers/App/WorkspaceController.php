@@ -8,11 +8,13 @@ use App\Actions\Workspace\CreateWorkspace;
 use App\Actions\Workspace\DeleteWorkspace;
 use App\Http\Requests\App\Workspace\StoreWorkspaceRequest;
 use App\Http\Requests\App\Workspace\UpdateWorkspaceRequest;
+use App\Models\Account;
 use App\Models\Invite;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -50,7 +52,7 @@ class WorkspaceController extends Controller
     private function denyAdditionalWorkspace(User $user, bool $redirectWhenAtLimit = true): ?RedirectResponse
     {
         // Invitee signup shells must stay empty until accept — otherwise they become billable.
-        if (Invite::query()->where('email', $user->email)->whereNull('accepted_at')->exists()) {
+        if (Invite::query()->forEmail($user->email)->whereNull('accepted_at')->exists()) {
             abort(403);
         }
 
@@ -75,11 +77,21 @@ class WorkspaceController extends Controller
     {
         $user = $request->user();
 
-        if ($redirect = $this->denyAdditionalWorkspace($user)) {
+        $redirect = DB::transaction(function () use ($user, $request): ?RedirectResponse {
+            Account::query()->whereKey($user->account_id)->lockForUpdate()->first();
+
+            if ($redirect = $this->denyAdditionalWorkspace($user)) {
+                return $redirect;
+            }
+
+            CreateWorkspace::execute($user, $request->validated());
+
+            return null;
+        });
+
+        if ($redirect) {
             return $redirect;
         }
-
-        CreateWorkspace::execute($user, $request->validated());
 
         return redirect()->route('app.workspace.channels')
             ->with('success', __('workspaces.create.success'));

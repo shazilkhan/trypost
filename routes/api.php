@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\PostApprovalController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\PostNoteController;
 use App\Http\Controllers\Api\PostRecurrenceController;
 use App\Http\Controllers\Api\RepurposeController;
 use App\Http\Controllers\Api\SignatureController;
@@ -28,16 +29,13 @@ Route::post('/uploads/{token}', [UploadController::class, 'store'])
     ->name('api.uploads.store');
 
 Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(function () {
-    // Analytics
     Route::get('/analytics', [AnalyticsController::class, 'index'])->name('api.analytics.index');
     Route::get('/analytics/publications/{publication}', [AnalyticsController::class, 'showPublication'])
         ->whereUuid('publication')
         ->name('api.analytics.publications.show');
 
-    // Uploads
     Route::post('/uploads', [UploadController::class, 'create'])->name('api.uploads.create');
 
-    // Posts
     Route::get('/posts', [PostController::class, 'index'])->name('api.posts.index');
     Route::post('/posts/batch', [PostController::class, 'storeBatch'])->name('api.posts.batch.store');
     Route::post('/posts', [PostController::class, 'store'])->name('api.posts.store');
@@ -51,22 +49,22 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::post('/posts/{post}/media/from-url', [PostController::class, 'attachMediaFromUrl'])->name('api.posts.attach-media-from-url');
     Route::get('/posts/{post}/metrics', [PostController::class, 'metrics'])->name('api.posts.metrics');
     Route::get('/posts/{post}/preview', [PostController::class, 'preview'])->name('api.posts.preview');
+    Route::get('/posts/{post}/notes', [PostNoteController::class, 'index'])->name('api.posts.notes.index');
+    Route::post('/posts/{post}/notes', [PostNoteController::class, 'store'])->name('api.posts.notes.store');
+    Route::put('/posts/{post}/notes/{note}', [PostNoteController::class, 'update'])->name('api.posts.notes.update');
+    Route::delete('/posts/{post}/notes/{note}', [PostNoteController::class, 'destroy'])->name('api.posts.notes.destroy');
     Route::post('/posts/{post}/approve', [PostApprovalController::class, 'approve'])->name('api.posts.approve');
     Route::post('/posts/{post}/reject', [PostApprovalController::class, 'reject'])->name('api.posts.reject');
 
-    // Platforms (read-only metadata)
     Route::get('/content-types', [PlatformController::class, 'contentTypes'])->name('api.content-types');
 
-    // Workspace
     Route::get('/workspace', [WorkspaceController::class, 'show'])->name('api.workspace.show');
 
-    // Signatures
     Route::get('/signatures', [SignatureController::class, 'index'])->name('api.signatures.index');
     Route::post('/signatures', [SignatureController::class, 'store'])->name('api.signatures.store');
     Route::put('/signatures/{signature}', [SignatureController::class, 'update'])->name('api.signatures.update');
     Route::delete('/signatures/{signature}', [SignatureController::class, 'destroy'])->name('api.signatures.destroy');
 
-    // Ideas
     Route::get('/ideas', [IdeaController::class, 'index'])->name('api.ideas.index');
     Route::post('/ideas', [IdeaController::class, 'store'])->name('api.ideas.store');
     Route::delete('/ideas', [IdeaController::class, 'bulkDestroy'])->name('api.ideas.bulk-destroy');
@@ -76,20 +74,17 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::post('/ideas/{idea}/duplicate', [IdeaController::class, 'duplicate'])->whereUuid('idea')->name('api.ideas.duplicate');
     Route::put('/ideas/{idea}/move', [IdeaController::class, 'move'])->whereUuid('idea')->name('api.ideas.move');
 
-    // Idea stages
     Route::get('/idea-stages', [IdeaStageController::class, 'index'])->name('api.idea-stages.index');
     Route::post('/idea-stages', [IdeaStageController::class, 'store'])->name('api.idea-stages.store');
     Route::put('/idea-stages/order', [IdeaStageController::class, 'reorder'])->name('api.idea-stages.reorder');
     Route::put('/idea-stages/{ideaStage}', [IdeaStageController::class, 'update'])->whereUuid('ideaStage')->name('api.idea-stages.update');
     Route::delete('/idea-stages/{ideaStage}', [IdeaStageController::class, 'destroy'])->whereUuid('ideaStage')->name('api.idea-stages.destroy');
 
-    // Labels
     Route::get('/labels', [LabelController::class, 'index'])->name('api.labels.index');
     Route::post('/labels', [LabelController::class, 'store'])->name('api.labels.store');
     Route::put('/labels/{label}', [LabelController::class, 'update'])->name('api.labels.update');
     Route::delete('/labels/{label}', [LabelController::class, 'destroy'])->name('api.labels.destroy');
 
-    // Social Accounts
     Route::get('/social-accounts', [SocialAccountController::class, 'index'])->name('api.social-accounts.index');
     Route::get('/social-accounts/{account}/boards', [SocialAccountController::class, 'boards'])
         ->middleware('throttle:60,1')
@@ -97,11 +92,13 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::post('/social-accounts/{account}/boards', [SocialAccountController::class, 'storeBoard'])
         ->middleware('throttle:60,1')
         ->name('api.social-accounts.boards.store');
+    Route::get('/social-accounts/{account}/tiktok-creator-info', [SocialAccountController::class, 'tiktokCreatorInfo'])
+        ->middleware('throttle:60,1')
+        ->name('api.social-accounts.tiktok-creator-info');
     Route::get('/social-accounts/{account}/channels', [SocialAccountController::class, 'channels'])
         ->middleware('throttle:60,1')
         ->name('api.social-accounts.channels');
 
-    // Channels
     Route::get('/channels/{account}/insights', [ChannelInsightsController::class, 'show'])
         ->whereUuid('account')
         ->name('api.channels.insights.show');
@@ -130,7 +127,6 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
         ->whereUuid('account')
         ->name('api.channels.queue.slot');
 
-    // Repurpose
     Route::get('/repurpose-source-formats', [RepurposeController::class, 'sourceFormats'])->name('api.repurpose-source-formats.index');
     Route::get('/repurposes', [RepurposeController::class, 'index'])->name('api.repurposes.index');
     Route::post('/repurposes', [RepurposeController::class, 'store'])->name('api.repurposes.store');
@@ -143,7 +139,6 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::post('/repurposes/{repurpose}/disable', [RepurposeController::class, 'disable'])->name('api.repurposes.disable');
     Route::delete('/repurposes/{repurpose}', [RepurposeController::class, 'destroy'])->name('api.repurposes.destroy');
 
-    // Webhooks
     Route::get('/webhooks', [WebhookController::class, 'index'])->name('api.webhooks.index');
     Route::post('/webhooks', [WebhookController::class, 'store'])->name('api.webhooks.store');
     Route::get('/webhooks/{webhook}', [WebhookController::class, 'show'])->name('api.webhooks.show');
@@ -154,7 +149,6 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::post('/webhooks/{webhook}/logs/{webhookLog}/replay', [WebhookController::class, 'replay'])->name('api.webhooks.replay');
     Route::delete('/webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('api.webhooks.destroy');
 
-    // API Keys
     Route::get('/api-keys', [ApiKeyController::class, 'index'])->name('api.api-keys.index');
     Route::post('/api-keys', [ApiKeyController::class, 'store'])->name('api.api-keys.store');
     Route::delete('/api-keys/{apiToken}', [ApiKeyController::class, 'destroy'])->name('api.api-keys.destroy');

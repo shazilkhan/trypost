@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\Idea;
 
 use App\Support\Requests\Idea\IdeaRequestRules;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class MoveIdeaRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response
     {
-        return $this->user()->can('update', $this->route('idea'));
+        return Gate::forUser($this->user())->inspect('update', $this->route('idea'));
     }
 
     /**

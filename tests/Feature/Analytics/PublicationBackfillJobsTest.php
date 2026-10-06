@@ -48,7 +48,7 @@ test('publication jobs are provider limited and account overlap protected', func
     $backfill = new BackfillAccountPublications($account->id, fake()->uuid());
     $discovery = new DiscoverAccountPublications($account->id, fake()->uuid());
 
-    expect($backfill->providerRateLimitKey())->toBe('instagram')
+    expect(collect($backfill->analyticsRateLimits())->pluck('key')->all())->toBe(["instagram:account:{$account->id}"])
         ->and($backfill->tries)->toBe(0)
         ->and($backfill->maxExceptions)->toBe(6)
         ->and($backfill->middleware()[0])->toBeInstanceOf(RateLimited::class)

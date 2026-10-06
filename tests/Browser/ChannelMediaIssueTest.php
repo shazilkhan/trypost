@@ -379,7 +379,7 @@ test('a media ratio warning names the destination with the same message the serv
         'path' => 'uploads/reel.mp4',
         'url' => 'https://cdn.test/reel.mp4',
         'size' => 1024,
-        'meta' => ['width' => 1080, 'height' => 1080, 'duration' => 10],
+        'meta' => ['width' => 2200, 'height' => 200, 'duration' => 10],
     ]]]);
     $postPlatform->update(['content_type' => ContentType::InstagramReel]);
 
@@ -388,8 +388,8 @@ test('a media ratio warning names the destination with the same message the serv
 
     $message = trans('posts.form.warnings.aspect_ratio_too_wide', [
         'destination' => ContentType::InstagramReel->destinationLabel(),
-        'current' => '1.00',
-        'max' => '0.60',
+        'current' => '11.00',
+        'max' => '10.00',
     ]);
 
     expect(trim((string) $page->script('document.querySelector("[data-testid=media-rules-warning] span")?.firstChild?.textContent')))

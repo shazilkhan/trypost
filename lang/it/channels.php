@@ -167,7 +167,6 @@ return [
         'refresh_after' => '.',
         'irreversible' => 'Questa azione non può essere annullata.',
         'description' => 'Questo elimina tutti i post di questo canale in TryPost, compresi bozze, post programmati e la cronologia dei pubblicati. I post già presenti sul social restano lì.',
-        'confirm' => 'Scollega',
         'keyword' => 'disconnetti',
         'cancel' => 'Annulla',
     ],

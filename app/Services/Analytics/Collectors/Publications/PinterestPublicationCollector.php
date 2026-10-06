@@ -20,6 +20,7 @@ class PinterestPublicationCollector extends AbstractPublicationHistoryCollector
         $response = $this->get($account, config('trypost.platforms.pinterest.api').'/pins', [
             'page_size' => self::PAGE_SIZE,
             'bookmark' => $cursor,
+            'pin_filter' => 'exclude_repins',
         ]);
         $publications = [];
         $providerLimited = false;

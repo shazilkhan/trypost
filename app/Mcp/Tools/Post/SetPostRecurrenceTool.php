@@ -10,6 +10,7 @@ use App\Enums\Post\Status as PostStatus;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
+use App\Models\PostPlatform;
 use App\Models\Workspace;
 use App\Support\PostingSchedule;
 use App\Support\Timezone;
@@ -70,13 +71,16 @@ class SetPostRecurrenceTool extends Tool
                 return;
             }
 
-            $author = $post->user ?? $post->workspace->owner;
-            $last = RecurrenceFrequency::from((string) $request->get('frequency'))->advance(
-                $post->scheduled_at->toImmutable()->setTimezone(Timezone::normalize($author?->timezone)),
-                (int) $request->get('interval') * (int) $request->get('times'),
-            );
+            $frequency = RecurrenceFrequency::from((string) $request->get('frequency'));
+            $steps = (int) $request->get('interval') * (int) $request->get('times');
+            $ceiling = CarbonImmutable::parse(PostingSchedule::MAX_INSTANT, 'UTC');
+            $tooFar = $post->postPlatforms()->enabled()->with('socialAccount')->get()
+                ->contains(fn (PostPlatform $target): bool => $frequency->advance(
+                    $post->scheduled_at->toImmutable()->setTimezone(Timezone::normalize($target->socialAccount?->timezone)),
+                    $steps,
+                )->greaterThan($ceiling));
 
-            if ($last->greaterThan(CarbonImmutable::parse(PostingSchedule::MAX_INSTANT, 'UTC'))) {
+            if ($tooFar) {
                 $validator->errors()->add('times', __('posts.recurrence.errors.too_far'));
             }
         })->validate();

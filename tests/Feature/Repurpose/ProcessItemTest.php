@@ -166,6 +166,57 @@ test('a caption over a destination limit is shortened for that post only', funct
         ->toBeGreaterThan(mb_strlen($captions[Platform::TikTok->value]));
 });
 
+function repurposeItemTo(SocialAccount $destination, array $meta = []): RepurposeItem
+{
+    Storage::fake();
+
+    $source = SocialAccount::factory()->for($destination->workspace)->create(['platform' => Platform::Instagram]);
+
+    $repurpose = Repurpose::factory()->active()->create([
+        'workspace_id' => $destination->workspace_id,
+        'source_social_account_id' => $source->id,
+        'destinations' => [
+            ['social_account_id' => $destination->id, 'content_type' => ContentType::defaultFor($destination->platform)->value, 'meta' => $meta],
+        ],
+    ]);
+
+    return RepurposeItem::factory()->for($repurpose)->create();
+}
+
+function repurposedCaption(RepurposeItem $item): string
+{
+    return Post::query()->where('repurpose_item_id', $item->id)->sole()->content;
+}
+
+test('an x account with long posts keeps a caption longer than 280 characters', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+
+    $account = SocialAccount::factory()->x()->create(['meta' => ['x_subscription_type' => 'Premium']]);
+    $item = repurposeItemTo($account);
+    $caption = trim(str_repeat('word ', 200));
+
+    processItem($item, $caption);
+
+    expect(repurposedCaption($item))->toBe($caption);
+});
+
+test('a mastodon caption leaves room for the content warning', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+
+    $account = SocialAccount::factory()->mastodon()->create();
+    $warning = str_repeat('w', 100);
+    $item = repurposeItemTo($account, ['spoiler_text' => $warning]);
+
+    processItem($item, trim(str_repeat('word ', 100)));
+
+    $caption = repurposedCaption($item);
+
+    expect(mb_strlen($caption))->toBeGreaterThan(300)
+        ->and($account->contentOverflow($caption, Platform::Mastodon->reservedLength(['spoiler_text' => $warning])))->toBe(0);
+});
+
 test('a failed download throws so the job retries, leaving no post behind', function () {
     Bus::fake([PublishPost::class]);
     Http::fake([REPURPOSE_VIDEO_URL => Http::response('', 404)]);
@@ -624,6 +675,29 @@ test('a requester repurpose run emails each approver once with every post, never
         ->and(collect($job->mailable->postIds)->sort()->values()->all())->toBe($postIds)
         ->and($job->mailable->requester->is($requester))->toBeTrue());
     expect(Post::whereIn('id', $postIds)->pluck('approval_requested_by')->unique()->values()->all())->toBe([$requester->id]);
+});
+
+test('a retry after the approval request was lost still emails the approvers', function () {
+    Bus::fake([PublishPost::class]);
+    fakeVideoDownload();
+    $item = repurposeWithTwoDestinations();
+    $requester = workspaceMember($item->repurpose->workspace, 'approval');
+    $item->repurpose->update(['user_id' => $requester->id]);
+
+    processItem($item->fresh());
+
+    Queue::fake([SendNotification::class]);
+    $item->update(['status' => ItemStatus::Processing]);
+
+    processItem($item->fresh());
+
+    $postIds = Post::where('repurpose_item_id', $item->id)->pluck('id')->sort()->values()->all();
+
+    expect($item->fresh()->status)->toBe(ItemStatus::Published)
+        ->and($postIds)->toHaveCount(2);
+
+    Queue::assertPushed(SendNotification::class, fn (SendNotification $job): bool => $job->mailable instanceof PostApprovalRequested
+        && collect($job->mailable->postIds)->sort()->values()->all() === $postIds);
 });
 
 test('a requester repurpose in draft mode sends no approval email', function () {

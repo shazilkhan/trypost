@@ -105,6 +105,7 @@ return [
             // LinkedIn caps document (PDF carousel) uploads at 100MB.
             'document' => (int) env('MEDIA_DOCUMENT_MAX_SIZE_MB', 100),
         ],
+        'image_max_pixels' => (int) env('MEDIA_IMAGE_MAX_PIXELS', 8192 * 8192),
         'signed_upload_url_ttl_minutes' => (int) (env('MEDIA_SIGNED_UPLOAD_URL_TTL_MINUTES') ?? env('MCP_UPLOAD_URL_TTL_MINUTES', 15)),
         'signed_upload_per_workspace_per_minute' => (int) env('MEDIA_SIGNED_UPLOAD_PER_WORKSPACE_PER_MINUTE', 60),
         'signed_upload_per_ip_per_minute' => (int) env('MEDIA_SIGNED_UPLOAD_PER_IP_PER_MINUTE', 1200),
@@ -474,6 +475,8 @@ return [
             'graph_api' => env('INSTAGRAM_GRAPH_API', 'https://graph.instagram.com/v25.0'),
             // graph.instagram.com (no version) is the auth/refresh host.
             'auth_api' => env('INSTAGRAM_AUTH_API', 'https://graph.instagram.com'),
+            'oauth_url' => env('INSTAGRAM_OAUTH_URL', 'https://www.instagram.com'),
+            'oauth_api' => env('INSTAGRAM_OAUTH_API', 'https://api.instagram.com'),
         ],
         'instagram-facebook' => [
             'enabled' => env('INSTAGRAM_FACEBOOK_ENABLED', true),
@@ -484,6 +487,7 @@ return [
             'graph_api' => env('THREADS_GRAPH_API', 'https://graph.threads.net/v1.0'),
             // graph.threads.net (no version) is the auth/refresh host.
             'auth_api' => env('THREADS_AUTH_API', 'https://graph.threads.net'),
+            'oauth_url' => env('THREADS_OAUTH_URL', 'https://threads.net'),
         ],
         'pinterest' => [
             'enabled' => env('PINTEREST_ENABLED', true),
@@ -546,8 +550,6 @@ return [
             'business_information_api' => env('GOOGLE_BUSINESS_BUSINESS_INFORMATION_API', 'https://mybusinessbusinessinformation.googleapis.com/v1'),
             // Legacy but still-active v4 API — the only home for Local Post create/update/delete.
             'local_posts_api' => env('GOOGLE_BUSINESS_LOCAL_POSTS_API', 'https://mybusiness.googleapis.com/v4'),
-            // Business Profile Performance API — location-level analytics.
-            'performance_api' => env('GOOGLE_BUSINESS_PERFORMANCE_API', 'https://businessprofileperformance.googleapis.com/v1'),
             // OAuth token endpoint, same host Google uses for every OAuth2 client.
             'oauth_api' => env('GOOGLE_BUSINESS_OAUTH_API', 'https://oauth2.googleapis.com'),
             // Business Profile web UI — post URL fallback and the social-account profile link.

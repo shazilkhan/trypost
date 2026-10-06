@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\SocialAccount;
 
 use App\Actions\SocialAccount\RegeneratePostingSchedule;
+use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\ChannelPostingScheduleResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\SocialAccount;
@@ -44,7 +45,11 @@ class GeneratePostingScheduleTool extends Tool
         }
 
         $goal = data_get($validated, 'goal');
-        $account = $regenerate->handle($account, $goal === null ? null : (int) $goal);
+        try {
+            $account = $regenerate->handle($account, $goal === null ? null : (int) $goal);
+        } catch (QueueBusyException) {
+            return Response::error(__('posts.errors.queue_busy'));
+        }
 
         return Response::structured((new ChannelPostingScheduleResource($account))->resolve());
     }

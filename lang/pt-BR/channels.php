@@ -167,7 +167,6 @@ return [
         'refresh_after' => 'primeiro.',
         'irreversible' => 'Isso não pode ser desfeito.',
         'description' => 'Isso apaga todos os posts deste canal no TryPost, incluindo rascunhos, agendados e o histórico de publicados. Os posts que já estão na rede continuam lá.',
-        'confirm' => 'Desconectar',
         'keyword' => 'desconectar',
         'cancel' => 'Cancelar',
     ],

@@ -178,3 +178,19 @@ test('saving a preference shows no success banner', function () {
         ->assertNoContent()
         ->assertSessionMissing('flash.banner');
 });
+
+test('the legacy queued notification types are not offered or accepted as preferences', function () {
+    $legacy = [Type::PostReady->value, Type::MentionedInComment->value];
+
+    $this->actingAs($this->user)->get(route('app.notifications.preferences'))
+        ->assertInertia(fn ($page) => $page
+            ->missing('preferences.post_ready')
+            ->missing('preferences.mentioned_in_comment'));
+
+    $this->actingAs($this->user)->patchJson(route('app.notifications.preferences.update'), array_fill_keys($legacy, false))
+        ->assertNoContent();
+
+    expect(array_intersect_key(NotificationPreference::where('user_id', $this->user->id)->firstOrFail()->getAttributes(), array_flip($legacy)))->toBe([])
+        ->and($this->user->wantsEmailFor(Type::PostReady))->toBeFalse()
+        ->and($this->user->wantsEmailFor(Type::MentionedInComment))->toBeFalse();
+});

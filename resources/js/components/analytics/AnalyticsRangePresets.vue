@@ -10,7 +10,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import date from '@/date';
 import dayjs from '@/dayjs';
 import type {
     AnalyticsFilters,
@@ -22,9 +21,7 @@ const props = defineProps<{
     bounds: { min: string | null; max: string | null };
     url: string;
     range: { start: string; end: string };
-    previousRange: { start: string; end: string };
     keep?: Record<string, string | string[]>;
-    hideCaption?: boolean;
 }>();
 
 const presets: Exclude<AnalyticsRangePreset, 'custom'>[] = [
@@ -50,9 +47,6 @@ watch(
     },
 );
 
-const span = (range: { start: string; end: string }): string =>
-    `${date.formatDayMonthYear(range.start)} – ${date.formatDayMonthYear(range.end)}`;
-
 const choose = (preset: AnalyticsRangePreset): void => {
     router.get(props.url, { ...props.keep, range: preset });
 };
@@ -76,10 +70,7 @@ const changeRange = (range: { start: Date; end: Date }): void => {
 
 <template>
     <div
-        :class="[
-            'flex min-w-0 flex-col gap-2',
-            hideCaption ? 'items-start' : 'items-stretch sm:items-end',
-        ]"
+        class="flex min-w-0 flex-col items-start gap-2"
         data-testid="insights-range-presets"
     >
         <div class="flex max-w-full flex-wrap items-center gap-2 sm:justify-end">
@@ -171,17 +162,5 @@ const changeRange = (range: { start: Date; end: Date }): void => {
                 </DateRangePicker>
             </div>
         </div>
-        <p
-            v-if="bounds.min && !hideCaption"
-            class="text-xs text-muted-foreground"
-            data-testid="insights-range-caption"
-        >
-            {{
-                $t('analytics.ranges.compared_to', {
-                    current: span(range),
-                    previous: span(previousRange),
-                })
-            }}
-        </p>
     </div>
 </template>

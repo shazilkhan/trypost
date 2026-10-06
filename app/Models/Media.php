@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Enums\Media\Type as MediaType;
 use App\Exceptions\MediaOwnershipViolation;
+use App\Jobs\Media\DeleteMediaFiles;
 use Database\Factories\MediaFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -190,17 +191,18 @@ class Media extends Model
         );
     }
 
+    /**
+     * The file goes after the commit and only when no other row uses its path,
+     * so a rolled-back delete never leaves a row pointing at a missing file.
+     */
     public function delete(): bool
     {
-        // Only delete the file if no other media records use the same path
-        $otherMediaWithSamePath = static::where('path', $this->path)
-            ->where('id', '!=', $this->id)
-            ->exists();
+        $deleted = (bool) parent::delete();
 
-        if (! $otherMediaWithSamePath) {
-            Storage::delete($this->path);
+        if ($deleted && filled($this->path)) {
+            DeleteMediaFiles::dispatch([$this->path])->afterCommit();
         }
 
-        return parent::delete();
+        return $deleted;
     }
 }

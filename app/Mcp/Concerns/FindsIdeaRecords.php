@@ -15,13 +15,13 @@ trait FindsIdeaRecords
     {
         $id = $request->get($key);
 
-        return is_string($id) && Str::isUuid($id) ? Idea::query()->find($id) : null;
+        return is_string($id) && Str::isUuid($id) ? Idea::query()->where('workspace_id', $request->user()?->current_workspace_id)->find($id) : null;
     }
 
     protected function findIdeaStage(Request $request): ?IdeaStage
     {
         $id = $request->get('idea_stage_id');
 
-        return is_string($id) && Str::isUuid($id) ? IdeaStage::query()->find($id) : null;
+        return is_string($id) && Str::isUuid($id) ? IdeaStage::query()->where('workspace_id', $request->user()?->current_workspace_id)->find($id) : null;
     }
 }

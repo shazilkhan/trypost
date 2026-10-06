@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'Naam van collectie',
         'all_feeds' => 'Alle feeds',
         'feeds_root' => 'Feeds',
-        'collection_feeds' => 'Feeds in deze collectie',
         'collection_menu' => 'Feeds in :name tonen',
         'last_refreshed' => 'Laatst vernieuwd :time',
         'never_refreshed' => 'Nog niet vernieuwd',

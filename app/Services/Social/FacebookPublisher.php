@@ -310,7 +310,7 @@ class FacebookPublisher
      */
     private function publishPhotoStory(string $pageId, string $accessToken, MediaItem $media): array
     {
-        $dimensions = ContentType::FacebookStory->aiImageDimensions();
+        $dimensions = ContentType::FacebookStory->preferredImageDimensions();
         $fittedUrl = $this->fitImageToCanvas($media->url, data_get($dimensions, 'width'), data_get($dimensions, 'height'));
 
         $photoId = $this->uploadUnpublishedPhoto($pageId, $accessToken, $media, $fittedUrl);

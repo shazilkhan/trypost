@@ -26,6 +26,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class PostController extends Controller
 {
@@ -94,7 +95,7 @@ class PostController extends Controller
         return $this->redirectToComposer($request, 'app.posts.index');
     }
 
-    public function store(StorePostRequest $request): RedirectResponse|\Symfony\Component\HttpFoundation\Response
+    public function store(StorePostRequest $request): RedirectResponse|HttpResponse
     {
         $workspace = $request->user()->currentWorkspace;
 
@@ -156,10 +157,10 @@ class PostController extends Controller
 
         $this->authorize('view', $post);
 
-        if ($request->query('tab') === 'comments' || $request->filled('comment')) {
+        if ($request->filled('comment')) {
             return redirect()->route('app.posts.index', [
                 'notes' => $post->id,
-                ...($request->filled('comment') ? ['note' => $request->query('comment')] : []),
+                'note' => $request->query('comment'),
             ]);
         }
 
@@ -199,9 +200,6 @@ class PostController extends Controller
         }
 
         if ($action === PostAction::Scheduled) {
-            session()->flash('flash.banner', __('posts.flash.scheduled'));
-            session()->flash('flash.bannerStyle', 'success');
-
             return redirect($this->publishPageReturnUrl(['tab' => 'queue']) ?? route('app.posts.index', ['post' => $post->id]));
         }
 
@@ -231,9 +229,6 @@ class PostController extends Controller
             return back();
         }
 
-        session()->flash('flash.banner', __('posts.flash.deleted'));
-        session()->flash('flash.bannerStyle', 'success');
-
         $allowedRedirects = ['app.posts.index', 'app.calendar'];
 
         if ($redirect = $request->input('redirect')) {
@@ -252,9 +247,6 @@ class PostController extends Controller
         $post->load(['postPlatforms', 'labels']);
 
         $copy = DuplicatePost::execute($post, $request->user(), $request->input('post_platform_id'));
-
-        session()->flash('flash.banner', __('posts.flash.duplicated'));
-        session()->flash('flash.bannerStyle', 'success');
 
         return redirect($this->publishPageReturnUrl(['edit' => $copy->id]) ?? route('app.posts.edit', $copy));
     }

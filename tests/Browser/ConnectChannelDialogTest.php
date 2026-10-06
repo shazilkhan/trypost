@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\User;
 use App\Models\Workspace;
+use Laravel\Socialite\Facades\Socialite;
 
 function waitForConnectDialogTestId(mixed $page, string $testId): void
 {
@@ -15,6 +16,37 @@ function waitForConnectDialogTestId(mixed $page, string $testId): void
                 if (el && el.getBoundingClientRect().height > 0) return;
                 await new Promise((r) => setTimeout(r, 50));
             }
+        })();
+    JS);
+}
+
+/**
+ * Every network's consent screen is replaced by a page of the app that says
+ * which driver it was, so a started connection never leaves the test.
+ */
+function stubConnectDialogProviders(): void
+{
+    Socialite::shouldReceive('driver')->andReturnUsing(function (string $driver): object {
+        $stub = Mockery::mock();
+        $stub->shouldReceive('redirect')->andReturn(Mockery::mock([
+            'getTargetUrl' => route('app.workspace.channels', ['reached' => $driver]),
+        ]));
+        $stub->shouldIgnoreMissing($stub);
+
+        return $stub;
+    });
+}
+
+function connectDialogReachedProvider(mixed $page): ?string
+{
+    return $page->script(<<<'JS'
+        (async () => {
+            for (let i = 0; i < 100; i++) {
+                const reached = new URLSearchParams(window.location.search).get('reached');
+                if (reached) return reached;
+                await new Promise((r) => setTimeout(r, 50));
+            }
+            return null;
         })();
     JS);
 }
@@ -64,18 +96,17 @@ test('instagram shows its method step inside the same dialog and can go back', f
     $page->assertVisible('@connect-channel-linkedin')->assertNoJavaScriptErrors();
 });
 
-test('an oauth network opens the popup and closes the dialog', function () {
+test('an oauth network leaves for its consent screen in the same tab', function () {
     $this->actingAs(connectDialogAdmin());
+    stubConnectDialogProviders();
 
     $page = visit(route('app.workspace.channels'));
     waitForConnectDialogTestId($page, 'channels-empty-connect');
-    $page->script('window.__opened = []; window.open = (url) => { if (url) { window.__opened.push(url); } return { closed: false, focus() {} }; };');
     $page->click('@channels-empty-connect');
     waitForConnectDialogTestId($page, 'connect-channel-linkedin');
     $page->click('@connect-channel-linkedin');
 
-    $linkedinPath = parse_url(route('app.social.linkedin.connect'), PHP_URL_PATH);
-    expect($page->script('window.__opened'))->toBe([$linkedinPath]);
+    expect(connectDialogReachedProvider($page))->toBe('linkedin-openid');
     $page->assertMissing('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 
@@ -137,10 +168,10 @@ test('the info button opens the network details and back returns to the grid', f
 
 test('connecting from the details view starts the same flow as the card', function () {
     $this->actingAs(connectDialogAdmin());
+    stubConnectDialogProviders();
 
     $page = visit(route('app.workspace.channels'));
     waitForConnectDialogTestId($page, 'channels-empty-connect');
-    $page->script('window.__opened = []; window.open = (url) => { if (url) { window.__opened.push(url); } return { closed: false, focus() {} }; };');
     $page->click('@channels-empty-connect');
     waitForConnectDialogTestId($page, 'connect-channel-linkedin');
     $page->hover('@connect-channel-linkedin');
@@ -148,8 +179,7 @@ test('connecting from the details view starts the same flow as the card', functi
     waitForConnectDialogTestId($page, 'connect-details-connect');
     $page->click('@connect-details-connect');
 
-    $linkedinPath = parse_url(route('app.social.linkedin.connect'), PHP_URL_PATH);
-    expect($page->script('window.__opened'))->toBe([$linkedinPath]);
+    expect(connectDialogReachedProvider($page))->toBe('linkedin-openid');
     $page->assertMissing('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 
@@ -175,7 +205,6 @@ function openInstagramConnectStep(): mixed
 {
     $page = visit(route('app.workspace.channels'));
     waitForConnectDialogTestId($page, 'channels-empty-connect');
-    $page->script('window.__opened = []; window.open = (url) => { if (url) { window.__opened.push(url); } return { closed: false, focus() {} }; };');
     $page->click('@channels-empty-connect');
     waitForConnectDialogTestId($page, 'connect-channel-instagram');
     $page->click('@connect-channel-instagram');
@@ -203,14 +232,14 @@ test('the instagram step offers the professional card and the facebook link only
     expect($dialogText)->not->toContain('Personal')->not->toContain('Notification');
 });
 
-test('connect to instagram starts the instagram login popup', function () {
+test('connect to instagram leaves for the instagram login', function () {
     $this->actingAs(connectDialogAdmin());
+    stubConnectDialogProviders();
 
     $page = openInstagramConnectStep();
     $page->click('@instagram-connect-standalone');
 
-    $instagramPath = parse_url(route('app.social.instagram.connect'), PHP_URL_PATH);
-    expect($page->script('window.__opened'))->toBe([$instagramPath]);
+    expect(connectDialogReachedProvider($page))->toBe('instagram');
     $page->assertMissing('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 
@@ -221,7 +250,7 @@ test('the facebook link opens the requirements step without starting oauth and b
     $page->click('@instagram-connect-facebook');
     waitForConnectDialogTestId($page, 'instagram-facebook-requirements');
 
-    expect($page->script('window.__opened'))->toBe([]);
+    expect($page->script('window.location.search'))->toBe('');
     $page->assertVisible('@instagram-facebook-requirements')
         ->assertSee(trans('accounts.instagram_facebook_requirements.title'))
         ->assertMissing('@instagram-connect-professional');
@@ -234,8 +263,9 @@ test('the facebook link opens the requirements step without starting oauth and b
         ->assertNoJavaScriptErrors();
 });
 
-test('connect through facebook starts the instagram through facebook popup', function () {
+test('connect through facebook leaves for the facebook login', function () {
     $this->actingAs(connectDialogAdmin());
+    stubConnectDialogProviders();
 
     $page = openInstagramConnectStep();
     $page->click('@instagram-connect-facebook');
@@ -253,8 +283,7 @@ test('connect through facebook starts the instagram through facebook popup', fun
 
     $page->click('@instagram-facebook-requirements-connect');
 
-    $facebookPath = parse_url(route('app.social.instagram-facebook.connect'), PHP_URL_PATH);
-    expect($page->script('window.__opened'))->toBe([$facebookPath]);
+    expect(connectDialogReachedProvider($page))->toBe('facebook');
     $page->assertMissing('@connect-channel-dialog')->assertNoJavaScriptErrors();
 });
 

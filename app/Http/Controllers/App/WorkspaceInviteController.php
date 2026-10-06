@@ -64,7 +64,7 @@ class WorkspaceInviteController extends Controller
         $this->authorize('inviteMember', $workspace);
 
         $existingInvite = $workspace->invites()
-            ->where('email', $request->email)
+            ->forEmail($request->email)
             ->first();
 
         if ($existingInvite) {
@@ -76,7 +76,7 @@ class WorkspaceInviteController extends Controller
         // Accounts are closed: a user always belongs to exactly one account.
         // Block invites to an email already registered, or two accounts would
         // hold the same person. Employees use a dedicated work email instead.
-        if (User::query()->where('email', $request->email)->exists()) {
+        if (User::query()->whereLike('email', addcslashes($request->email, '%_\\'))->exists()) {
             return back()->withErrors([
                 'email' => __('settings.members.errors.email_belongs_to_account'),
             ]);
@@ -153,6 +153,8 @@ class WorkspaceInviteController extends Controller
         if ($userId === $workspace->account?->owner_id) {
             return back()->withErrors(['is_admin' => __('settings.members.errors.cannot_change_owner_access')]);
         }
+
+        $workspace->members()->findOrFail($userId);
 
         $access = $request->memberAccess();
 

@@ -11,7 +11,7 @@ return [
     'create_first_label' => 'Создайте первую метку',
 
     'meta' => [
-        'posts' => '{0} Нет постов|{1} :count пост|[2,4] :count поста|[5,*] :count постов',
+        'posts' => ':count пост|:count поста|:count постов|{0} Нет постов',
     ],
 
     'actions' => [

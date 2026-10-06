@@ -49,8 +49,10 @@ test('media rules for frontend expose the full editor rule set keyed by content 
         'requires_media' => true,
         'max_video_bytes' => 300 * 1024 * 1024,
         'max_video_duration_sec' => 900,
-        'aspect_ratio_min' => 0.5,
-        'aspect_ratio_max' => 0.6,
+        'aspect_ratio_min' => null,
+        'aspect_ratio_max' => null,
+        'video_aspect_ratio_min' => 0.01,
+        'video_aspect_ratio_max' => 10.0,
     ]);
 
     expect($rules['facebook_reel']['max_video_duration_sec'])->toBe(90);
@@ -59,7 +61,10 @@ test('media rules for frontend expose the full editor rule set keyed by content 
     expect($rules['pinterest_carousel']['min_files'])->toBe(2);
     expect($rules['x_post']['accepts_gif'])->toBeTrue();
     expect($rules['instagram_feed']['requires_media'])->toBeTrue();
-    expect($rules['instagram_feed'])->toMatchArray(['aspect_ratio_min' => 0.75, 'aspect_ratio_max' => 1.91]);
+    expect($rules['instagram_feed'])->toMatchArray(['aspect_ratio_min' => 0.75, 'aspect_ratio_max' => 1.91, 'video_aspect_ratio_min' => 0.01, 'video_aspect_ratio_max' => 10.0]);
+    expect($rules['instagram_story'])->toMatchArray(['aspect_ratio_min' => null, 'video_aspect_ratio_min' => 0.1, 'video_aspect_ratio_max' => 10.0]);
+    expect($rules['facebook_reel'])->toMatchArray(['video_aspect_ratio_min' => 0.5, 'video_aspect_ratio_max' => 0.6]);
+    expect($rules['youtube_short'])->toMatchArray(['video_aspect_ratio_min' => null, 'video_aspect_ratio_max' => null]);
     expect($rules['discord_message']['accepts_gif'])->toBeTrue();
     expect($rules['telegram_post']['accepts_gif'])->toBeTrue();
     expect($rules['bluesky_post']['accepts_mov'])->toBeTrue();
@@ -475,8 +480,27 @@ test('media rules carry the documented pixel limits and the platform label', fun
         ->and(ContentType::XPost->mediaRules()['image_max_width'])->toBeNull();
 });
 
-test('threads and telegram carry their documented hard aspect ratio limits', function () {
-    expect(ContentType::ThreadsPost->aspectRatioBounds())->toBe(['min' => 0.1, 'max' => 10.0])
-        ->and(ContentType::TelegramPost->aspectRatioBounds())->toBe(['min' => 0.05, 'max' => 20.0])
-        ->and(ContentType::XPost->aspectRatioBounds())->toBeNull();
+test('threads and telegram carry their documented hard aspect ratio limits for still images only', function () {
+    expect(ContentType::ThreadsPost->aspectRatioBounds(MediaType::Image))->toBe(['min' => 0.1, 'max' => 10.0])
+        ->and(ContentType::TelegramPost->aspectRatioBounds(MediaType::Image))->toBe(['min' => 0.05, 'max' => 20.0])
+        ->and(ContentType::TelegramPost->aspectRatioBounds(MediaType::Image, isGif: true))->toBeNull()
+        ->and(ContentType::ThreadsPost->aspectRatioBounds(MediaType::Video))->toBeNull()
+        ->and(ContentType::XPost->aspectRatioBounds(MediaType::Image))->toBeNull();
 });
+
+test('video aspect ratio bounds are the ranges each network documents as accepted', function (ContentType $type, ?array $bounds) {
+    expect($type->aspectRatioBounds(MediaType::Video))->toBe($bounds);
+})->with([
+    'instagram feed video (published as a reel)' => [ContentType::InstagramFeed, ['min' => 0.01, 'max' => 10.0]],
+    'instagram reel' => [ContentType::InstagramReel, ['min' => 0.01, 'max' => 10.0]],
+    'instagram story' => [ContentType::InstagramStory, ['min' => 0.1, 'max' => 10.0]],
+    'facebook reel' => [ContentType::FacebookReel, ['min' => 0.5, 'max' => 0.6]],
+    'facebook story' => [ContentType::FacebookStory, ['min' => 0.5, 'max' => 0.6]],
+    'youtube short' => [ContentType::YouTubeShort, null],
+    'tiktok video' => [ContentType::TikTokVideo, null],
+    'pinterest video pin' => [ContentType::PinterestVideoPin, null],
+    'threads' => [ContentType::ThreadsPost, null],
+    'linkedin' => [ContentType::LinkedInPost, null],
+    'x' => [ContentType::XPost, null],
+    'bluesky' => [ContentType::BlueskyPost, null],
+]);

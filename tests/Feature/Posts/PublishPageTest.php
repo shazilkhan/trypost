@@ -270,6 +270,24 @@ test('a focused publishing post opens the queue tab in its publishing group', fu
                 ->where('queue.publishing.0.id', $post->id)));
 });
 
+test('a publishing post waiting for a network limit carries its retry time to the card', function () {
+    $retryAt = now()->addHour();
+    $post = publishPagePost($this->channel, PostStatus::Publishing, ['scheduled_at' => now()->subMinute()], [
+        'status' => PlatformStatus::Retrying,
+        'retry_at' => $retryAt,
+        'error_message' => 'LinkedIn rate limit reached. Please try again later.',
+    ]);
+
+    $this->actingAs($this->user)
+        ->get(route('app.posts.index'))
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('queue.publishing', 1)
+                ->where('queue.publishing.0.id', $post->id)
+                ->where('queue.publishing.0.post_platforms.0.status', PlatformStatus::Retrying->value)
+                ->where('queue.publishing.0.post_platforms.0.retry_at', $retryAt->toJSON())));
+});
+
 test('a partial reload resolves only the props it asks for', function () {
     DB::enableQueryLog();
 
@@ -1085,3 +1103,36 @@ test('a tab without data sends its empty list inline instead of deferring it', f
         ->and($page)->not->toHaveKey('deferredProps')
         ->and($page['props']['posts']['data'])->toBe([]);
 })->with(['queue', 'approvals', 'drafts', 'sent']);
+
+test('a member who needs approval sees delete only on the posts they wrote or requested', function () {
+    $member = workspaceMember($this->workspace, 'approval');
+    $own = publishPagePost($this->channel, PostStatus::Draft, ['user_id' => $member->id, 'created_at' => now()->subMinutes(2)]);
+    $others = publishPagePost($this->channel, PostStatus::Draft, ['created_at' => now()->subMinute()]);
+
+    $response = $this->actingAs($member)
+        ->get(route('app.posts.index', ['tab' => 'drafts']))
+        ->assertOk();
+    $response->assertInertia(fn (AssertableInertia $page) => $page
+        ->loadDeferredProps(fn ($reload) => $reload->has('posts.data', 2)));
+
+    $cards = collect($this->actingAs($member)
+        ->getJson(route('app.posts.group.show', $own))->json())
+        ->merge($this->actingAs($member)->getJson(route('app.posts.group.show', $others))->json())
+        ->pluck('can_delete', 'id');
+
+    expect($cards->get($own->id))->toBeTrue()
+        ->and($cards->get($others->id))->toBeFalse();
+
+    $this->actingAs($member)->delete(route('app.posts.destroy', $others))->assertForbidden();
+});
+
+test('a requester cannot delete the other member post once approved', function () {
+    $member = workspaceMember($this->workspace, 'approval');
+    $approved = publishPagePost($this->channel, PostStatus::Draft, ['approval_requested_by' => $member->id]);
+    $approved->update(['status' => PostStatus::Scheduled, 'scheduled_at' => now()->addDay()]);
+
+    $card = collect($this->actingAs($member)->getJson(route('app.posts.group.show', $approved))->json())->firstWhere('id', $approved->id);
+
+    expect($card['can_delete'])->toBeFalse();
+    $this->actingAs($member)->delete(route('app.posts.destroy', $approved))->assertForbidden();
+});

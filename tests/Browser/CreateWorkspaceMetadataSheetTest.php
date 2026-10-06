@@ -17,7 +17,7 @@ test('workspace metadata creation uses a centered dialog and still saves', funct
     $this->actingAs($user);
 
     $page = visit(route($routeName));
-    $page->click("@create-{$resource}-button");
+    $page->click("@{$resource}s-empty-create");
 
     $layout = $page->script(<<<JS
         (async () => {

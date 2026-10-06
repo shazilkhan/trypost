@@ -6,6 +6,7 @@ namespace App\Actions\Post;
 
 use App\Actions\Post\Queue\BuildQueueTimeline;
 use App\Enums\Post\Status as PostStatus;
+use App\Http\Resources\App\PostCardResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -87,7 +88,8 @@ class BuildCalendarPageProps
         $posts = $posts
             ->sortBy('calendar_at')
             ->values()
-            ->groupBy(fn (Post $post): string => CarbonImmutable::parse($post->calendar_at)->setTimezone($timezone)->format('Y-m-d'));
+            ->groupBy(fn (Post $post): string => CarbonImmutable::parse($post->calendar_at)->setTimezone($timezone)->format('Y-m-d'))
+            ->map(fn (Collection $day): array => PostCardResource::cards($day));
 
         $props = [
             'workspace' => $workspace,
@@ -115,7 +117,8 @@ class BuildCalendarPageProps
                 ->whereNull('scheduled_at')
                 ->latest('created_at')
                 ->orderBy('id')
-                ->paginate((int) config('app.pagination.default'), ['*'], self::UNDATED_PAGE_NAME));
+                ->paginate((int) config('app.pagination.default'), ['*'], self::UNDATED_PAGE_NAME)
+                ->through(fn (Post $post): array => PostCardResource::make($post)->resolve()));
         }
 
         if ($request->boolean('slots')) {
@@ -151,12 +154,12 @@ class BuildCalendarPageProps
         $slots = [];
 
         foreach (BuildQueueTimeline::handle($workspace, $channels, $timezone, $rangeEnd) as $day) {
-            foreach ($day['items'] as $item) {
-                if ($item['type'] !== 'slot' || CarbonImmutable::parse($item['at'])->lessThan($rangeStart)) {
+            foreach (data_get($day, 'items', []) as $item) {
+                if (data_get($item, 'type') !== 'slot' || CarbonImmutable::parse(data_get($item, 'at'))->lessThan($rangeStart)) {
                     continue;
                 }
 
-                $slots[$day['date']][] = ['at' => $item['at'], 'channel_id' => $item['channel_id']];
+                $slots[data_get($day, 'date')][] = ['at' => data_get($item, 'at'), 'channel_id' => data_get($item, 'channel_id')];
             }
         }
 

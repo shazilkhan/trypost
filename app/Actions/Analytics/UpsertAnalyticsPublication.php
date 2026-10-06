@@ -15,6 +15,7 @@ use App\Models\AnalyticsPublicationDailySnapshot;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -99,7 +100,7 @@ class UpsertAnalyticsPublication
 
                 $discovered->dailySnapshots()->lockForUpdate()->reorder()->lazyById(100)->each(function (AnalyticsPublicationDailySnapshot $snapshot) use ($current): void {
                     $existing = $current->dailySnapshots()
-                        ->whereDate('date', $snapshot->date->toDateString())
+                        ->where('date', $snapshot->date->toDateString())
                         ->lockForUpdate()
                         ->first();
 
@@ -168,7 +169,7 @@ class UpsertAnalyticsPublication
     private function persist(
         TryPostPublicationIdentity $identity,
         string $providerPostId,
-        \DateTimeInterface $providerPublishedAt,
+        DateTimeInterface $providerPublishedAt,
         PublicationOrigin $origin,
         PublicationContentType $contentType,
         ?string $providerContentType,
@@ -177,7 +178,7 @@ class UpsertAnalyticsPublication
         ?array $previewMetadata,
         ?array $providerMetadata,
         ?string $postPlatformId = null,
-        ?\DateTimeInterface $providerSyncedAt = null,
+        ?DateTimeInterface $providerSyncedAt = null,
         ?SocialAccount $liveAccount = null,
     ): AnalyticsPublication {
         $excerpt = $excerpt === null ? null : mb_strcut($excerpt, 0, self::EXCERPT_MAX_BYTES, 'UTF-8');
@@ -226,7 +227,7 @@ class UpsertAnalyticsPublication
     private function write(
         TryPostPublicationIdentity $identity,
         string $providerPostId,
-        \DateTimeInterface $providerPublishedAt,
+        DateTimeInterface $providerPublishedAt,
         PublicationOrigin $origin,
         PublicationContentType $contentType,
         ?string $providerContentType,
@@ -235,7 +236,7 @@ class UpsertAnalyticsPublication
         ?array $previewMetadata,
         ?array $providerMetadata,
         ?string $postPlatformId,
-        ?\DateTimeInterface $providerSyncedAt,
+        ?DateTimeInterface $providerSyncedAt,
         ?SocialAccount $liveAccount,
         bool $mayCreate,
     ): AnalyticsPublication {

@@ -121,3 +121,26 @@ test('settled posts and legacy multi-target posts cannot use the independent edi
         'content_type' => ContentType::InstagramStory->value,
     ])['action'])->toBe(PostAction::Finalized);
 });
+
+test('an edit stores only known meta keys and keeps the system-written ones', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $account = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+    $post = CreatePosts::execute($workspace, $user, [
+        'status' => 'draft',
+        'content' => 'Caption',
+        'destinations' => [['social_account_id' => $account->id]],
+    ])->sole();
+    $target = $post->postPlatforms()->sole();
+    $target->update(['meta' => ['reactions' => [['type' => '👍', 'count' => 3]], 'aspect_ratio' => '4:5']]);
+
+    UpdatePost::execute($workspace, $post, [
+        'status' => 'draft',
+        'meta' => ['bogus_key' => 'zzz', 'aspect_ratio' => '1:1', 'is_ai_generated' => true, 'reactions' => []],
+    ]);
+
+    expect($target->fresh()->meta)->toEqual([
+        'is_ai_generated' => true,
+        'reactions' => [['type' => '👍', 'count' => 3]],
+    ]);
+});

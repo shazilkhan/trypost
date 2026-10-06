@@ -11,6 +11,7 @@ use App\Actions\SocialAccount\CountPostsSentThisWeek;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\User\WeekStart;
+use App\Http\Resources\App\PostCardResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -24,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Support\Header;
@@ -86,7 +89,7 @@ class BuildPublishPageProps
         $openPostDetailsId = self::uuidQuery($request, 'post');
         $focusedPostId = $openPostNotesId ?? $openPostDetailsId;
 
-        $resolveTab = fn (mixed $requested, ?string $focusedId): string => self::tab($requested, $focusedId ? (clone $basePosts)->whereKey($focusedId)->value('status') : null);
+        $resolveTab = fn (mixed $requested, ?string $focusedId): string => self::tab($requested, $focusedId ? (clone $basePosts)->whereKey($focusedId)->visiblePendingApprovalsFor($requester)->value('status') : null);
 
         $tab = $resolveTab($request->query('tab'), $focusedPostId);
 
@@ -141,7 +144,6 @@ class BuildPublishPageProps
             ...$props,
             'openComposer' => $editPost !== null,
             'openComposerAssistant' => $request->boolean('assistant'),
-            'initialComposerDate' => $request->query('date'),
             'openPostNotesId' => $openPostNotesId,
             'openPostDetailsId' => $openPostDetailsId,
             'highlightNoteId' => is_string($request->query('note')) ? $request->query('note') : null,
@@ -312,7 +314,7 @@ class BuildPublishPageProps
      * @param  Collection<int, SocialAccount>  $channels
      * @param  list<string>  $labelIds
      * @param  callable(): Builder  $cards
-     * @return array{days: list<array<string, mixed>>, pending: list<Post>, publishing: list<Post>, queueDays: int, maxQueueDays: int}
+     * @return array{days: list<array<string, mixed>>, pending: list<array<string, mixed>>, publishing: list<array<string, mixed>>, queueDays: int, maxQueueDays: int}
      */
     private static function queue(Workspace $workspace, Collection $channels, string $displayTimezone, Request $request, array $labelIds, bool $untagged, callable $cards, bool $channelScope, ?User $requester): array
     {
@@ -344,8 +346,8 @@ class BuildPublishPageProps
 
         return [
             'days' => $days,
-            'pending' => $pending->values()->all(),
-            'publishing' => $publishing->values()->all(),
+            'pending' => PostCardResource::cards($pending),
+            'publishing' => PostCardResource::cards($publishing),
             'queueDays' => $queueDays,
             'maxQueueDays' => self::MAX_QUEUE_DAYS,
         ];
@@ -379,19 +381,35 @@ class BuildPublishPageProps
             self::attachMetrics($paginator->getCollection());
         }
 
-        return $paginator;
+        return $paginator->through(fn (Post $post): array => PostCardResource::make($post)->resolve());
     }
 
     /**
+     * Marks each post with what the viewer may do on its card. `can_delete` comes
+     * from PostPolicy::delete, evaluated once per kind of authorship (the policy
+     * reads only the workspace, the status and who wrote or requested the post).
+     *
      * @param  Collection<int, Post>  $posts
      */
     public static function decorate(Collection $posts): void
     {
         $hasSchedule = [];
-        $posts->pluck('user')->filter()->each(fn (User $user) => $user->makeHidden('avatarMedia'));
+
+        $viewer = Auth::user();
+        $deletable = [];
 
         foreach ($posts as $post) {
-            $post->setAttribute('can_delete', ! PostStatusRules::blocksDeletion($post));
+            $authorship = implode(':', [
+                $post->workspace_id,
+                (int) ($post->status === PostStatus::PendingApproval),
+                (int) ($post->user_id === $viewer?->id),
+                (int) ($post->approval_requested_by === null),
+                (int) ($post->approval_requested_by === $viewer?->id),
+            ]);
+            $deletable[$authorship] ??= $viewer !== null
+                && Gate::forUser($viewer)->allows('delete', $post->loadMissing($post->approval_requested_by === null ? 'user' : 'approvalRequestedBy'));
+            $post->unsetRelation('approvalRequestedBy');
+            $post->setAttribute('can_delete', $deletable[$authorship] && ! PostStatusRules::blocksDeletion($post));
 
             foreach ($post->postPlatforms as $platform) {
                 $account = $platform->socialAccount;

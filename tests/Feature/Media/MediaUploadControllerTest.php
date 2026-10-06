@@ -476,8 +476,26 @@ test('an assembled file over the cap of the type its bytes are is rejected and d
         ->and(Storage::allFiles())->toBe([]);
 })->with([
     'image bytes named as a video' => ['clip.mp4', 'full'],
-    'more bytes than the declared size' => ['photo.png', 'small'],
 ]);
+
+test('a chunk carrying more bytes than its content-range declares is rejected and nothing is stored', function () {
+    test()->actingAs($this->user)->call(
+        'POST',
+        route('app.media.store-chunked'),
+        [], [], [],
+        [
+            'HTTP_CONTENT_RANGE' => 'bytes 0-99/100',
+            'HTTP_X_FILE_NAME' => 'photo.png',
+            'HTTP_X_UPLOAD_ID' => Str::uuid()->toString(),
+            'HTTP_ACCEPT' => 'application/json',
+            'CONTENT_TYPE' => 'application/octet-stream',
+        ],
+        mediaUploadPaddedPng(1000),
+    )->assertUnprocessable()->assertJsonValidationErrors(['range_start']);
+
+    expect(Media::query()->count())->toBe(0)
+        ->and(Storage::allFiles())->toBe([]);
+});
 
 test('a user outside the workspace gets 403 before validation runs', function () {
     $outsider = workspaceOutsider($this->workspace);
@@ -488,6 +506,10 @@ test('a user outside the workspace gets 403 before validation runs', function ()
 
     test()->actingAs($outsider->fresh())
         ->postJson(route('app.media.store-from-url'), ['url' => 'not a url'])
+        ->assertForbidden();
+
+    test()->actingAs($outsider->fresh())
+        ->getJson(route('app.media.unsplash.search'))
         ->assertForbidden();
 });
 

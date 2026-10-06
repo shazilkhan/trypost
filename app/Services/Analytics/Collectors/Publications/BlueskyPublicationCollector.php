@@ -33,7 +33,6 @@ class BlueskyPublicationCollector extends AbstractPublicationHistoryCollector
                 'collection' => BlueskyLexicon::FEED_POST,
                 'limit' => self::PAGE_SIZE,
                 'cursor' => $cursor,
-                'reverse' => true,
             ],
             authenticated: false,
         );

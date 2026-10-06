@@ -32,17 +32,21 @@ use App\Mcp\Tools\Post\ApprovePostTool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
 use App\Mcp\Tools\Post\ClearPostRecurrenceTool;
+use App\Mcp\Tools\Post\CreatePostNoteTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
 use App\Mcp\Tools\Post\CreatePostTool;
+use App\Mcp\Tools\Post\DeletePostNoteTool;
 use App\Mcp\Tools\Post\DeletePostTool;
 use App\Mcp\Tools\Post\GetPostMetricsTool;
 use App\Mcp\Tools\Post\GetPostTool;
+use App\Mcp\Tools\Post\ListPostNotesTool;
 use App\Mcp\Tools\Post\ListPostsTool;
 use App\Mcp\Tools\Post\PreviewPostTool;
 use App\Mcp\Tools\Post\PublishPostTool;
 use App\Mcp\Tools\Post\RejectPostTool;
 use App\Mcp\Tools\Post\RequestMediaUploadTool;
 use App\Mcp\Tools\Post\SetPostRecurrenceTool;
+use App\Mcp\Tools\Post\UpdatePostNoteTool;
 use App\Mcp\Tools\Post\UpdatePostTool;
 use App\Mcp\Tools\Repurpose\ActivateRepurposeTool;
 use App\Mcp\Tools\Repurpose\CreateRepurposeTool;
@@ -63,6 +67,7 @@ use App\Mcp\Tools\SocialAccount\CopyPostingScheduleTool;
 use App\Mcp\Tools\SocialAccount\CreatePinterestBoardTool;
 use App\Mcp\Tools\SocialAccount\GeneratePostingScheduleTool;
 use App\Mcp\Tools\SocialAccount\GetPostingScheduleTool;
+use App\Mcp\Tools\SocialAccount\GetTikTokCreatorInfoTool;
 use App\Mcp\Tools\SocialAccount\ListDiscordChannelsTool;
 use App\Mcp\Tools\SocialAccount\ListFreeSlotsTool;
 use App\Mcp\Tools\SocialAccount\ListPinterestBoardsTool;
@@ -95,7 +100,6 @@ class TryPostServer extends Server
     public int $defaultPaginationLength = 100;
 
     protected array $tools = [
-        // Posts
         ListPostsTool::class,
         GetPostTool::class,
         CreatePostTool::class,
@@ -110,23 +114,23 @@ class TryPostServer extends Server
         RequestMediaUploadTool::class,
         AttachMediaFromUploadTool::class,
         GetPostMetricsTool::class,
+        ListPostNotesTool::class,
+        CreatePostNoteTool::class,
+        UpdatePostNoteTool::class,
+        DeletePostNoteTool::class,
 
-        // Analytics
         GetAnalyticsReportTool::class,
         GetAnalyticsPublicationTool::class,
         GetChannelInsightsTool::class,
         ListChannelPublicationsTool::class,
 
-        // Platforms (read-only metadata)
         ListContentTypesTool::class,
 
-        // Signatures
         ListSignaturesTool::class,
         CreateSignatureTool::class,
         UpdateSignatureTool::class,
         DeleteSignatureTool::class,
 
-        // Ideas
         ListIdeasTool::class,
         GetIdeaTool::class,
         CreateIdeaTool::class,
@@ -135,20 +139,17 @@ class TryPostServer extends Server
         DuplicateIdeaTool::class,
         MoveIdeasTool::class,
 
-        // Idea stages
         ListIdeaStagesTool::class,
         CreateIdeaStageTool::class,
         UpdateIdeaStageTool::class,
         DeleteIdeaStageTool::class,
         ReorderIdeaStagesTool::class,
 
-        // Labels
         ListLabelsTool::class,
         CreateLabelTool::class,
         UpdateLabelTool::class,
         DeleteLabelTool::class,
 
-        // Social Accounts
         ListSocialAccountsTool::class,
         GetPostingScheduleTool::class,
         UpdatePostingScheduleTool::class,
@@ -162,6 +163,7 @@ class TryPostServer extends Server
         ListPinterestBoardsTool::class,
         CreatePinterestBoardTool::class,
         ListDiscordChannelsTool::class,
+        GetTikTokCreatorInfoTool::class,
         ListRepurposesTool::class,
         CreateRepurposeTool::class,
         GetRepurposeTool::class,
@@ -174,7 +176,6 @@ class TryPostServer extends Server
         ListRepurposeSourceFormatsTool::class,
         DeleteRepurposeTool::class,
 
-        // Webhooks
         ListWebhooksTool::class,
         GetWebhookTool::class,
         CreateWebhookTool::class,
@@ -185,10 +186,8 @@ class TryPostServer extends Server
         ListWebhookLogsTool::class,
         ReplayWebhookLogTool::class,
 
-        // Workspace
         GetWorkspaceTool::class,
 
-        // API Keys
         ListApiKeysTool::class,
         CreateApiKeyTool::class,
         DeleteApiKeyTool::class,

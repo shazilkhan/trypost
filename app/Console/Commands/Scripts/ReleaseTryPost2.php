@@ -6,6 +6,7 @@ namespace App\Console\Commands\Scripts;
 
 use App\Actions\Media\AdoptWorkspaceLibrary;
 use App\Actions\Media\AuditMedia;
+use App\Actions\Post\BakeLegacyAspectRatioCrops;
 use App\Actions\Post\DeleteChannelPosts;
 use App\Actions\SocialAccount\ApplyChannelDefaults;
 use App\Enums\SocialAccount\Platform;
@@ -34,6 +35,9 @@ use Throwable;
  * channel keeps its id (the dead target is dropped instead of being split off)
  * and their library media is not copied only to be deleted. The split gives
  * every copy its own media whether or not the library was adopted already.
+ * The aspect ratio crops are baked after the split (each post then has its
+ * own media) and before the adoption, which then adopts the baked post as it
+ * is.
  *
  * Never rehearse it with `--force` on a database copy that points at the
  * production bucket: the adoption deletes library files no row of the copy
@@ -53,7 +57,7 @@ class ReleaseTryPost2 extends Command
 {
     use ConfirmableTrait;
 
-    public const int STEPS = 7;
+    public const int STEPS = 8;
 
     public const int ADOPTION_POLL_SECONDS = 15;
 
@@ -101,6 +105,11 @@ class ReleaseTryPost2 extends Command
             $this->call('posts:audit-legacy');
 
             return 'splits the "Editable" and "Settled" multiple-target posts above; in-flight ones stay';
+        });
+        $this->runReleaseStep('Bake legacy aspect ratio crops', 'posts:bake-aspect-ratio-crops', preview: function (): string {
+            $pending = BakeLegacyAspectRatioCrops::pending();
+
+            return "would bake the aspect ratio crop of {$pending} scheduled or in-flight post(s)";
         });
 
         if ($dryRun) {

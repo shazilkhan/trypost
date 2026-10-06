@@ -8,6 +8,7 @@ use App\Enums\PostPlatform\ContentType;
 use App\Enums\PostPlatform\Status;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
 use App\Observers\PostPlatformObserver;
+use Carbon\CarbonInterface;
 use Database\Factories\PostPlatformFactory;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,12 +45,14 @@ class PostPlatform extends Model
         'last_reconciled_at',
         'meta',
         'connection_warning_sent_at',
+        'retry_at',
     ];
 
     protected function casts(): array
     {
         return [
             'enabled' => 'boolean',
+            'scheduled_before_media_checks' => 'boolean',
             'platform' => SocialPlatform::class,
             'content_type' => ContentType::class,
             'status' => Status::class,
@@ -60,6 +63,7 @@ class PostPlatform extends Model
             'error_context' => 'array',
             'thread_reply_ids' => 'array',
             'connection_warning_sent_at' => 'datetime',
+            'retry_at' => 'datetime',
         ];
     }
 
@@ -96,6 +100,16 @@ class PostPlatform extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('post_platforms.status', Status::Published);
+    }
+
+    /**
+     * Targets a network refused for a limit whose next attempt is due.
+     */
+    public function scopeDueForLimitRetry(Builder $query): Builder
+    {
+        return $query->where('post_platforms.status', Status::Retrying)
+            ->whereNotNull('post_platforms.retry_at')
+            ->where('post_platforms.retry_at', '<=', now());
     }
 
     public function scopeIncludedInAnalytics(Builder $query): Builder
@@ -161,7 +175,28 @@ class PostPlatform extends Model
 
     public function markAsPublishing(): void
     {
-        $this->update(['status' => Status::Publishing]);
+        $this->update(['status' => Status::Publishing, 'retry_at' => null]);
+    }
+
+    /**
+     * The network refused the publish for a limit: the target waits, not
+     * failed, until the scheduler picks it up at `retry_at`.
+     *
+     * @param  array<string, mixed>  $errorContext
+     */
+    public function markAsWaitingForLimitRetry(CarbonInterface $retryAt, string $errorMessage, array $errorContext): void
+    {
+        $this->update([
+            'status' => Status::Retrying,
+            'retry_at' => $retryAt,
+            'error_message' => $errorMessage,
+            'error_context' => $errorContext,
+        ]);
+    }
+
+    public function isWaitingForLimitRetry(): bool
+    {
+        return $this->status === Status::Retrying && $this->retry_at?->isFuture() === true;
     }
 
     public function markAsPublished(string $platformPostId, ?string $platformUrl = null): void
@@ -173,6 +208,7 @@ class PostPlatform extends Model
             'platform_post_id' => $platformPostId,
             'platform_url' => $platformUrl,
             'published_at' => $now,
+            'retry_at' => null,
             'error_message' => null,
             'error_context' => null,
         ]);
@@ -191,6 +227,7 @@ class PostPlatform extends Model
             'platform_post_id' => $platformPostId,
             'platform_url' => $platformUrl,
             'submitted_at' => $this->submitted_at ?? now(),
+            'retry_at' => null,
             'error_message' => null,
             'error_context' => null,
         ]);
@@ -208,6 +245,7 @@ class PostPlatform extends Model
             'status' => Status::Rejected,
             'platform_post_id' => $platformPostId,
             'platform_url' => $platformUrl,
+            'retry_at' => null,
             'error_message' => $errorMessage,
             'error_context' => $errorContext,
         ]);
@@ -217,6 +255,7 @@ class PostPlatform extends Model
     {
         $this->update([
             'status' => Status::Failed,
+            'retry_at' => null,
             'error_message' => $errorMessage,
             'error_context' => $errorContext,
             'platform_post_id' => null,

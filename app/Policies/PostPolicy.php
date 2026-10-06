@@ -40,8 +40,9 @@ class PostPolicy
     }
 
     /**
-     * Authorize deleting a post: tenancy guard (404 across tenants) then the
-     * same `createPost` gate as `update`.
+     * Authorize deleting a post: tenancy guard (404 across tenants), the
+     * `createPost` gate, and a member who needs approval may delete only the
+     * posts they wrote, or another member's request they made while it is still pending approval.
      */
     public function delete(User $user, Post $post): bool|Response
     {
@@ -49,7 +50,13 @@ class PostPolicy
             return Response::denyAsNotFound();
         }
 
-        return $user->can('createPost', $user->currentWorkspace);
+        if (! $user->can('createPost', $user->currentWorkspace)) {
+            return false;
+        }
+
+        return ! $user->requiresApprovalIn($user->currentWorkspace)
+            || $post->user_id === $user->id
+            || ($post->status === Status::PendingApproval && $post->approval_requested_by === $user->id);
     }
 
     /**

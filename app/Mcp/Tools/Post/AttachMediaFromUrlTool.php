@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Mcp\Tools\Post;
 
+use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
@@ -16,7 +17,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Download images, videos, or PDF documents from public URLs and attach them to a post. Each URL is fetched, stored, and registered as a Media record on the workspace. Only the types the post\'s channel accepts are kept; a URL whose file type the channel does not accept is reported in failed_urls. Video duration is measured on the server. Per-network size, duration, GIF and MOV caps (see list-content-types-tool) are enforced when the post is scheduled or published.')]
+#[Description('Download images, videos, or PDF documents from public URLs and attach them to a post. Each URL is fetched, stored, and registered as a Media record on the workspace. The media is appended after the post\'s current media. Each URL must serve the file itself: redirects are not followed, and web pages, private-network hosts and files over the type\'s size ceiling are refused. Only the types the post\'s channel accepts are kept. URLs that could not be attached are listed in failed_urls, and failures gives the reason of each (unreachable, type_not_allowed, too_large, host_not_allowed) with a message. Video duration is measured on the server. Per-network size, duration, GIF and MOV caps (see list-content-types-tool) are enforced when the post is scheduled or published.')]
 class AttachMediaFromUrlTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -39,11 +40,15 @@ class AttachMediaFromUrlTool extends Tool
             return $denied;
         }
 
-        $result = app(MediaAttacher::class)->attachFromUrls(
-            $post,
-            data_get($validated, 'urls', []),
-            $request->user(),
-        );
+        try {
+            $result = app(MediaAttacher::class)->attachFromUrls(
+                $post,
+                data_get($validated, 'urls', []),
+                $request->user(),
+            );
+        } catch (QueueBusyException) {
+            return Response::error(__('posts.errors.queue_busy'));
+        }
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);
 
@@ -51,6 +56,7 @@ class AttachMediaFromUrlTool extends Tool
             'post' => (new PostResource($post))->resolve(),
             'attached_count' => count($result['attached']),
             'failed_urls' => $result['failed'],
+            'failures' => $result['failures'],
         ]);
     }
 

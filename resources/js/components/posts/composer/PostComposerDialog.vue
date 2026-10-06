@@ -34,6 +34,7 @@ import { trans, transChoice } from 'laravel-vue-i18n';
 import {
     computed,
     effectScope,
+    type EffectScope,
     nextTick,
     onMounted,
     ref,
@@ -149,7 +150,11 @@ import { useWorkspaceAbilities } from '@/composables/useWorkspaceAbilities';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import date from '@/date';
 import dayjs from '@/dayjs';
-import { characterCount, isBlankText } from '@/lib/characters';
+import {
+    characterCount,
+    displayLength,
+    isBlankText,
+} from '@/lib/characters';
 import {
     googleBusinessTopicMeta,
     resolveGoogleBusinessTopicType,
@@ -496,11 +501,7 @@ watch(
 );
 const isSingleChannel = computed(() => selectedAccounts.value.length === 1);
 
-const {
-    loaded: liveLoaded,
-    failed: liveFailed,
-    retry: retryLiveData,
-} = useComposerLiveState();
+const { failed: liveFailed, retry: retryLiveData } = useComposerLiveState();
 
 const retryLiveLoad = (): void => {
     retryLiveData();
@@ -516,12 +517,8 @@ const isInitialQueueSlot = (): boolean =>
     dayjs(scheduledInstant).isSame(props.initialQueueSlot) &&
     isSingleChannel.value &&
     selectedAccounts.value[0]?.id === props.initialAccountIds[0];
-const takenSlots = computed(() =>
-    isSingleChannel.value
-        ? (selectedAccounts.value[0]?.taken_slots ?? []).filter(
-              (at) => !ownScheduledInstant || !dayjs(at).isSame(ownScheduledInstant),
-          )
-        : [],
+const slotChannelId = computed(() =>
+    isSingleChannel.value ? (selectedAccounts.value[0]?.id ?? null) : null,
 );
 watch(
     () => composition.selectedAccountIds.value,
@@ -1108,7 +1105,10 @@ const remainingCharacters = (account: ComposerAccount): number | null => {
     return (
         limit -
         contentWarningLength(account) -
-        characterCount(contentFor(destination.content, account.platform))
+        displayLength(
+            contentFor(destination.content, account.platform),
+            account.platform,
+        )
     );
 };
 const groupRemaining = (group: NetworkGroup): number | null => {
@@ -1181,7 +1181,8 @@ const activeRemaining = (group: NetworkGroup): number | null => {
 
     return limit === null
         ? null
-        : limit - characterCount(contentFor(reply.text, group.platform));
+        : limit -
+          displayLength(contentFor(reply.text, group.platform), group.platform);
 };
 const threadReplyErrors = (group: NetworkGroup): Record<number, string> => {
     const found: Record<number, string> = {};
@@ -1220,30 +1221,39 @@ const setReplyMedia = (
         ),
     );
 };
+const replyUploadScopes = new Map<string, EffectScope>();
 watch(
     () =>
-        customizing.value
-            ? networkGroups.value.flatMap((group) =>
+        sharedStep.value
+            ? []
+            : networkGroups.value.flatMap((group) =>
                   threadReplies(group).map((reply) =>
                       replyUploaderKey(group.key, reply.key),
                   ),
-              )
-            : [],
+              ),
     (keys) => {
         keys.forEach((key) => {
             if (replyUploaders.has(key)) return;
             const [groupKey, replyKey] = key.split('::');
             uploadScope.run(() => {
-                replyUploaders.set(
-                    key,
-                    useMediaUpload({
-                        limits: mediaUploadLimits,
-                        onReady: (item, _key, replaces) =>
-                            setReplyMedia(groupKey, replyKey, (media) =>
-                                withMediaAdded(media, item, replaces ?? null),
-                            ),
-                    }),
-                );
+                const scope = effectScope();
+                replyUploadScopes.set(key, scope);
+                scope.run(() => {
+                    replyUploaders.set(
+                        key,
+                        useMediaUpload({
+                            limits: mediaUploadLimits,
+                            onReady: (item, _key, replaces) =>
+                                setReplyMedia(groupKey, replyKey, (media) =>
+                                    withMediaAdded(
+                                        media,
+                                        item,
+                                        replaces ?? null,
+                                    ),
+                                ),
+                        }),
+                    );
+                });
             });
         });
         [...replyUploaders.keys()]
@@ -1251,6 +1261,8 @@ watch(
             .forEach((key) => {
                 replyUploaders.get(key)?.clear();
                 replyUploaders.delete(key);
+                replyUploadScopes.get(key)?.stop();
+                replyUploadScopes.delete(key);
             });
     },
     { immediate: true },
@@ -1444,7 +1456,10 @@ const destinationIssues = (account: ComposerAccount): DestinationIssue[] => {
             const over =
                 limit === null
                     ? 0
-                    : characterCount(contentFor(reply.text, account.platform)) -
+                    : displayLength(
+                          contentFor(reply.text, account.platform),
+                          account.platform,
+                      ) -
                       limit;
             const replyMediaWarning = reply.media.length
                 ? getMediaValidationWarning(replyContentType, reply.media)
@@ -1909,9 +1924,13 @@ const autosaveSnapshot = (): AutosaveSnapshot => ({
     scheduleMode: scheduleModeChosen.value ? scheduleMode.value : null,
     scheduledAt:
         scheduleModeChosen.value && scheduleMode.value === 'custom'
-            ? composition.scheduledAt.value || null
+            ? scheduledInstant || null
             : null,
 });
+const restoredInstant = (saved: string): string =>
+    /(Z|[+-]\d{2}:?\d{2})$/.test(saved)
+        ? saved
+        : date.wallClockToUtc(saved, composerTimezone.value);
 const compositionIsEmpty = (): boolean =>
     !composition.content.value.trim() &&
     composition.media.value.length === 0 &&
@@ -1982,9 +2001,12 @@ const resumeUnfinishedPost = (): void => {
     } else if (
         mode === 'custom' &&
         snapshot.scheduledAt &&
-        dayjs.tz(snapshot.scheduledAt, composerTimezone.value).isAfter(dayjs())
+        dayjs.utc(restoredInstant(snapshot.scheduledAt)).isAfter(dayjs())
     ) {
-        composition.scheduledAt.value = snapshot.scheduledAt;
+        composition.scheduledAt.value = date.utcToWallClock(
+            restoredInstant(snapshot.scheduledAt),
+            composerTimezone.value,
+        );
         scheduleModeChosen.value = true;
         scheduleMode.value = 'custom';
     }
@@ -2020,8 +2042,8 @@ const close = (): void => emit('update:open', false);
             :model-value="composition.scheduledAt.value"
             :timezone="composerTimezone"
             :posting-schedule="slotSchedule"
-            :taken-slots="takenSlots"
-            :slots-loading="!liveLoaded"
+            :channel-id="slotChannelId"
+            :ignored-instant="ownScheduledInstant"
             @back="showScheduleMenu"
             @confirm="confirmScheduledAt"
         />
@@ -2673,6 +2695,7 @@ const close = (): void => emit('update:open', false);
                                 :caption-collapsed="
                                     threadReplies(group)[threadActive] !== undefined
                                 "
+                                :active-reply="threadActive"
                                 :threadable="supportsThread(group)"
                                 :threaded="threadReplies(group).length > 0"
                                 @expand-caption="deselectThread"

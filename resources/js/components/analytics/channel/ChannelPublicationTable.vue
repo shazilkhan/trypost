@@ -222,6 +222,8 @@ const overlayIcon = (row: ChannelPublicationRow): Component | undefined =>
 const hasTypeBadge = (row: ChannelPublicationRow): boolean =>
     row.content_type !== null && BADGED_TYPES.includes(row.content_type);
 
+const isReloading = ref(false);
+
 const reload = (
     changes: Partial<{
         period: PublicationPeriod;
@@ -248,6 +250,12 @@ const reload = (
             only: ['publications', 'filters'],
             preserveState: true,
             preserveScroll: true,
+            onStart: () => {
+                isReloading.value = true;
+            },
+            onFinish: () => {
+                isReloading.value = false;
+            },
             replace: true,
         },
     );
@@ -337,7 +345,9 @@ const display = (row: ChannelPublicationRow, key: SummaryMetric): string => {
         </template>
 
         <div
-            class="min-w-0 overflow-hidden rounded-lg border border-border bg-card"
+            class="min-w-0 overflow-hidden rounded-lg border border-border bg-card transition-opacity"
+            :class="{ 'opacity-60': isReloading }"
+            :aria-busy="isReloading"
         >
             <div
                 v-if="rows.length === 0"

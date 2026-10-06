@@ -77,12 +77,12 @@ class BuildQueueTimeline
             }
         }
 
-        usort($items, fn (array $a, array $b): int => [$a['at'], $a['type'] === 'slot' ? 1 : 0] <=> [$b['at'], $b['type'] === 'slot' ? 1 : 0]);
+        usort($items, fn (array $a, array $b): int => [data_get($a, 'at'), data_get($a, 'type') === 'slot' ? 1 : 0] <=> [data_get($b, 'at'), data_get($b, 'type') === 'slot' ? 1 : 0]);
 
         $groups = [];
 
         foreach ($items as $item) {
-            $date = CarbonImmutable::parse($item['at'])->setTimezone($displayTimezone)->format('Y-m-d');
+            $date = CarbonImmutable::parse(data_get($item, 'at'))->setTimezone($displayTimezone)->format('Y-m-d');
             $groups[$date][] = $item;
         }
 

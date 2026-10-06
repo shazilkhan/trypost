@@ -479,3 +479,37 @@ test('rejects an expired mcp oauth grant on the mcp endpoint', function () {
         ->assertUnauthorized()
         ->assertJson(['message' => 'Token expired.']);
 });
+
+test('the api rate limit is counted per workspace, not per ip', function () {
+    subscribeAccount($this->user->account);
+
+    $other = createApiTestToken();
+    subscribeAccount($other['user']->account);
+
+    for ($i = 0; $i < 60; $i++) {
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])
+            ->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+            ->getJson(route('api.workspace.show'))
+            ->assertOk();
+    }
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])
+        ->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+        ->getJson(route('api.workspace.show'))
+        ->assertStatus(Response::HTTP_TOO_MANY_REQUESTS);
+
+    auth()->forgetGuards();
+
+    $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.9'])
+        ->withHeaders(['Authorization' => 'Bearer '.$other['plain_token']])
+        ->getJson(route('api.workspace.show'))
+        ->assertOk();
+});
+
+test('a workspace query parameter does not break the api rate limiter', function () {
+    subscribeAccount($this->user->account);
+
+    $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
+        ->getJson(route('api.workspace.show', ['workspace' => 'foo']))
+        ->assertOk();
+});

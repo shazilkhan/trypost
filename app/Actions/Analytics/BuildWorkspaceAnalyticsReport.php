@@ -25,7 +25,7 @@ class BuildWorkspaceAnalyticsReport
     ) {}
 
     /**
-     * @param  array{start?: string, end?: string, observed_through?: string}  $selected
+     * @param  array{start?: string, end?: string, observed_through?: string, timezone?: string}  $selected
      * @param  array<string, string>|null  $channelKeys  Analytics key of each selected social account (already resolved for tenancy), keyed by account id; null means every channel.
      * @return array<string, mixed>
      */
@@ -37,13 +37,13 @@ class BuildWorkspaceAnalyticsReport
     }
 
     /**
-     * @param  array{start?: string, end?: string, observed_through?: string}  $selected
+     * @param  array{start?: string, end?: string, observed_through?: string, timezone?: string}  $selected
      * @param  list<string>|null  $accountKeys
      * @return array{bounds: array{min: ?string, max: ?string}, range: DateRange}
      */
     public function resolveRange(Workspace $workspace, array $selected = [], ?array $accountKeys = null, bool $clampToBounds = true): array
     {
-        $bounds = $this->bounds->execute($workspace, $accountKeys);
+        $bounds = $this->bounds->execute($workspace, $accountKeys, data_get($selected, 'timezone', 'UTC'));
 
         return ['bounds' => $bounds, 'range' => $this->dateRange->execute($bounds, $selected, $clampToBounds)];
     }
@@ -90,7 +90,7 @@ class BuildWorkspaceAnalyticsReport
         ]);
 
         return [
-            'bounds' => $bounds ?? $this->bounds->execute($workspace, $accountKeys),
+            'bounds' => $bounds ?? $this->bounds->execute($workspace, $accountKeys, $range->timezone),
             'range' => $range->toArray(),
             'previous_range' => $previous->toArray(),
             'summary' => [

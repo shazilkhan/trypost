@@ -1,3 +1,7 @@
+<script lang="ts">
+let compactSidebarOpen: boolean | null = null;
+</script>
+
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core';
 import { ref, watch } from 'vue';
@@ -33,9 +37,20 @@ const readSidebarOpen = (): boolean => {
 };
 
 const isCompactViewport = useMediaQuery('(max-width: 1023px)');
-const sidebarOpen = ref(!isCompactViewport.value && readSidebarOpen());
+const sidebarOpen = ref(
+    isCompactViewport.value
+        ? (compactSidebarOpen ?? false)
+        : readSidebarOpen(),
+);
+
+watch(sidebarOpen, (isOpen) => {
+    if (isCompactViewport.value) {
+        compactSidebarOpen = isOpen;
+    }
+});
 
 watch(isCompactViewport, (isCompact) => {
+    compactSidebarOpen = null;
     sidebarOpen.value = !isCompact && readSidebarOpen();
 });
 </script>

@@ -6,6 +6,10 @@ use App\Enums\Webhook\EventType;
 use App\Enums\Webhook\Status;
 use App\Jobs\DispatchWebhook;
 use App\Mcp\Servers\TryPostServer;
+use App\Mcp\Tools\Label\DeleteLabelTool;
+use App\Mcp\Tools\Label\UpdateLabelTool;
+use App\Mcp\Tools\Signature\DeleteSignatureTool;
+use App\Mcp\Tools\Signature\UpdateSignatureTool;
 use App\Mcp\Tools\Webhook\CreateWebhookTool;
 use App\Mcp\Tools\Webhook\DeleteWebhookTool;
 use App\Mcp\Tools\Webhook\GetWebhookTool;
@@ -499,3 +503,31 @@ test('members who are not admins cannot manage webhooks through mcp', function (
     'member',
     'approval',
 ]);
+
+dataset('mcp tools with a uuid id', function () {
+    return [
+        'get webhook' => [GetWebhookTool::class, ['webhook_id' => 'not-a-uuid']],
+        'update webhook' => [UpdateWebhookTool::class, ['webhook_id' => 'not-a-uuid']],
+        'delete webhook' => [DeleteWebhookTool::class, ['webhook_id' => 'not-a-uuid']],
+        'send webhook test' => [SendWebhookTestTool::class, ['webhook_id' => 'not-a-uuid']],
+        'rotate webhook secret' => [RotateWebhookSecretTool::class, ['webhook_id' => 'not-a-uuid']],
+        'list webhook logs' => [ListWebhookLogsTool::class, ['webhook_id' => 'not-a-uuid']],
+        'replay webhook log (webhook)' => [ReplayWebhookLogTool::class, ['webhook_id' => 'not-a-uuid', 'log_id' => '8a1b5c2e-1111-4111-8111-111111111111']],
+        'replay webhook log (log)' => [ReplayWebhookLogTool::class, ['webhook_id' => '8a1b5c2e-1111-4111-8111-111111111111', 'log_id' => 'not-a-uuid']],
+        'update label' => [UpdateLabelTool::class, ['label_id' => 'not-a-uuid', 'name' => 'x', 'color' => '#000000']],
+        'delete label' => [DeleteLabelTool::class, ['label_id' => 'not-a-uuid']],
+        'update signature' => [UpdateSignatureTool::class, ['signature_id' => 'not-a-uuid', 'name' => 'x', 'content' => 'x']],
+        'delete signature' => [DeleteSignatureTool::class, ['signature_id' => 'not-a-uuid']],
+    ];
+});
+
+it('rejects a non uuid id with a validation error', function (string $tool, array $arguments) {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    TryPostServer::actingAs($user)
+        ->tool($tool, $arguments)
+        ->assertHasErrors(['must be a valid UUID']);
+})->with('mcp tools with a uuid id');

@@ -3,16 +3,20 @@
 declare(strict_types=1);
 
 use App\Enums\Plan\Slug;
+use App\Enums\SocialAccount\Platform;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
 use App\Models\AccessToken;
 use App\Models\Account;
 use App\Models\Plan;
+use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Http\HostResolver;
+use App\Support\Social\PendingConnection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
@@ -32,7 +36,10 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
-    ->beforeEach(fn () => Queue::fake([BootstrapAccountAnalytics::class]))
+    ->beforeEach(function (): void {
+        Http::preventStrayRequests();
+        Queue::fake([BootstrapAccountAnalytics::class]);
+    })
     ->in('Feature', 'Unit');
 
 pest()->extend(BrowserTestCase::class)
@@ -205,6 +212,60 @@ function billingAccount(string $price, array $subscriptionAttributes = [], int $
     Workspace::factory()->count($workspaces)->create(['account_id' => $account->id]);
 
     return $account->refresh();
+}
+
+/**
+ * The session a connect start route leaves behind: the network, the workspace,
+ * the card being reconnected and where to return.
+ */
+function startSocialConnect(Workspace|string $workspace, Platform $platform, SocialAccount|string|null $reconnect = null, ?string $returnTo = null): PendingConnection
+{
+    $workspace = $workspace instanceof Workspace ? $workspace : (new Workspace)->forceFill(['id' => $workspace]);
+
+    return PendingConnection::start($platform, $workspace, $reconnect instanceof SocialAccount ? $reconnect->id : $reconnect, $returnTo);
+}
+
+/**
+ * "Finish connection" on the confirmation page, with every offered identity not
+ * already connected unless a selection is given.
+ *
+ * @param  array<int, string>|null  $identities
+ */
+function finishSocialConnect(Platform $platform, ?array $identities = null): TestResponse
+{
+    return test()->post(route('app.social.connect.finish', $platform), [
+        'identities' => $identities ?? array_values(array_diff(
+            PendingConnection::current()?->identityKeys() ?? [],
+            PendingConnection::current()?->lockedIdentityKeys() ?? [],
+        )),
+    ]);
+}
+
+/**
+ * Finish always lands on the publish page of the channel it connected: the given
+ * one, else any channel of the test workspace.
+ */
+function assertFinishedOnChannel(TestResponse $response, ?SocialAccount $channel = null): TestResponse
+{
+    if ($channel !== null) {
+        return $response->assertRedirect(route('app.channels.publish', $channel));
+    }
+
+    $location = (string) $response->headers->get('Location');
+
+    preg_match('#/channels/([^/]+)/publish$#', $location, $matches);
+
+    expect(SocialAccount::query()->whereKey($matches[1] ?? '')->exists())->toBeTrue("Finish redirected to {$location}");
+
+    return $response;
+}
+
+/**
+ * Why the pending connection stopped, as the confirmation page reads it.
+ */
+function socialConnectFailure(): ?string
+{
+    return PendingConnection::current()?->failure();
 }
 
 /**

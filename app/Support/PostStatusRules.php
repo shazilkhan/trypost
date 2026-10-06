@@ -21,7 +21,7 @@ class PostStatusRules
 
     public const QUEUE_SLOT_DESCRIPTION = 'ISO 8601 instant of one free posting slot of the channel (take it from list-free-slots-tool / GET channels/{account}/queue/slots), only with status scheduled: stores the post as a queue post in that exact slot. Refused when the slot is taken or held by a pending approval request. Do not combine with queue.';
 
-    private const EDIT_BLOCKED_MESSAGE_KEY = 'posts.cannot_edit_finalized';
+    private const EDIT_BLOCKED_MESSAGE_KEY = 'posts.flash.cannot_edit_finalized';
 
     /**
      * Statuses where the post can no longer be edited.

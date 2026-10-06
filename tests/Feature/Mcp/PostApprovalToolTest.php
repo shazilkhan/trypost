@@ -13,6 +13,7 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\PostApproval;
 use App\Support\PostingSchedule;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -113,7 +114,7 @@ test('the approval tools report a busy queue while another approval holds the po
     $request = approvalToolRequest($this);
     $lock = Mockery::mock(Lock::class);
     $lock->shouldReceive('block')->andThrow(new LockTimeoutException);
-    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", 30)->andReturn($lock);
+    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$request->id}", PostApproval::LOCK_SECONDS)->andReturn($lock);
 
     TryPostServer::actingAs($this->owner)
         ->tool($tool, ['post_id' => $request->id])

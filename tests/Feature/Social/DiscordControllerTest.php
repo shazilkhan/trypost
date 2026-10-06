@@ -7,7 +7,7 @@ use App\Enums\SocialAccount\Status;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
-use Inertia\Testing\AssertableInertia;
+use App\Support\Social\PendingConnection;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
@@ -42,11 +42,11 @@ test('discord connect redirects to the oauth provider', function () {
         ->get(route('app.social.discord.connect'))
         ->assertRedirect('https://discord.com/api/oauth2/authorize?test=1');
 
-    expect(session('social_connect_workspace'))->toBe($this->workspace->id);
+    expect(PendingConnection::current()?->workspaceId())->toBe($this->workspace->id);
 });
 
 test('discord oauth callback creates the server account', function () {
-    session(['social_connect_workspace' => $this->workspace->id]);
+    startSocialConnect($this->workspace->id, Platform::Discord);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('999000111'); // guild id
@@ -62,8 +62,8 @@ test('discord oauth callback creates the server account', function () {
 
     $response = $this->actingAs($this->user)->get(route('app.social.discord.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Discord));
+    finishSocialConnect(Platform::Discord)->assertRedirect();
 
     $this->assertDatabaseHas('social_accounts', [
         'workspace_id' => $this->workspace->id,
@@ -74,7 +74,7 @@ test('discord oauth callback creates the server account', function () {
 });
 
 test('discord callback fails gracefully when no server was authorized', function () {
-    session(['social_connect_workspace' => $this->workspace->id]);
+    startSocialConnect($this->workspace->id, Platform::Discord);
 
     // DiscordProvider throws when the token response carries no guild.
     $mock = Mockery::mock();
@@ -84,8 +84,7 @@ test('discord callback fails gracefully when no server was authorized', function
 
     $response = $this->actingAs($this->user)->get(route('app.social.discord.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Discord));
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Discord)->count())->toBe(0);
 });
@@ -97,7 +96,7 @@ test('user can connect multiple discord accounts', function () {
         'platform_user_id' => '999000111',
     ]);
 
-    session(['social_connect_workspace' => $this->workspace->id]);
+    startSocialConnect($this->workspace->id, Platform::Discord);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('888000222');
@@ -113,8 +112,8 @@ test('user can connect multiple discord accounts', function () {
 
     $response = $this->actingAs($this->user)->get(route('app.social.discord.callback'));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Discord));
+    finishSocialConnect(Platform::Discord)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Discord)->count())->toBe(2);
 });
@@ -127,10 +126,7 @@ test('discord callback reconnects the original card', function () {
         'access_token' => 'expired-token',
     ]);
 
-    session([
-        'social_connect_workspace' => $this->workspace->id,
-        'social_reconnect_id' => $account->id,
-    ]);
+    startSocialConnect($this->workspace->id, Platform::Discord, $account->id);
 
     $socialiteUser = Mockery::mock(SocialiteUser::class);
     $socialiteUser->shouldReceive('getId')->andReturn('999000111');
@@ -146,11 +142,9 @@ test('discord callback reconnects the original card', function () {
 
     $this->actingAs($this->user)
         ->get(route('app.social.discord.callback'))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('success', true)
-            ->where('message', null)
-        );
+        ->assertRedirect(route('app.social.connect.show', Platform::Discord));
+
+    finishSocialConnect(Platform::Discord)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Discord)->count())->toBe(1)
         ->and($account->fresh()->access_token)->toBe('fresh-discord-token');

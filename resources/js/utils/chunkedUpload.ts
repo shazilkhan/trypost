@@ -1,4 +1,5 @@
 import { classifyBy, MediaType } from '@/lib/mediaType';
+import { uuid } from '@/lib/uuid';
 import { probeVideoDuration } from '@/lib/videoDuration';
 
 interface ChunkedUploadOptions {
@@ -122,7 +123,7 @@ export const uploadChunked = async (options: ChunkedUploadOptions): Promise<Chun
     const csrfToken = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
     const totalSize = file.size;
     const totalChunks = Math.ceil(totalSize / chunkSize);
-    const uploadId = crypto.randomUUID();
+    const uploadId = uuid();
 
     // The server reads the duration from the file; the browser value is the fallback for containers without one.
     const isVideo = classifyBy(file.type, file.name) === MediaType.Video;

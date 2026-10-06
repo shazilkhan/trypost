@@ -19,6 +19,7 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\PostApproval;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -166,7 +167,7 @@ test('media attached to a request that was just approved sends it back for appro
 test('attaching media takes the approval lock and changes nothing while an approval holds it', function () {
     $lock = Mockery::mock(Lock::class);
     $lock->shouldReceive('block')->andThrow(new LockTimeoutException);
-    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$this->scheduled->id}", 30)->andReturn($lock);
+    Cache::partialMock()->shouldReceive('lock')->with("post-approval:{$this->scheduled->id}", PostApproval::LOCK_SECONDS)->andReturn($lock);
 
     expect(fn () => AppendPostMedia::execute($this->scheduled, attachMediaApprovalItems($this), $this->requester))
         ->toThrow(QueueBusyException::class);

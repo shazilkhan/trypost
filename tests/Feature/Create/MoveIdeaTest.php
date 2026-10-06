@@ -114,7 +114,7 @@ test('a foreign stage is rejected and a foreign idea is forbidden', function () 
     $this->actingAs($this->user)->putJson(route('app.create.ideas.move', $foreignIdea), [
         'idea_stage_id' => null,
         'idea_ids' => [$foreignIdea->id],
-    ])->assertForbidden();
+    ])->assertNotFound();
 });
 
 test('a user outside the workspace cannot move an idea', function () {
@@ -126,4 +126,80 @@ test('a user outside the workspace cannot move an idea', function () {
     ])->assertForbidden();
 
     expect($this->a1->fresh()->position)->toBe(0);
+});
+
+test('placing after an idea keeps the unloaded rest of the column in order', function () {
+    $more = Idea::factory()->inStage($this->stageB)->count(12)
+        ->sequence(fn ($sequence) => ['position' => $sequence->index + 1])->create();
+    $column = [$this->b1->id, ...$more->pluck('id')->all()];
+
+    $this->actingAs($this->user)->put(route('app.create.ideas.move', $this->a2), [
+        'idea_stage_id' => $this->stageB->id,
+        'after_idea_id' => $more[1]->id,
+    ])->assertRedirect();
+
+    expect(moveIdeaTestColumn($this->stageB->id))->toBe([...array_slice($column, 0, 3), $this->a2->id, ...array_slice($column, 3)])
+        ->and(Idea::where('idea_stage_id', $this->stageB->id)->orderBy('position')->pluck('position')->all())->toBe(range(0, 13))
+        ->and(moveIdeaTestColumn($this->stageA->id))->toBe([$this->a1->id, $this->a3->id]);
+});
+
+test('placing with no anchor puts the idea first, also within its own column', function () {
+    $this->actingAs($this->user)->put(route('app.create.ideas.move', $this->a3), [
+        'idea_stage_id' => $this->stageA->id,
+        'after_idea_id' => null,
+    ])->assertRedirect();
+
+    expect(moveIdeaTestColumn($this->stageA->id))->toBe([$this->a3->id, $this->a1->id, $this->a2->id]);
+
+    $this->actingAs($this->user)->put(route('app.create.ideas.move', $this->a3), [
+        'idea_stage_id' => $this->stageA->id,
+        'after_idea_id' => $this->a2->id,
+    ])->assertRedirect();
+
+    expect(moveIdeaTestColumn($this->stageA->id))->toBe([$this->a1->id, $this->a2->id, $this->a3->id]);
+
+    $this->actingAs($this->user)->put(route('app.create.ideas.move', $this->a1), [
+        'idea_stage_id' => null,
+        'after_idea_id' => null,
+    ])->assertRedirect();
+
+    expect(moveIdeaTestColumn(null))->toBe([$this->a1->id, $this->u1->id]);
+});
+
+test('an anchor outside the target column, another workspace or the idea itself is stale and changes nothing', function () {
+    $before = moveIdeaTestSnapshot();
+    $foreign = Idea::factory()->create();
+
+    foreach ([$this->a3->id, $foreign->id, $this->a1->id] as $anchor) {
+        $this->actingAs($this->user)->putJson(route('app.create.ideas.move', $this->a1), [
+            'idea_stage_id' => $this->stageB->id,
+            'after_idea_id' => $anchor,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['after_idea_id']);
+    }
+
+    $this->actingAs($this->user)->putJson(route('app.create.ideas.move', $this->a1), [
+        'idea_stage_id' => $this->stageB->id,
+        'after_idea_id' => 'nope',
+    ])->assertUnprocessable()->assertJsonValidationErrors(['after_idea_id']);
+
+    expect(array_diff_key(moveIdeaTestSnapshot(), [$foreign->id => 1]))->toEqual($before);
+});
+
+test('placing after an idea refuses a foreign stage, a foreign idea and an outsider', function () {
+    $this->actingAs($this->user)->putJson(route('app.create.ideas.move', $this->a1), [
+        'idea_stage_id' => IdeaStage::factory()->create()->id,
+        'after_idea_id' => null,
+    ])->assertUnprocessable()->assertJsonValidationErrors(['idea_stage_id']);
+
+    $this->actingAs($this->user)->putJson(route('app.create.ideas.move', Idea::factory()->create()), [
+        'idea_stage_id' => null,
+        'after_idea_id' => null,
+    ])->assertNotFound();
+
+    $this->actingAs(workspaceOutsider($this->workspace)->fresh())->putJson(route('app.create.ideas.move', $this->a1), [
+        'idea_stage_id' => $this->stageB->id,
+        'after_idea_id' => null,
+    ])->assertForbidden();
+
+    expect($this->a1->fresh()->idea_stage_id)->toBe($this->stageA->id);
 });

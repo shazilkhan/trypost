@@ -58,6 +58,8 @@ return [
     'cancel' => 'Anuluj',
     'clear' => 'Wyczyść',
     'close' => 'Zamknij',
+    'more' => 'Więcej',
+    'play' => 'Odtwórz',
     'loading' => 'Wczytywanie...',
     'loading_more' => 'Wczytywanie kolejnych...',
 

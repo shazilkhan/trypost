@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Support\Social\GoogleBusinessDerivativeCleaner;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -181,4 +182,45 @@ test('reconnecting the same identity imports its posts again without duplicates'
     expect(AnalyticsPublication::query()->count())->toBe(1)
         ->and($imported->postPlatforms()->sole()->social_account_id)->toBe($reconnected->id)
         ->and($publication->fresh()->post_platform_id)->toBe($imported->postPlatforms()->sole()->id);
+});
+
+test('a disconnect that fails to delete the channel keeps its posts, media and images', function () {
+    $account = SocialAccount::factory()->googleBusiness()->create(['workspace_id' => $this->workspace->id]);
+    $post = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id]);
+    $target = PostPlatform::factory()->googleBusiness()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $account->id,
+    ]);
+    $media = Media::factory()->ownedByPost($post)->create();
+    Storage::put($media->path, 'bytes');
+    Storage::put(GoogleBusinessDerivativeCleaner::pathFor($target->id), 'jpeg');
+    Event::listen('eloquent.deleting: '.SocialAccount::class, fn () => throw new RuntimeException('delete failed'));
+
+    $this->actingAs($this->user)->delete(route('app.channels.disconnect', $account))->assertServerError();
+
+    expect(SocialAccount::query()->find($account->id))->not->toBeNull()
+        ->and(Post::query()->find($post->id))->not->toBeNull()
+        ->and(PostPlatform::query()->find($target->id))->not->toBeNull()
+        ->and(Media::query()->find($media->id))->not->toBeNull();
+    Storage::assertExists($media->path);
+    Storage::assertExists(GoogleBusinessDerivativeCleaner::pathFor($target->id));
+});
+
+test('a disconnect waits for the channel queue lock and changes nothing while a save holds it', function () {
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+    [$post] = channelPost($account, Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id]));
+    $lock = Cache::lock("queue:{$account->id}", 10);
+    expect($lock->get())->toBeTrue();
+
+    try {
+        $this->actingAs($this->user)
+            ->delete(route('app.channels.disconnect', $account))
+            ->assertRedirect()
+            ->assertSessionHas('flash.error', __('posts.errors.queue_busy'));
+    } finally {
+        $lock->release();
+    }
+
+    expect(SocialAccount::query()->find($account->id))->not->toBeNull()
+        ->and(Post::query()->find($post->id))->not->toBeNull();
 });

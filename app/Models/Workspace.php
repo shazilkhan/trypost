@@ -109,7 +109,7 @@ class Workspace extends Model
 
     public function ideaStages(): HasMany
     {
-        return $this->hasMany(IdeaStage::class)->orderBy('position');
+        return $this->hasMany(IdeaStage::class)->orderBy('position')->orderBy('id');
     }
 
     public function rssFeeds(): HasMany

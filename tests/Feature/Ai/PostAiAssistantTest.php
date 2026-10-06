@@ -13,6 +13,7 @@ use App\Models\Workspace;
 use App\Services\Social\ContentSanitizer;
 use App\Support\AiPromptRules;
 use Illuminate\Auth\Access\Response as AuthResponse;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Laravel\Ai\Prompts\AgentPrompt;
@@ -277,4 +278,13 @@ test('regenerate sends the previous suggestion to the agent', function () {
 test('assistant route keeps its rate limit', function () {
     expect(collect(Route::getRoutes()->getByName('app.posts.ai.assist')->gatherMiddleware()))
         ->toContain('throttle:10,1');
+});
+
+test('a failing provider returns a translated bad gateway', function () {
+    PostWritingAssistant::fake([fn () => throw new ConnectionException('timeout')]);
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.assist'), ['mode' => PostAssistantMode::Generate->value, 'current_content' => '', 'prompt' => 'Write a short post please'])
+        ->assertStatus(Response::HTTP_BAD_GATEWAY)
+        ->assertJsonPath('message', __('posts.composer.assistant_error'));
 });

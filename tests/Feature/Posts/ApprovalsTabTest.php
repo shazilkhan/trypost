@@ -160,7 +160,7 @@ test('a requester deep link to someone else\'s pending post reveals nothing', fu
     $this->actingAs($this->requester)
         ->get(route('app.posts.index', ['notes' => $foreign->id]))
         ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('tab', 'approvals')
+            ->where('tab', 'queue')
             ->where('counts.approvals', 0)
             ->where('hasData', false)
             ->has('posts.data', 0));

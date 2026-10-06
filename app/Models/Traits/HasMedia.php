@@ -252,10 +252,31 @@ trait HasMedia
         ];
     }
 
+    /**
+     * HEIC passes through to its own checks, which explain an unavailable
+     * converter or a multi-photo file instead of an unsupported type.
+     */
     private function getMediaType(string $mimeType): Type
     {
-        return Type::classify($mimeType)
-            ?? throw new InvalidArgumentException("Unsupported media MIME type: {$mimeType}");
+        if (HeicConverter::isHeicMime($mimeType) || HeicConverter::isSequenceMime($mimeType)) {
+            return Type::Image;
+        }
+
+        return Type::fromMime($mimeType)
+            ?? throw ValidationException::withMessages(['media' => __('posts.composer.upload_errors.unsupported_type')]);
+    }
+
+    /**
+     * Reads the declared size from the header, so an image that would not fit
+     * in memory once decoded is refused before anything decodes it.
+     */
+    private function assertWithinPixelLimit(string $filePath): void
+    {
+        $size = @getimagesize($filePath);
+
+        if (is_array($size) && (int) config('trypost.media.image_max_pixels') < $size[0] * $size[1]) {
+            throw ValidationException::withMessages(['media' => __('posts.composer.upload_errors.image_too_large')]);
+        }
     }
 
     /**
@@ -310,6 +331,8 @@ trait HasMedia
         if (HeicConverter::isHeicMime($mimeType)) {
             return $this->convertHeicToJpeg($filePath);
         }
+
+        $this->assertWithinPixelLimit($filePath);
 
         // Formats that publish safely everywhere (JPEG is universal, GIF needed for X/Bluesky/Mastodon).
         if (in_array($mimeType, ['image/jpeg', 'image/jpg', 'image/gif'], true)) {

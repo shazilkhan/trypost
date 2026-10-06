@@ -2180,7 +2180,7 @@ test('an instagram reel without options publishes exactly as before', function (
         && ! array_key_exists('is_ai_generated', $request->data()));
 });
 
-test('a story ignores leftover reel and feed options', function () {
+test('a story sends the ai label and ignores a leftover reel option', function () {
     $this->post->update(['media' => instagramVideo()]);
     $this->postPlatform->update([
         'content_type' => ContentType::InstagramStory,
@@ -2192,7 +2192,20 @@ test('a story ignores leftover reel and feed options', function () {
 
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
         && data_get($request->data(), 'media_type') === 'STORIES'
-        && array_intersect(['share_to_feed', 'is_ai_generated'], array_keys($request->data())) === []);
+        && data_get($request->data(), 'is_ai_generated') === 'true'
+        && ! array_key_exists('share_to_feed', $request->data()));
+});
+
+test('a story without the ai label sends none', function () {
+    $this->post->update(['media' => instagramVideo()]);
+    $this->postPlatform->update(['content_type' => ContentType::InstagramStory, 'meta' => []]);
+    fakeInstagramReelFlow();
+
+    $this->publisher->publish($this->postPlatform->fresh());
+
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/ig_123456789/media')
+        && data_get($request->data(), 'media_type') === 'STORIES'
+        && ! array_key_exists('is_ai_generated', $request->data()));
 });
 
 test('a carousel sends the ai label on the parent only', function () {

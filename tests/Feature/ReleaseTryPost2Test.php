@@ -139,7 +139,7 @@ test('pending migrations abort the release before any step runs', function () {
     expect($code)->toBe(Command::FAILURE)
         ->and($output)->toContain('1 pending migration(s)')
         ->and($output)->toContain('2099_01_01_000000_release_probe')
-        ->and($output)->not->toContain('[1/7]')
+        ->and($output)->not->toContain('[1/8]')
         ->and(Media::query()->whereKey($asset->id)->exists())->toBeTrue()
         ->and($post->postPlatforms()->count())->toBe(2);
 });
@@ -163,6 +163,8 @@ test('a dry run prints every step and changes nothing', function () {
         'would delete 1 post(s) and detach 0 target(s)',
         'Would run: php artisan posts:split-legacy-active',
         'Editable with multiple enabled targets',
+        'Would run: php artisan posts:bake-aspect-ratio-crops',
+        'would bake the aspect ratio crop of 0 scheduled or in-flight post(s)',
         'References to copy',
         'Would run: php artisan analytics:backfill-existing --chunk=100 --delay=0',
         'Would run: php artisan analytics:dispatch-publication-discovery --platform=instagram --platform=instagram-facebook',
@@ -192,7 +194,7 @@ test('a full run executes the steps in order, waits for the queued adoption and 
         'Split 1 original posts and created 1 independent posts.',
         '1/1 workspace(s) done, 0 library row(s) left, 0 stopped',
         'accounts_dispatched=2',
-        '[6/7] Instagram stories discovery',
+        '[7/8] Instagram stories discovery',
         '| orphaned_files',
         '0 unexpected',
         'Release steps done.',
@@ -270,7 +272,7 @@ test('a workspace still adopting when the timeout passes is left to its job and 
 
     expect($code)->toBe(Command::SUCCESS, $output)
         ->and($output)->toContain('1 workspace(s) still adopting after 60s')
-        ->and($output)->toContain('[6/7] Instagram stories discovery')
+        ->and($output)->toContain('[7/8] Instagram stories discovery')
         ->and($output)->toContain('| json_drift         | 1        | 0          |')
         ->and(Media::query()->whereKey($asset->id)->exists())->toBeTrue();
     Sleep::assertSleptTimes(4);
@@ -290,12 +292,112 @@ test('a workspace whose job stops without adopting is reported as failed and the
 
     expect($code)->toBe(Command::FAILURE)
         ->and($output)->toContain("1 workspace(s) stopped with library media left: {$broken->id}")
-        ->and($output)->toContain('[6/7] Instagram stories discovery')
+        ->and($output)->toContain('[7/8] Instagram stories discovery')
         ->and($output)->toContain('| Media audit (read-only)')
         ->and($output)->toContain('1 failed step(s)')
         ->and(Media::query()->whereKey($healthyAsset->id)->exists())->toBeFalse()
         ->and(Media::query()->findOrFail(data_get($healthyPost->fresh()->media, '0.id'))->post_id)->toBe($healthyPost->id)
         ->and(Media::query()->whereKey($brokenAsset->id)->exists())->toBeTrue();
+});
+
+test('a legacy instagram post scheduled with two crops on a shared library photo is baked per channel once the release splits it', function () {
+    $asset = Media::factory()->libraryAsset($this->workspace)->create(['path' => 'medias/'.Str::uuid().'.jpg', 'meta' => ['width' => 1080, 'height' => 1920]]);
+    $image = imagecreatetruecolor(1080, 1920);
+    ob_start();
+    imagejpeg($image);
+    Storage::put($asset->path, (string) ob_get_clean());
+    $post = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'media' => [releaseLibraryItem($asset)]]);
+    $ratios = ['4:5' => [1080, 1350], '1:1' => [1080, 1080]];
+    $expected = [];
+
+    foreach ($ratios as $ratio => $dimensions) {
+        $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+        $expected[$account->id] = $dimensions;
+        PostPlatform::factory()->create([
+            'post_id' => $post->id,
+            'social_account_id' => $account->id,
+            'platform' => Platform::Instagram,
+            'content_type' => ContentType::InstagramFeed,
+            'meta' => ['aspect_ratio' => $ratio],
+        ]);
+    }
+
+    releaseFakeQueue();
+
+    $this->artisan('posts:bake-aspect-ratio-crops')
+        ->expectsOutputToContain('Baked 0 cropped image(s) into 0 post(s)')
+        ->expectsOutputToContain("uncropped for now (their media is shared; they keep their aspect ratio until a run after posts:split-legacy-active): {$post->id}")
+        ->assertSuccessful();
+
+    [$code, $output] = runRelease();
+
+    expect($code)->toBe(Command::SUCCESS, $output);
+    expectInOrder($output, [
+        'Split 1 original posts and created 1 independent posts.',
+        'Baked 2 cropped image(s) into 2 post(s)',
+        '1/1 workspace(s) done',
+        '0 unexpected',
+    ]);
+
+    $targets = PostPlatform::query()->with('post')->whereIn('post_id', Post::query()->where('workspace_id', $this->workspace->id)->select('id'))->get();
+
+    expect($targets)->toHaveCount(2)
+        ->and(Media::query()->whereKey($asset->id)->exists())->toBeFalse();
+
+    foreach ($targets as $target) {
+        $owner = $target->post;
+        $row = Media::query()->findOrFail(data_get($owner->media, '0.id'));
+        [$width, $height] = $expected[$target->social_account_id];
+
+        expect($target->meta)->toEqual([])
+            ->and($row->post_id)->toBe($owner->id)
+            ->and(getimagesizefromstring((string) Storage::get($row->path)))->toMatchArray([0 => $width, 1 => $height]);
+    }
+
+    [$code, $output] = runRelease();
+
+    expect($code)->toBe(Command::SUCCESS, $output)
+        ->and($output)->toContain('Baked 0 cropped image(s) into 0 post(s)');
+});
+
+test('a legacy instagram draft on two channels is split without a crop and loses the aspect ratio', function () {
+    $asset = Media::factory()->libraryAsset($this->workspace)->create(['path' => 'medias/'.Str::uuid().'.jpg', 'meta' => ['width' => 1080, 'height' => 1920]]);
+    $image = imagecreatetruecolor(1080, 1920);
+    ob_start();
+    imagejpeg($image);
+    Storage::put($asset->path, (string) ob_get_clean());
+    $post = Post::factory()->create(['workspace_id' => $this->workspace->id, 'status' => Status::Draft, 'media' => [releaseLibraryItem($asset)]]);
+
+    foreach (['4:5', '1:1'] as $ratio) {
+        $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $this->workspace->id]);
+        PostPlatform::factory()->create([
+            'post_id' => $post->id,
+            'social_account_id' => $account->id,
+            'platform' => Platform::Instagram,
+            'content_type' => ContentType::InstagramFeed,
+            'meta' => ['aspect_ratio' => $ratio],
+        ]);
+    }
+
+    releaseFakeQueue();
+
+    [$code, $output] = runRelease();
+
+    expect($code)->toBe(Command::SUCCESS, $output)
+        ->and($output)->toContain('Baked 0 cropped image(s) into 0 post(s)');
+
+    $targets = PostPlatform::query()->with('post')->whereIn('post_id', Post::query()->where('workspace_id', $this->workspace->id)->select('id'))->get();
+
+    expect($targets)->toHaveCount(2)
+        ->and($targets->pluck('post_id')->unique())->toHaveCount(2);
+
+    foreach ($targets as $target) {
+        $row = Media::query()->findOrFail(data_get($target->post->media, '0.id'));
+
+        expect($target->meta)->toEqual([])
+            ->and($target->post->status)->toBe(Status::Draft)
+            ->and(getimagesizefromstring((string) Storage::get($row->path)))->toMatchArray([0 => 1080, 1 => 1920]);
+    }
 });
 
 test('the final audit counts what the release leaves behind on purpose as expected and passes', function () {
@@ -377,7 +479,7 @@ test('a failure while queueing the adoption is reported and the release goes on'
 
     expect($code)->toBe(Command::FAILURE)
         ->and($output)->toContain('Could not queue AdoptWorkspaceLibraryJob: queue is down')
-        ->and($output)->toContain('[7/7] Media audit')
+        ->and($output)->toContain('[8/8] Media audit')
         ->and($output)->toContain('| Media library adoption')
         ->and(Media::query()->whereKey($asset->id)->exists())->toBeTrue();
     Sleep::assertNeverSlept();

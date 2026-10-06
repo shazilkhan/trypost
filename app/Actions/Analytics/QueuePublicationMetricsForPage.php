@@ -11,6 +11,7 @@ use App\Jobs\Analytics\CollectPublicationMetrics;
 use App\Jobs\Analytics\ScheduleInstagramStoryMetrics;
 use App\Models\AnalyticsPublication;
 use App\Models\SocialAccount;
+use App\Support\Analytics\SyncCadence;
 use Carbon\CarbonImmutable;
 
 class QueuePublicationMetricsForPage
@@ -50,7 +51,7 @@ class QueuePublicationMetricsForPage
             return;
         }
 
-        $days = $publication->platform === Platform::X ? 20 : 30;
+        $days = SyncCadence::metricsWindowDays($publication->platform);
         $recent = $publication->provider_published_at->greaterThanOrEqualTo($now->subDays($days)->startOfDay());
 
         if (! $recent && $publication->dailySnapshots()->exists()) {

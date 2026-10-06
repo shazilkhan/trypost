@@ -400,6 +400,45 @@ test('the requester and an approver still reach a pending request on web and mcp
     expect(Post::query()->find($own->id))->toBeNull();
 });
 
+test('a member who needs approval deletes only their own posts on web, api and mcp', function () {
+    $scheduled = fn (User $author): Post => tap(Post::factory()->scheduled()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $author->id,
+    ]), fn (Post $post) => $post->postPlatforms()->create([
+        'social_account_id' => $this->account->id,
+        'platform' => 'linkedin',
+        'content_type' => 'linkedin_post',
+        'enabled' => true,
+    ]));
+    $othersOnWeb = $scheduled($this->publisher);
+    $othersOnMcp = $scheduled($this->publisher);
+    $ownOnWeb = $scheduled($this->member);
+    $ownOnMcp = $scheduled($this->member);
+    $requested = approvalsParityPending($this->workspace, $this->member, $this->account, 'My request');
+    $approved = $scheduled($this->publisher);
+    $approved->update(['approval_requested_by' => $this->member->id]);
+
+    $this->withHeaders(parityApi($this->memberToken))->deleteJson(route('api.posts.destroy', $approved))->assertForbidden();
+    $this->withHeaders(parityApi($this->memberToken))->deleteJson(route('api.posts.destroy', $othersOnWeb))->assertForbidden();
+    auth()->forgetGuards();
+    $this->actingAs($this->member)->delete(route('app.posts.destroy', $approved))->assertForbidden();
+    TryPostServer::actingAs($this->member)->tool(DeletePostTool::class, ['post_id' => $approved->id])
+        ->assertHasErrors(['This action is unauthorized.']);
+
+    $this->actingAs($this->member)->delete(route('app.posts.destroy', $othersOnWeb))->assertForbidden();
+    TryPostServer::actingAs($this->member)->tool(DeletePostTool::class, ['post_id' => $othersOnMcp->id])
+        ->assertHasErrors(['This action is unauthorized.']);
+
+    $this->actingAs($this->member)->delete(route('app.posts.destroy', $ownOnWeb))->assertRedirect();
+    TryPostServer::actingAs($this->member)->tool(DeletePostTool::class, ['post_id' => $ownOnMcp->id])->assertOk();
+    TryPostServer::actingAs($this->member)->tool(DeletePostTool::class, ['post_id' => $requested->id])->assertOk();
+
+    $this->actingAs($this->publisher)->delete(route('app.posts.destroy', $othersOnWeb))->assertRedirect();
+    TryPostServer::actingAs($this->publisher)->tool(DeletePostTool::class, ['post_id' => $othersOnMcp->id])->assertOk();
+
+    expect(Post::query()->whereKey([$othersOnWeb->id, $othersOnMcp->id, $ownOnWeb->id, $ownOnMcp->id, $requested->id])->count())->toBe(0);
+});
+
 test('mcp post tools answer a validation error for a non uuid post id', function (string $tool) {
     TryPostServer::actingAs($this->owner)
         ->tool($tool, ['post_id' => 'not-a-uuid'])

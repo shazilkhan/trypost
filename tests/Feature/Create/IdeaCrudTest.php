@@ -282,12 +282,12 @@ test('a user outside the workspace is forbidden on every endpoint', function () 
     expect(Idea::find($idea->id))->not->toBeNull();
 });
 
-test('another workspaces idea is forbidden', function () {
+test('another workspaces idea is not found', function () {
     $idea = Idea::factory()->create();
 
-    $this->actingAs($this->user)->putJson(route('app.create.ideas.update', $idea), ['title' => 'x'])->assertForbidden();
-    $this->actingAs($this->user)->deleteJson(route('app.create.ideas.destroy', $idea))->assertForbidden();
-    $this->actingAs($this->user)->postJson(route('app.create.ideas.duplicate', $idea))->assertForbidden();
+    $this->actingAs($this->user)->putJson(route('app.create.ideas.update', $idea), ['title' => 'x'])->assertNotFound();
+    $this->actingAs($this->user)->deleteJson(route('app.create.ideas.destroy', $idea))->assertNotFound();
+    $this->actingAs($this->user)->postJson(route('app.create.ideas.duplicate', $idea))->assertNotFound();
 
     expect(Idea::find($idea->id)->title)->toBe($idea->title);
 });

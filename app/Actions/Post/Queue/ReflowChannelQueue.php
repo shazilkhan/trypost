@@ -20,6 +20,13 @@ use Illuminate\Support\Facades\DB;
 class ReflowChannelQueue
 {
     /**
+     * How long a channel lock outlives a crashed holder. Saves copy media and
+     * write every destination under it, so it sits well above the slowest save;
+     * a finished save releases it at once (owner-safe release).
+     */
+    public const LOCK_SECONDS = 120;
+
+    /**
      * Callers that enqueue inside a DB transaction must take the lock outside it:
      * withLock($ids, fn () => DB::transaction(fn () => handleLocked(...))).
      * Cache::lock()->block() never times out under frozen test time; call travelBack() before contention tests.
@@ -34,7 +41,7 @@ class ReflowChannelQueue
 
         try {
             foreach ($ids as $id) {
-                $lock = Cache::lock("queue:{$id}", 10);
+                $lock = Cache::lock("queue:{$id}", self::LOCK_SECONDS);
                 $lock->block($waitSeconds);
                 $locks[] = $lock;
             }
@@ -55,27 +62,6 @@ class ReflowChannelQueue
     public static function handle(SocialAccount $channel, ?Post $insert = null, QueuePosition $position = QueuePosition::Next, int $waitSeconds = 5, ?string $previousTimezone = null): void
     {
         self::withLock([$channel->id], fn () => self::handleLocked($channel, $insert, $position, $previousTimezone), $waitSeconds);
-    }
-
-    /**
-     * Reflows the channel once the surrounding transaction commits (immediately outside one).
-     * A channel deleted meanwhile is skipped; a busy lock is reported and leaves the previous, still valid times.
-     */
-    public static function afterCommit(string $channelId, ?string $previousTimezone = null): void
-    {
-        DB::afterCommit(function () use ($channelId, $previousTimezone): void {
-            $channel = SocialAccount::query()->find($channelId);
-
-            if ($channel === null) {
-                return;
-            }
-
-            try {
-                self::handle($channel, previousTimezone: $previousTimezone);
-            } catch (QueueBusyException $exception) {
-                report($exception);
-            }
-        });
     }
 
     /**
@@ -188,8 +174,8 @@ class ReflowChannelQueue
                 $slot = $targets[$post->id] ?? null;
 
                 if ($slot === null) {
-                    if ($post->scheduled_at !== null && $post->status === PostStatus::Scheduled) {
-                        self::updateIfScheduled($post, ['schedule_mode' => ScheduleMode::Custom]);
+                    if ($post->scheduled_at !== null) {
+                        self::updateIfHolding($post, ['schedule_mode' => ScheduleMode::Custom]);
                     }
 
                     continue;

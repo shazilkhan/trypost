@@ -11,12 +11,13 @@ class ResolveAnalyticsDateRange
 {
     /**
      * @param  array{min: ?string, max: ?string}  $bounds
-     * @param  array{start?: string, end?: string, observed_through?: string}  $selected
+     * @param  array{start?: string, end?: string, observed_through?: string, timezone?: string}  $selected
      */
     public function execute(array $bounds, array $selected, bool $clampToBounds = true): DateRange
     {
         $selectedStart = data_get($selected, 'start');
         $selectedEnd = data_get($selected, 'end');
+        $timezone = data_get($selected, 'timezone', 'UTC');
 
         if (! $clampToBounds && $selectedStart !== null && $selectedEnd !== null) {
             $observedThrough = data_get($selected, 'observed_through');
@@ -25,12 +26,13 @@ class ResolveAnalyticsDateRange
                 CarbonImmutable::parse($selectedStart, 'UTC'),
                 CarbonImmutable::parse($selectedEnd, 'UTC'),
                 $observedThrough === null ? null : CarbonImmutable::parse($observedThrough, 'UTC'),
+                $timezone,
             );
         }
 
         $minimumDate = data_get($bounds, 'min');
         $maximumDate = data_get($bounds, 'max');
-        $end = $maximumDate ? CarbonImmutable::parse($maximumDate, 'UTC') : CarbonImmutable::today('UTC');
+        $end = $maximumDate ? CarbonImmutable::parse($maximumDate, 'UTC') : CarbonImmutable::parse(now($timezone)->toDateString(), 'UTC');
         $start = $end->subDays(29);
 
         if ($minimumDate !== null && $selectedStart !== null) {
@@ -48,6 +50,6 @@ class ResolveAnalyticsDateRange
             $end = $end->lessThan($minimum) ? $minimum : ($end->greaterThan($maximum) ? $maximum : $end);
         }
 
-        return new DateRange($start->greaterThan($end) ? $end : $start, $end);
+        return new DateRange($start->greaterThan($end) ? $end : $start, $end, timezone: $timezone);
     }
 }

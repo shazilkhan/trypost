@@ -113,7 +113,7 @@ test('the new menu lists post, idea, connect channel and invite member in order 
     waitForCreateShellTestId($page, 'sidebar-new-member');
     waitForCreateShellMenuSettled($page);
 
-    expect($page->script('[...document.querySelectorAll(\'[data-testid^="sidebar-new-"]:not([data-testid="sidebar-new-menu"])\')].map((el) => el.dataset.testid)'))
+    expect($page->script('[...document.querySelectorAll(\'[data-testid^="sidebar-new-"]:not([data-testid="sidebar-new-menu"]):not([data-testid$="-icon"])\')].map((el) => el.dataset.testid)'))
         ->toBe(['sidebar-new-post', 'sidebar-new-idea', 'sidebar-new-channel', 'sidebar-new-member']);
     expect($page->script("document.querySelector('[data-testid=\"sidebar-new-menu\"]').getBoundingClientRect().top >= document.querySelector('[data-testid=\"sidebar-new\"]').getBoundingClientRect().bottom"))->toBeTrue();
     $page->assertNoJavaScriptErrors();

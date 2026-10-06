@@ -6,6 +6,7 @@ namespace App\Actions\SocialAccount;
 
 use App\Actions\Post\Queue\ReflowChannelQueue;
 use App\Models\SocialAccount;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CopyPostingSchedule
@@ -16,10 +17,12 @@ class CopyPostingSchedule
             throw ValidationException::withMessages(['from' => trans('validation.exists', ['attribute' => 'from'])]);
         }
 
-        $account->update(['posting_schedule' => $source->posting_schedule]);
+        return ReflowChannelQueue::withLock([$account->id], fn (): SocialAccount => DB::transaction(function () use ($account, $source): SocialAccount {
+            $account->update(['posting_schedule' => $source->posting_schedule]);
 
-        ReflowChannelQueue::afterCommit($account->id);
+            ReflowChannelQueue::handleLocked($account);
 
-        return $account;
+            return $account;
+        }));
     }
 }

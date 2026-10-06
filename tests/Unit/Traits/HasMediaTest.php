@@ -8,6 +8,7 @@ use App\Models\Workspace;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 beforeEach(function () {
     Storage::fake();
@@ -197,7 +198,7 @@ test('add media throws on unsupported MIME type', function () {
     $file = UploadedFile::fake()->create('archive.zip', 1000, 'application/zip');
 
     expect(fn () => $workspace->addMedia($file, 'logo'))
-        ->toThrow(InvalidArgumentException::class);
+        ->toThrow(ValidationException::class, __('posts.composer.upload_errors.unsupported_type'));
 });
 
 test('add media includes custom meta', function () {

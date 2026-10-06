@@ -21,8 +21,9 @@ use Throwable;
  * Continues a recurring series once one of its posts has settled, whether it
  * published or failed: the post hands its rule to a copy for each enabled channel,
  * scheduled for the next occurrence still in the future. Every occurrence is
- * counted from the series origin, so a month-end or leap-day series never drifts
- * to the clamped day. Runs inside the transaction that settles the post, so a
+ * counted from the series origin in the channel's time zone, so a month-end or
+ * leap-day series never drifts to the clamped day and keeps its local time across
+ * daylight saving changes. Runs inside the transaction that settles the post, so a
  * retried settlement never creates a second copy; a failed copy leaves the rule
  * on the post for the next settlement.
  */
@@ -38,8 +39,11 @@ class ScheduleNextOccurrence
         }
 
         $current = $post->currentOccurrence();
-        $targets = $post->postPlatforms()->enabled()->whereHas('socialAccount')->get();
-        $user = $post->user ?? $post->workspace->owner;
+        $targets = $post->postPlatforms()->enabled()->whereHas('socialAccount')->with('socialAccount')->get();
+        $author = $post->user;
+        $user = $author !== null && ($author->ownsAccountOf($post->workspace) || $author->belongsToWorkspace($post->workspace))
+            ? $author
+            : $post->workspace->owner;
 
         if ($current === null || $targets->isEmpty() || $user === null) {
             $post->update(Post::withoutRecurrence());
@@ -50,42 +54,49 @@ class ScheduleNextOccurrence
         $frequency = $post->recurrence_frequency;
         $interval = (int) $post->recurrence_interval;
         $remaining = (int) $post->recurrence_remaining;
-        [$origin, $index] = self::position($post->recurrence_origin_at, $current, $frequency, $interval, Timezone::normalize($user->timezone));
+        $ceiling = CarbonImmutable::parse(PostingSchedule::MAX_INSTANT, 'UTC');
 
-        $steps = 1;
-        $next = $frequency->advance($origin, $interval * ($index + $steps));
+        $plans = $targets
+            ->map(function (PostPlatform $target) use ($post, $current, $frequency, $interval, $remaining): array {
+                [$origin, $index] = self::position($post->recurrence_origin_at, $current, $frequency, $interval, Timezone::normalize($target->socialAccount->timezone));
 
-        while ($steps <= $remaining && $next->lessThanOrEqualTo(now())) {
-            $steps++;
-            $next = $frequency->advance($origin, $interval * ($index + $steps));
-        }
+                $steps = 1;
+                $next = $frequency->advance($origin, $interval * ($index + $steps));
 
-        if ($steps > $remaining || $next->greaterThan(CarbonImmutable::parse(PostingSchedule::MAX_INSTANT, 'UTC'))) {
+                while ($steps <= $remaining && $next->lessThanOrEqualTo(now())) {
+                    $steps++;
+                    $next = $frequency->advance($origin, $interval * ($index + $steps));
+                }
+
+                return ['target' => $target, 'origin' => $origin, 'next' => $next, 'left' => $remaining - $steps];
+            })
+            ->filter(fn (array $plan): bool => $plan['left'] >= 0 && $plan['next']->lessThanOrEqualTo($ceiling))
+            ->values();
+
+        if ($plans->isEmpty()) {
             $post->update(Post::withoutRecurrence());
 
             return collect();
         }
 
-        $left = $remaining - $steps;
-
         try {
-            return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $targets, $user, $next, $left, $frequency, $interval, $origin): Collection {
+            return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $plans, $user, $frequency, $interval): Collection {
                 $groupId = (string) Str::uuid7();
-                $occurrences = $targets->map(function (PostPlatform $target) use ($post, $user, $batch, $groupId, $next, $left, $frequency, $interval, $origin): Post {
+                $occurrences = $plans->map(function (array $plan) use ($post, $user, $batch, $groupId, $frequency, $interval): Post {
                     $occurrence = CreateChannelPost::execute($post->workspace, $user, [
-                        ...DuplicatePost::destination($post, $target),
+                        ...DuplicatePost::destination($post, $plan['target']),
                         'post_group_id' => $groupId,
                         'status' => PostStatus::Scheduled->value,
-                        'scheduled_at' => $next->utc()->toIso8601String(),
+                        'scheduled_at' => $plan['next']->utc()->toIso8601String(),
                         'created_via' => $post->created_via,
                     ], $batch);
 
-                    if ($left > 0) {
+                    if ($plan['left'] > 0) {
                         $occurrence->update([
                             'recurrence_interval' => $interval,
                             'recurrence_frequency' => $frequency,
-                            'recurrence_remaining' => $left,
-                            'recurrence_origin_at' => $origin->utc(),
+                            'recurrence_remaining' => $plan['left'],
+                            'recurrence_origin_at' => $plan['origin']->utc(),
                         ]);
                     }
 
@@ -104,7 +115,7 @@ class ScheduleNextOccurrence
     }
 
     /**
-     * The series origin in the author's time zone and the index of the current
+     * The series origin in the channel's time zone and the index of the current
      * occurrence in it. A post moved off its series starts a new one at its time.
      *
      * @return array{0: CarbonImmutable, 1: int}

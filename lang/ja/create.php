@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'コレクション名',
         'all_feeds' => 'すべてのフィード',
         'feeds_root' => 'フィード',
-        'collection_feeds' => 'このコレクションのフィード',
         'collection_menu' => ':name のフィードを表示',
         'last_refreshed' => '最終更新 :time',
         'never_refreshed' => 'まだ更新されていません',

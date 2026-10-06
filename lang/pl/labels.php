@@ -11,7 +11,7 @@ return [
     'create_first_label' => 'Utwórz swoją pierwszą etykietę',
 
     'meta' => [
-        'posts' => '{0} Brak postów|{1} :count post|[2,4] :count posty|[5,*] :count postów',
+        'posts' => ':count post|:count posty|:count postów|{0} Brak postów',
     ],
 
     'actions' => [

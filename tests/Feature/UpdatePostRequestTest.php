@@ -15,6 +15,7 @@ use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -1427,4 +1428,23 @@ test('publishing a google business post with a url-needing cta and no url is rej
         ]);
 
     $response->assertSessionHasErrors('platforms.0.meta.call_to_action.url');
+});
+
+test('a legacy giphy media source blocks the edit until the migration clears it', function () {
+    $item = [...$this->mediaPayload[0], 'source' => 'giphy', 'source_meta' => ['attribution' => 'GIPHY']];
+    $this->post->update(['media' => [$item]]);
+    $payload = fn (array $media): array => ['status' => Status::Draft->value, 'media' => $media];
+
+    $this->actingAs($this->user)
+        ->put(route('app.posts.update', $this->post), $payload($this->post->fresh()->media))
+        ->assertSessionHasErrors('media.0.source');
+
+    $migration = require database_path('migrations/2026_10_06_111329_clear_giphy_source_from_stored_media.php');
+    $migration->up();
+
+    expect(DB::table('posts')->where('id', $this->post->id)->exists())->toBeTrue();
+
+    $this->actingAs($this->user)
+        ->put(route('app.posts.update', $this->post), $payload($this->post->fresh()->media))
+        ->assertSessionDoesntHaveErrors('media.0.source');
 });

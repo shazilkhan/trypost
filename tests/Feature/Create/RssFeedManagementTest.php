@@ -20,7 +20,6 @@ function rssFeedManagementFixture(string $name): string
 
 beforeEach(function () {
     config(['trypost.self_hosted' => false]);
-    Http::preventStrayRequests();
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create([

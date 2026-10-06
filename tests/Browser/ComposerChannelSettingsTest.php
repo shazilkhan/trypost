@@ -497,7 +497,7 @@ test('the tiktok AI label is the last row and saves is_aigc', function () {
 test('google business seeds event dates in the user time zone and an offer drops the event times', function () {
     fakeChannelSettingsApis();
     $postPlatform = seedChannelSettingsPost(Platform::GoogleBusiness, ContentType::GoogleBusinessPost);
-    $timezone = now('UTC')->hour >= 12 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago';
+    $timezone = now('Pacific/Kiritimati')->toDateString() === now('UTC')->toDateString() ? 'Pacific/Pago_Pago' : 'Pacific/Kiritimati';
     $postPlatform->post->user->update(['timezone' => $timezone]);
     $this->actingAs($postPlatform->post->user->fresh());
     $today = now($timezone);

@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\Http;
 
 function fakeYouTubeUpload(array $responses = []): YouTubePublisher
 {
-    Http::preventStrayRequests();
     Http::fake(array_replace([
         'https://example.com/video.mp4' => fn () => Http::response(str_repeat('x', 2048)),
         'https://youtube.googleapis.com/upload/youtube/v3/videos*' => Http::response('', 200, [

@@ -37,7 +37,7 @@ class WritePublicationDailySnapshot
         return DB::transaction(function () use ($publication, $observation, $mayCreate): AnalyticsPublicationDailySnapshot {
             $snapshot = AnalyticsPublicationDailySnapshot::query()
                 ->where('publication_id', $publication->id)
-                ->whereDate('date', $observation->date->toDateString())
+                ->where('date', $observation->date->toDateString())
                 ->lockForUpdate()
                 ->first();
 
@@ -45,7 +45,7 @@ class WritePublicationDailySnapshot
                 if (! $mayCreate) {
                     $snapshot = AnalyticsPublicationDailySnapshot::query()
                         ->where('publication_id', $publication->id)
-                        ->whereDate('date', $observation->date->toDateString())
+                        ->where('date', $observation->date->toDateString())
                         ->lockForUpdate()
                         ->firstOrFail();
                 } else {

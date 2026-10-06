@@ -143,12 +143,13 @@ class InstagramPublisher
         $params = [
             'media_type' => 'STORIES',
             'access_token' => $accessToken,
+            ...$this->sharedOptions(),
         ];
 
         if ($isVideo) {
             $params['video_url'] = $media->url;
         } else {
-            $dimensions = ContentType::InstagramStory->aiImageDimensions();
+            $dimensions = ContentType::InstagramStory->preferredImageDimensions();
             $params['image_url'] = $this->fitImageToCanvas($media->url, data_get($dimensions, 'width'), data_get($dimensions, 'height'));
             $params = [...$params, ...$this->userTagsParam(array_map(
                 fn (array $tag): array => ['username' => $tag['username']],
@@ -239,17 +240,13 @@ class InstagramPublisher
     }
 
     /**
-     * Options Instagram accepts on a feed image, reel or carousel parent. A story
-     * takes none of them, and carousel children never get the AI label.
+     * Options Instagram accepts on every container except carousel children,
+     * which never get the AI label.
      *
      * @return array<string, string>
      */
     private function sharedOptions(): array
     {
-        if ($this->postPlatform->content_type === ContentType::InstagramStory) {
-            return [];
-        }
-
         return array_filter([
             'is_ai_generated' => data_get($this->postPlatform->meta, 'is_ai_generated') === true ? 'true' : null,
         ], fn (?string $value): bool => $value !== null);

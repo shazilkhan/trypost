@@ -9,7 +9,9 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Support\AiPromptRules;
 use Illuminate\Auth\Access\Response as AuthResponse;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Gate;
+use Laravel\Ai\Exceptions\ProviderOverloadedException;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -153,3 +155,15 @@ test('an empty title from the model fails with a message', function () {
 
     expect(Idea::count())->toBe(0);
 });
+
+test('a failing provider returns a translated bad gateway', function (Throwable $failure) {
+    IdeaGenerator::fake([fn () => throw $failure]);
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.create.ideas.generate'), generateIdeaPayload())
+        ->assertStatus(Response::HTTP_BAD_GATEWAY)
+        ->assertJsonPath('message', __('create.ideas.errors.generate_failed'));
+})->with([
+    'overloaded' => fn () => new ProviderOverloadedException('overloaded'),
+    'connection' => fn () => new ConnectionException('timeout'),
+]);

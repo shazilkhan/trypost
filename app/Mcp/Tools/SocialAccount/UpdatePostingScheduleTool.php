@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\SocialAccount;
 
 use App\Actions\SocialAccount\UpdatePostingSchedule;
+use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\ChannelPostingScheduleResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\SocialAccount;
@@ -49,7 +50,11 @@ class UpdatePostingScheduleTool extends Tool
             return Response::error('Social account not found.');
         }
 
-        $account = $update->handle($account, $validated);
+        try {
+            $account = $update->handle($account, $validated);
+        } catch (QueueBusyException) {
+            return Response::error(__('posts.errors.queue_busy'));
+        }
 
         return Response::structured((new ChannelPostingScheduleResource($account))->resolve());
     }

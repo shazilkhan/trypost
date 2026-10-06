@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => '컬렉션 이름',
         'all_feeds' => '모든 피드',
         'feeds_root' => '피드',
-        'collection_feeds' => '이 컬렉션의 피드',
         'collection_menu' => ':name의 피드 보기',
         'last_refreshed' => '마지막 새로고침 :time',
         'never_refreshed' => '아직 새로고침하지 않음',

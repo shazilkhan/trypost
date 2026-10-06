@@ -43,6 +43,14 @@ const warning = (key: string, params: Record<string, string> = {}): MediaValidat
 const firstWarning = (...candidates: Array<MediaValidationWarning | false | null | undefined>): MediaValidationWarning | null =>
     candidates.find((candidate): candidate is MediaValidationWarning => Boolean(candidate)) ?? null;
 
+const ratioBoundsFor = (item: MediaItem, rules: MediaRules): { min?: number; max?: number } => {
+    if (isVideo(item)) {
+        return { min: rules.videoAspectRatioMin, max: rules.videoAspectRatioMax };
+    }
+
+    return isImage(item) && ! isGif(item) ? { min: rules.aspectRatioMin, max: rules.aspectRatioMax } : {};
+};
+
 const itemConstraintWarning = (item: MediaItem, rules: MediaRules): MediaValidationWarning | null => {
     const size = item.size ?? 0;
     const duration = item.meta?.duration ?? 0;
@@ -76,14 +84,14 @@ const itemConstraintWarning = (item: MediaItem, rules: MediaRules): MediaValidat
     }
 
     const ratio = width / height;
-    const checksRatio = ! rules.aspectRatioImagesOnly || (isImage(item) && ! isGif(item));
+    const bounds = ratioBoundsFor(item, rules);
 
-    if (checksRatio && rules.aspectRatioMin && ratio < rules.aspectRatioMin - RATIO_TOLERANCE) {
-        return warning('aspect_ratio_too_narrow', { current: formatAspect(ratio), min: formatAspect(rules.aspectRatioMin) });
+    if (bounds.min && ratio < bounds.min - RATIO_TOLERANCE) {
+        return warning('aspect_ratio_too_narrow', { current: formatAspect(ratio), min: formatAspect(bounds.min) });
     }
 
-    if (checksRatio && rules.aspectRatioMax && ratio > rules.aspectRatioMax + RATIO_TOLERANCE) {
-        return warning('aspect_ratio_too_wide', { current: formatAspect(ratio), max: formatAspect(rules.aspectRatioMax) });
+    if (bounds.max && ratio > bounds.max + RATIO_TOLERANCE) {
+        return warning('aspect_ratio_too_wide', { current: formatAspect(ratio), max: formatAspect(bounds.max) });
     }
 
     if (! isImage(item)) {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
-use App\Exceptions\Post\QueueBusyException;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\SocialAccount;
@@ -12,7 +11,6 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Support\PostingSchedule;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Exceptions;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -116,6 +114,25 @@ test('an owner without app access can still generate during onboarding', functio
     expect($this->channel->fresh()->posting_schedule->slotCount())->toBe(4);
 });
 
+test('an owner without app access cannot update or copy a schedule', function () {
+    config()->set('trypost.self_hosted', false);
+    config()->set('trypost.billing.require_card_for_trial', true);
+    $source = SocialAccount::factory()->x()->create([
+        'workspace_id' => $this->workspace->id,
+        'posting_schedule' => PostingSchedule::empty()->withTime(0, '10:00'),
+    ]);
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), schedulePayload())
+        ->assertRedirect(route('app.welcome.persona'));
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.channels.posting-schedule.copy', $this->channel), ['from' => $source->id])
+        ->assertRedirect(route('app.welcome.persona'));
+
+    expect($this->channel->fresh()->posting_schedule)->toBeNull();
+});
+
 test('generate recommended without a goal uses three', function () {
     $this->channel->update(['posting_goal' => null]);
 
@@ -190,8 +207,7 @@ test('a duplicate time within one day is rejected even when other days share it'
         ->assertJsonMissingValidationErrors(['posting_schedule.2.times.0']);
 });
 
-test('a busy queue does not fail the saved schedule and keeps the queued times', function () {
-    Exceptions::fake();
+test('a busy queue fails the schedule update, saves nothing and keeps the queued times', function () {
     $time = now()->addDays(3)->startOfMinute();
     $post = Post::factory()->create([
         'workspace_id' => $this->workspace->id,
@@ -200,16 +216,117 @@ test('a busy queue does not fail the saved schedule and keeps the queued times',
         'scheduled_at' => $time,
     ]);
     PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $this->channel->id]);
+    $before = $this->channel->only(['timezone', 'posting_goal']);
     $lock = Cache::lock("queue:{$this->channel->id}", 10);
     $lock->get();
 
+    try {
+        $this->actingAs($this->user)
+            ->putJson(route('app.channels.posting-schedule.update', $this->channel), schedulePayload())
+            ->assertConflict()
+            ->assertJson(['message' => __('posts.errors.queue_busy')]);
+    } finally {
+        $lock->release();
+    }
+
+    expect($this->channel->refresh()->only(['timezone', 'posting_goal']))->toBe($before)
+        ->and($post->refresh()->scheduled_at->equalTo($time))->toBeTrue();
+});
+
+test('a busy queue fails generate and copy without touching the schedule', function () {
+    $schedule = PostingSchedule::empty()->withTime(2, '08:00');
+    $this->channel->update(['posting_schedule' => $schedule, 'posting_goal' => 1]);
+    $source = SocialAccount::factory()->x()->create([
+        'workspace_id' => $this->workspace->id,
+        'posting_schedule' => PostingSchedule::empty()->withTime(0, '10:00'),
+    ]);
+    $lock = Cache::lock("queue:{$this->channel->id}", 10);
+    $lock->get();
+
+    try {
+        $this->actingAs($this->user)
+            ->postJson(route('app.channels.posting-schedule.generate', $this->channel), ['mode' => 'goal', 'goal' => 4])
+            ->assertConflict();
+
+        $this->actingAs($this->user)
+            ->postJson(route('app.channels.posting-schedule.copy', $this->channel), ['from' => $source->id])
+            ->assertConflict();
+    } finally {
+        $lock->release();
+    }
+
+    $fresh = $this->channel->refresh();
+    expect($fresh->posting_goal)->toBe(1)
+        ->and($fresh->posting_schedule->toArray())->toEqual($schedule->toArray());
+});
+
+test('a time zone change saves the zone and moves queued posts together', function () {
+    $this->travelTo(now()->startOfWeek()->addWeek()->setTime(6, 0));
+    $schedule = PostingSchedule::empty()->withTime(3, '09:00');
+    $this->channel->update(['timezone' => 'UTC', 'posting_schedule' => $schedule]);
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'status' => PostStatus::Scheduled,
+        'schedule_mode' => ScheduleMode::Queue,
+        'scheduled_at' => now()->next('Wednesday')->setTime(9, 0),
+    ]);
+    PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $this->channel->id]);
+
     $this->actingAs($this->user)
-        ->putJson(route('app.channels.posting-schedule.update', $this->channel), schedulePayload())
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'America/Sao_Paulo',
+            'posting_goal' => 1,
+            'posting_schedule' => $schedule->toArray(),
+        ])
         ->assertOk();
 
-    $lock->release();
+    expect($this->channel->refresh()->timezone)->toBe('America/Sao_Paulo')
+        ->and($post->refresh()->scheduled_at->setTimezone('America/Sao_Paulo')->format('D H:i'))->toBe('Wed 09:00');
+});
 
-    expect($this->channel->refresh()->posting_goal)->toBe(4)
-        ->and($post->refresh()->scheduled_at->equalTo($time))->toBeTrue();
-    Exceptions::assertReported(QueueBusyException::class);
+test('members without admin rights cannot change, generate or copy a schedule', function (string $access, string $routeName, string $method, Closure $payload) {
+    $member = workspaceMember($this->workspace, $access);
+    $source = SocialAccount::factory()->linkedin()->create([
+        'workspace_id' => $this->workspace->id,
+        'posting_schedule' => PostingSchedule::empty()->withTime(0, '10:00'),
+    ]);
+    $before = $this->channel->fresh()->only(['timezone', 'posting_goal']);
+    $beforeSchedule = $this->channel->fresh()->posting_schedule?->toArray();
+
+    $this->actingAs($member)
+        ->{$method}(route($routeName, $this->channel), $payload($source))
+        ->assertForbidden();
+
+    $fresh = $this->channel->fresh();
+    expect($fresh->only(['timezone', 'posting_goal']))->toBe($before)
+        ->and($fresh->posting_schedule?->toArray())->toEqual($beforeSchedule);
+})->with(['publishes directly' => 'member', 'needs approval' => 'approval'])->with([
+    'update' => ['app.channels.posting-schedule.update', 'putJson', fn (SocialAccount $source): array => schedulePayload()],
+    'generate' => ['app.channels.posting-schedule.generate', 'postJson', fn (SocialAccount $source): array => ['mode' => 'goal', 'goal' => 5]],
+    'copy' => ['app.channels.posting-schedule.copy', 'postJson', fn (SocialAccount $source): array => ['from' => $source->id]],
+]);
+
+test('a time zone change keeps the instant of a post with a custom time', function () {
+    $this->travelTo(now()->startOfWeek()->addWeek()->setTime(6, 0));
+    $schedule = PostingSchedule::empty()->withTime(3, '09:00');
+    $this->channel->update(['timezone' => 'UTC', 'posting_schedule' => $schedule]);
+    $instant = now()->next('Thursday')->setTime(14, 30);
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'status' => PostStatus::Scheduled,
+        'schedule_mode' => ScheduleMode::Custom,
+        'scheduled_at' => $instant,
+    ]);
+    PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $this->channel->id]);
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.channels.posting-schedule.update', $this->channel), [
+            'timezone' => 'Asia/Tokyo',
+            'posting_goal' => 1,
+            'posting_schedule' => $schedule->toArray(),
+        ])
+        ->assertOk();
+
+    expect($post->refresh()->scheduled_at->equalTo($instant))->toBeTrue()
+        ->and($post->schedule_mode)->toBe(ScheduleMode::Custom);
 });

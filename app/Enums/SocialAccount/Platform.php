@@ -101,6 +101,18 @@ enum Platform: string
         };
     }
 
+    /** What one connected identity of this platform is, as the connect confirmation page names it. */
+    public function identityType(): IdentityType
+    {
+        return match ($this) {
+            self::LinkedInPage, self::Facebook => IdentityType::Page,
+            self::YouTube, self::Telegram => IdentityType::Channel,
+            self::GoogleBusiness => IdentityType::Location,
+            self::Discord => IdentityType::Server,
+            default => IdentityType::Profile,
+        };
+    }
+
     public function color(): string
     {
         return match ($this) {

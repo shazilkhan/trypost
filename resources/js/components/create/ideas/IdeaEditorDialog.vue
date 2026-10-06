@@ -283,6 +283,10 @@ const insertEmoji = (emoji: string): void => {
     });
 };
 
+const replaceBody = (text: string): void => {
+    form.body = text;
+};
+
 const insertIntoBody = (text: string): void => {
     form.body = form.body.trim() ? `${form.body}\n\n${text}` : text;
 };
@@ -395,7 +399,7 @@ const iconButtonClass =
                         :content="form.body"
                         :channel="null"
                         @insert="insertIntoBody"
-                        @replace="(text: string) => (form.body = text)"
+                        @replace="replaceBody"
                     />
                 </div>
             </aside>

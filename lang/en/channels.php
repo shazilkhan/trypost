@@ -167,7 +167,6 @@ return [
         'refresh_after' => 'first.',
         'irreversible' => 'This cannot be undone.',
         'description' => 'This deletes every post of this channel in TryPost, including drafts, scheduled posts and published history. Posts already on the network stay there.',
-        'confirm' => 'Disconnect',
         'keyword' => 'disconnect',
         'cancel' => 'Cancel',
     ],

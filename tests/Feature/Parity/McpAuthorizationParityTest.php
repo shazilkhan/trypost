@@ -36,17 +36,21 @@ use App\Mcp\Tools\Post\ApprovePostTool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
 use App\Mcp\Tools\Post\ClearPostRecurrenceTool;
+use App\Mcp\Tools\Post\CreatePostNoteTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
 use App\Mcp\Tools\Post\CreatePostTool;
+use App\Mcp\Tools\Post\DeletePostNoteTool;
 use App\Mcp\Tools\Post\DeletePostTool;
 use App\Mcp\Tools\Post\GetPostMetricsTool;
 use App\Mcp\Tools\Post\GetPostTool;
+use App\Mcp\Tools\Post\ListPostNotesTool;
 use App\Mcp\Tools\Post\ListPostsTool;
 use App\Mcp\Tools\Post\PreviewPostTool;
 use App\Mcp\Tools\Post\PublishPostTool;
 use App\Mcp\Tools\Post\RejectPostTool;
 use App\Mcp\Tools\Post\RequestMediaUploadTool;
 use App\Mcp\Tools\Post\SetPostRecurrenceTool;
+use App\Mcp\Tools\Post\UpdatePostNoteTool;
 use App\Mcp\Tools\Post\UpdatePostTool;
 use App\Mcp\Tools\Repurpose\ActivateRepurposeTool;
 use App\Mcp\Tools\Repurpose\CreateRepurposeTool;
@@ -67,6 +71,7 @@ use App\Mcp\Tools\SocialAccount\CopyPostingScheduleTool;
 use App\Mcp\Tools\SocialAccount\CreatePinterestBoardTool;
 use App\Mcp\Tools\SocialAccount\GeneratePostingScheduleTool;
 use App\Mcp\Tools\SocialAccount\GetPostingScheduleTool;
+use App\Mcp\Tools\SocialAccount\GetTikTokCreatorInfoTool;
 use App\Mcp\Tools\SocialAccount\ListDiscordChannelsTool;
 use App\Mcp\Tools\SocialAccount\ListFreeSlotsTool;
 use App\Mcp\Tools\SocialAccount\ListPinterestBoardsTool;
@@ -89,6 +94,7 @@ use App\Models\Idea;
 use App\Models\IdeaStage;
 use App\Models\Media;
 use App\Models\Post;
+use App\Models\PostNote;
 use App\Models\Repurpose;
 use App\Models\SocialAccount;
 use App\Models\User;
@@ -100,6 +106,8 @@ use App\Models\WorkspaceSignature;
 use App\Services\Http\SafeHttpFetcher;
 use App\Services\WebhookService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -182,6 +190,8 @@ function mcpAuthParityFixture(Workspace $workspace, User $owner, ?User $actor = 
         'freeSlot' => $queueSlots[1]->toIso8601ZuluString(),
         'post' => $post,
         'postPlatform' => $postPlatform,
+        'note' => PostNote::factory()->create(['post_id' => $post->id, 'user_id' => $owner->id]),
+        'tiktok' => SocialAccount::factory()->tiktok()->create(['workspace_id' => $workspace->id, 'platform_user_id' => (string) Str::uuid()]),
         'pending' => $pending,
         'instagram' => SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]),
         'repurpose' => Repurpose::factory()->create(['workspace_id' => $workspace->id, 'user_id' => $owner->id, 'source_social_account_id' => $instagram->id]),
@@ -267,9 +277,14 @@ function mcpAuthParityTools(): array
         'attach-media-from-url-tool' => [AttachMediaFromUrlTool::class, $everyMember, fn (TestCase $t, array $f) => $t->put(route('app.posts.update', $f['post']), ['status' => 'draft', 'content' => 'Edited', 'media' => []]), fn (array $f) => ['post_id' => $f['post']->id, 'urls' => [['url' => 'https://example.com/photo.jpg']]]],
         'create-posts-tool' => [CreatePostsTool::class, $everyMember, fn (TestCase $t, array $f) => $t->post(route('app.posts.store'), ['status' => 'draft', 'content' => 'Hello', 'media' => [], 'destinations' => [mcpAuthParityDestination($f)]]), fn (array $f) => ['status' => 'draft', 'content' => 'Hello', 'destinations' => [mcpAuthParityDestination($f)]]],
         'create-post-tool' => [CreatePostTool::class, $everyMember, fn (TestCase $t, array $f) => $t->post(route('app.posts.store'), ['status' => 'draft', 'content' => 'Hello', 'media' => [], 'destinations' => [mcpAuthParityDestination($f)]]), fn (array $f) => ['content' => 'Hello', 'platforms' => [mcpAuthParityDestination($f)]]],
-        'delete-post-tool' => [DeletePostTool::class, $everyMember, fn (TestCase $t, array $f) => $t->delete(route('app.posts.destroy', $f['post'])), fn (array $f) => ['post_id' => $f['post']->id]],
+        'delete-post-tool' => [DeletePostTool::class, $publishers, fn (TestCase $t, array $f) => $t->delete(route('app.posts.destroy', $f['post'])), fn (array $f) => ['post_id' => $f['post']->id]],
         'get-post-metrics-tool' => [GetPostMetricsTool::class, [], fn (TestCase $t, array $f) => $t->getJson(route('app.posts.platforms.metrics', [$f['post'], $f['postPlatform']])), fn (array $f) => ['post_id' => $f['post']->id]],
         'get-post-tool' => [GetPostTool::class, [], fn (TestCase $t, array $f) => $t->get(route('app.posts.edit', $f['post'])), fn (array $f) => ['post_id' => $f['post']->id]],
+        'list-post-notes-tool' => [ListPostNotesTool::class, $everyMember, fn (TestCase $t, array $f) => $t->getJson(route('app.posts.notes.index', $f['post'])), fn (array $f) => ['post_id' => $f['post']->id]],
+        'create-post-note-tool' => [CreatePostNoteTool::class, $everyMember, fn (TestCase $t, array $f) => $t->postJson(route('app.posts.notes.store', $f['post']), ['body' => 'Looks good']), fn (array $f) => ['post_id' => $f['post']->id, 'body' => 'Looks good']],
+        'update-post-note-tool' => [UpdatePostNoteTool::class, ['admin', 'member', 'approval', 'outsider'], fn (TestCase $t, array $f) => $t->putJson(route('app.posts.notes.update', [$f['post'], $f['note']]), ['body' => 'Edited']), fn (array $f) => ['post_id' => $f['post']->id, 'note_id' => $f['note']->id, 'body' => 'Edited']],
+        'delete-post-note-tool' => [DeletePostNoteTool::class, ['admin', 'member', 'approval', 'outsider'], fn (TestCase $t, array $f) => $t->deleteJson(route('app.posts.notes.destroy', [$f['post'], $f['note']])), fn (array $f) => ['post_id' => $f['post']->id, 'note_id' => $f['note']->id]],
+        'get-tiktok-creator-info-tool' => [GetTikTokCreatorInfoTool::class, $everyMember, fn (TestCase $t, array $f) => $t->getJson(route('app.posts.composer.account', $f['tiktok'])), fn (array $f) => ['account_id' => $f['tiktok']->id]],
         'list-posts-tool' => [ListPostsTool::class, $everyMember, fn (TestCase $t, array $f) => $t->get(route('app.posts.index')), fn (array $f) => []],
         'preview-post-tool' => [PreviewPostTool::class, [], fn (TestCase $t, array $f) => $t->get(route('app.posts.edit', $f['post'])), fn (array $f) => ['post_id' => $f['post']->id]],
         'publish-post-tool' => [PublishPostTool::class, $everyMember, fn (TestCase $t, array $f) => $t->put(route('app.posts.update', $f['post']), ['status' => 'scheduled', 'scheduled_at' => now()->addDays(2)->toIso8601String(), 'content' => 'Draft', 'media' => []]), fn (array $f) => ['post_id' => $f['post']->id, 'scheduled_at' => now()->addDays(2)->toIso8601String()]],
@@ -403,4 +418,90 @@ test('a member who needs approval ends pending when scheduling through create-po
     expect($created)->toBe([Status::PendingApproval, Status::PendingApproval])
         ->and($webDraft->fresh()->status)->toBe(Status::PendingApproval)
         ->and($mcpDraft->fresh()->status)->toBe(Status::PendingApproval);
+});
+
+/**
+ * The stored state of every record of a parity fixture.
+ *
+ * @param  array<string, mixed>  $fixture
+ * @return array<string, mixed>
+ */
+function mcpAuthParitySnapshot(array $fixture): array
+{
+    return collect($fixture)
+        ->filter(fn (mixed $value): bool => $value instanceof Model)
+        ->map(fn (Model $record): ?array => $record->fresh()?->makeVisible($record->getHidden())->attributesToArray())
+        ->put('posts', Post::query()->where('workspace_id', $fixture['linkedin']->workspace_id)->count())
+        ->put('media', Media::query()->where('workspace_id', $fixture['linkedin']->workspace_id)->count())
+        ->all();
+}
+
+/**
+ * @param  array<string, mixed>  $arguments
+ */
+function mcpAuthParityNamesARecord(array $arguments): bool
+{
+    return collect(Arr::flatten($arguments))->contains(fn (mixed $value): bool => is_string($value) && Str::isUuid($value));
+}
+
+test('every mcp tool that names a record answers not found for one of another workspace and changes nothing, a body reference is a validation error and the bulk idea delete skips it like the web', function () {
+    $foreignWorkspace = Workspace::factory()->create();
+    $foreignOwner = User::factory()->create(['account_id' => $foreignWorkspace->account_id]);
+    $foreignWorkspace->members()->attach($foreignOwner->id, membershipPivot('admin'));
+    $foreignWorkspace->update(['user_id' => $foreignOwner->id]);
+    $validatesReferences = ['create-post-tool', 'create-posts-tool', 'create-repurpose-tool', 'reorder-idea-stages-tool'];
+    $failures = [];
+
+    foreach (mcpAuthParityTools() as $name => [$tool, $refused, $web, $arguments]) {
+        $foreign = mcpAuthParityFixture($foreignWorkspace, $foreignOwner);
+        $toolArguments = $arguments($foreign);
+
+        if (! mcpAuthParityNamesARecord($toolArguments)) {
+            continue;
+        }
+
+        $before = mcpAuthParitySnapshot($foreign);
+        $response = TryPostServer::actingAs($this->owner->fresh())->tool($tool, $toolArguments);
+
+        try {
+            match (true) {
+                $name === 'delete-ideas-tool' => $response->assertHasNoErrors(),
+                in_array($name, $validatesReferences, true) => $response->assertHasErrors(),
+                default => $response->assertHasErrors()->assertSee('not found'),
+            };
+        } catch (Throwable) {
+            $failures[$name] = 'answered without a not found error';
+        }
+
+        if (mcpAuthParitySnapshot($foreign) != $before) {
+            $failures[$name] = 'changed a record of the other workspace';
+        }
+    }
+
+    expect($failures)->toBe([]);
+});
+
+test('every mcp tool that names a record refuses an id that is not a uuid with a validation error', function () {
+    $fixture = mcpAuthParityFixture($this->workspace, $this->owner);
+    $failures = [];
+
+    foreach (mcpAuthParityTools() as $name => [$tool, $refused, $web, $arguments]) {
+        $toolArguments = $arguments($fixture);
+
+        if (! mcpAuthParityNamesARecord($toolArguments)) {
+            continue;
+        }
+
+        $malformed = Arr::undot(collect(Arr::dot($toolArguments))
+            ->map(fn (mixed $value): mixed => is_string($value) && Str::isUuid($value) ? 'not-a-uuid' : $value)
+            ->all());
+
+        try {
+            TryPostServer::actingAs($this->owner->fresh())->tool($tool, $malformed)->assertHasErrors()->assertDontSee('SQLSTATE');
+        } catch (Throwable $exception) {
+            $failures[$name] = class_basename($exception).': '.Str::limit($exception->getMessage(), 120);
+        }
+    }
+
+    expect($failures)->toBe([]);
 });

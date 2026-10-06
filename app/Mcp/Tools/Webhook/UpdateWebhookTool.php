@@ -40,7 +40,7 @@ class UpdateWebhookTool extends Tool
         }
 
         $validated = $request->validate([
-            'webhook_id' => ['required', 'string'],
+            'webhook_id' => ['required', 'string', 'uuid'],
             ...WebhookRequestRules::update(),
         ]);
 

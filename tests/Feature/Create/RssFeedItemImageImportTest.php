@@ -35,7 +35,6 @@ function rssFeedItemImageImportItem(Workspace $workspace, ?string $imageUrl = 'h
 beforeEach(function () {
     config(['trypost.self_hosted' => false]);
     Storage::fake();
-    Http::preventStrayRequests();
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create([

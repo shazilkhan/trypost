@@ -24,10 +24,6 @@ function rssFeedFetcherTestErrorKey(string $url, bool $allowDiscovery = false): 
     return null;
 }
 
-beforeEach(function () {
-    Http::preventStrayRequests();
-});
-
 test('refuses private and metadata hosts before any request', function (string $url) {
     Http::fake();
 

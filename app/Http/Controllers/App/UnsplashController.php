@@ -14,8 +14,6 @@ class UnsplashController extends Controller
 {
     public function search(SearchRequest $request, UnsplashService $unsplash): JsonResponse
     {
-        $this->authorize('createPost', $request->user()->currentWorkspace);
-
         $results = $unsplash->search(
             query: (string) $request->validated('query'),
             page: (int) $request->validated('page', 1),

@@ -241,6 +241,14 @@ class Post extends Model
             ->orWhere(fn (Builder $own): Builder => $own->approvalRequestedBy($requester))));
     }
 
+    public function scopeLatestScheduledFirst(Builder $query): Builder
+    {
+        return $query->orderByRaw('CASE WHEN posts.scheduled_at IS NULL THEN 0 ELSE 1 END')
+            ->orderByDesc('posts.scheduled_at')
+            ->orderByDesc('posts.created_at')
+            ->orderByDesc('posts.id');
+    }
+
     public function scopeCreatedInTryPost(Builder $query): Builder
     {
         return $query->where('posts.origin', Origin::TryPost);

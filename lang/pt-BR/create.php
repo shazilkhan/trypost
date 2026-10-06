@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'Nome da coleção',
         'all_feeds' => 'Todos os feeds',
         'feeds_root' => 'Feeds',
-        'collection_feeds' => 'Feeds desta coleção',
         'collection_menu' => 'Mostrar feeds em :name',
         'last_refreshed' => 'Atualizado :time',
         'never_refreshed' => 'Ainda não atualizado',

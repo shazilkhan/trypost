@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Post;
 
 use App\Actions\Post\AppendPostMedia;
+use App\Dto\ImportedFile;
 use App\Dto\MediaItem;
 use App\Dto\RemoteFile;
 use App\Enums\Media\Type as MediaType;
@@ -34,19 +35,22 @@ class MediaAttacher
 
     /**
      * @param  array<int, array{url: string, alt?: ?string}>  $urls
-     * @return array{attached: array<int, array<string, mixed>>, failed: array<int, string>}
+     * @return array{attached: array<int, array<string, mixed>>, failed: array<int, string>, failures: array<int, array{url: string, reason: string, message: string}>}
      */
     public function attachFromUrls(Post $post, array $urls, ?User $actor = null): array
     {
         $attached = [];
         $failed = [];
+        $failures = [];
 
         foreach ($urls as $entry) {
             $url = (string) data_get($entry, 'url', '');
-            $hosted = $this->hostUpload($post->workspace, $post->allowedMediaTypes(), $url);
+            $imported = $this->importUpload($post->workspace, $post->allowedMediaTypes(), $url);
+            $hosted = $imported->media;
 
             if ($hosted === null) {
                 $failed[] = $url;
+                $failures[] = ['url' => $url, 'reason' => (string) $imported->failure, 'message' => self::failureMessage($imported, $url)];
 
                 continue;
             }
@@ -67,7 +71,19 @@ class MediaAttacher
             $attached = array_map(fn (array $item): array => $owned->get(data_get($item, 'id'), $item), $attached);
         }
 
-        return ['attached' => $attached, 'failed' => $failed];
+        return ['attached' => $attached, 'failed' => $failed, 'failures' => $failures];
+    }
+
+    /**
+     * Why a URL could not be hosted, in words an API client or agent can act on.
+     */
+    public static function failureMessage(ImportedFile $imported, string $url): string
+    {
+        return match ($imported->failure) {
+            ImportedFile::TYPE_NOT_ALLOWED => __('posts.composer.media_sources.errors.type_not_allowed'),
+            ImportedFile::TOO_LARGE => __('posts.composer.media_sources.errors.too_large'),
+            default => __('posts.errors.media_url_unreachable', ['url' => $url]),
+        };
     }
 
     /**
@@ -90,7 +106,18 @@ class MediaAttacher
      */
     public function hostUpload(Workspace $workspace, array $allowedTypes, string $url): ?Media
     {
-        return $this->importer->import($workspace, $this->remoteFile($url), $allowedTypes, self::TIMEOUT_SECONDS)->media;
+        return $this->importUpload($workspace, $allowedTypes, $url)->media;
+    }
+
+    /**
+     * Download one URL of an allowed type as a temporary upload, with the
+     * reason when it fails.
+     *
+     * @param  array<MediaType>  $allowedTypes
+     */
+    public function importUpload(Workspace $workspace, array $allowedTypes, string $url): ImportedFile
+    {
+        return $this->importer->import($workspace, $this->remoteFile($url), $allowedTypes, self::TIMEOUT_SECONDS);
     }
 
     private function remoteFile(string $url): RemoteFile

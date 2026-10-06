@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\Media\Type as MediaType;
 use App\Enums\PostPlatform\ContentType;
 use Symfony\Component\Process\ExecutableFinder;
 use Symfony\Component\Process\Process;
@@ -63,7 +64,7 @@ test('the typescript media editor offers exactly the backend crop presets for ev
         expect(array_column($presets, 'value'))
             ->toBe(['freeform', 'original', ...$type->cropPresets()], $type->value);
 
-        $bounds = $type->aspectRatioBounds();
+        $bounds = $type->aspectRatioBounds(MediaType::Image);
 
         if ($bounds === null) {
             continue;
@@ -83,7 +84,7 @@ test('the no-channel presets sit inside every content type bounds or are filtere
     $output = runMediaEditorPresetsHarness();
 
     foreach (ContentType::cases() as $type) {
-        $bounds = $type->aspectRatioBounds() ?? ['min' => 0.0, 'max' => INF];
+        $bounds = $type->aspectRatioBounds(MediaType::Image) ?? ['min' => 0.0, 'max' => INF];
         $inside = array_values(array_filter(
             ContentType::defaultCropPresets(),
             fn (string $preset): bool => mediaEditorPresetRatio($preset) >= $bounds['min'] - 0.0001

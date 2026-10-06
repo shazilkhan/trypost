@@ -33,28 +33,44 @@ function postingGoalSetup(): array
     return [$user->fresh(), $channel];
 }
 
-function postPopupResult(mixed $page, SocialAccount $channel, bool $created): void
+/**
+ * Connect a new Bluesky channel the way a user does: the form, the confirmation
+ * page, then "Finish connection" back on the posts page.
+ *
+ * @return array{0: mixed, 1: SocialAccount}
+ */
+function connectPostingGoalChannel(string $did = 'did:plc:goal-new', array $query = [], ?Closure $prepare = null): array
 {
-    $flag = $created ? 'true' : 'false';
-    $page->script(<<<JS
-        window.postMessage({
-            type: 'social-oauth-callback',
-            success: true,
-            message: '',
-            platform: 'linkedin',
-            account_id: '{$channel->id}',
-            created: {$flag},
-        }, window.location.origin);
-    JS);
+    fakeBlueskyIdentity($did);
+    $postsPath = parse_url(route('app.posts.index'), PHP_URL_PATH);
+
+    $page = visit(route('app.social.bluesky.connect', ['return_to' => $postsPath, ...$query]))->resize(1440, 900);
+    waitForPostingGoalTestId($page, 'bluesky-identifier');
+
+    if ($prepare !== null) {
+        $prepare($page);
+    }
+
+    $page->type('@bluesky-identifier', 'goal.bsky.social')
+        ->type('@bluesky-password', 'xxxx-xxxx-xxxx-xxxx')
+        ->click('@bluesky-submit');
+    waitForPostingGoalTestId($page, 'connect-finish');
+    $page->click('@connect-finish');
+
+    expect(postingGoalPollFor($page, '/^\\/channels\\/[^\\/]+\\/publish$/.test(window.location.pathname)', 200))->toBeTrue();
+
+    $channel = SocialAccount::query()->where('platform_user_id', $did)->sole();
+
+    expect($page->script('window.location.pathname'))->toBe(parse_url(route('app.channels.publish', $channel), PHP_URL_PATH));
+
+    return [$page, $channel];
 }
 
 test('a newly created channel opens the goal flow and saves the chosen goal', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-flow');
 
     $page->click('@goal-option-5')->click('@goal-next');
@@ -72,9 +88,7 @@ test('a custom goal uses the stepper', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-option-custom');
     $page->click('@goal-option-custom');
     waitForPostingGoalTestId($page, 'goal-custom-increase');
@@ -89,9 +103,7 @@ test('customize goes to the channel settings page', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-next');
     $page->click('@goal-next');
     waitForPostingGoalTestId($page, 'goal-customize');
@@ -104,13 +116,17 @@ test('customize goes to the channel settings page', function () {
 test('a reconnect does not open the goal flow', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
+    $bluesky = SocialAccount::factory()->bluesky()->create([
+        'workspace_id' => $channel->workspace_id,
+        'platform_user_id' => 'did:plc:goal-existing',
+    ]);
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, false);
-    waitForPostingGoalTestId($page, 'goal-flow');
+    [$page] = connectPostingGoalChannel('did:plc:goal-existing', ['reconnect' => $bluesky->id]);
 
-    $page->assertMissing('@goal-flow')->assertNoJavaScriptErrors();
+    expect(postingGoalPollFor($page, 'document.querySelector(\'[data-testid="goal-flow"]\')', 20))->toBeFalse()
+        ->and($bluesky->fresh()->access_token)->toBe('access-token');
+
+    $page->assertNoJavaScriptErrors();
 });
 
 function postingGoalPollFor(mixed $page, string $condition, int $attempts = 120): bool
@@ -130,9 +146,7 @@ test('the goal step matches the wide card layout with right-side radios', functi
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'))->resize(1440, 900);
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-option-3');
 
     $layout = $page->script(<<<'JS'
@@ -178,9 +192,7 @@ test('the recommended-time help opens above its trigger and links to the docs', 
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'))->resize(1440, 900);
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-help');
     $page->click('@goal-help');
     waitForPostingGoalTestId($page, 'goal-help-popover');
@@ -219,9 +231,7 @@ test('the recommended step bolds the times, orders its footer and shows no succe
     $user->update(['time_format' => '24h']);
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'))->resize(1440, 900);
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-next');
     $page->click('@goal-next');
     waitForPostingGoalTestId($page, 'goal-recommended');
@@ -256,9 +266,7 @@ test('connecting a channel fires a confetti burst that cleans up after itself', 
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
 
     expect(postingGoalPollFor($page, 'document.querySelector(\'[data-testid="confetti-canvas"]\')'))->toBeTrue()
         ->and(postingGoalPollFor($page, '!document.querySelector(\'[data-testid="confetti-canvas"]\')'))->toBeTrue();
@@ -270,17 +278,14 @@ test('confetti stays off when the user prefers reduced motion', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    $page->script(<<<'JS'
+    [$page, $channel] = connectPostingGoalChannel(prepare: fn (mixed $page) => $page->script(<<<'JS'
         (() => {
             const original = window.matchMedia.bind(window);
             window.matchMedia = (query) => query.includes('prefers-reduced-motion')
                 ? { matches: true, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false }
                 : original(query);
         })();
-    JS);
-    postPopupResult($page, $channel, true);
+    JS));
     waitForPostingGoalTestId($page, 'goal-flow');
 
     expect(postingGoalPollFor($page, 'document.querySelector(\'[data-testid="confetti-canvas"]\')', 20))->toBeFalse();
@@ -306,100 +311,17 @@ function fakeBlueskyIdentity(string $did): void
     ]);
 }
 
-function connectBlueskyInPopup(mixed $page, string $url): bool
-{
-    return (bool) $page->script(<<<JS
-        (async () => {
-            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-            const popup = window.open('{$url}', 'oauth-popup', 'width=600,height=700');
-            window.__connectPopup = popup;
-            window.__popupRenderedText = false;
-
-            let identifier = null;
-            for (let i = 0; i < 200 && !identifier; i++) {
-                await wait(50);
-                identifier = popup.document?.querySelector('[data-testid="bluesky-identifier"]') ?? null;
-            }
-            if (!identifier) return false;
-
-            new popup.MutationObserver(() => {
-                const callback = popup.document.querySelector('[data-testid="popup-callback"]');
-                if (callback && callback.textContent.trim() !== '') {
-                    window.__popupRenderedText = true;
-                }
-            }).observe(popup.document.body, { childList: true, subtree: true, characterData: true });
-
-            const fill = (selector, value) => {
-                const input = popup.document.querySelector(selector);
-                input.value = value;
-                input.dispatchEvent(new popup.Event('input', { bubbles: true }));
-            };
-            fill('[data-testid="bluesky-identifier"]', 'goal.bsky.social');
-            fill('[data-testid="bluesky-password"]', 'xxxx-xxxx-xxxx-xxxx');
-            await wait(100);
-            popup.document.querySelector('[data-testid="bluesky-submit"]').click();
-
-            return true;
-        })();
-    JS);
-}
-
-test('a successful popup connect closes the popup straight into the goal flow', function () {
-    [$user, $channel] = postingGoalSetup();
+test('a new channel connected through the confirmation page lands in the goal flow', function () {
+    [$user] = postingGoalSetup();
     $this->actingAs($user);
-    fakeBlueskyIdentity('did:plc:goal-new');
 
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-
-    expect(connectBlueskyInPopup($page, route('app.social.bluesky.connect')))->toBeTrue()
-        ->and(postingGoalPollFor($page, 'window.__connectPopup.closed', 200))->toBeTrue();
-
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-flow');
 
-    expect($page->script('window.__popupRenderedText'))->toBeFalse()
-        ->and($user->currentWorkspace->socialAccounts()->where('platform_user_id', 'did:plc:goal-new')->exists())->toBeTrue();
+    expect($channel->workspace_id)->toBe($user->current_workspace_id);
 
     $page->assertVisible('@goal-flow')
         ->assertDontSee('Account connected!')
-        ->assertNoJavaScriptErrors();
-});
-
-test('a popup reconnect closes the popup without opening the goal flow', function () {
-    [$user, $channel] = postingGoalSetup();
-    $this->actingAs($user);
-    $bluesky = SocialAccount::factory()->bluesky()->create([
-        'workspace_id' => $channel->workspace_id,
-        'platform_user_id' => 'did:plc:goal-existing',
-    ]);
-    fakeBlueskyIdentity('did:plc:goal-existing');
-
-    $page = visit(route('app.posts.index'));
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-
-    expect(connectBlueskyInPopup($page, route('app.social.bluesky.connect', ['reconnect' => $bluesky->id])))->toBeTrue()
-        ->and(postingGoalPollFor($page, 'window.__connectPopup.closed', 200))->toBeTrue()
-        ->and(postingGoalPollFor($page, 'document.querySelector(\'[data-testid="goal-flow"]\')', 20))->toBeFalse()
-        ->and($page->script('window.__popupRenderedText'))->toBeFalse()
-        ->and($bluesky->fresh()->access_token)->toBe('access-token');
-
-    $page->assertNoJavaScriptErrors();
-});
-
-test('a connect callback without an opener lands on the channels page', function () {
-    [$user, $channel] = postingGoalSetup();
-    $this->actingAs($user);
-    fakeBlueskyIdentity('did:plc:goal-tab');
-
-    $page = visit(route('app.social.bluesky.connect'));
-    waitForPostingGoalTestId($page, 'bluesky-identifier');
-    $page->type('@bluesky-identifier', 'goal.bsky.social')
-        ->type('@bluesky-password', 'xxxx-xxxx-xxxx-xxxx')
-        ->click('@bluesky-submit');
-    waitForPostingGoalTestId($page, "channel-list-row-{$channel->id}");
-
-    $page->assertVisible('@channels-connect')
-        ->assertMissing('@popup-callback')
         ->assertNoJavaScriptErrors();
 });
 
@@ -407,9 +329,7 @@ test('the goal description fits on one line in every language', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);
 
-    $page = visit(route('app.posts.index'))->resize(1440, 900);
-    waitForPostingGoalTestId($page, "sidebar-channel-{$channel->id}");
-    postPopupResult($page, $channel, true);
+    [$page, $channel] = connectPostingGoalChannel();
     waitForPostingGoalTestId($page, 'goal-description');
 
     $translations = collect(Locale::cases())

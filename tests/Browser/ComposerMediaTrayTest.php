@@ -917,3 +917,45 @@ test('the toolbar media button box lines up with the left edge of the media tray
     expect($offset)->toBe(0);
     $page->assertNoJavaScriptErrors();
 });
+
+test('in a single-network thread the toolbar upload and the reply tray add to the active reply and block saving while in flight', function () {
+    [$page, , $account] = openComposerMediaTray($this, 'hold', platform: 'x', select: true);
+    $id = $account->id;
+    $page->fill("@composer-caption-{$id}", 'First tweet');
+    $page->click('@thread-start');
+    waitForComposerMediaTrayTestId($page, 'thread-reply-0');
+    $page->fill('@thread-reply-0', 'Second tweet')
+        ->keys('@thread-reply-0', 'Shift+Enter');
+    waitForComposerMediaTrayTestId($page, 'thread-reply-1');
+    $page->fill('@thread-reply-1', 'Third tweet');
+
+    $page->script("HTMLInputElement.prototype.click = function () { if (this.type === 'file') { window.__filePicker = (window.__filePicker ?? 0) + 1; } }; true;");
+    $page->click("@composer-{$id}-media-source-menu");
+    waitForComposerMediaTrayTestId($page, 'media-source-upload');
+    $page->click('@media-source-upload');
+    waitForComposerMediaTrayCondition($page, 'window.__filePicker === 1');
+    selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('toolbar.png').']', 'composer-media-menu');
+    waitForComposerMediaTrayCondition($page, 'window.__uploads.held.length === 1');
+
+    expect(composerMediaTrayDisabled($page, 'composer-submit'))->toBeTrue()
+        ->and(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeTrue();
+
+    $page->script("window.__releaseUpload('toolbar.png')");
+    waitForComposerMediaTrayTestId($page, "composer-{$id}-reply-1-media-item-0");
+    waitForComposerMediaTrayCondition($page, "document.querySelector('[data-testid=\"composer-save-draft\"]')?.disabled === false");
+
+    selectComposerMediaTrayFiles($page, '['.composerMediaTrayPng('reply-tray.png').']', "composer-{$id}-reply-1");
+    waitForComposerMediaTrayCondition($page, 'window.__uploads.held.length === 1');
+
+    expect(composerMediaTrayDisabled($page, 'composer-submit'))->toBeTrue()
+        ->and(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeTrue();
+
+    $page->script("window.__releaseUpload('reply-tray.png')");
+    waitForComposerMediaTrayTestId($page, "composer-{$id}-reply-1-media-item-1");
+    waitForComposerMediaTrayCondition($page, "document.querySelector('[data-testid=\"composer-save-draft\"]')?.disabled === false");
+
+    expect(composerMediaTrayCount($page, "composer-{$id}-media-item"))->toBe(0)
+        ->and(composerMediaTrayCount($page, "composer-{$id}-reply-1-media-item"))->toBe(2);
+    $page->assertMissing("@composer-{$id}-reply-0-media-item-0")
+        ->assertNoJavaScriptErrors();
+});

@@ -167,7 +167,6 @@ return [
         'refresh_after' => '.',
         'irreversible' => 'Das kann nicht rückgängig gemacht werden.',
         'description' => 'Dadurch werden alle Beiträge dieses Kanals in TryPost gelöscht, einschließlich Entwürfen, geplanten Beiträgen und dem Veröffentlichungsverlauf. Beiträge, die bereits im Netzwerk sind, bleiben dort.',
-        'confirm' => 'Trennen',
         'keyword' => 'trennen',
         'cancel' => 'Abbrechen',
     ],

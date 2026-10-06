@@ -74,9 +74,40 @@ test('bluesky pages repository records and hydrates public counts in batches', f
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/com.atproto.repo.listRecords')
         && $request['repo'] === 'did:plc:alice'
         && $request['collection'] === 'app.bsky.feed.post'
-        && $request['reverse'] === true
+        && ! isset($request['reverse'])
         && $request['cursor'] === 'repo-cursor');
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/app.bsky.feed.getPosts'));
+});
+
+test('bluesky reads the repository newest first and stops at the cutoff without losing newer records', function () {
+    $pds = 'https://pds.example';
+    $record = fn (string $id, string $createdAt): array => [
+        'uri' => "at://did:plc:alice/app.bsky.feed.post/{$id}",
+        'cid' => "cid-{$id}",
+        'value' => ['$type' => 'app.bsky.feed.post', 'text' => $id, 'createdAt' => $createdAt],
+    ];
+    Http::fake([
+        "{$pds}/xrpc/com.atproto.repo.listRecords*" => Http::response([
+            'records' => [
+                $record('newest', '2026-09-22T12:00:00Z'),
+                $record('newer', '2026-09-21T12:00:00Z'),
+                $record('old', '2025-01-01T12:00:00Z'),
+            ],
+            'cursor' => 'repo-next',
+        ]),
+        config('trypost.platforms.bluesky.public_appview').'/xrpc/app.bsky.feed.getPosts*' => Http::response(['posts' => []]),
+    ]);
+    $account = SocialAccount::factory()->bluesky()->create([
+        'platform_user_id' => 'did:plc:alice',
+        'meta' => ['service' => $pds],
+    ]);
+
+    $page = app(BlueskyPublicationCollector::class)->page($account, null, CarbonImmutable::parse('2026-09-01', 'UTC'));
+
+    expect(collect($page->publications)->pluck('providerPostId')->all())->toBe(['newest', 'newer'])
+        ->and($page->nextCursor)->toBeNull()
+        ->and($page->providerExhausted)->toBeTrue();
+    Http::assertNotSent(fn (Request $request): bool => isset($request['reverse']));
 });
 
 test('bluesky respects the twenty five uri hydration limit', function () {

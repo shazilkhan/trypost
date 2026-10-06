@@ -145,7 +145,7 @@ class BuildInsightsExport
      */
     private function posts(Workspace $workspace, DateRange $range, ?array $accountKeys, string $timezone, ?PublicationFilter $filter): Generator
     {
-        $rows = $this->publications->query($workspace, $range->start, $range->observedThrough, $accountKeys, $filter)
+        $rows = $this->publications->query($workspace, $range->startsAt(), $range->endsAt(), $accountKeys, $filter)
             ->orderByDesc('publication.provider_published_at')
             ->orderBy('publication.id')
             ->cursor();

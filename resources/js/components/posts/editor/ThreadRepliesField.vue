@@ -5,7 +5,7 @@ import { nextTick, ref, watch } from 'vue';
 import PlatformLogo from '@/components/PlatformLogo.vue';
 import { useXLinkDefuser } from '@/composables/useXLinkDefuser';
 import { autosizeTextarea } from '@/lib/autosizeTextarea';
-import { characterCount } from '@/lib/characters';
+import { displayLength } from '@/lib/characters';
 import { newThreadReply, type ThreadReply } from '@/lib/threadReplies';
 
 const props = withDefaults(
@@ -36,7 +36,8 @@ const { contentFor } = useXLinkDefuser();
 const editor = ref<HTMLTextAreaElement[]>([]);
 
 const remaining = (reply: ThreadReply): number =>
-    props.limit - characterCount(contentFor(reply.text, props.platform));
+    props.limit -
+    displayLength(contentFor(reply.text, props.platform), props.platform);
 
 const isEmpty = (reply: ThreadReply | undefined): boolean =>
     reply !== undefined && reply.text === '' && reply.media.length === 0;
@@ -191,7 +192,7 @@ watch(
                 <slot name="media" :reply="reply" :index="index" />
                 <div
                     v-if="active === index && toolbarTarget"
-                    :id="toolbarTarget"
+                    :id="`${toolbarTarget}-${index}`"
                     class="px-[9px]"
                 />
                 <p

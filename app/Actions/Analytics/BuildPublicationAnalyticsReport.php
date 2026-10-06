@@ -56,10 +56,10 @@ class BuildPublicationAnalyticsReport
             }
         }
 
-        foreach ($this->publications($workspace, $previous->start, $current->observedThrough, $accountKeys, $filter) as $row) {
+        foreach ($this->publications($workspace, $previous->startsAt(), $current->endsAt(), $accountKeys, $filter) as $row) {
             $key = $row->social_account_key;
 
-            if (! $this->inRange($row->provider_published_at, $current)) {
+            if (! $current->contains($row->provider_published_at)) {
                 $previousTotals = $this->addTotals($previousTotals, $row);
                 $previousAccounts[$key] = $this->addTotals(
                     data_get($previousAccounts, $key, $this->emptyTotals()),
@@ -76,8 +76,7 @@ class BuildPublicationAnalyticsReport
             $this->retainTopPublication($topReactions, $row, 'reactions_count');
             $this->retainTopPublication($topComments, $row, 'comments_count');
 
-            $date = min(substr((string) $row->provider_published_at, 0, 10), $current->end->toDateString());
-            $index = data_get($bucketIndexByDate, $date);
+            $index = data_get($bucketIndexByDate, $current->localDate($row->provider_published_at));
 
             if ($index !== null) {
                 $bucketCounts[$index][$key] = (int) data_get($bucketCounts, "{$index}.{$key}", 0) + 1;
@@ -343,12 +342,5 @@ class BuildPublicationAnalyticsReport
             <=> [data_get($b, 'platform'), data_get($b, 'username'), data_get($b, 'social_account_key')]);
 
         return $rows;
-    }
-
-    private function inRange(string $date, DateRange $range): bool
-    {
-        $day = substr($date, 0, 10);
-
-        return $day >= $range->start->toDateString() && $day <= $range->observedThrough->toDateString();
     }
 }

@@ -21,6 +21,7 @@ use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -217,7 +218,10 @@ class PostRequestRules
      */
     public static function selectedAccounts(Workspace $workspace, array $input): Collection
     {
-        $accountIds = collect((array) data_get($input, 'platforms', []))->pluck('social_account_id')->filter()->all();
+        $accountIds = collect((array) data_get($input, 'platforms', []))
+            ->pluck('social_account_id')
+            ->filter(fn (mixed $id): bool => is_string($id) && Str::isUuid($id))
+            ->all();
 
         if ($accountIds === []) {
             return collect();
@@ -295,7 +299,10 @@ class PostRequestRules
      */
     private static function submittedTargets(Post $post, array $input): Collection
     {
-        $ids = collect((array) data_get($input, 'platforms', []))->pluck('id')->filter()->all();
+        $ids = collect((array) data_get($input, 'platforms', []))
+            ->pluck('id')
+            ->filter(fn (mixed $id): bool => is_string($id) && Str::isUuid($id))
+            ->all();
 
         if ($ids === []) {
             return collect();

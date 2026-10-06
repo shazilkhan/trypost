@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'Koleksiyon adı',
         'all_feeds' => 'Tüm akışlar',
         'feeds_root' => 'Akışlar',
-        'collection_feeds' => 'Bu koleksiyondaki akışlar',
         'collection_menu' => 'Şu koleksiyondaki akışları göster: :name',
         'last_refreshed' => 'Son yenileme :time',
         'never_refreshed' => 'Henüz yenilenmedi',

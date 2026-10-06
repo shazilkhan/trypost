@@ -34,8 +34,8 @@ class ReplayWebhookLogTool extends Tool
         }
 
         $validated = $request->validate([
-            'webhook_id' => ['required', 'string'],
-            'log_id' => ['required', 'string'],
+            'webhook_id' => ['required', 'string', 'uuid'],
+            'log_id' => ['required', 'string', 'uuid'],
         ]);
 
         $webhook = $this->webhookInWorkspace($workspace, data_get($validated, 'webhook_id'));

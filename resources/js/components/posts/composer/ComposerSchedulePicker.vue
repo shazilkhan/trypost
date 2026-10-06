@@ -13,7 +13,7 @@ import {
     CalendarPrev,
     CalendarRoot,
 } from 'reka-ui';
-import { computed, nextTick, ref, shallowRef } from 'vue';
+import { computed, nextTick, ref, shallowRef, watch } from 'vue';
 
 import {
     CalendarCell,
@@ -25,6 +25,7 @@ import {
     CalendarHeadCell,
 } from '@/components/ui/calendar';
 import { useCalendarLocale } from '@/composables/useCalendarLocale';
+import { useComposerLiveState } from '@/composables/useComposerData';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import { weekStartIndex } from '@/preferences';
@@ -34,8 +35,10 @@ const props = defineProps<{
     modelValue: string;
     timezone: string;
     postingSchedule?: PostingSchedule | null;
-    takenSlots?: string[];
-    slotsLoading?: boolean;
+    /** The single channel whose posting slots are offered; its taken slots are read per picked day. */
+    channelId?: string | null;
+    /** An instant that never counts as taken (the post being edited). */
+    ignoredInstant?: string;
 }>();
 
 const emit = defineEmits<{
@@ -83,8 +86,48 @@ const isPastTime = (time: string): boolean =>
 
 const isPast = computed(() => isPastTime(pickedTime.value));
 
+const { takenSlots: readTakenSlots, attempt } = useComposerLiveState();
+const takenByDay = shallowRef<Record<string, string[]>>({});
+const takenKey = computed(() => `${props.channelId}|${pickedDay.value}`);
+const wantsTakenSlots = computed(
+    () => Boolean(props.channelId) && slotTimes.value.length > 0,
+);
+
+watch(
+    [takenKey, wantsTakenSlots, attempt],
+    async () => {
+        const key = takenKey.value;
+        if (!wantsTakenSlots.value || !props.channelId || takenByDay.value[key]) {
+            return;
+        }
+        const start = dayjs.tz(pickedDay.value, props.timezone);
+        const slots = await readTakenSlots(
+            props.channelId,
+            start.utc().format(),
+            start.add(1, 'day').utc().format(),
+        ).catch(() => null);
+        if (slots) {
+            takenByDay.value = { ...takenByDay.value, [key]: slots };
+        }
+    },
+    { immediate: true },
+);
+
+const slotsLoading = computed(
+    () => wantsTakenSlots.value && !takenByDay.value[takenKey.value],
+);
+
 const takenInstants = computed(
-    () => new Set((props.takenSlots ?? []).map((at) => dayjs(at).valueOf())),
+    () =>
+        new Set(
+            (takenByDay.value[takenKey.value] ?? [])
+                .filter(
+                    (at) =>
+                        !props.ignoredInstant ||
+                        !dayjs(at).isSame(props.ignoredInstant),
+                )
+                .map((at) => dayjs(at).valueOf()),
+        ),
 );
 
 const isUnavailableSlot = (time: string): boolean =>

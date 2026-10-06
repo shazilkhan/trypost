@@ -11,7 +11,7 @@ return [
     'create_first_label' => 'Створіть свою першу мітку',
 
     'meta' => [
-        'posts' => '{0} Немає дописів|{1} :count допис|[2,4] :count дописи|[5,*] :count дописів',
+        'posts' => ':count допис|:count дописи|:count дописів|{0} Немає дописів',
     ],
 
     'actions' => [

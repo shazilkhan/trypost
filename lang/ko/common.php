@@ -58,6 +58,8 @@ return [
     'cancel' => '취소',
     'clear' => '지우기',
     'close' => '닫기',
+    'more' => '더보기',
+    'play' => '재생',
     'loading' => '불러오는 중...',
     'loading_more' => '더 불러오는 중...',
 

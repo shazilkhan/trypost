@@ -81,3 +81,17 @@ test('analytics interface copy does not fall back to English', function (string 
 // Key presence alone cannot catch stale wording (same key, incomplete sentence).
 // Destructive account/workspace delete copy is additionally asserted in
 // tests/Unit/Settings/DeleteAccountCopyTest.php with per-locale content markers.
+
+test('the mcp authorize copy is translated in every locale', function (Locale $locale) {
+    $english = require lang_path('en/mcp.php');
+    $translated = require lang_path("{$locale->value}/mcp.php");
+    $allowedSameAsEnglish = ['workspace' => ['de', 'es', 'it', 'nl', 'pt-BR'], 'error_code' => ['es']];
+
+    $untranslated = collect($english['authorize'])
+        ->filter(fn (string $value, string $key) => data_get($translated, "authorize.{$key}") === $value)
+        ->reject(fn (string $value, string $key) => in_array($locale->value, $allowedSameAsEnglish[$key] ?? [], true))
+        ->keys()
+        ->all();
+
+    expect($untranslated)->toBe([]);
+})->with(array_filter(Locale::cases(), fn (Locale $locale) => $locale !== Locale::English));

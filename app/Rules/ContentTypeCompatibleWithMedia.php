@@ -255,10 +255,10 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      */
     public function failOnDimensionRules(ContentType $contentType, array $media, Closure $fail): bool
     {
-        $ratioBounds = $contentType->aspectRatioBounds();
-        $pixelBounds = $contentType->imageDimensionBounds();
+        $hasRatioBounds = $contentType->aspectRatioBounds(MediaType::Image) !== null
+            || $contentType->aspectRatioBounds(MediaType::Video) !== null;
 
-        if (($ratioBounds === null && $pixelBounds === null) || $this->workspace === null) {
+        if ((! $hasRatioBounds && $contentType->imageDimensionBounds() === null) || $this->workspace === null) {
             return false;
         }
 
@@ -288,8 +288,8 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
                 continue;
             }
 
-            $checksRatio = $contentType->aspectRatioBoundsApplyTo($type, MediaType::isGif($row->mime_type));
-            $message = $this->dimensionViolation($contentType, $dimensions, $isImage, $checksRatio);
+            $ratioBounds = $contentType->aspectRatioBounds($type, MediaType::isGif($row->mime_type));
+            $message = $this->dimensionViolation($contentType, $dimensions, $isImage, $ratioBounds);
 
             if ($message !== null) {
                 $fail($message);
@@ -303,13 +303,13 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
 
     /**
      * @param  array{width: int, height: int}  $dimensions
+     * @param  array{min: float, max: float}|null  $ratioBounds
      */
-    private function dimensionViolation(ContentType $contentType, array $dimensions, bool $isImage, bool $checksRatio): ?string
+    private function dimensionViolation(ContentType $contentType, array $dimensions, bool $isImage, ?array $ratioBounds): ?string
     {
         ['width' => $width, 'height' => $height] = $dimensions;
         $ratio = $width / $height;
         $destination = $contentType->destinationLabel();
-        $ratioBounds = $checksRatio ? $contentType->aspectRatioBounds() : null;
 
         if ($ratioBounds !== null && $ratio < $ratioBounds['min'] - self::RATIO_TOLERANCE) {
             return trans('posts.form.warnings.aspect_ratio_too_narrow', [

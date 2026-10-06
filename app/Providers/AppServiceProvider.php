@@ -154,7 +154,14 @@ class AppServiceProvider extends ServiceProvider
                 return Limit::none();
             }
 
-            return Limit::perMinute(60)->by($request->workspace?->id ?: $request->ip());
+            $user = $request->user();
+            $workspaceId = $user->current_workspace_id;
+
+            $key = $workspaceId !== null
+                ? "workspace:{$workspaceId}"
+                : "user:{$user->id}";
+
+            return Limit::perMinute(60)->by($key);
         });
 
         RateLimiter::for(
@@ -182,7 +189,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for(
             'analytics-publications',
-            fn (object $job): Limit => Limit::perMinute(30)->by($job->providerRateLimitKey()),
+            fn (object $job): array => $job->analyticsRateLimits(),
         );
 
         RateLimiter::for(

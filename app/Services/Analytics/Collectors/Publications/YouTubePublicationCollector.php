@@ -10,25 +10,18 @@ use App\Enums\Analytics\PublicationContentType;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\SocialAccount;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 
 class YouTubePublicationCollector extends AbstractPublicationHistoryCollector
 {
     private const PAGE_SIZE = 50;
 
+    private const UPLOADS_PLAYLIST_CACHE_DAYS = 30;
+
     public function page(SocialAccount $account, ?string $cursor, CarbonImmutable $cutoff): PublicationPage
     {
         $api = config('trypost.platforms.youtube.data_api');
-        $channel = $this->get($account, "{$api}/channels", [
-            'part' => 'contentDetails',
-            'id' => $account->platform_user_id,
-            'maxResults' => 1,
-        ]);
-        $uploadsPlaylist = data_get($channel->json(), 'items.0.contentDetails.relatedPlaylists.uploads');
-
-        if (! is_string($uploadsPlaylist) || $uploadsPlaylist === '') {
-            throw AnalyticsCollectionException::malformed('YouTube channel did not expose an uploads playlist');
-        }
-
+        $uploadsPlaylist = $this->uploadsPlaylist($account, (string) $api);
         $playlist = $this->get($account, "{$api}/playlistItems", [
             'part' => 'contentDetails',
             'playlistId' => $uploadsPlaylist,
@@ -45,7 +38,6 @@ class YouTubePublicationCollector extends AbstractPublicationHistoryCollector
             $videosResponse = $this->get($account, "{$api}/videos", [
                 'part' => 'snippet,contentDetails',
                 'id' => $videoIds->implode(','),
-                'maxResults' => self::PAGE_SIZE,
             ]);
             $videos = collect((array) $videosResponse->json('items', []))->keyBy('id');
         }
@@ -101,5 +93,27 @@ class YouTubePublicationCollector extends AbstractPublicationHistoryCollector
         $hasNext = is_string($nextCursor) && $nextCursor !== '' && ! $crossedCutoff;
 
         return new PublicationPage($publications, $hasNext ? $nextCursor : null, ! $hasNext, $providerLimited);
+    }
+
+    private function uploadsPlaylist(SocialAccount $account, string $api): string
+    {
+        return Cache::remember(
+            "analytics:youtube-uploads:{$account->id}:{$account->platform_user_id}",
+            now()->addDays(self::UPLOADS_PLAYLIST_CACHE_DAYS),
+            function () use ($account, $api): string {
+                $channel = $this->get($account, "{$api}/channels", [
+                    'part' => 'contentDetails',
+                    'id' => $account->platform_user_id,
+                    'maxResults' => 1,
+                ]);
+                $uploadsPlaylist = data_get($channel->json(), 'items.0.contentDetails.relatedPlaylists.uploads');
+
+                if (! is_string($uploadsPlaylist) || $uploadsPlaylist === '') {
+                    throw AnalyticsCollectionException::malformed('YouTube channel did not expose an uploads playlist');
+                }
+
+                return $uploadsPlaylist;
+            },
+        );
     }
 }

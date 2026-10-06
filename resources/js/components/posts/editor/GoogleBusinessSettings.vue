@@ -192,10 +192,6 @@ const offerCouponCode = offerField('coupon_code');
 const offerRedeemUrl = offerField('redeem_online_url');
 const offerTerms = offerField('terms_conditions');
 
-// The composer's errors are keyed `destinations.{index}.meta.*` and other
-// forms' `platforms.{index}.meta.*`. Matching the full key keeps a
-// location's error off the other locations' panels when a post targets more
-// than one Google Business Profile.
 const errors = usePageErrors();
 const findError = (field: string) =>
     computed<string | undefined>(

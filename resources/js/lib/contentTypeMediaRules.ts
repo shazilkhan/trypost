@@ -19,8 +19,9 @@ export type MediaRules = {
     maxVideoDurationSec?: number;
     aspectRatioMin?: number;
     aspectRatioMax?: number;
+    videoAspectRatioMin?: number;
+    videoAspectRatioMax?: number;
     autoFitsImage?: boolean;
-    aspectRatioImagesOnly?: boolean;
     cropPresets: CropPresetValue[];
     supportsAltText: boolean;
     supportsUserTags: boolean;
@@ -51,8 +52,9 @@ export type ContentTypeMediaRule = {
     max_video_duration_sec: number | null;
     aspect_ratio_min: number | null;
     aspect_ratio_max: number | null;
+    video_aspect_ratio_min: number | null;
+    video_aspect_ratio_max: number | null;
     auto_fits_image: boolean;
-    aspect_ratio_images_only: boolean;
     crop_presets: CropPresetValue[];
     supports_alt_text: boolean;
     supports_user_tags: boolean;
@@ -106,8 +108,9 @@ export const toMediaRules = (rule: ContentTypeMediaRule): MediaRules => ({
     maxVideoDurationSec: rule.max_video_duration_sec ?? undefined,
     aspectRatioMin: rule.aspect_ratio_min ?? undefined,
     aspectRatioMax: rule.aspect_ratio_max ?? undefined,
+    videoAspectRatioMin: rule.video_aspect_ratio_min ?? undefined,
+    videoAspectRatioMax: rule.video_aspect_ratio_max ?? undefined,
     autoFitsImage: rule.auto_fits_image,
-    aspectRatioImagesOnly: rule.aspect_ratio_images_only,
     cropPresets: rule.crop_presets,
     supportsAltText: rule.supports_alt_text,
     supportsUserTags: rule.supports_user_tags,

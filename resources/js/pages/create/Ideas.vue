@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { IconBulb, IconPlus, IconTrash } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
 import { computed, provide, ref, shallowRef, watch } from 'vue';
@@ -50,17 +50,22 @@ const props = defineProps<{
     view: IdeasView;
     stages: IdeaStage[];
     unassigned_count: number;
+    hasData: boolean;
     labels: IdeaLabel[];
     filters: IdeaFilters;
     editor: IdeaEditorState | null;
-    board?: IdeaCard[];
+    columns?: Record<string, IdeaCardPage>;
     ideas?: IdeaCardPage;
 }>();
 
 type Query = Record<string, string | string[] | undefined>;
 
-const BOARD_PROPS = ['board', 'stages', 'unassigned_count'];
-const GALLERY_PROPS = ['ideas', 'stages', 'unassigned_count'];
+const BOARD_PROPS = ['columns', 'stages', 'unassigned_count', 'hasData'];
+const GALLERY_PROPS = ['ideas', 'stages', 'unassigned_count', 'hasData'];
+const COUNT_PROPS = ['stages', 'unassigned_count'];
+
+const columnPaths = (): string[] =>
+    Object.keys(props.columns ?? {}).map((key) => `columns.${key}`);
 
 const selectedIds = ref<Set<string>>(new Set());
 
@@ -92,8 +97,8 @@ const visitList = (view: IdeasView): void => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['view', 'board', 'ideas', 'filters'],
-            reset: ['ideas'],
+            only: ['view', 'columns', 'ideas', 'filters', ...COUNT_PROPS],
+            reset: ['ideas', ...columnPaths()],
         },
     );
 };
@@ -138,28 +143,58 @@ const labelsById = computed(
     () => new Map(props.labels.map((label) => [label.id, label])),
 );
 
-const stageCards = (cards: IdeaCard[]): Record<string, IdeaCard[]> => {
-    const columns: Record<string, IdeaCard[]> = { [UNASSIGNED]: [] };
+const page = usePage();
 
-    for (const card of cards) {
-        const key = columnKey(card.idea_stage_id);
-        columns[key] = [...(columns[key] ?? []), card];
-    }
-
-    return columns;
-};
+const stageCards = (
+    columns: Record<string, IdeaCardPage> = {},
+): Record<string, IdeaCard[]> =>
+    Object.fromEntries(
+        Object.entries(columns).map(([key, column]) => [key, column.data]),
+    );
 
 const localColumns = shallowRef<Record<string, IdeaCard[]>>(
-    stageCards(props.board ?? []),
+    stageCards(props.columns),
 );
 const localStages = shallowRef<IdeaStage[]>(props.stages);
 
-watch(
-    () => props.board,
-    (board) => {
-        localColumns.value = stageCards(board ?? []);
-    },
-);
+const appendsPage = (key: string): boolean =>
+    (page.scrollProps?.[`columns.${key}`]?.currentPage ?? 1) !== 1;
+
+const syncColumns = (
+    columns: Record<string, IdeaCardPage> = {},
+    previous: Record<string, IdeaCardPage> = {},
+): void => {
+    const current = localColumns.value;
+    const shownIds = new Set(
+        Object.values(current)
+            .flat()
+            .map((card) => card.id),
+    );
+
+    localColumns.value = Object.fromEntries(
+        Object.entries(columns).map(([key, column]) => {
+            const shown = current[key];
+
+            if (shown && previous[key] === column) {
+                return [key, shown];
+            }
+
+            if (shown && appendsPage(key)) {
+                return [
+                    key,
+                    [
+                        ...shown,
+                        ...column.data.filter((card) => !shownIds.has(card.id)),
+                    ],
+                ];
+            }
+
+            return [key, column.data];
+        }),
+    );
+};
+
+watch(() => props.columns, syncColumns);
 
 watch(
     () => props.stages,
@@ -184,26 +219,16 @@ const movable = computed(
     () => props.view === 'board' && !isBoardFiltered.value,
 );
 
-const counts = computed<Record<string, number>>(() => {
-    if (!isBoardFiltered.value) {
-        return Object.fromEntries(
-            [UNASSIGNED, ...localStages.value.map((stage) => stage.id)].map(
-                (key) => [key, localColumns.value[key]?.length ?? 0],
-            ),
-        );
-    }
-
-    return {
-        [UNASSIGNED]: props.unassigned_count,
-        ...Object.fromEntries(
-            localStages.value.map((stage) => [stage.id, stage.ideas_count ?? 0]),
-        ),
-    };
-});
+const counts = computed<Record<string, number>>(() => ({
+    [UNASSIGNED]: props.unassigned_count,
+    ...Object.fromEntries(
+        localStages.value.map((stage) => [stage.id, stage.ideas_count ?? 0]),
+    ),
+}));
 
 const listReload = computed(() => ({
     only: props.view === 'board' ? BOARD_PROPS : GALLERY_PROPS,
-    reset: props.view === 'gallery' ? ['ideas'] : [],
+    reset: props.view === 'gallery' ? ['ideas'] : columnPaths(),
 }));
 
 const moving = ref(false);
@@ -254,7 +279,7 @@ const moveIdea = (
         queuedMove.value = null;
         localColumns.value = snapshot;
         toast.error(message, { testId: 'ideas-move-error-toast' });
-        router.reload({ only: BOARD_PROPS });
+        router.reload({ only: BOARD_PROPS, reset: columnPaths() });
     };
 
     moving.value = true;
@@ -262,11 +287,15 @@ const moveIdea = (
 
     router.put(
         move.url(ideaId),
-        { idea_stage_id: toStageId, idea_ids: orderedIdeaIds },
+        {
+            idea_stage_id: toStageId,
+            after_idea_id:
+                orderedIdeaIds[orderedIdeaIds.indexOf(ideaId) - 1] ?? null,
+        },
         {
             preserveScroll: true,
             preserveState: true,
-            only: BOARD_PROPS,
+            only: COUNT_PROPS,
             onFinish: () => {
                 moving.value = false;
 
@@ -283,7 +312,7 @@ const moveIdea = (
             },
             onError: (errors) =>
                 rollback(
-                    errors.idea_ids ??
+                    errors.after_idea_id ??
                         Object.values(errors)[0] ??
                         trans('create.ideas.errors.move_failed'),
                 ),
@@ -347,7 +376,8 @@ const createStage = (name: string): void => {
         {
             preserveScroll: true,
             preserveState: true,
-            only: ['stages', 'board'],
+            only: ['stages', 'columns'],
+            reset: columnPaths(),
             onError: toastFirstError,
         },
     );
@@ -383,9 +413,34 @@ const bulkDeleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(
     null,
 );
 
+const deleteAndReload = (
+    url: string,
+    data: { idea_ids?: string[] } = {},
+): Promise<void> =>
+    new Promise((resolve, reject) => {
+        router.delete(url, {
+            data,
+            preserveScroll: true,
+            preserveState: true,
+            ...listReload.value,
+            onSuccess: () => resolve(),
+            onError: () => reject(new Error('delete failed')),
+            onFinish: (visit) => {
+                if (visit.interrupted) {
+                    resolve();
+                } else if (!visit.completed) {
+                    reject(new Error('delete failed'));
+                }
+            },
+        });
+    });
+
 const deleteStage = (stage: IdeaStage): void => {
+    const url = destroyStage.url(stage.id);
+
     stageDeleteModal.value?.open({
-        url: destroyStage.url(stage.id),
+        url,
+        request: () => deleteAndReload(url),
     });
 };
 
@@ -404,9 +459,12 @@ const onIdeaDeleted = (): void => {
 };
 
 const openBulkDelete = (): void => {
+    const data = { idea_ids: [...selectedIds.value] };
+
     bulkDeleteModal.value?.open({
         url: bulkDestroy.url(),
-        data: { idea_ids: [...selectedIds.value] },
+        data,
+        request: () => deleteAndReload(bulkDestroy.url(), data),
     });
 };
 
@@ -463,15 +521,12 @@ provide(ideaCardActionsKey, {
         pendingDeleteId.value = card.id;
         ideaDeleteModal.value?.open({
             url: destroy.url(card.id),
+            request: () => deleteAndReload(destroy.url(card.id)),
         });
     },
 });
 
 const galleryCards = computed(() => props.ideas?.data ?? []);
-
-const hasGalleryFilters = computed(
-    () => isBoardFiltered.value || selectedStageIds.value.length > 0,
-);
 </script>
 
 <template>
@@ -579,12 +634,12 @@ const hasGalleryFilters = computed(
                 v-else-if="galleryCards.length === 0"
                 :icon="IconBulb"
                 :title="
-                    hasGalleryFilters
+                    hasData
                         ? $t('posts.no_search_results')
                         : $t('create.ideas.empty.title')
                 "
                 :description="
-                    hasGalleryFilters
+                    hasData
                         ? $t('posts.try_different_search')
                         : $t('create.ideas.empty.body')
                 "

@@ -31,6 +31,7 @@ use App\Models\Workspace;
 use App\Support\PostingSchedule;
 use App\Support\RandomMinute;
 use App\Support\Requests\Post\PostRequestRules;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
@@ -716,6 +717,28 @@ test('an invalid recurrence is refused with the web messages on every surface', 
     expect(schedulingParityRecurrence($post)['interval'])->toBeNull();
 });
 
+test('the recurrence ceiling is checked in the channel time zone on every surface', function () {
+    $this->user->update(['timezone' => 'UTC']);
+    $newYork = SocialAccount::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform' => Platform::LinkedIn,
+        'timezone' => 'America/New_York',
+    ]);
+    $post = schedulingParityRecurring($newYork, $this->workspace->id, $this->user->id);
+    $post->update(['scheduled_at' => CarbonImmutable::parse('2037-06-01 23:00', 'UTC')]);
+    $nearCeiling = ['interval' => 213, 'frequency' => 'day', 'times' => 1];
+
+    $this->actingAs($this->user)->patchJson(route('app.posts.recurrence.update', $post), $nearCeiling)
+        ->assertUnprocessable()->assertJsonValidationErrors(['times' => __('posts.recurrence.errors.too_far')]);
+    auth()->forgetGuards();
+    $this->withHeaders(parityApi($this->token))->patchJson(route('api.posts.recurrence.update', $post), $nearCeiling)
+        ->assertUnprocessable()->assertJsonValidationErrors(['times' => __('posts.recurrence.errors.too_far')]);
+    TryPostServer::actingAs($this->user)->tool(SetPostRecurrenceTool::class, ['post_id' => $post->id, ...$nearCeiling])
+        ->assertHasErrors([__('posts.recurrence.errors.too_far')]);
+
+    expect(schedulingParityRecurrence($post)['interval'])->toBeNull();
+});
+
 test('a post that is not scheduled cannot get a recurrence on any surface', function () {
     $draft = schedulingParityRecurring($this->account, $this->workspace->id, $this->user->id, Status::Draft);
     $rule = ['interval' => 1, 'frequency' => 'day', 'times' => 2];
@@ -782,6 +805,38 @@ function schedulingParityStored(SocialAccount $channel): array
 
     return [$channel->timezone, $channel->posting_goal, $channel->posting_schedule?->toArray()];
 }
+
+test('a busy channel lock fails a posting schedule change on the api and the mcp tools and stores nothing', function () {
+    $source = SocialAccount::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform' => Platform::LinkedIn,
+        'posting_schedule' => PostingSchedule::empty()->withTime(1, '08:00'),
+    ]);
+    $payload = [
+        'timezone' => 'America/Sao_Paulo',
+        'posting_goal' => 1,
+        'posting_schedule' => PostingSchedule::empty()->withTime(2, '11:00')->toArray(),
+    ];
+    $before = schedulingParityStored($this->account);
+    $lock = Cache::lock("queue:{$this->account->id}", 30);
+    expect($lock->get())->toBeTrue();
+    $this->travelBack();
+
+    try {
+        $this->withHeaders(parityApi($this->token))->putJson(route('api.channels.posting-schedule.update', $this->account), $payload)
+            ->assertConflict()
+            ->assertJson(['message' => __('posts.errors.queue_busy')]);
+        auth()->forgetGuards();
+        TryPostServer::actingAs($this->user)->tool(UpdatePostingScheduleTool::class, ['account_id' => $this->account->id, ...$payload])
+            ->assertHasErrors([__('posts.errors.queue_busy')]);
+        TryPostServer::actingAs($this->user)->tool(CopyPostingScheduleTool::class, ['account_id' => $this->account->id, 'from' => $source->id])
+            ->assertHasErrors([__('posts.errors.queue_busy')]);
+    } finally {
+        $lock->release();
+    }
+
+    expect(schedulingParityStored($this->account))->toEqual($before);
+});
 
 test('updating the posting schedule stores the same schedule and zone on the web, the api and the mcp tool', function () {
     $payload = [
@@ -886,6 +941,26 @@ test('generating a posting schedule stores the same schedule on the web, the api
         ->and(schedulingParityStored($web)[1])->toBe(4)
         ->and(schedulingParityStored($web)[2])->not->toBeNull();
 });
+
+test('an invalid generate request is refused with the web messages on every surface and stores nothing', function (array $payload) {
+    $before = $this->account->fresh()->posting_schedule;
+
+    $web = $this->actingAs($this->user)->postJson(route('app.channels.posting-schedule.generate', $this->account), $payload)->assertUnprocessable()->json('errors');
+    auth()->forgetGuards();
+    $api = $this->withHeaders(parityApi($this->token))->postJson(route('api.channels.posting-schedule.generate', $this->account), $payload)->assertUnprocessable()->json('errors');
+    auth()->forgetGuards();
+
+    expect($api)->toEqual($web);
+    TryPostServer::actingAs($this->user)
+        ->tool(GeneratePostingScheduleTool::class, ['account_id' => $this->account->id, ...$payload])
+        ->assertHasErrors(collect($web)->flatten()->all());
+
+    expect($this->account->fresh()->posting_schedule)->toEqual($before);
+})->with([
+    'unknown mode' => [['mode' => 'weekly']],
+    'goal above the cap' => [['mode' => 'goal', 'goal' => 999]],
+    'goal below one' => [['mode' => 'goal', 'goal' => 0]],
+]);
 
 test('copying a posting schedule stores the same schedule on the web, the api and the mcp tool', function () {
     $bare = fn () => SocialAccount::factory()->create(['workspace_id' => $this->workspace->id, 'platform' => Platform::LinkedIn, 'posting_schedule' => null]);

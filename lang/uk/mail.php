@@ -44,11 +44,11 @@ return [
     ],
 
     'post_at_risk' => [
-        'subject' => '{1} :count допис під загрозою в :workspace|[2,4] :count дописи під загрозою в :workspace|[0,*] :count дописів під загрозою в :workspace',
+        'subject' => ':count допис під загрозою в :workspace|:count дописи під загрозою в :workspace|:count дописів під загрозою в :workspace',
         'title' => 'Дописи можуть не опублікуватися',
         'heading' => 'Дописи можуть не опублікуватися',
         'intro' => 'Наведені облікові записи в робочому просторі :workspace потрібно підключити повторно, щоб ці заплановані дописи опублікувалися:',
-        'posts_label' => '{1} :count запланований допис: :times (:timezone)|[2,4] :count заплановані дописи: :times (:timezone)|[0,*] :count запланованих дописів: :times (:timezone)',
+        'posts_label' => ':count запланований допис: :times (:timezone)|:count заплановані дописи: :times (:timezone)|:count запланованих дописів: :times (:timezone)',
         'reconnect_cta' => 'Підключіть ці облікові записи зараз, щоб не пропустити заплановані дописи.',
         'button' => 'Підключити повторно',
     ],

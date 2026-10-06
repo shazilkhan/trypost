@@ -23,7 +23,7 @@ class IdeaCardResource extends JsonResource
             'id' => $this->id,
             'idea_stage_id' => $this->idea_stage_id,
             'title' => $this->title,
-            'excerpt' => Str::substr((string) $this->body, 0, 300),
+            'excerpt' => Str::substr((string) $this->body, 0, Idea::EXCERPT_LENGTH),
             'cover' => data_get($this->media, 0),
             'label_ids' => $this->labels->pluck('id')->values(),
         ];

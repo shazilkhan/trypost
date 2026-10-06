@@ -19,7 +19,6 @@ function faviconBytes(): string
 
 beforeEach(function () {
     Cache::flush();
-    Http::preventStrayRequests();
     $this->user = User::factory()->create();
     $workspace = Workspace::factory()->create([
         'account_id' => $this->user->account_id,

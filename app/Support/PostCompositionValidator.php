@@ -42,13 +42,13 @@ class PostCompositionValidator
                 Rule::requiredIf(fn (): bool => data_get($composition, 'status') === 'scheduled' && blank(data_get($composition, 'queue'))),
                 'nullable',
                 'date',
-                'after:now',
+                Rule::when(data_get($composition, 'status') === 'scheduled', ['after:now']),
                 'before:2038-01-19',
             ],
             'queue' => PostStatusRules::queueRules(),
             'queue_slot' => ['nullable', 'date', 'prohibited_unless:status,scheduled', 'prohibits:queue'],
             'label_ids' => ['sometimes', 'array'],
-            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)],
+            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)->withoutTrashed()],
         ], PostStatusRules::queueMessages())->validate();
 
         $composition['queue'] = filled(data_get($composition, 'queue'))

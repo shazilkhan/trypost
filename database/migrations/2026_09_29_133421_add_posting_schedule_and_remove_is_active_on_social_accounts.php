@@ -17,15 +17,27 @@ return new class extends Migration
             $table->json('posting_schedule')->nullable();
         });
 
-        $pausedPostIds = DB::table('post_platforms')
+        $enabledScheduledTargets = fn (bool $isActive) => DB::table('post_platforms')
+            ->join('posts', 'posts.id', '=', 'post_platforms.post_id')
             ->join('social_accounts', 'social_accounts.id', '=', 'post_platforms.social_account_id')
+            ->where('posts.status', 'scheduled')
             ->where('post_platforms.enabled', true)
-            ->where('social_accounts.is_active', false)
-            ->pluck('post_platforms.post_id')
-            ->unique()
-            ->values();
+            ->where('social_accounts.is_active', $isActive);
 
-        foreach ($pausedPostIds->chunk(500) as $chunk) {
+        $pausedPostIds = $enabledScheduledTargets(false)->distinct()->pluck('post_platforms.post_id');
+        $activePostIds = $enabledScheduledTargets(true)->distinct()->pluck('post_platforms.post_id')->flip();
+
+        [$mixedPostIds, $onlyPausedPostIds] = $pausedPostIds->partition(fn (string $postId): bool => $activePostIds->has($postId));
+
+        foreach ($mixedPostIds->chunk(500) as $chunk) {
+            DB::table('post_platforms')
+                ->whereIn('post_id', $chunk->all())
+                ->whereIn('social_account_id', fn ($pausedAccounts) => $pausedAccounts->select('id')->from('social_accounts')->where('is_active', false))
+                ->where('enabled', true)
+                ->update(['enabled' => false, 'updated_at' => now()]);
+        }
+
+        foreach ($onlyPausedPostIds->chunk(500) as $chunk) {
             DB::table('posts')
                 ->whereIn('id', $chunk->all())
                 ->where('status', 'scheduled')

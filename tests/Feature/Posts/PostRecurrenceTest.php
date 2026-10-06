@@ -285,11 +285,12 @@ test('the interval multiplies the step', function () {
     expect(nextOccurrence($post)->scheduled_at->toDateTimeString())->toBe('2026-10-19 09:00:00');
 });
 
-test('the series follows the author time zone across daylight saving changes', function () {
-    $this->user->update(['timezone' => 'America/New_York']);
-    $this->travelTo(CarbonImmutable::parse('2026-10-30 13:05', 'UTC'));
+test('the series follows the channel time zone across daylight saving changes', function (string $channelZone, string $scheduledAt, string $now, string $expected) {
+    $this->user->update(['timezone' => 'America/Sao_Paulo']);
+    $this->channel->update(['timezone' => $channelZone]);
+    $this->travelTo(CarbonImmutable::parse($now, 'UTC'));
     $post = recurringPost($this->channel, $this->user, [
-        'scheduled_at' => CarbonImmutable::parse('2026-10-30 09:00', 'America/New_York')->utc(),
+        'scheduled_at' => CarbonImmutable::parse($scheduledAt, $channelZone)->utc(),
         'recurrence_interval' => 1,
         'recurrence_frequency' => RecurrenceFrequency::Week,
         'recurrence_remaining' => 2,
@@ -297,8 +298,12 @@ test('the series follows the author time zone across daylight saving changes', f
 
     publishRecurringPost($post);
 
-    expect(nextOccurrence($post)->scheduled_at->setTimezone('America/New_York')->format('Y-m-d H:i'))->toBe('2026-11-06 09:00');
-});
+    expect(nextOccurrence($post)->scheduled_at->setTimezone($channelZone)->format('Y-m-d H:i'))->toBe($expected);
+})->with([
+    'new york, fall back' => ['America/New_York', '2026-10-30 09:00', '2026-10-30 13:05', '2026-11-06 09:00'],
+    'lisbon, fall back' => ['Europe/Lisbon', '2026-10-21 10:00', '2026-10-21 09:05', '2026-10-28 10:00'],
+    'lisbon, spring forward' => ['Europe/Lisbon', '2027-03-24 10:00', '2027-03-24 10:05', '2027-03-31 10:00'],
+]);
 
 test('the last occurrence carries no rule and ends the series', function () {
     $post = recurringPost($this->channel, $this->user, [
@@ -584,8 +589,8 @@ test('rescheduling an occurrence off the series moves the series to the new time
     expect(nextOccurrence($second)->scheduled_at->toDateTimeString())->toBe('2027-04-03 10:00:00');
 });
 
-test('the 2038 ceiling is checked in the author time zone', function () {
-    $this->user->update(['timezone' => 'America/New_York']);
+test('the 2038 ceiling is checked in the channel time zone', function () {
+    $this->channel->update(['timezone' => 'America/New_York']);
     $post = recurringPost($this->channel, $this->user, ['scheduled_at' => CarbonImmutable::parse('2037-07-31 23:30', 'UTC')]);
 
     $this->actingAs($this->user)
@@ -659,4 +664,33 @@ test('occurrences of an approved series are scheduled without approval', functio
     publishRecurringPost($post);
 
     expect(nextOccurrence($post)->status)->toBe(PostStatus::Scheduled);
+});
+
+test('the next occurrence does not inherit the reactions of the published one', function () {
+    $post = recurringPost($this->channel, $this->user, [
+        'scheduled_at' => now()->subMinute(),
+        'recurrence_interval' => 1,
+        'recurrence_frequency' => RecurrenceFrequency::Day,
+        'recurrence_remaining' => 2,
+    ]);
+    $post->postPlatforms()->sole()->update(['meta' => ['visibility' => 'PUBLIC', 'reactions' => [['type' => '👍', 'count' => 3]]]]);
+
+    publishRecurringPost($post);
+
+    expect(nextOccurrence($post)->postPlatforms->sole()->meta)->toEqual(['visibility' => 'PUBLIC']);
+});
+
+test('an author who left the workspace hands the next occurrence to the workspace owner', function () {
+    $author = workspaceMember($this->workspace);
+    $post = recurringPost($this->channel, $author, [
+        'scheduled_at' => now()->subMinute(),
+        'recurrence_interval' => 1,
+        'recurrence_frequency' => RecurrenceFrequency::Day,
+        'recurrence_remaining' => 2,
+    ]);
+    $this->workspace->members()->detach($author->id);
+
+    publishRecurringPost($post);
+
+    expect(nextOccurrence($post)->user_id)->toBe($this->user->id);
 });

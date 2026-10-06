@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { router, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
-import { toast } from 'vue-sonner';
+import { computed, ref, watch } from 'vue';
 
 import ConnectChannelFlow from '@/components/channels/ConnectChannelFlow.vue';
 import PostingGoalFlow from '@/components/channels/PostingGoalFlow.vue';
@@ -20,7 +19,6 @@ import {
     useConnectChannelDialog,
     type ConnectChannelStep,
 } from '@/composables/useConnectChannelDialog';
-import { useOAuthPopup } from '@/composables/useOAuthPopup';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import { settings as channelSettings } from '@/routes/app/channels';
 import { Platform } from '@/types/platform';
@@ -76,12 +74,15 @@ interface ConnectResult {
     created: boolean;
 }
 
-const handleConnected = (result: ConnectResult): void => {
-    router.reload();
-
-    if (result.created && result.accountId) {
+const openGoalForNewChannel = (result: ConnectResult | undefined): void => {
+    if (result?.created && result.accountId) {
         openGoal(result.accountId);
     }
+};
+
+const handleConnected = (result: ConnectResult): void => {
+    router.reload();
+    openGoalForNewChannel(result);
 };
 
 const handleFlowConnected = (result: ConnectResult): void => {
@@ -92,14 +93,13 @@ const handleFlowConnected = (result: ConnectResult): void => {
     }
 };
 
-useOAuthPopup((result) => {
-    if (!result.success) {
-        toast.error(result.message);
-        return;
-    }
+const connectedChannel = computed(
+    () =>
+        (page.flash as { connectedChannel?: ConnectResult } | undefined)
+            ?.connectedChannel,
+);
 
-    handleConnected(result);
-});
+watch(connectedChannel, openGoalForNewChannel, { immediate: true });
 
 const customize = (accountId: string): void => {
     close();

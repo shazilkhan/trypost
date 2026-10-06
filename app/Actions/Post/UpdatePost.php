@@ -90,6 +90,10 @@ class UpdatePost
         }
 
         return MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($workspace, $post, $data, $actor): array {
+            if (self::finalizedMeanwhile($post)) {
+                return ['post' => $post, 'action' => PostAction::Finalized];
+            }
+
             $occurrence = $post->currentOccurrence();
             $previousStatus = $post->status;
             $scheduledAt = $post->scheduled_at;
@@ -138,10 +142,10 @@ class UpdatePost
                         $postPlatform = $post->postPlatforms()->where('id', data_get($platformData, 'id'))->first();
 
                         if ($postPlatform) {
-                            $updateData['meta'] = PostPlatformMetaRules::normalize(array_filter(
+                            $updateData['meta'] = PostPlatformMetaRules::forStorage($postPlatform->meta ?? [], PostPlatformMetaRules::normalize(array_filter(
                                 array_merge($postPlatform->meta ?? [], data_get($platformData, 'meta') ?? []),
                                 fn (mixed $value): bool => $value !== null,
-                            ));
+                            )));
                         }
                     }
 
@@ -211,6 +215,10 @@ class UpdatePost
         $previousStatus = $post->status;
         $keepsPending = $previousStatus === PostStatus::PendingApproval && ! array_key_exists('status', $data);
         $status = $keepsPending ? PostStatus::Draft->value : (string) data_get($data, 'status', $previousStatus->value);
+
+        if ($position === null && $channel?->hasPostingSchedule() && self::keepsQueuedTime($post, $data, $status)) {
+            $position = QueuePosition::Next;
+        }
         $pending = $keepsPending || PostApproval::isRequired($workspace, $actor, $status);
         $keepsQueueSlot = $position === QueuePosition::Next
             && $post->schedule_mode === ScheduleMode::Queue
@@ -269,7 +277,11 @@ class UpdatePost
             ]],
         ], $post->media ?? []);
 
-        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $meta, $scheduledAt, $mode, $position, $pending, $approvesHolder, $previousStatus, $storedStatus, $actor): array {
+        $write = fn (): array => MediaCopyBatch::run(function (MediaCopyBatch $batch) use ($post, $target, $channel, $data, $resolved, $scheduledAt, $mode, $position, $pending, $approvesHolder, $previousStatus, $storedStatus, $actor): array {
+            if (self::finalizedMeanwhile($post)) {
+                return ['post' => $post, 'action' => PostAction::Finalized];
+            }
+
             $slotLost = $approvesHolder && ! ReflowChannelQueue::isFreeSlot($channel->refresh(), $post->scheduled_at, $post->id);
             $position = $slotLost ? QueuePosition::Next : $position;
             $destination = $resolved['destinations'][0];
@@ -283,7 +295,7 @@ class UpdatePost
             ]);
             $target->update([
                 'content_type' => $destination['content_type'],
-                'meta' => $meta,
+                'meta' => PostPlatformMetaRules::forStorage($target->meta ?? [], $destination['meta']),
             ]);
             SyncOwnedMedia::execute($post, $destination['media'], $batch);
 
@@ -301,6 +313,41 @@ class UpdatePost
         return ($position === null && ! $approvesHolder) || $pending
             ? $write()
             : ReflowChannelQueue::withLock([$target->social_account_id], $write);
+    }
+
+    /**
+     * A partial edit (API, MCP, media attach) of a queued post that names neither a
+     * queue position nor a time keeps it in the queue, as the composer does by
+     * re-sending `next`, so a request to approve it still holds its slot.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private static function keepsQueuedTime(Post $post, array $data, string $status): bool
+    {
+        return $status === PostStatus::Scheduled->value
+            && $post->schedule_mode === ScheduleMode::Queue
+            && in_array($post->status, [PostStatus::Scheduled, PostStatus::PendingApproval], true)
+            && $post->scheduled_at?->isFuture() === true
+            && ! array_key_exists('queue', $data)
+            && blank(data_get($data, 'scheduled_at'))
+            && blank(data_get($data, 'queue_slot'));
+    }
+
+    /**
+     * Re-reads the post under a row lock inside the write transaction, so a post the
+     * scheduler claimed or another request settled after it was loaded is left alone.
+     */
+    private static function finalizedMeanwhile(Post $post): bool
+    {
+        $locked = Post::query()->whereKey($post->id)->lockForUpdate()->firstOrFail();
+
+        if (! PostStatusRules::blocksEditing($locked)) {
+            return false;
+        }
+
+        $post->setRawAttributes($locked->getAttributes(), true);
+
+        return true;
     }
 
     /**

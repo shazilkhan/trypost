@@ -148,13 +148,15 @@ class DeleteChannelPosts
     }
 
     /**
+     * Deletes the images once the caller's transaction commits, so a rolled
+     * back disconnect keeps them.
+     *
      * @param  Builder<PostPlatform>  $targets
      */
     private static function pruneGoogleBusinessImages(Builder $targets): void
     {
-        $targets
-            ->where('platform', Platform::GoogleBusiness)
-            ->pluck('id')
-            ->each(fn (string $id) => app(GoogleBusinessDerivativeCleaner::class)->cleanup($id));
+        $ids = $targets->where('platform', Platform::GoogleBusiness)->pluck('id');
+
+        DB::afterCommit(fn () => $ids->each(fn (string $id) => app(GoogleBusinessDerivativeCleaner::class)->cleanup($id)));
     }
 }

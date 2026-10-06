@@ -1,3 +1,4 @@
+import { uuid } from '@/lib/uuid';
 import type { MediaItem } from '@/types/media';
 
 /**
@@ -12,7 +13,7 @@ export type ThreadReply = {
 };
 
 export const newThreadReply = (): ThreadReply => ({
-    key: crypto.randomUUID(),
+    key: uuid(),
     text: '',
     media: [],
 });

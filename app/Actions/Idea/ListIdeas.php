@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class ListIdeas
 {
+    public const BOARD_PAGE_SIZE = 10;
+
     /**
      * The gallery list: label and stage filters, newest first.
      *
@@ -24,14 +26,15 @@ class ListIdeas
     }
 
     /**
-     * The board list: label filter only (every stage is a column), by position.
+     * One board column: label filter only (every stage is a column), by position.
      *
      * @param  array<string, mixed>  $filters
      * @return Builder<Idea>
      */
-    public static function board(Workspace $workspace, array $filters = []): Builder
+    public static function column(Workspace $workspace, ?string $stageId, array $filters = []): Builder
     {
         return self::filtered($workspace, $filters)
+            ->where('idea_stage_id', $stageId)
             ->orderBy('position')
             ->orderBy('created_at')
             ->orderBy('id');

@@ -7,8 +7,11 @@ namespace App\Http\Controllers\App;
 use App\Actions\Ai\GenerateMediaAltText;
 use App\Actions\Media\ResolveWorkspaceMedia;
 use App\Http\Requests\App\Ai\GenerateMediaAltTextRequest;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Gate;
+use Laravel\Ai\Exceptions\AiException;
 use Symfony\Component\HttpFoundation\Response;
 
 class MediaAltTextController extends Controller
@@ -28,8 +31,12 @@ class MediaAltTextController extends Controller
             return response()->json(['message' => $gate->message()], Response::HTTP_PAYMENT_REQUIRED);
         }
 
-        return response()->json([
-            'alt_text' => GenerateMediaAltText::execute($request->user(), $asset),
-        ]);
+        try {
+            $altText = GenerateMediaAltText::execute($request->user(), $asset);
+        } catch (AiException|RequestException|ConnectionException) {
+            return response()->json(['message' => __('posts.composer.media_editor.alt_generate_error')], Response::HTTP_BAD_GATEWAY);
+        }
+
+        return response()->json(['alt_text' => $altText]);
     }
 }

@@ -34,7 +34,7 @@ class ListWebhookLogsTool extends Tool
         }
 
         $validated = $request->validate([
-            'webhook_id' => ['required', 'string'],
+            'webhook_id' => ['required', 'string', 'uuid'],
             'page' => ['sometimes', 'integer', 'min:1'],
         ]);
 

@@ -91,11 +91,15 @@ class IdeaController extends Controller
 
     public function move(MoveIdeaRequest $request, Idea $idea): RedirectResponse
     {
-        MoveIdea::execute(
-            $idea,
-            data_get($request->validated(), 'idea_stage_id'),
-            data_get($request->validated(), 'idea_ids'),
-        );
+        $stageId = data_get($request->validated(), 'idea_stage_id');
+
+        if ($request->placesAfterIdea()) {
+            MoveIdea::after($idea, $stageId, data_get($request->validated(), 'after_idea_id'));
+
+            return back();
+        }
+
+        MoveIdea::execute($idea, $stageId, data_get($request->validated(), 'idea_ids'));
 
         return back();
     }

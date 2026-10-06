@@ -22,7 +22,6 @@ export interface ComposerAccount {
     has_posting_schedule?: boolean;
     timezone?: string;
     posting_schedule?: PostingSchedule | null;
-    taken_slots?: string[];
 }
 
 export interface DestinationDraft {

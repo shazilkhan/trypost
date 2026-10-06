@@ -4,18 +4,20 @@ declare(strict_types=1);
 
 use App\Enums\SocialAccount\Platform;
 use App\Enums\SocialAccount\Status;
+use App\Enums\User\Locale;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Http;
-use Inertia\Testing\AssertableInertia;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
     $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->workspace->members()->attach($this->user->id, membershipPivot('member'));
+
+    fakePublicDns();
 });
 
 test('mastodon connect page can be rendered', function () {
@@ -64,12 +66,12 @@ test('user cannot connect to invalid mastodon instance', function () {
 
 test('mastodon oauth callback creates account', function () {
     // Setup session as if OAuth flow was initiated
+    startSocialConnect($this->workspace->id, Platform::Mastodon);
     session([
         'mastodon_instance' => 'https://mastodon.social',
         'mastodon_client_id' => 'test-client-id',
         'mastodon_client_secret' => 'test-client-secret',
         'mastodon_oauth_state' => 'test-state',
-        'social_connect_workspace' => $this->workspace->id,
     ]);
 
     Http::fake([
@@ -93,9 +95,9 @@ test('mastodon oauth callback creates account', function () {
         'state' => 'test-state',
     ]));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->component('accounts/PopupCallback'));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Mastodon));
+
+    finishSocialConnect(Platform::Mastodon)->assertRedirect();
 
     $this->assertDatabaseHas('social_accounts', [
         'workspace_id' => $this->workspace->id,
@@ -110,12 +112,12 @@ test('mastodon oauth callback creates account', function () {
 });
 
 test('mastodon callback fails with invalid state', function () {
+    startSocialConnect($this->workspace->id, Platform::Mastodon);
     session([
         'mastodon_instance' => 'https://mastodon.social',
         'mastodon_client_id' => 'test-client-id',
         'mastodon_client_secret' => 'test-client-secret',
         'mastodon_oauth_state' => 'correct-state',
-        'social_connect_workspace' => $this->workspace->id,
     ]);
 
     $response = $this->actingAs($this->user)->get(route('app.social.mastodon.callback', [
@@ -123,8 +125,7 @@ test('mastodon callback fails with invalid state', function () {
         'state' => 'wrong-state',
     ]));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Mastodon));
 
     $this->assertDatabaseMissing('social_accounts', [
         'workspace_id' => $this->workspace->id,
@@ -140,9 +141,9 @@ test('mastodon callback fails with expired session', function () {
         'state' => 'test-state',
     ]));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', false));
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('message', 'Session expired. Please try again.'));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Mastodon));
+
+    expect(socialConnectFailure())->toBeNull();
 });
 
 test('user can connect multiple mastodon accounts', function () {
@@ -152,12 +153,12 @@ test('user can connect multiple mastodon accounts', function () {
         'platform_user_id' => '123456789',
     ]);
 
+    startSocialConnect($this->workspace->id, Platform::Mastodon);
     session([
         'mastodon_instance' => 'https://mastodon.social',
         'mastodon_client_id' => 'test-client-id',
         'mastodon_client_secret' => 'test-client-secret',
         'mastodon_oauth_state' => 'test-state',
-        'social_connect_workspace' => $this->workspace->id,
     ]);
 
     Http::fake([
@@ -178,8 +179,8 @@ test('user can connect multiple mastodon accounts', function () {
         'state' => 'test-state',
     ]));
 
-    $response->assertOk();
-    $response->assertInertia(fn (AssertableInertia $page) => $page->where('success', true));
+    $response->assertRedirect(route('app.social.connect.show', Platform::Mastodon));
+    finishSocialConnect(Platform::Mastodon)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->where('platform', Platform::Mastodon)->count())->toBe(2);
 });
@@ -223,13 +224,12 @@ test('mastodon callback reconnects the original card', function () {
         'status' => Status::TokenExpired,
     ]);
 
+    startSocialConnect($this->workspace->id, Platform::Mastodon, $account->id);
     session([
         'mastodon_instance' => 'https://mastodon.social',
         'mastodon_client_id' => 'test-client-id',
         'mastodon_client_secret' => 'test-client-secret',
         'mastodon_oauth_state' => 'test-state',
-        'social_connect_workspace' => $this->workspace->id,
-        'social_reconnect_id' => $account->id,
     ]);
 
     Http::fake([
@@ -250,11 +250,9 @@ test('mastodon callback reconnects the original card', function () {
 
     $this->actingAs($this->user)
         ->get(route('app.social.mastodon.callback', ['code' => 'test-auth-code', 'state' => 'test-state']))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('success', true)
-            ->where('message', null)
-        );
+        ->assertRedirect(route('app.social.connect.show', Platform::Mastodon));
+
+    finishSocialConnect(Platform::Mastodon)->assertRedirect();
 
     expect($this->workspace->socialAccounts()->count())->toBe(1)
         ->and($account->fresh()->access_token)->toBe('fresh-access-token')
@@ -270,13 +268,12 @@ test('mastodon reconnect that authorizes another account says so instead of conn
         'username' => 'old',
     ]);
 
+    startSocialConnect($this->workspace->id, Platform::Mastodon, $account->id);
     session([
         'mastodon_instance' => 'https://mastodon.social',
         'mastodon_client_id' => 'test-client-id',
         'mastodon_client_secret' => 'test-client-secret',
         'mastodon_oauth_state' => 'test-state',
-        'social_connect_workspace' => $this->workspace->id,
-        'social_reconnect_id' => $account->id,
     ]);
 
     Http::fake([
@@ -297,12 +294,70 @@ test('mastodon reconnect that authorizes another account says so instead of conn
 
     $this->actingAs($this->user)
         ->get(route('app.social.mastodon.callback', ['code' => 'test-auth-code', 'state' => 'test-state']))
-        ->assertOk()
-        ->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('success', false)
-            ->where('message', __('accounts.popup_callback.wrong_account'))
-        );
+        ->assertRedirect(route('app.social.connect.show', Platform::Mastodon));
+
+    expect(socialConnectFailure())->toBe('wrong_account');
 
     expect($this->workspace->socialAccounts()->count())->toBe(1)
         ->and($account->fresh()->platform_user_id)->toBe('123456789');
+});
+
+test('mastodon refuses an instance on a private network without calling it', function (string $instance) {
+    Http::fake(['*' => Http::response(['client_id' => 'leaked-id', 'client_secret' => 'leaked-secret'])]);
+
+    $this->actingAs($this->user)
+        ->post(route('app.social.mastodon.authorize'), ['instance' => $instance])
+        ->assertRedirect()
+        ->assertSessionHasErrors('instance');
+
+    Http::assertNothingSent();
+    expect(session()->has('mastodon_client_secret'))->toBeFalse();
+})->with([
+    'loopback' => 'http://127.0.0.1:8080',
+    'cloud metadata' => 'http://169.254.169.254',
+    'private range' => 'https://10.0.0.5',
+]);
+
+test('mastodon refuses an instance whose host resolves to a private address', function () {
+    fakePublicDns('10.0.0.7');
+    Http::fake(['*' => Http::response(['client_id' => 'leaked-id', 'client_secret' => 'leaked-secret'])]);
+
+    $this->actingAs($this->user)
+        ->post(route('app.social.mastodon.authorize'), ['instance' => 'https://intranet.example'])
+        ->assertRedirect()
+        ->assertSessionHasErrors('instance');
+
+    Http::assertNothingSent();
+});
+
+test('mastodon connects an internal instance when the install allows private networks', function () {
+    config()->set('trypost.security.allow_private_network', true);
+
+    Http::fake([
+        'https://10.0.0.5/api/v1/apps' => Http::response([
+            'client_id' => 'internal-client-id',
+            'client_secret' => 'internal-client-secret',
+        ]),
+    ]);
+
+    $response = $this->actingAs($this->user)
+        ->post(route('app.social.mastodon.authorize'), ['instance' => 'https://10.0.0.5']);
+
+    expect($response->headers->get('Location'))->toStartWith('https://10.0.0.5/oauth/authorize');
+});
+
+test('mastodon connect errors are shown in the user language', function () {
+    $this->user->update(['locale' => Locale::PortugueseBrazil]);
+    fakePublicDns();
+    Http::fake(['https://mastodon.example/api/v1/apps' => Http::response([], 500)]);
+
+    $this->actingAs($this->user)
+        ->post(route('app.social.mastodon.authorize'), ['instance' => 'https://mastodon.example'])
+        ->assertSessionHasErrors(['instance' => 'Não foi possível conectar a esta instância do Mastodon.']);
+
+    Http::fake(['https://mastodon.example/api/v1/apps' => fn () => throw new RuntimeException('boom')]);
+
+    $this->actingAs($this->user)
+        ->post(route('app.social.mastodon.authorize'), ['instance' => 'https://mastodon.example'])
+        ->assertSessionHasErrors(['instance' => 'Erro ao conectar à instância do Mastodon.']);
 });

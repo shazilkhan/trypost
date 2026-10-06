@@ -234,3 +234,23 @@ test('the disconnect dialog shows the keyword with a copy button, like the other
     expect($page->script('window.__copied'))->toBe($keyword);
     $page->assertNoJavaScriptErrors();
 });
+
+test('the disconnect keyword still confirms with spaces around it', function () {
+    $user = channelsSettingsAdmin();
+    $channel = SocialAccount::factory()->linkedin()->create(['workspace_id' => $user->current_workspace_id]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.workspace.channels'));
+    waitForChannelsSettingsTestId($page, "channel-row-{$channel->id}");
+
+    $page->click("@channel-menu-{$channel->id}");
+    waitForChannelsSettingsTestId($page, "channel-disconnect-{$channel->id}");
+
+    $page->click("@channel-disconnect-{$channel->id}")
+        ->fill('@confirm-delete-input', '  '.__('channels.disconnect_modal.keyword').'  ')
+        ->click('@confirm-delete-action')
+        ->assertMissing('@confirm-delete-modal')
+        ->assertNoJavaScriptErrors();
+
+    expect(SocialAccount::find($channel->id))->toBeNull();
+});

@@ -15,8 +15,10 @@ import type { PostNote } from '@/types/post-note';
 
 interface PaginatedResponse {
     data: PostNote[];
-    current_page: number;
-    last_page: number;
+    meta: {
+        current_page: number;
+        last_page: number;
+    };
 }
 
 const props = defineProps<{
@@ -80,8 +82,8 @@ const loadNotes = async (page = 1) => {
 
         const data: PaginatedResponse = await response.json();
         const chronological = [...data.data].reverse();
-        currentPage.value = data.current_page;
-        lastPage.value = data.last_page;
+        currentPage.value = data.meta.current_page;
+        lastPage.value = data.meta.last_page;
 
         if (page === 1) {
             notes.value = chronological;

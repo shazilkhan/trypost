@@ -58,6 +58,8 @@ return [
     'cancel' => 'Annuleren',
     'clear' => 'Wissen',
     'close' => 'Sluiten',
+    'more' => 'Meer',
+    'play' => 'Afspelen',
     'loading' => 'Laden...',
     'loading_more' => 'Meer laden...',
 

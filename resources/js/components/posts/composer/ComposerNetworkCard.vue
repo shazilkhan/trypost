@@ -21,6 +21,8 @@ const props = withDefaults(
         contentType?: string;
         hasMedia?: boolean;
         captionCollapsed?: boolean;
+        /** Index of the reply being edited; its toolbar slot receives the card toolbar. */
+        activeReply?: number;
         /** Shift+Enter in the caption opens the first post of a thread. */
         threadable?: boolean;
         /** A thread follows the caption, so it sizes to its text instead of filling the card. */
@@ -34,6 +36,7 @@ const props = withDefaults(
         contentType: '',
         hasMedia: false,
         captionCollapsed: false,
+        activeReply: -1,
         threadable: false,
         threaded: false,
         disabled: false,
@@ -126,7 +129,9 @@ const slots = useSlots();
 const captionId = computed(() => `${props.testIdPrefix}-caption`);
 const hintId = computed(() => `${props.testIdPrefix}-templates-hint`);
 const rootToolbarTarget = computed(() => `${props.testIdPrefix}-root-toolbar`);
-const replyToolbarTarget = computed(() => `${props.testIdPrefix}-reply-toolbar`);
+const replyToolbarTarget = computed(
+    () => `${props.testIdPrefix}-reply-toolbar-${props.activeReply}`,
+);
 const showsCaption = computed(
     () => !CAPTIONLESS_CONTENT_TYPES.has(props.contentType),
 );
@@ -155,7 +160,7 @@ const showsHeader = computed(
         <div class="flex min-w-0 flex-1 flex-col gap-4">
             <div
                 v-if="platform && showsHeader"
-                class="sticky top-0 z-10 flex min-h-6 flex-wrap items-center gap-3 bg-card shadow-[0_-1rem_0_var(--color-card),-2.25rem_0_0_var(--color-card),-2.25rem_-1rem_0_var(--color-card)] rtl:shadow-[0_-1rem_0_var(--color-card),2.25rem_0_0_var(--color-card),2.25rem_-1rem_0_var(--color-card)]"
+                class="sticky top-0 z-10 flex min-h-6 flex-wrap items-center gap-3 bg-card shadow-[0_-0.75rem_0_var(--color-card),-2.25rem_0_0_var(--color-card),-2.25rem_-0.75rem_0_var(--color-card)] rtl:shadow-[0_-0.75rem_0_var(--color-card),2.25rem_0_0_var(--color-card),2.25rem_-0.75rem_0_var(--color-card)]"
                 :data-testid="`${testIdPrefix}-header`"
             >
                 <ContentTypeRadioGroup

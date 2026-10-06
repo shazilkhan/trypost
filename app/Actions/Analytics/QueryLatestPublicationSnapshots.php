@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\DB;
 
 class QueryLatestPublicationSnapshots
 {
-    /** @param  list<string>|null  $accountKeys  Analytics account keys to scope to; null means every account. */
+    /**
+     * @param  list<string>|null  $accountKeys  Analytics account keys to scope to; null means every account.
+     * @param  CarbonImmutable|null  $start  First instant of the window, inclusive.
+     * @param  CarbonImmutable|null  $end  Last instant of the window, inclusive.
+     */
     public function execute(string $workspaceId, ?array $accountKeys = null, ?CarbonImmutable $start = null, ?CarbonImmutable $end = null): Builder
     {
         $latest = $this->scope(DB::table('analytics_publication_daily_snapshots as daily')
@@ -35,7 +39,7 @@ class QueryLatestPublicationSnapshots
             ->where("{$alias}.workspace_id", $workspaceId)
             ->whereIn("{$alias}.platform", Platform::analyticsValues())
             ->when($start !== null && $end !== null, fn (Builder $scoped): Builder => $scoped
-                ->whereBetween("{$alias}.provider_published_at", [$start->startOfDay(), $end->endOfDay()]))
+                ->whereBetween("{$alias}.provider_published_at", [$start->utc(), $end->utc()]))
             ->when($accountKeys !== null, fn (Builder $scoped): Builder => $scoped->whereIn("{$alias}.social_account_key", $accountKeys));
     }
 }

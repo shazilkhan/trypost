@@ -14,6 +14,7 @@ use App\Support\Analytics\MetaAnalyticsResponse;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 abstract class AbstractMetaPublicationCollector extends AbstractPublicationHistoryCollector
 {
@@ -61,7 +62,11 @@ abstract class AbstractMetaPublicationCollector extends AbstractPublicationHisto
             return null;
         }
 
-        return CarbonImmutable::parse($value)->utc();
+        try {
+            return CarbonImmutable::parse($value)->utc();
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /** @return array<string, string>|null */

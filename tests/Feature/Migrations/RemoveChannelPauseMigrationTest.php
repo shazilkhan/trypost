@@ -35,6 +35,10 @@ afterEach(function () {
     $userIds = (clone $workspaces)->pluck('user_id')->all();
     $accountIds = (clone $workspaces)->pluck('account_id')->all();
 
+    $postIds = DB::table('posts')->whereIn('workspace_id', $this->seeded['workspaces'])->pluck('id')->all();
+    DB::table('post_platforms')->whereIn('post_id', $postIds)->delete();
+    DB::table('posts')->whereIn('id', $postIds)->delete();
+
     foreach (['post_platforms', 'posts', 'social_accounts', 'workspaces'] as $table) {
         DB::table($table)->whereIn('id', $this->seeded[$table])->delete();
     }
@@ -93,6 +97,72 @@ test('turns scheduled posts on paused channels into drafts and drops the column'
         ->and($pausedPublishing->fresh()->status)->toBe(PostStatus::Publishing)
         ->and($pausedPublished->fresh()->status)->toBe(PostStatus::Published)
         ->and($pausedDisabled->fresh()->status)->toBe(PostStatus::Scheduled);
+});
+
+test('keeps a post with active and paused channels scheduled and only disables the paused targets', function () {
+    $workspace = Workspace::factory()->create();
+    $this->seeded['workspaces'][] = $workspace->id;
+    $scheduledAt = now()->addDay()->startOfSecond();
+
+    $x = SocialAccount::factory()->x()->create(['workspace_id' => $workspace->id]);
+    $mastodon = SocialAccount::factory()->mastodon()->create(['workspace_id' => $workspace->id]);
+    $paused = SocialAccount::factory()->linkedin()->create(['workspace_id' => $workspace->id]);
+    $this->seeded['social_accounts'] = [$x->id, $mastodon->id, $paused->id];
+    DB::table('social_accounts')->where('id', $paused->id)->update(['is_active' => false]);
+
+    $post = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $workspace->user_id,
+        'status' => PostStatus::Scheduled,
+        'scheduled_at' => $scheduledAt,
+    ]);
+    $targets = collect([$x, $mastodon, $paused])->mapWithKeys(fn (SocialAccount $account): array => [
+        $account->id => PostPlatform::factory()->create([
+            'post_id' => $post->id,
+            'social_account_id' => $account->id,
+            'platform' => $account->platform,
+            'enabled' => true,
+        ]),
+    ]);
+
+    $pausedOnly = Post::factory()->create([
+        'workspace_id' => $workspace->id,
+        'user_id' => $workspace->user_id,
+        'status' => PostStatus::Scheduled,
+        'scheduled_at' => $scheduledAt,
+    ]);
+    $pausedOnlyTarget = PostPlatform::factory()->create([
+        'post_id' => $pausedOnly->id,
+        'social_account_id' => $paused->id,
+        'platform' => $paused->platform,
+        'enabled' => true,
+    ]);
+
+    ($this->dropPostingSchedule)();
+    $this->migration->up();
+
+    expect($post->fresh()->status)->toBe(PostStatus::Scheduled)
+        ->and($post->fresh()->scheduled_at->equalTo($scheduledAt))->toBeTrue()
+        ->and($targets[$x->id]->fresh()->enabled)->toBeTrue()
+        ->and($targets[$mastodon->id]->fresh()->enabled)->toBeTrue()
+        ->and($targets[$paused->id]->fresh()->enabled)->toBeFalse()
+        ->and($pausedOnly->fresh()->status)->toBe(PostStatus::Draft)
+        ->and($pausedOnlyTarget->fresh()->enabled)->toBeTrue();
+
+    $this->artisan('posts:split-legacy-active')->assertSuccessful();
+
+    $channelPosts = Post::query()
+        ->where('workspace_id', $workspace->id)
+        ->whereKeyNot($pausedOnly->id)
+        ->with('postPlatforms')
+        ->get();
+    $enabledTargets = $channelPosts->flatMap(fn (Post $channelPost) => $channelPost->postPlatforms->where('enabled', true));
+
+    expect($channelPosts)->toHaveCount(2)
+        ->and($channelPosts->every(fn (Post $channelPost): bool => $channelPost->status === PostStatus::Scheduled
+            && $channelPost->scheduled_at->equalTo($scheduledAt)))->toBeTrue()
+        ->and($enabledTargets->pluck('social_account_id')->sort()->values()->all())
+        ->toEqual(collect([$x->id, $mastodon->id])->sort()->values()->all());
 });
 
 test('down restores is_active and drops the posting schedule columns', function () {

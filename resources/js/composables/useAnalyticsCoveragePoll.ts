@@ -1,7 +1,9 @@
 import { router, usePoll } from '@inertiajs/vue3';
-import { computed, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 
 import type { CoverageRow } from '@/types/analytics';
+
+const IDLE_POLL_WINDOW_MS = 2 * 60 * 1000;
 
 type CoverageState = 'off' | 'import' | 'idle';
 
@@ -35,13 +37,23 @@ export const useAnalyticsCoveragePoll = (
     );
     const idlePoll = usePoll(15000, { only: ['report'] }, { autoStart: false });
 
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const clearIdleTimer = (): void => {
+        clearTimeout(idleTimer);
+        idleTimer = undefined;
+    };
+
     const sync = (current: CoverageState): void => {
+        clearIdleTimer();
+
         if (current === 'import') {
             idlePoll.stop();
             importPoll.start();
         } else if (current === 'idle') {
             importPoll.stop();
             idlePoll.start();
+            idleTimer = setTimeout(idlePoll.stop, IDLE_POLL_WINDOW_MS);
         } else {
             importPoll.stop();
             idlePoll.stop();
@@ -50,6 +62,7 @@ export const useAnalyticsCoveragePoll = (
 
     onMounted(() => sync(state.value));
     watch(state, sync);
+    onBeforeUnmount(clearIdleTimer);
 
     if (!refresh) {
         return;

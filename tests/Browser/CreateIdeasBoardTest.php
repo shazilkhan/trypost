@@ -872,3 +872,46 @@ test('on a phone the create tabs and the board toolbar share one header row', fu
     JS))->toBe(['sameRow' => true, 'overflow' => 0]);
     $page->assertNoJavaScriptErrors();
 });
+
+test('scrolling a column loads its next ten ideas and the count comes from the database', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    $ideas = collect(range(0, 14))->map(fn (int $position): Idea => createIdeasBoardIdea($workspace, $user, $stages['todo'], $position, "Idea {$position}"));
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'));
+    $column = $stages['todo']->id;
+    waitForCreateIdeasBoardTestId($page, "idea-card-{$ideas[9]->id}");
+
+    expect(createIdeasBoardCardSlots($page, $column))->toBe($ideas->take(10)->pluck('id')->all());
+    $page->assertSeeIn("@idea-column-count-{$column}", '15');
+
+    $page->script("document.querySelector('[data-testid=\"idea-column-scroll-{$column}\"]').scrollTop = 100000");
+    waitForCreateIdeasBoardCondition($page, "document.querySelectorAll('[data-testid=\"idea-column-list-{$column}\"] [data-sortable-idea]').length === 15");
+
+    expect(createIdeasBoardCardSlots($page, $column))->toBe($ideas->pluck('id')->all());
+    $page->assertSeeIn("@idea-column-count-{$column}", '15')
+        ->assertNoJavaScriptErrors();
+});
+
+test('dragging a card into a partly loaded column keeps the unloaded ideas in order', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    $done = collect(range(0, 11))->map(fn (int $position): Idea => createIdeasBoardIdea($workspace, $user, $stages['done'], $position, "Done {$position}"));
+    $moving = createIdeasBoardIdea($workspace, $user, $stages['todo'], 0, 'Moving');
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'));
+    waitForCreateIdeasBoardTestId($page, "idea-card-{$done[1]->id}");
+    $page->drag("@idea-card-{$moving->id}", "@idea-card-{$done[1]->id}");
+    waitForCreateIdeasBoardDatabase($page, fn (): bool => $moving->refresh()->idea_stage_id === $stages['done']->id);
+
+    $order = Idea::where('idea_stage_id', $stages['done']->id)->orderBy('position')->get(['id', 'position']);
+    $shown = createIdeasBoardCardSlots($page, $stages['done']->id);
+
+    expect($order->pluck('position')->all())->toBe(range(0, 12))
+        ->and($order->pluck('id')->reject(fn (string $id): bool => $id === $moving->id)->values()->all())->toBe($done->pluck('id')->all())
+        ->and(array_slice($order->pluck('id')->all(), 0, count($shown)))->toBe($shown)
+        ->and($shown)->toContain($moving->id);
+    waitForCreateIdeasBoardCondition($page, "document.querySelector('[data-testid=\"idea-column-count-{$stages['done']->id}\"]').textContent.trim() === '13'");
+    $page->assertSeeIn("@idea-column-count-{$stages['done']->id}", '13')
+        ->assertNoJavaScriptErrors();
+});

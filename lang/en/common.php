@@ -58,6 +58,8 @@ return [
     'cancel' => 'Cancel',
     'clear' => 'Clear',
     'close' => 'Close',
+    'more' => 'More',
+    'play' => 'Play',
     'loading' => 'Loading...',
     'loading_more' => 'Loading more...',
 

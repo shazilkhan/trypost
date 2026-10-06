@@ -15,6 +15,8 @@ use App\Models\AnalyticsSyncState;
 use App\Models\SocialAccount;
 use App\Services\Analytics\Collectors\Publications\PublicationHistoryCollectorFactory;
 use App\Support\Analytics\AnalyticsJobLog;
+use App\Support\Analytics\AnalyticsRateLimits;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\RateLimited;
@@ -51,11 +53,10 @@ abstract class AbstractPublicationSync implements ShouldQueue
         ];
     }
 
-    public function providerRateLimitKey(): string
+    /** @return list<Limit> */
+    public function analyticsRateLimits(): array
     {
-        $account = SocialAccount::query()->find($this->socialAccountId);
-
-        return $account ? $account->platform->network() : 'missing';
+        return AnalyticsRateLimits::for(SocialAccount::query()->find($this->socialAccountId));
     }
 
     /** @return list<int> */

@@ -6,6 +6,7 @@ namespace App\Actions\SocialAccount;
 
 use App\Actions\Post\Queue\ReflowChannelQueue;
 use App\Models\SocialAccount;
+use Illuminate\Support\Facades\DB;
 
 class RegeneratePostingSchedule
 {
@@ -17,13 +18,15 @@ class RegeneratePostingSchedule
     {
         $goal ??= $account->posting_goal ?? self::DEFAULT_GOAL;
 
-        $account->update([
-            'posting_goal' => $goal,
-            'posting_schedule' => $this->generate->handle($account->platform, $goal),
-        ]);
+        return ReflowChannelQueue::withLock([$account->id], fn (): SocialAccount => DB::transaction(function () use ($account, $goal): SocialAccount {
+            $account->update([
+                'posting_goal' => $goal,
+                'posting_schedule' => $this->generate->handle($account->platform, $goal),
+            ]);
 
-        ReflowChannelQueue::afterCommit($account->id);
+            ReflowChannelQueue::handleLocked($account);
 
-        return $account;
+            return $account;
+        }));
     }
 }

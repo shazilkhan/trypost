@@ -696,3 +696,45 @@ test('get post returns the network origin of an imported post', function () {
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json) => $json->where('origin', 'network')->etc());
 });
+
+test('the MCP edit tool edits a draft whose kept time has passed', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+        'status' => 'draft',
+        'scheduled_at' => now()->subDay(),
+    ]);
+    PostPlatform::factory()->linkedin()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->socialAccount->id,
+    ]);
+
+    TryPostServer::actingAs($this->user)->tool(UpdatePostTool::class, [
+        'post_id' => $post->id,
+        'content' => 'New text',
+    ])->assertOk()->assertHasNoErrors();
+
+    expect($post->fresh()->content)->toBe('New text');
+});
+
+test('a malformed account or destination id is a validation error, never a database error', function () {
+    $post = Post::factory()->draft()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id]);
+    $post->postPlatforms()->create([
+        'social_account_id' => $this->socialAccount->id,
+        'platform' => 'linkedin',
+        'content_type' => 'linkedin_post',
+        'enabled' => true,
+    ]);
+
+    TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, ['content' => 'Hello', 'platforms' => [['social_account_id' => 'not-a-uuid', 'content_type' => 'linkedin_post']]])
+        ->assertHasErrors(['must be a valid UUID'])
+        ->assertDontSee('SQLSTATE');
+
+    TryPostServer::actingAs($this->user)
+        ->tool(UpdatePostTool::class, ['post_id' => $post->id, 'platforms' => [['id' => 'not-a-uuid', 'content_type' => 'linkedin_post']]])
+        ->assertHasErrors(['must be a valid UUID'])
+        ->assertDontSee('SQLSTATE');
+
+    expect(Post::query()->count())->toBe(1);
+});

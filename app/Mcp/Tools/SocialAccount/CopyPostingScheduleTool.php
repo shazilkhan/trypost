@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\SocialAccount;
 
 use App\Actions\SocialAccount\CopyPostingSchedule;
+use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\ChannelPostingScheduleResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\SocialAccount;
@@ -41,7 +42,13 @@ class CopyPostingScheduleTool extends Tool
             return Response::error('Social account not found.');
         }
 
-        return Response::structured((new ChannelPostingScheduleResource($copy->handle($account, $source)))->resolve());
+        try {
+            $account = $copy->handle($account, $source);
+        } catch (QueueBusyException) {
+            return Response::error(__('posts.errors.queue_busy'));
+        }
+
+        return Response::structured((new ChannelPostingScheduleResource($account))->resolve());
     }
 
     public function schema(JsonSchema $schema): array

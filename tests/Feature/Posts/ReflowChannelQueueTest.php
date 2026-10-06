@@ -253,3 +253,14 @@ test('withLock releases earlier locks when a later one is busy', function () {
     $first->release();
     $busy->release();
 });
+
+test('the channel lock outlives a save that copies media for longer than a few seconds', function () {
+    $held = ReflowChannelQueue::withLock([$this->channel->id], function (): bool {
+        $this->travel(60)->seconds();
+
+        return ! Cache::lock("queue:{$this->channel->id}", 10)->get();
+    });
+
+    expect($held)->toBeTrue()
+        ->and(Cache::lock("queue:{$this->channel->id}", 10)->get())->toBeTrue();
+});

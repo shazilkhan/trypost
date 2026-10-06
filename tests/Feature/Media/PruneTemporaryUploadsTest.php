@@ -55,7 +55,7 @@ test('an upload past the retention is deleted with its file, a younger one and a
     $asset = Media::factory()->libraryAsset($this->workspace)->create(['created_at' => now()->subDays(3)]);
     Storage::put($asset->path, 'bytes');
 
-    expect(PruneTemporaryUploads::execute(now()))->toBe(['uploads' => 1, 'crops' => 0]);
+    expect(PruneTemporaryUploads::execute(now()))->toBe(['uploads' => 1, 'crops' => 0, 'chunks' => 0]);
 
     expect(Media::query()->find($expired->id))->toBeNull()
         ->and(Media::query()->whereKey([$fresh->id, $adopted->id, $asset->id])->count())->toBe(3);
@@ -93,7 +93,7 @@ test('crops older than seven days are deleted, younger crops and google business
     pruneUploadsCropFile($young, 6);
     pruneUploadsCropFile($derivative, 30);
 
-    expect(PruneTemporaryUploads::execute(now()))->toBe(['uploads' => 0, 'crops' => 1]);
+    expect(PruneTemporaryUploads::execute(now()))->toBe(['uploads' => 0, 'crops' => 1, 'chunks' => 0]);
 
     Storage::assertMissing($old);
     Storage::assertExists([$young, $derivative]);
@@ -104,7 +104,7 @@ test('a dry run counts without deleting anything', function () {
     $crop = InstagramPublisher::CROP_DIRECTORY.'/old.jpg';
     pruneUploadsCropFile($crop, 8);
 
-    expect(PruneTemporaryUploads::execute(now(), dryRun: true))->toBe(['uploads' => 1, 'crops' => 1]);
+    expect(PruneTemporaryUploads::execute(now(), dryRun: true))->toBe(['uploads' => 1, 'crops' => 1, 'chunks' => 0]);
 
     expect(Media::query()->find($expired->id))->not->toBeNull();
     Storage::assertExists([$expired->path, $crop]);
@@ -113,7 +113,7 @@ test('a dry run counts without deleting anything', function () {
 test('the command deletes through the queue after commit and prints the counts', function () {
     $expired = pruneUploadsStoredUpload($this->workspace, 30);
 
-    $this->artisan('media:prune-uploads')->expectsOutput('1 temporary upload(s) and 0 crop(s) deleted.')->assertExitCode(0);
+    $this->artisan('media:prune-uploads')->expectsOutput('1 temporary upload(s), 0 crop(s) and 0 abandoned chunk file(s) deleted.')->assertExitCode(0);
 
     expect(Media::query()->find($expired->id))->toBeNull();
     Storage::assertMissing($expired->path);
@@ -164,7 +164,7 @@ test('crop ages come from one directory listing, not a request per file', functi
     $spy->shouldNotReceive('lastModified');
     Storage::set(config('filesystems.default'), $spy);
 
-    expect(PruneTemporaryUploads::execute(now()))->toBe(['uploads' => 0, 'crops' => 3]);
+    expect(PruneTemporaryUploads::execute(now()))->toBe(['uploads' => 0, 'crops' => 3, 'chunks' => 0]);
 
     Storage::assertDirectoryEmpty($directory);
 });

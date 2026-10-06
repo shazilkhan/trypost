@@ -22,6 +22,7 @@ class XPublicationCollector extends AbstractPublicationHistoryCollector
             [
                 'max_results' => self::PAGE_SIZE,
                 'pagination_token' => $cursor,
+                'exclude' => 'retweets,replies',
                 'tweet.fields' => 'created_at,attachments,note_tweet',
                 'expansions' => 'attachments.media_keys',
                 'media.fields' => 'media_key,type,preview_image_url,url,variants',

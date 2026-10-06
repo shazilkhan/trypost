@@ -58,6 +58,8 @@ return [
     'cancel' => 'Annuler',
     'clear' => 'Effacer',
     'close' => 'Fermer',
+    'more' => 'Plus',
+    'play' => 'Lire',
     'loading' => 'Chargement...',
     'loading_more' => 'Chargement...',
 

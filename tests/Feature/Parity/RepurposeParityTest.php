@@ -220,9 +220,9 @@ test('a member who needs approval and a foreign workspace repurpose are refused 
     TryPostServer::actingAs($approval)->tool(GetRepurposeTool::class, ['repurpose_id' => $repurpose->id])->assertHasErrors(['This action is unauthorized.']);
 
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($this->token))->getJson(route('api.repurposes.show', $foreign))->assertForbidden();
+    $this->withHeaders(parityApi($this->token))->getJson(route('api.repurposes.show', $foreign))->assertNotFound();
     TryPostServer::actingAs($this->user)->tool(GetRepurposeTool::class, ['repurpose_id' => $foreign->id])->assertHasErrors(['Repurpose not found.']);
-    $this->actingAs($this->user)->get(route('app.repurposes.show', $foreign))->assertForbidden();
+    $this->actingAs($this->user)->get(route('app.repurposes.show', $foreign))->assertNotFound();
 
     expect($repurpose->fresh()->status)->toBe(Status::Draft);
 });

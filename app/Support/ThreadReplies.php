@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\Media\ResolveWorkspaceMedia;
 use App\Dto\MediaItem;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
@@ -151,12 +152,45 @@ class ThreadReplies
             if ($count > 0) {
                 $errors = [...$errors, ...ContentTypeCompatibleWithMedia::errorsFor(
                     [['key' => $key, 'content_type' => $contentType->value]],
-                    $reply['media'],
+                    self::withStoredFiles($reply['media'], $workspace),
                     $workspace,
                 )];
             }
         }
 
         return $errors;
+    }
+
+    /**
+     * The REST API and MCP send a reply's media as references (`{upload_token}`
+     * or `{id}`), so the item says nothing about the file. Each reference is
+     * read from its row in the workspace, the way the web composer sends it,
+     * so the reply is measured against the file it points to.
+     *
+     * @param  list<array<string, mixed>>  $media
+     * @return list<array<string, mixed>>
+     */
+    private static function withStoredFiles(array $media, ?Workspace $workspace): array
+    {
+        $references = collect($media)->filter(fn (array $item): bool => blank(data_get($item, 'type')) && blank(data_get($item, 'mime_type')));
+
+        if ($workspace === null || $references->isEmpty()) {
+            return $media;
+        }
+
+        $byToken = ResolveWorkspaceMedia::byUploadTokens($workspace, $references->pluck('upload_token')->filter(fn (mixed $token): bool => is_string($token) && $token !== '')->values()->all());
+        $byId = ResolveWorkspaceMedia::execute($workspace, $references->pluck('id')->filter(fn (mixed $id): bool => is_string($id) && Str::isUuid($id))->values()->all());
+
+        return array_map(function (array $item) use ($byToken, $byId): array {
+            if (filled(data_get($item, 'type')) || filled(data_get($item, 'mime_type'))) {
+                return $item;
+            }
+
+            $row = filled(data_get($item, 'upload_token'))
+                ? $byToken->get(data_get($item, 'upload_token'))
+                : $byId->get(data_get($item, 'id'));
+
+            return $row === null ? $item : [...MediaItem::fromMedia($row)->toArray(), ...$item];
+        }, $media);
     }
 }

@@ -14,9 +14,10 @@ class ListPinterestBoards
     /**
      * @return array{boards: list<array{id: string, name: string, cover_url: string|null}>, truncated: bool}
      */
-    public static function execute(SocialAccount $account): array
+    public static function execute(SocialAccount $account, bool $interactive = false): array
     {
-        $result = app(PinterestPublisher::class)->getBoards($account);
+        $publisher = app(PinterestPublisher::class);
+        $result = ($interactive ? $publisher->interactive() : $publisher)->getBoards($account);
 
         $boards = Collection::make(data_get($result, 'boards', []))
             ->map(fn (mixed $board): array => self::present($board))
@@ -32,12 +33,13 @@ class ListPinterestBoards
 
     /**
      * The boards the web composer shows, kept for five minutes per account.
+     * Read with the interactive client: a person is waiting on it.
      *
      * @return array{boards: list<array{id: string, name: string, cover_url: string|null}>, truncated: bool}
      */
     public static function cached(SocialAccount $account): array
     {
-        return Cache::remember(self::cacheKey($account->id), now()->addMinutes(5), fn (): array => self::execute($account));
+        return Cache::remember(self::cacheKey($account->id), now()->addMinutes(5), fn (): array => self::execute($account, interactive: true));
     }
 
     /**

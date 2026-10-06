@@ -44,11 +44,11 @@ return [
     ],
 
     'post_at_risk' => [
-        'subject' => '{1} :count пост под угрозой в :workspace|[2,4] :count поста под угрозой в :workspace|[0,*] :count постов под угрозой в :workspace',
+        'subject' => ':count пост под угрозой в :workspace|:count поста под угрозой в :workspace|:count постов под угрозой в :workspace',
         'title' => 'Посты могут не опубликоваться',
         'heading' => 'Посты могут не опубликоваться',
         'intro' => 'Следующие аккаунты в рабочем пространстве :workspace нужно переподключить, чтобы эти запланированные посты опубликовались:',
-        'posts_label' => '{1} :count запланированный пост: :times (:timezone)|[2,4] :count запланированных поста: :times (:timezone)|[0,*] :count запланированных постов: :times (:timezone)',
+        'posts_label' => ':count запланированный пост: :times (:timezone)|:count запланированных поста: :times (:timezone)|:count запланированных постов: :times (:timezone)',
         'reconnect_cta' => 'Переподключите эти аккаунты сейчас, чтобы не пропустить запланированные посты.',
         'button' => 'Переподключить аккаунты',
     ],
@@ -130,7 +130,7 @@ return [
     ],
 
     'workspace_connections_disconnected' => [
-        'subject' => '{1} Нужно переподключить :count аккаунт в :workspace|[2,4] Нужно переподключить :count аккаунта в :workspace|[0,*] Нужно переподключить :count аккаунтов в :workspace',
+        'subject' => 'Нужно переподключить :count аккаунт в :workspace|Нужно переподключить :count аккаунта в :workspace|Нужно переподключить :count аккаунтов в :workspace',
         'title' => 'Аккаунты требуют переподключения',
         'heading' => 'Аккаунты требуют переподключения',
         'intro' => 'Следующие социальные аккаунты в рабочем пространстве <strong>:workspace</strong> были отключены и требуют переподключения:',

@@ -6,6 +6,7 @@ namespace App\Jobs\Analytics;
 
 use App\Actions\Analytics\UpsertAnalyticsPublication;
 use App\Actions\Analytics\WritePublicationDailySnapshot;
+use App\Enums\Analytics\PublicationAvailability;
 use App\Enums\Analytics\PublicationContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
@@ -15,7 +16,10 @@ use App\Models\SocialAccount;
 use App\Services\Analytics\Collectors\Metrics\PublicationMetricsCollectorFactory;
 use App\Services\Analytics\Collectors\Metrics\TikTokPublicationMetricsCollector;
 use App\Support\Analytics\AnalyticsJobLog;
+use App\Support\Analytics\AnalyticsRateLimits;
+use App\Support\Analytics\SyncCadence;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\Client\ConnectionException;
@@ -26,7 +30,11 @@ class CollectPublicationMetrics implements ShouldQueue
 {
     use Queueable;
 
+    public const int MAX_METRIC_FAILURES = 3;
+
     public int $tries = 0;
+
+    public int $maxExceptions = 3;
 
     public int $timeout = 180;
 
@@ -51,16 +59,25 @@ class CollectPublicationMetrics implements ShouldQueue
         ];
     }
 
-    public function providerRateLimitKey(): string
+    /** @return list<Limit> */
+    public function analyticsRateLimits(): array
     {
         $publication = AnalyticsPublication::query()->find($this->publicationId);
 
-        return $publication?->platform->network() ?? 'missing';
+        return AnalyticsRateLimits::for($publication?->social_account_id
+            ? SocialAccount::query()->find($publication->social_account_id)
+            : null);
+    }
+
+    /** @return list<int> */
+    public function backoff(): array
+    {
+        return [300, 1800, 3600];
     }
 
     public function retryUntil(): CarbonImmutable
     {
-        return CarbonImmutable::parse($this->observationDate, 'UTC')->endOfDay();
+        return CarbonImmutable::parse($this->observationDate, 'UTC')->addDay()->endOfDay();
     }
 
     public function handle(
@@ -70,6 +87,13 @@ class CollectPublicationMetrics implements ShouldQueue
         AnalyticsJobLog $log,
     ): void {
         $date = CarbonImmutable::parse($this->observationDate, 'UTC');
+        $today = CarbonImmutable::now('UTC')->startOfDay();
+
+        if ($date->lessThan($today)) {
+            self::dispatch($this->publicationId, $today->toDateString(), $this->baseline);
+
+            return;
+        }
 
         $publication = AnalyticsPublication::query()->available()->find($this->publicationId);
         $account = $publication ? SocialAccount::query()
@@ -95,13 +119,40 @@ class CollectPublicationMetrics implements ShouldQueue
             $observation = $collector->collect($publication, $date);
             $writer->handle($publication, $observation);
             $log->record($account, 'publication_metrics', $this->observationDate, $this->attempts(), 'actual');
+
+            if ($publication->metric_failures > 0) {
+                $publication->forceFill(['metric_failures' => 0])->save();
+            }
         } catch (AnalyticsCollectionException $exception) {
             $log->record($account, 'publication_metrics', $this->observationDate, $this->attempts(), $exception->category);
+            $this->recordTerminalFailure($publication, $exception);
             $this->retry($publication, $date, $exception->category, $exception->retryAt, $log);
         } catch (ConnectionException) {
             $log->record($account, 'publication_metrics', $this->observationDate, $this->attempts(), 'transient');
             $this->retry($publication, $date, 'transient', null, $log);
         }
+    }
+
+    private function recordTerminalFailure(AnalyticsPublication $publication, AnalyticsCollectionException $exception): void
+    {
+        if ($exception->gone) {
+            $publication->forceFill(['availability' => PublicationAvailability::Deleted])->save();
+
+            return;
+        }
+
+        if (! $this->baseline || ! in_array($exception->category, ['malformed', 'unsupported'], true)) {
+            return;
+        }
+
+        $failures = $publication->metric_failures + 1;
+
+        $publication->forceFill([
+            'metric_failures' => $failures,
+            'availability' => $failures >= self::MAX_METRIC_FAILURES
+                ? PublicationAvailability::Unavailable
+                : $publication->availability,
+        ])->save();
     }
 
     private function eligible(AnalyticsPublication $publication, SocialAccount $account, CarbonImmutable $date): bool
@@ -120,7 +171,7 @@ class CollectPublicationMetrics implements ShouldQueue
         }
 
         if (! $this->baseline && ! $isStory) {
-            $ageLimit = $publication->platform === Platform::X ? 20 : 30;
+            $ageLimit = SyncCadence::metricsWindowDays($publication->platform);
 
             if ($publication->provider_published_at->lessThan($date->subDays($ageLimit)->startOfDay())) {
                 return false;
@@ -129,7 +180,7 @@ class CollectPublicationMetrics implements ShouldQueue
 
         return $this->refreshSameDay || ! AnalyticsPublicationDailySnapshot::query()
             ->where('publication_id', $publication->id)
-            ->whereDate('date', $this->observationDate)
+            ->where('date', $this->observationDate)
             ->exists();
     }
 

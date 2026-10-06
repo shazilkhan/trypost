@@ -204,7 +204,6 @@ return [
         'collection_placeholder' => 'Nom de la collection',
         'all_feeds' => 'Tous les flux',
         'feeds_root' => 'Flux',
-        'collection_feeds' => 'Flux de cette collection',
         'collection_menu' => 'Afficher les flux de :name',
         'last_refreshed' => 'Actualisé :time',
         'never_refreshed' => 'Pas encore actualisé',

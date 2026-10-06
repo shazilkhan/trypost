@@ -294,3 +294,18 @@ test('the export of a workspace without connected channels has no past analytics
     $response->assertOk();
     expect($response->streamedContent())->not->toContain('4242');
 });
+
+test('the export lists posts by the viewer local day', function () {
+    $this->user->update(['timezone' => 'America/Sao_Paulo']);
+    ($this->publish)($this->instagram, 5, 'evening-post', null, '2026-09-18 01:00:00');
+    ($this->publish)($this->instagram, 5, 'early-post', null, '2026-09-17 02:00:00');
+
+    $content = $this->actingAs($this->user)
+        ->get(route('app.insights.download', ['format' => 'md', 'range' => 'custom', 'start' => '2026-09-17', 'end' => '2026-09-17']))
+        ->assertOk()
+        ->streamedContent();
+
+    expect($content)->toContain('| 2026-09-17 22:00 | alpha |')
+        ->not->toContain('early-post')
+        ->not->toContain('alpha-reel');
+});

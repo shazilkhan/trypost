@@ -8,6 +8,7 @@ import {
     IconGripVertical,
     IconListNumbers,
     IconCheck,
+    IconClockPause,
     IconLoader2,
     IconPencil,
     IconPlayerPlayFilled,
@@ -135,6 +136,9 @@ const targets = computed(() =>
 );
 const primaryTarget = computed(() => targets.value[0] ?? null);
 const account = computed(() => primaryTarget.value?.social_account ?? null);
+const recurrenceTimezone = computed(
+    () => account.value?.timezone ?? timezone.value,
+);
 
 const isPublishing = computed(
     () => props.post.status === PostStatus.Publishing,
@@ -153,6 +157,15 @@ const time = computed(() => {
         ? (props.post.scheduled_at ?? props.post.updated_at)
         : props.post.scheduled_at;
 });
+
+const limitRetryAt = computed(
+    () =>
+        targets.value.find(
+            (target) =>
+                target.status === PostPlatformStatus.Retrying &&
+                Boolean(target.retry_at),
+        )?.retry_at ?? null,
+);
 
 const PUBLISHED_TARGET_STATUSES = ['published', 'pending_review'];
 const FAILED_TARGET_STATUSES = ['failed', 'rejected'];
@@ -481,7 +494,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                 <IconRepeat class="mt-0.5 size-4 shrink-0" />
                 <PostRecurrenceSummary
                     :scheduled-at="post.scheduled_at"
-                    :timezone="timezone"
+                    :timezone="recurrenceTimezone"
                     :rule="recurrence"
                     :remaining="recurrence.times"
                     :origin-at="post.recurrence_origin_at"
@@ -502,7 +515,22 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                         class="motion-progress-sweep block h-full w-2/5 rounded-full bg-primary-strong"
                     />
                 </span>
-                <span class="inline-flex items-center gap-2">
+                <span
+                    v-if="limitRetryAt"
+                    class="inline-flex items-center gap-2"
+                    :data-testid="`post-limit-retry-${testKey}`"
+                >
+                    <IconClockPause
+                        class="size-4 text-primary-strong"
+                        aria-hidden="true"
+                    />
+                    {{
+                        $t('posts.publish.retrying_at', {
+                            time: formatTime(limitRetryAt),
+                        })
+                    }}
+                </span>
+                <span v-else class="inline-flex items-center gap-2">
                     <IconLoader2
                         class="size-4 animate-spin text-primary-strong"
                         aria-hidden="true"
@@ -880,7 +908,7 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
                             recurrencePost.id === post.id ? post : recurrencePost
                         "
                         :test-key="testKey"
-                        :timezone="timezone"
+                        :timezone="recurrenceTimezone"
                     />
                 </div>
             </div>

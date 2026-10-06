@@ -216,3 +216,27 @@ test('member cannot disconnect social account', function () {
 
     $this->actingAs($member)->delete(route('app.channels.disconnect', $account))->assertForbidden();
 });
+
+test('a workspace admin who is not the owner can disconnect a channel that lost its connection', function () {
+    $admin = workspaceMember($this->workspace, 'admin');
+    $account = SocialAccount::factory()->tokenExpired()->create(['workspace_id' => $this->workspace->id]);
+
+    $this->actingAs($admin)
+        ->delete(route('app.channels.disconnect', $account))
+        ->assertRedirect()
+        ->assertSessionHas('flash.banner', __('accounts.flash.disconnected'));
+
+    expect(SocialAccount::find($account->id))->toBeNull();
+});
+
+test('a member who needs approval cannot disconnect a channel or its posts', function () {
+    $member = workspaceMember($this->workspace, 'approval');
+    $account = SocialAccount::factory()->create(['workspace_id' => $this->workspace->id]);
+    $post = Post::factory()->create(['workspace_id' => $this->workspace->id, 'user_id' => $member->id, 'status' => Status::Draft]);
+    PostPlatform::factory()->create(['post_id' => $post->id, 'social_account_id' => $account->id]);
+
+    $this->actingAs($member)->delete(route('app.channels.disconnect', $account))->assertForbidden();
+
+    expect(SocialAccount::find($account->id))->not->toBeNull()
+        ->and(Post::find($post->id))->not->toBeNull();
+});

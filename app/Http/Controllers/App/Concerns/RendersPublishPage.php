@@ -32,6 +32,7 @@ trait RendersPublishPage
                 ->with(['postPlatforms' => fn ($query) => $query->enabled()->with('socialAccount'), 'labels'])
                 ->findOrFail($editPostId);
             $this->authorize('update', $composerPost);
+            $composerPost->unsetRelation('user')->unsetRelation('approvalRequestedBy');
 
             if (PostStatusRules::blocksEditing($composerPost) || ! $this->canOpenComposer($composerPost)) {
                 return redirect()->route('app.posts.index', ['post' => $composerPost->id]);

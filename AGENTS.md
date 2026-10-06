@@ -332,12 +332,14 @@ with `SocialAccount::occupiesNetwork()` and the observer's `creating` guard. Do
 not reintroduce either. What still holds:
 
 - Reconnecting the same `platform` + `platform_user_id` updates the existing row
- (`SocialAccount::connectIdentity()`), and the identity pickers drop identities
- already connected on that network, so one identity can never be seated twice
- under two platforms of one network (Instagram directly and via Facebook).
+ (`SocialAccount::connectIdentity()`). The connect confirmation page offers an
+ identity already connected on the same platform as "Already connected" (picking
+ it refreshes the row) and drops one seated under another platform of the
+ network, so one identity can never be seated twice under two platforms of one
+ network (Instagram directly and via Facebook).
 - `Platform::network()` still collapses variants (LinkedIn profile/page,
  Instagram standalone/Facebook) — that grouping drives the accounts UI, not a cap.
-- `accounts.popup_callback.network_taken` / `accounts.telegram.network_taken` stay
+- `accounts.connect.errors.network_taken` / `accounts.telegram.network_taken` stay
  in the lang files because `NetworkAlreadyConnectedException` still uses the key
  for a reconnect that collides on the unique identity index.
 
@@ -379,6 +381,51 @@ page must stay there). The rule lives in `ReflowChannelQueue` (`handleLocked()` 
   `queue_slot`, and `CreatePosts` stores it in that slot as a queue post under the
   channel lock, failing with `queue_slot` when `ReflowChannelQueue::isFreeSlot()`
   says it is taken. Changing the time or channels falls back to the normal rules.
+
+## Connecting a channel (redirect + confirmation page)
+
+There is no connect popup (owner decision 2026-10-06): no `window.open`, no
+`postMessage`, no `PopupCallback`. Every OAuth network is a full-page redirect.
+
+- The start route (`app.social.<network>.connect`) stores a
+  `App\Support\Social\PendingConnection` in the session: network, workspace,
+  validated reconnect id and the return page, kept only as a whitelisted
+  `app.*` route name + parameters resolved from `return_to` (never a raw URL).
+- The callback (registered redirect URIs unchanged) never writes a row. It hands
+  the identities, tokens included, to `SocialController::offerIdentities()`
+  (session only, 15 minutes) and redirects to `app.social.connect.show`. Every
+  stop (cancel, missing publish scope, error, expired) goes through
+  `failConnection()` / `ConnectFlowException`, which drops the tokens and keeps the
+  return page for "Try again".
+- "Finish connection" (`app.social.connect.finish`, `FinishSocialConnectionRequest`)
+  only accepts keys the pending connection offered, re-checks `manageAccounts`,
+  stores the picks in one transaction and always redirects to the connected
+  channel's publish page (`app.channels.publish`: the new account, or the first one
+  when reconnecting or refreshing) with the `connectedChannel` Inertia flash that
+  opens the posting goal there for a new channel (owner decision 2026-10-06). The
+  return page serves only close (X), Back, cancel and the error states.
+- An identity already connected in the workspace stays where the network listed
+  it but is locked (owner decision 2026-10-06): muted card, a right-aligned
+  "✓ Connected" (`accounts.connect.connected`) instead of a checkbox, never
+  pre-checked, not counted in "N selected" and skipped by "Select all"; the
+  counter starts at 0 and Finish stays disabled until a new one is picked. When
+  every offered identity is locked the page adds `accounts.connect.all_connected`
+  under the subtitle. The rule is `PendingConnection::lockedIdentityKeys()`, sent
+  as `locked` on each card and enforced by `FinishSocialConnectionRequest`
+  (`not_in`, 422 with `accounts.connect.errors.identity_connected`). A reconnect
+  (validated `reconnect` id) locks nothing: its one card is pre-checked so the
+  token can be refreshed.
+- Bluesky (app password) and Mastodon (instance) keep their form step on the same
+  page layout and end on the same confirmation page; Telegram keeps its dialog.
+- "Switch account" (header of the select state) shows a "Connect a different account"
+  step whose CTA restarts the flow with `switch=1` (only the exact value `'1'` counts,
+  `SocialController::switchingAccount`), keeping reconnect and return page and
+  discarding the first login. Where the network documents it, the restart asks for
+  the account chooser again: Google Business `prompt=select_account consent`,
+  Facebook and Instagram via Facebook `auth_type=rerequest,reauthenticate`, Mastodon
+  `force_login=true` (YouTube, Instagram and TikTok already send theirs on every
+  connect). X OAuth 2, LinkedIn, Pinterest, Threads and Discord document none, so
+  the step's instructions are the only help there.
 
 ## Disconnecting a channel deletes its posts
 
@@ -496,6 +543,15 @@ rolls the switch back and toasts.
   newly connected channel. The display zone (`?tz` → `publish.tz` → user zone) is
   only what the list and calendar show. The browser zone never shows or takes a
   time; it is only the suggested value at signup.
+- **Insights days.** Range presets and custom dates are calendar days of the
+  viewing user's zone (`DateRange::$timezone`, set by
+  `ResolveAnalyticsRangePreset::selection()`). Publications are queried between
+  `DateRange::startsAt()` and `endsAt()` (UTC instants of the first day's start
+  and the last day's end there) and bucketed in PHP by `DateRange::localDate()`,
+  never with `CONVERT_TZ` / `AT TIME ZONE`. This holds for web, API, MCP and the
+  exports, and for the previous period. Account daily snapshots keep the
+  network's calendar date and are matched by that date (`observedThrough` lets
+  today's snapshot dated by the next UTC day still count).
 - **Frontend zone.** `@/date`'s `getUserTimezone()` returns `auth.user.timezone`
   (the `userTimezone` ref in `resources/js/preferences.ts`); "now" comes from
   `userNow()`, never the browser clock. Times shown next to display-zone cards go
@@ -657,6 +713,7 @@ view turns a forgotten variable into a runtime-only failure.
 - All paginated lists must use Inertia's scroll pagination (`Inertia::scroll()` on the backend with `<InfiniteScroll>` on the frontend). NEVER use traditional page-based pagination with page links/buttons.
 - The page size ALWAYS comes from `config('app.pagination.default')` — never a magic number, and never a `perPage`/`per_page` value supplied by the request or frontend. Action/service list methods must NOT accept a `$perPage` parameter; call `->paginate((int) config('app.pagination.default'))` directly.
     - **Exception — the per-post table on the channel insights page** (owner decision 2026-10-05): it is page-based with numbered pages, 10 posts per page (`ListChannelPublicationPerformance::INSIGHTS_PAGE_SIZE`, through `insightsPage()`), and keeps `?page=` in the URL; a sort, period or filter change goes back to page 1. The API endpoint and the MCP tool for the same list keep the config page size through `handle()`.
+    - **Exception — the ideas board columns** (owner decision 2026-10-06): each stage column (and Unassigned) is its own scroll prop, `columns.<stage id|unassigned>`, with its own page name, and loads 10 ideas per page (`ListIdeas::BOARD_PAGE_SIZE`) as the column scrolls. A label filter change resets every column to page 1. Column counts come from the database (`stages.*.ideas_count`, `unassigned_count`), never from the loaded cards. The web board moves a card with `after_idea_id` (`MoveIdea::after()`), since a partly loaded column cannot send the full order; the API and MCP keep the full `idea_ids` contract. The gallery keeps the config page size.
     - **This includes the public REST API** (`app/Http/Controllers/Api`). It used to pin its own page size of 15 as a stable contract; that exception is gone, so a list endpoint reads the same config as everything else. Changing `app.pagination.default` therefore changes the API's page size too — deliberate, and the reason a list response always carries `meta.per_page` for clients to read rather than assume.
 
 ## Empty states on list pages
@@ -850,6 +907,17 @@ Standing constraints:
 - Tests enable it explicitly with `config()->set('trypost.platforms.x.defuse_links', true)` rather than pinning an env, so the suite runs against the shipped default.
 - The editor counts characters and renders the X preview client-side, so the rewrite is mirrored in `resources/js/lib/defuseXLinks.ts`. The TLD list is NOT duplicated there: `HandleInertiaRequests::shareOnce()` shares `App\Support\LinkTlds::all()` as the `xLinkTlds` once prop (sent on the first page load, then remembered by the client), only to signed-in users and only while defusing is on — an absent or empty set means the feature is off, since without the list a bare host cannot be told from `Node.js`. Keep it a once prop of its own; never fold it into a per-request prop or the `composer` bundle. Two tests keep the mirror honest: `XLinkDefusingParityTest` runs a shared corpus through both engines over the same list and diffs the output, and `tests/Browser/XLinkDefusingTest.php` drives the real editor.
 - Neither expression may use lookbehind. Safari only understands it from 16.4, esbuild cannot transpile it, and a `SyntaxError` there takes down the whole chunk — the character before a candidate URL is consumed and put back instead.
+
+## Legacy queued-job compatibility (TryPost 2.0 deploy)
+
+Jobs, mails and broadcasts queued by the pre-2.0 `main` release are still in the queues when 2.0 is deployed, and a worker that cannot unserialize one fails it. These classes exist only so those payloads finish:
+
+- `App\Enums\Notification\Channel` (`SendNotification` payloads from main).
+- `App\Enums\Notification\Type::PostReady` and `Type::MentionedInComment`.
+- `App\Events\NotificationCreated`, `App\Events\PostCommentCreated`, `App\Events\Ai\PostCreationReady` and `App\Events\Ai\PostMediaRegenerated` (queued broadcasts that finish without broadcasting).
+- `App\Mail\MentionedInComment` (dropped without sending).
+
+No new code may use them. The two `Type` cases never appear in a user-facing list (preferences UI, validation rules, `cases()` iteration) and `User::wantsEmailFor()` answers `false` for them; `tests/Feature/Jobs/LegacyQueuedPayloadsTest.php` covers both. Remove all of it one release after 2.0, once the queues hold no main-era payloads.
 
 ## Git
 

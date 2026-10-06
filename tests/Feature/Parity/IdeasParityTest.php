@@ -134,8 +134,8 @@ test('showing an idea returns the same fields on the api and mcp and refuses a f
     TryPostServer::actingAs($user)->tool(GetIdeaTool::class, ['idea_id' => $idea->id])->assertStructuredContent($api);
 
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($token))->getJson(route('api.ideas.show', $foreign))->assertForbidden();
-    TryPostServer::actingAs($user)->tool(GetIdeaTool::class, ['idea_id' => $foreign->id])->assertHasErrors([(new AuthorizationException)->getMessage()]);
+    $this->withHeaders(parityApi($token))->getJson(route('api.ideas.show', $foreign))->assertNotFound();
+    TryPostServer::actingAs($user)->tool(GetIdeaTool::class, ['idea_id' => $foreign->id])->assertHasErrors(['Idea not found.']);
     TryPostServer::actingAs($user)->tool(GetIdeaTool::class, ['idea_id' => (string) Str::uuid()])->assertHasErrors(['Idea not found.']);
 });
 
@@ -228,10 +228,10 @@ test('updating an idea changes only the sent fields on the api and mcp and refus
 
     expect($first->fresh()->labels)->toHaveCount(0)->and($first->fresh()->media ?? [])->toBeEmpty();
 
-    $this->actingAs($user)->putJson(route('app.create.ideas.update', $foreign), ['title' => 'Hacked'])->assertForbidden();
+    $this->actingAs($user)->putJson(route('app.create.ideas.update', $foreign), ['title' => 'Hacked'])->assertNotFound();
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($token))->putJson(route('api.ideas.update', $foreign), ['title' => 'Hacked'])->assertForbidden();
-    TryPostServer::actingAs($user)->tool(UpdateIdeaTool::class, ['idea_id' => $foreign->id, 'title' => 'Hacked'])->assertHasErrors([(new AuthorizationException)->getMessage()]);
+    $this->withHeaders(parityApi($token))->putJson(route('api.ideas.update', $foreign), ['title' => 'Hacked'])->assertNotFound();
+    TryPostServer::actingAs($user)->tool(UpdateIdeaTool::class, ['idea_id' => $foreign->id, 'title' => 'Hacked'])->assertHasErrors(['Idea not found.']);
 
     expect($foreign->fresh()->title)->toBe('Theirs')->and($first->fresh()->title)->toBe('Renamed');
 });
@@ -241,9 +241,9 @@ test('deleting one idea or several through the api and mcp matches the web and s
     $foreign = Idea::factory()->create(['workspace_id' => Workspace::factory()->create()->id]);
     $mine = Idea::factory()->count(5)->create(['workspace_id' => $workspace->id]);
 
-    $this->actingAs($user)->deleteJson(route('app.create.ideas.destroy', $foreign))->assertForbidden();
+    $this->actingAs($user)->deleteJson(route('app.create.ideas.destroy', $foreign))->assertNotFound();
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($token))->deleteJson(route('api.ideas.destroy', $foreign))->assertForbidden();
+    $this->withHeaders(parityApi($token))->deleteJson(route('api.ideas.destroy', $foreign))->assertNotFound();
     $this->withHeaders(parityApi($token))->deleteJson(route('api.ideas.destroy', $mine[0]))->assertNoContent();
     $this->withHeaders(parityApi($token))->deleteJson(route('api.ideas.bulk-destroy'), ['idea_ids' => [$mine[1]->id, $foreign->id]])->assertNoContent();
     TryPostServer::actingAs($user)->tool(DeleteIdeasTool::class, ['idea_ids' => [$mine[2]->id, $foreign->id]])->assertOk();
@@ -284,10 +284,10 @@ test('duplicating an idea through the api and mcp inserts the copy after the ori
         $outcomes[$surface] = Idea::query()->where('workspace_id', $workspace->id)->orderBy('position')->get()->map(fn (Idea $idea) => [$idea->title, $idea->position])->all();
     }
 
-    $this->actingAs($user)->postJson(route('app.create.ideas.duplicate', $foreign))->assertForbidden();
+    $this->actingAs($user)->postJson(route('app.create.ideas.duplicate', $foreign))->assertNotFound();
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($token))->postJson(route('api.ideas.duplicate', $foreign))->assertForbidden();
-    TryPostServer::actingAs($user)->tool(DuplicateIdeaTool::class, ['idea_id' => $foreign->id])->assertHasErrors([(new AuthorizationException)->getMessage()]);
+    $this->withHeaders(parityApi($token))->postJson(route('api.ideas.duplicate', $foreign))->assertNotFound();
+    TryPostServer::actingAs($user)->tool(DuplicateIdeaTool::class, ['idea_id' => $foreign->id])->assertHasErrors(['Idea not found.']);
 
     expect($outcomes['api'])->toBe($outcomes['web'])
         ->and($outcomes['mcp'])->toBe($outcomes['web'])
@@ -441,10 +441,10 @@ test('renaming a stage through the api and mcp stores the same and refuses a for
     $this->withHeaders(parityApi($token))->putJson(route('api.idea-stages.update', $first), ['name' => ''])->assertUnprocessable();
     TryPostServer::actingAs($user)->tool(UpdateIdeaStageTool::class, ['idea_stage_id' => $second->id, 'name' => ''])->assertHasErrors();
 
-    $this->actingAs($user)->putJson(route('app.create.idea-stages.update', $foreign), ['name' => 'Hacked'])->assertForbidden();
+    $this->actingAs($user)->putJson(route('app.create.idea-stages.update', $foreign), ['name' => 'Hacked'])->assertNotFound();
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($token))->putJson(route('api.idea-stages.update', $foreign), ['name' => 'Hacked'])->assertForbidden();
-    TryPostServer::actingAs($user)->tool(UpdateIdeaStageTool::class, ['idea_stage_id' => $foreign->id, 'name' => 'Hacked'])->assertHasErrors();
+    $this->withHeaders(parityApi($token))->putJson(route('api.idea-stages.update', $foreign), ['name' => 'Hacked'])->assertNotFound();
+    TryPostServer::actingAs($user)->tool(UpdateIdeaStageTool::class, ['idea_stage_id' => $foreign->id, 'name' => 'Hacked'])->assertHasErrors(['Idea stage not found.']);
 
     expect($first->fresh()->name)->toBe($second->fresh()->name)->toBe('Renamed')
         ->and($foreign->fresh()->name)->toBe('Theirs');
@@ -478,10 +478,10 @@ test('deleting a stage through the api and mcp moves its ideas to the unassigned
         ];
     }
 
-    $this->actingAs($user)->deleteJson(route('app.create.idea-stages.destroy', $foreign))->assertForbidden();
+    $this->actingAs($user)->deleteJson(route('app.create.idea-stages.destroy', $foreign))->assertNotFound();
     auth()->forgetGuards();
-    $this->withHeaders(parityApi($token))->deleteJson(route('api.idea-stages.destroy', $foreign))->assertForbidden();
-    TryPostServer::actingAs($user)->tool(DeleteIdeaStageTool::class, ['idea_stage_id' => $foreign->id])->assertHasErrors();
+    $this->withHeaders(parityApi($token))->deleteJson(route('api.idea-stages.destroy', $foreign))->assertNotFound();
+    TryPostServer::actingAs($user)->tool(DeleteIdeaStageTool::class, ['idea_stage_id' => $foreign->id])->assertHasErrors(['Idea stage not found.']);
 
     expect($outcomes['api'])->toEqual($outcomes['web'])
         ->and($outcomes['mcp'])->toEqual($outcomes['web'])

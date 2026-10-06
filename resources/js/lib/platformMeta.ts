@@ -19,13 +19,7 @@ type MetaRule = (
     content: string | null,
 ) => { valid: boolean; tooltipKey: string | null };
 
-// Platforms whose `meta` blob has publish-time requirements. `valid` gates
-// scheduling; `tooltipKey` (when set) surfaces a platform-specific message
-// — null means "blocks the publish but no dedicated message, fall through
-// to the generic incomplete tooltip".
 const PLATFORM_META_RULES: Record<string, MetaRule> = {
-    // Mirrors YouTubeMetadata::missingTitleViolation(): without a title the
-    // first non-empty line of the text is used, and YouTube rejects none.
     [Platform.YouTube]: (meta, content) => {
         const titleMissing = content !== null
             && !String(meta.title ?? '').trim()
@@ -63,8 +57,6 @@ const PLATFORM_META_RULES: Record<string, MetaRule> = {
         valid: Boolean(meta.channel_id),
         tooltipKey: meta.channel_id ? null : 'posts.form.discord.channel_required',
     }),
-    // Mirrors PostPlatformMetaRules::requiredMetaViolation()'s Google Business
-    // arms, including their check order.
     [Platform.GoogleBusiness]: (meta) => {
         const topicType = resolveGoogleBusinessTopicType(meta.topic_type);
         const needsEvent = GOOGLE_BUSINESS_EVENT_TOPIC_TYPES.includes(topicType);

@@ -29,6 +29,7 @@ use App\Support\PostApproval;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -81,8 +82,10 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        if ($this->item->posts()->where('status', '!=', PostStatus::Draft)->exists()) {
-            $this->item->update(['status' => ItemStatus::Published]);
+        $handedOff = $this->item->posts()->with('workspace')->where('status', '!=', PostStatus::Draft)->get();
+
+        if ($handedOff->isNotEmpty()) {
+            $this->finishHandOff($handedOff, $user);
 
             return;
         }
@@ -100,7 +103,13 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
                 $targets[] = [
                     'account' => $account,
                     'destination' => $destination,
-                    'content' => e($captions->adapt($workspace, $user, $this->caption, $account->platform)),
+                    'content' => e($captions->adapt(
+                        $workspace,
+                        $user,
+                        $this->caption,
+                        $account->platform,
+                        $account->maxContentLength() - $account->platform->reservedLength(data_get($destination, 'meta')),
+                    )),
                 ];
             }
         }
@@ -155,8 +164,18 @@ class ProcessRepurposeItem implements ShouldBeUnique, ShouldQueue
             }
         });
 
-        if ($requiresApproval) {
-            NotifyApprovalRequested::execute(collect($posts), $user);
+        $this->finishHandOff(new Collection($posts), $user);
+    }
+
+    /**
+     * @param  Collection<int, Post>  $posts
+     */
+    private function finishHandOff(Collection $posts, User $requester): void
+    {
+        $pending = $posts->filter(fn (Post $post): bool => $post->status === PostStatus::PendingApproval)->values();
+
+        if ($pending->isNotEmpty()) {
+            NotifyApprovalRequested::execute($pending, $requester);
         }
 
         $this->item->update(['status' => ItemStatus::Published, 'reason' => null, 'error' => null]);
