@@ -30,17 +30,14 @@ class UpdateLabelTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'label_id' => ['required', 'string', 'uuid'],
-            ...LabelRequestRules::rules(),
-        ]);
-
         $label = WorkspaceLabel::where('workspace_id', $workspace->id)
-            ->find(data_get($validated, 'label_id'));
+            ->find(data_get($request->validate(['label_id' => ['required', 'string', 'uuid']]), 'label_id'));
 
         if (! $label) {
             return Response::error('Label not found.');
         }
+
+        $validated = $request->validate(LabelRequestRules::rules());
 
         $label = UpdateLabel::execute($label, $validated);
 

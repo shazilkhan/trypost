@@ -37,7 +37,7 @@ return [
 
     'edit' => [
         'title' => 'İmzayı düzenle',
-        'description' => 'Bu imzanın adını veya gönderilerine eklediği metni değiştir.',
+        'description' => 'Bu imzanın adını veya gönderilerinize eklediği metni değiştirin.',
         'name' => 'Ad',
         'name_placeholder' => 'örn. Pazarlama, Seyahat, Marka kapanışı',
         'content' => 'İçerik',

@@ -8,6 +8,7 @@ use App\Dto\Analytics\PublicationMetricObservation;
 use App\Enums\Analytics\MetricKey;
 use App\Enums\Analytics\MetricUnit;
 use App\Enums\Analytics\PublicationContentType;
+use App\Enums\SocialAccount\Platform;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\AnalyticsPublication;
 use App\Models\SocialAccount;
@@ -26,6 +27,9 @@ class InstagramPublicationMetricsCollector extends AbstractMetaPublicationMetric
     {
         $this->refusals = [];
         $account = $this->account($publication);
+        AnalyticsCollectionException::unlessGranted($account, ...$account->platform === Platform::InstagramFacebook
+            ? ['instagram_basic', 'instagram_manage_insights', 'pages_read_engagement']
+            : ['instagram_business_basic', 'instagram_business_manage_insights']);
         $isStory = $publication->content_type === PublicationContentType::Story;
         $isReel = $publication->content_type === PublicationContentType::Reel;
         $fields = $isStory

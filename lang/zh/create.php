@@ -160,7 +160,7 @@ return [
         'copy_suffix' => ':title (副本)',
         'errors' => [
             'visibility_owner_only' => '只有模板创建者可以更改谁能看到它。',
-            'request_failed' => '出了点问题,请重试。',
+            'request_failed' => '出了点问题，请重试。',
         ],
         'facets' => [
             'type' => [

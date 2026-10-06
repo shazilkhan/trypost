@@ -20,7 +20,7 @@ return [
     'create' => [
         'page_title' => 'Utwórz przestrzeń roboczą',
         'title' => 'Skonfiguruj przestrzeń roboczą',
-        'description' => 'Nadaj nazwę swojemu obszarowi roboczemu. Możesz ją później zmienić.',
+        'description' => 'Nadaj nazwę swojej przestrzeni roboczej. Możesz ją później zmienić.',
         'name' => 'Nazwa przestrzeni roboczej',
         'name_placeholder' => 'np. Acme Inc',
         'submit' => 'Utwórz przestrzeń roboczą',

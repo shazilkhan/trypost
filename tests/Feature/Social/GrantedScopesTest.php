@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Social\GoogleBusinessPublisher;
 use App\Support\Social\PendingConnection;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Inertia\Testing\AssertableInertia;
 use Laravel\Socialite\Facades\Socialite;
@@ -243,6 +244,21 @@ test('a network that reports no scopes keeps the requested ones', function () {
 
     expect(SocialAccount::query()->sole()->scopes)
         ->toBe(['threads_basic', 'threads_content_publish', 'threads_manage_insights']);
+});
+
+test('threads reads the granted scopes by inspecting the long-lived user token on the threads graph', function () {
+    grantedScopesCallback('threads', ['threads_basic', 'threads_content_publish']);
+
+    $this->actingAs($this->owner)
+        ->get(route('app.social.threads.callback', ['code' => 'code-1', 'state' => 'issued-state']))
+        ->assertRedirect(route('app.social.connect.show', Platform::Threads));
+
+    finishSocialConnect(Platform::Threads)->assertRedirect();
+
+    Http::assertSent(fn (Request $request): bool => str_starts_with($request->url(), config('trypost.platforms.threads.graph_api').'/debug_token')
+        && data_get($request->data(), 'input_token') === 'long-token'
+        && data_get($request->data(), 'access_token') === 'long-token');
+    expect(SocialAccount::query()->sole()->scopes)->toBe(['threads_basic', 'threads_content_publish']);
 });
 
 test('google business keeps the granted scopes through the confirmation page', function () {

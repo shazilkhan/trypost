@@ -141,7 +141,7 @@ return [
         'empty' => [
             'team' => [
                 'title' => 'Comparte lo que funciona con tu equipo',
-                'body' => 'Las plantillas del equipo las ve todo el mundo en este espacio de trabajo. Guarda un formato una vez y todos podrán empezar desde él.',
+                'body' => 'Las plantillas del equipo las ve todo el mundo en este workspace. Guarda un formato una vez y todos podrán empezar desde él.',
             ],
             'personal' => [
                 'title' => 'Ten a mano tus formatos favoritos',
@@ -238,7 +238,7 @@ return [
         'actions_for' => 'Acciones para :title',
         'delete_feed' => [
             'title' => '¿Eliminar este feed?',
-            'body' => 'El feed y sus artículos se eliminan de este espacio de trabajo. Las ideas guardadas a partir de él se conservan.',
+            'body' => 'El feed y sus artículos se eliminan de este workspace. Las ideas guardadas a partir de él se conservan.',
         ],
         'delete_collection' => [
             'title' => '¿Eliminar esta colección?',
@@ -271,8 +271,8 @@ return [
             'blocked_url' => 'Esta URL apunta a una dirección privada o no compatible.',
             'unreachable' => 'No pudimos acceder a esta URL. Revisa la dirección e inténtalo de nuevo.',
             'not_a_feed' => 'Esta URL no es un feed RSS, Atom o JSON, y la página no enlaza a ninguno.',
-            'already_added' => 'Este feed ya está en tu espacio de trabajo.',
-            'limit_reached' => 'Has alcanzado el límite de :max feeds en este espacio de trabajo.',
+            'already_added' => 'Este feed ya está en tu workspace.',
+            'limit_reached' => 'Has alcanzado el límite de :max feeds en este workspace.',
             'request_failed' => 'Algo salió mal. Inténtalo de nuevo.',
         ],
     ],

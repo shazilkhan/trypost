@@ -24,13 +24,8 @@ class AttachMediaFromUrlTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $validated = $request->validate([
-            'post_id' => ['required', 'uuid'],
-            ...PostMediaRequestRules::attachFromUrl(),
-        ]);
-
         $post = Post::where('workspace_id', $request->user()?->current_workspace_id)
-            ->find(data_get($validated, 'post_id'));
+            ->find(data_get($request->validate(['post_id' => ['required', 'uuid']]), 'post_id'));
 
         if (! $post) {
             return Response::error('Post not found.');
@@ -39,6 +34,8 @@ class AttachMediaFromUrlTool extends Tool
         if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Post not found.')) {
             return $denied;
         }
+
+        $validated = $request->validate(PostMediaRequestRules::attachFromUrl());
 
         try {
             $result = app(MediaAttacher::class)->attachFromUrls(

@@ -114,7 +114,7 @@ return [
     'connect' => [
         'label' => 'チャンネルを接続',
         'close' => '閉じる',
-        'title_single' => 'アカウントを連携',
+        'title_single' => 'アカウントを接続',
         'title_select' => 'アカウントを選択',
         'subtitle_single' => 'TryPost が :network で投稿するアカウントを選んでください。',
         'subtitle_select' => 'TryPost が :network で投稿するアカウントを選んでください。',
@@ -185,9 +185,9 @@ return [
             'no_facebook_pages' => 'Facebook ページが見つかりません。少なくとも 1 つのページの管理者である必要があります。',
             'no_facebook_instagram_pages' => 'Instagram アカウントが連携された Facebook ページが見つかりません。',
             'no_youtube_channels' => 'YouTube チャンネルが見つかりません。先にチャンネルを作成してください。',
-            'not_linkedin_admin' => 'あなたは管理者となっている LinkedIn ページがありません。',
-            'no_google_business_locations' => 'Google ビジネス プロフィールの店舗が見つかりません。まずビジネスを確認してください。',
-            'location_not_found' => '店舗が見つかりません。',
+            'not_linkedin_admin' => 'あなたが管理者になっている LinkedIn ページはありません。',
+            'no_google_business_locations' => 'Google ビジネス プロフィールのビジネス拠点が見つかりません。まずビジネスを確認してください。',
+            'location_not_found' => 'ビジネス拠点が見つかりません。',
         ],
     ],
 ];

@@ -32,17 +32,16 @@ class MovePostToSlotTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'account_id' => ['required', 'string', 'uuid'],
-            'post_id' => ['required', 'uuid'],
-            'slot_at' => ['required', 'date'],
-        ]);
-
-        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($validated, 'account_id'));
+        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($request->validate(['account_id' => ['required', 'string', 'uuid']]), 'account_id'));
 
         if (! $account) {
             return Response::error('Social account not found.');
         }
+
+        $validated = $request->validate([
+            'post_id' => ['required', 'uuid'],
+            'slot_at' => ['required', 'date'],
+        ]);
 
         try {
             MoveChannelPostToQueueSlot::handle(

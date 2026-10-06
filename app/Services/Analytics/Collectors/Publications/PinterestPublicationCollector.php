@@ -17,6 +17,10 @@ class PinterestPublicationCollector extends AbstractPublicationHistoryCollector
 
     public function page(SocialAccount $account, ?string $cursor, CarbonImmutable $cutoff): PublicationPage
     {
+        if ($account->missingScope('pins:read', 'boards:read') !== null) {
+            return PublicationPage::scopeMissing();
+        }
+
         $response = $this->get($account, config('trypost.platforms.pinterest.api').'/pins', [
             'page_size' => self::PAGE_SIZE,
             'bookmark' => $cursor,

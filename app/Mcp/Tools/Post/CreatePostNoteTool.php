@@ -30,16 +30,15 @@ class CreatePostNoteTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'post_id' => ['required', 'uuid'],
-            'body' => ['required', 'string', 'max:2000'],
-        ]);
-
-        $post = $this->notesPost($request, $workspace, data_get($validated, 'post_id'));
+        $post = $this->notesPost($request, $workspace, data_get($request->validate(['post_id' => ['required', 'uuid']]), 'post_id'));
 
         if (! $post instanceof Post) {
             return $post;
         }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
 
         $note = CreatePostNote::execute($post, $request->user(), $validated);
 

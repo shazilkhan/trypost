@@ -24,3 +24,12 @@ test('retry after ignores missing and malformed headers', function () {
     expect(RetryAfter::from($missing))->toBeNull()
         ->and(RetryAfter::from($malformed))->toBeNull();
 });
+
+test('retry after reads the reset headers networks send without Retry-After', function (array $headers, string $expected) {
+    CarbonImmutable::setTestNow('2026-09-23 02:00:00 UTC');
+
+    expect(RetryAfter::from(new Response(new PsrResponse(429, $headers)))?->toIso8601String())->toBe($expected);
+})->with([
+    'bluesky RateLimit-Reset epoch' => [['RateLimit-Reset' => (string) CarbonImmutable::parse('2026-09-23 02:05:00 UTC')->getTimestamp()], '2026-09-23T02:05:00+00:00'],
+    'x x-rate-limit-reset epoch' => [['x-rate-limit-reset' => (string) CarbonImmutable::parse('2026-09-23 02:15:00 UTC')->getTimestamp()], '2026-09-23T02:15:00+00:00'],
+]);

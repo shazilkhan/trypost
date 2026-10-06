@@ -57,7 +57,7 @@ return [
         'subject' => ':author heeft een notitie aan een bericht toegevoegd',
         'title' => 'Nieuwe notitie van :author',
         'heading' => 'Nieuwe notitie bij een bericht',
-        'body' => ':author heeft een notitie toegevoegd aan een bericht in de werkruimte :workspace.',
+        'body' => ':author heeft een notitie toegevoegd aan een bericht in de workspace :workspace.',
         'post_title' => 'Bericht',
         'post_without_text' => 'Dit bericht heeft nog geen tekst.',
         'button' => 'Notitie bekijken',

@@ -7,13 +7,17 @@ namespace App\Services\Analytics\Collectors\Followers;
 use App\Dto\Analytics\AccountDailyObservation;
 use App\Enums\Analytics\MetricPrecision;
 use App\Enums\Analytics\ObservationProvenance;
+use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\SocialAccount;
+use App\Support\Analytics\YouTubeScopes;
 use Carbon\CarbonImmutable;
 
 class YouTubeFollowerCollector extends AbstractFollowerCollector
 {
     public function collect(SocialAccount $account, CarbonImmutable $date): AccountDailyObservation
     {
+        AnalyticsCollectionException::unlessGranted($account, YouTubeScopes::READ);
+
         $response = $this->get(
             $account,
             config('trypost.platforms.youtube.data_api').'/channels',

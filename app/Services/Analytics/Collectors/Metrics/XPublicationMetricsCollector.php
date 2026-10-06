@@ -15,6 +15,7 @@ class XPublicationMetricsCollector extends AbstractPublicationMetricsCollector
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
         $account = $this->account($publication);
+        AnalyticsCollectionException::unlessGranted($account, 'tweet.read', 'users.read');
         $fields = ['public_metrics'];
 
         if ($publication->provider_published_at->greaterThan(CarbonImmutable::now('UTC')->subDays(30))) {

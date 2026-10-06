@@ -148,7 +148,7 @@ return [
             ],
             'missing_permission' => [
                 'title' => 'Autorisation requise',
-                'description' => 'TryPost a besoin de l\'autorisation de publier vos posts. Reconnectez-vous et gardez cette autorisation cochée.',
+                'description' => 'TryPost a besoin de l\'autorisation de publier vos publications. Reconnectez-vous et gardez cette autorisation cochée.',
             ],
             'expired' => [
                 'title' => 'Cette connexion a expiré',
@@ -178,8 +178,8 @@ return [
             'failed_to_get_profile' => 'Impossible de récupérer le profil.',
             'page_not_found' => 'Page introuvable.',
             'channel_not_found' => 'Chaîne introuvable.',
-            'pages_read_incomplete' => 'Nous n’avons pas pu finir de lire vos Pages. Réessayez dans un instant.',
-            'publish_permission_missing' => 'TryPost a besoin de l’autorisation de publier vos posts. Reconnectez-vous en gardant cette autorisation cochée.',
+            'pages_read_incomplete' => 'Nous n\'avons pas pu finir de lire vos Pages. Réessayez dans un instant.',
+            'publish_permission_missing' => 'TryPost a besoin de l\'autorisation de publier vos publications. Reconnectez-vous et gardez cette autorisation cochée.',
             'cancelled' => 'Connexion annulée.',
             'pages_missing_permission' => 'Nous avons trouvé des Pages, mais aucune où publier. Il vous faut un rôle sur la Page elle-même et toutes les autorisations acceptées.',
             'no_facebook_pages' => 'Aucune page Facebook trouvée. Vous devez être administrateur d\'au moins une page.',

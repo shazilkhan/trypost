@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'title' => '您是如何找到我们的？',
+    'title' => '你是如何找到我们的？',
     'submit' => '提交',
     'options' => [
         'google' => 'Google',

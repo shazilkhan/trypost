@@ -141,7 +141,7 @@ return [
         'empty' => [
             'team' => [
                 'title' => 'Deel wat werkt met je team',
-                'body' => 'Teamsjablonen zijn zichtbaar voor iedereen in deze werkruimte. Bewaar een formaat één keer en iedereen kan ermee beginnen.',
+                'body' => 'Teamsjablonen zijn zichtbaar voor iedereen in deze workspace. Bewaar een formaat één keer en iedereen kan ermee beginnen.',
             ],
             'personal' => [
                 'title' => 'Houd je favoriete formaten bij de hand',

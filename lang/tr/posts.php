@@ -16,8 +16,8 @@ return [
             'media_count' => ':count medya dosyası',
         ],
         'upload_errors' => [
-            'heic_unavailable' => 'HEIC fotoğrafları bu sunucuda dönüştürülemiyor. Fotoğrafı JPEG veya PNG olarak kaydedip tekrar yükle.',
-            'heic_invalid' => 'Bu HEIC dosyası okunamadı. Dosya bozuk olabilir ya da birden fazla fotoğraf içeriyor olabilir. JPEG veya PNG olarak dışa aktarıp tekrar dene.',
+            'heic_unavailable' => 'HEIC fotoğrafları bu sunucuda dönüştürülemiyor. Fotoğrafı JPEG veya PNG olarak kaydedip tekrar yükleyin.',
+            'heic_invalid' => 'Bu HEIC dosyası okunamadı. Dosya bozuk olabilir ya da birden fazla fotoğraf içeriyor olabilir. JPEG veya PNG olarak dışa aktarıp tekrar deneyin.',
             'too_large' => 'Bu dosya çok büyük. Sınır :size MB.',
             'unsupported_type' => 'Bu dosya türü desteklenmiyor.',
             'image_too_large' => 'Bu görselde çok fazla piksel var. Boyutunu küçültüp tekrar deneyin.',
@@ -166,7 +166,7 @@ return [
         'now' => 'Şimdi',
         'now_description' => 'Gönderini hemen yayınla.',
         'set_date_time' => 'Tarih ve saat belirle',
-        'set_date_time_description' => 'Yayınlamak için belirli bir saat seç.',
+        'set_date_time_description' => 'Yayınlamak için belirli bir saat seçin.',
         'publish_now' => 'Şimdi yayınla',
         'crop_upload_failed' => 'Kırpılan görsel yüklenemedi. Orijinal görsel seçili kalır.',
         'instagram_image_aspect_issue' => ':image numaralı görselin en boy oranı :current. Instagram, Orijinal seçildiğinde akışta :min ile :max arasını kabul eder.',
@@ -953,14 +953,14 @@ return [
         'created_by' => 'Oluşturan: :name :when',
         'welcome' => [
             'title' => 'TryPost\'a hoş geldin 👋',
-            'description' => 'Gönderilerini planlamaya ve yayınlamaya başlamak için bir kanal bağla.',
+            'description' => 'Gönderilerinizi planlamaya ve yayınlamaya başlamak için bir kanal bağlayın.',
             'invite' => 'Ekibini davet et',
             'connect_more' => 'Daha fazla kanal bağla',
         ],
         'empty' => [
             'queue' => [
                 'title' => 'Planlanmış gönderi yok',
-                'description' => 'Kuyruğun boş. Bir gönderi planla, burada görünecek.',
+                'description' => 'Kuyruğunuz boş. Bir gönderi planlayın, burada görünecek.',
             ],
             'approvals' => [
                 'title' => 'Onay bekleyen gönderi yok',

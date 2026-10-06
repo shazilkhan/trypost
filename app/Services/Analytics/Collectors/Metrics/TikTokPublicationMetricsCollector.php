@@ -15,6 +15,7 @@ class TikTokPublicationMetricsCollector extends AbstractPublicationMetricsCollec
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
         $account = $this->account($publication);
+        AnalyticsCollectionException::unlessGranted($account, 'video.list');
         $videoId = $this->publicVideoId($publication);
 
         $response = $this->post($account,

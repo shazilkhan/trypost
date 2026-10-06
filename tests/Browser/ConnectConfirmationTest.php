@@ -589,3 +589,69 @@ test('the fragment a network appends to its redirect is cleared from the address
     expect(connectConfirmPollFor($page, "window.location.hash === ''"))->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });
+
+test('the bluesky and mastodon forms use the standard field layout with hints under the inputs', function () {
+    $this->actingAs(connectConfirmAdmin());
+
+    $page = visit(route('app.social.bluesky.connect'))->resize(600, 700);
+    waitForConnectConfirmTestId($page, 'bluesky-app-password-hint');
+
+    $page->assertSee(__('accounts.bluesky.email'))
+        ->assertVisible('@bluesky-app-password-hint')
+        ->assertNoJavaScriptErrors();
+    expect($page->script("document.querySelectorAll('[role=\"alert\"], [data-slot=\"alert\"]').length"))->toBe(0);
+
+    $page = visit(route('app.social.mastodon.connect'))->resize(600, 700);
+    waitForConnectConfirmTestId($page, 'mastodon-instance-hint');
+
+    $page->assertSee(__('accounts.mastodon.instance_hint'))
+        ->assertNoJavaScriptErrors();
+    expect($page->script("document.querySelectorAll('[role=\"alert\"], [data-slot=\"alert\"]').length"))->toBe(0);
+});
+
+test('the stop state buttons stay on one line in every language, on a phone and on a desktop', function (int $width) {
+    $this->actingAs(connectConfirmAdmin());
+    stubConnectConfirmProvider('x', 'app.social.x.callback', ['error' => 'access_denied'], connectConfirmXLogin());
+
+    $page = visit(route('app.social.x.connect'))->resize($width, 900);
+    waitForConnectConfirmTestId($page, 'connect-state-cancelled');
+
+    $slots = [
+        'connect-back' => ['accounts.connect.actions.back'],
+        'connect-retry' => ['accounts.connect.actions.try_again', 'accounts.connect.actions.connect_again', 'accounts.connect.actions.start_again'],
+    ];
+
+    $translations = collect($slots)->map(fn (array $keys): array => collect(Locale::cases())
+        ->flatMap(fn (Locale $locale): array => collect($keys)->mapWithKeys(fn (string $key): array => ["{$locale->value} {$key}" => __($key, [], $locale->value)])->all())
+        ->all())->all();
+
+    $json = json_encode($translations, JSON_UNESCAPED_UNICODE | JSON_HEX_APOS | JSON_HEX_QUOT);
+
+    $wrapped = $page->script(<<<JS
+        (() => {
+            const slots = {$json};
+            const failures = [];
+
+            for (const [testId, texts] of Object.entries(slots)) {
+                const element = document.querySelector('[data-testid="' + testId + '"]');
+                const original = element.innerHTML;
+                const height = element.getBoundingClientRect().height;
+
+                for (const [label, text] of Object.entries(texts)) {
+                    element.textContent = text;
+                    const fits = element.scrollWidth <= element.clientWidth + 1
+                        && element.getBoundingClientRect().height <= height + 1
+                        && document.documentElement.scrollWidth <= window.innerWidth;
+                    if (!fits) failures.push(testId + ' ' + label + ': ' + text);
+                }
+
+                element.innerHTML = original;
+            }
+
+            return failures;
+        })()
+    JS);
+
+    expect($wrapped)->toBe([]);
+    $page->assertNoJavaScriptErrors();
+})->with(['phone' => 390, 'desktop' => 1280]);

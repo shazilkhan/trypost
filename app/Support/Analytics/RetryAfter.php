@@ -4,30 +4,20 @@ declare(strict_types=1);
 
 namespace App\Support\Analytics;
 
+use App\Support\Social\NetworkLimitReset;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Response;
-use Throwable;
 
 class RetryAfter
 {
+    /**
+     * When the network said its limit lifts: Retry-After or the reset headers
+     * each network sends (Bluesky's RateLimit-Reset, X's x-rate-limit-reset, ...).
+     */
     public static function from(Response $response): ?CarbonImmutable
     {
-        $header = $response->header('Retry-After');
+        $resetAt = NetworkLimitReset::from($response);
 
-        if (! is_string($header) || trim($header) === '') {
-            return null;
-        }
-
-        $header = trim($header);
-
-        if (ctype_digit($header)) {
-            return CarbonImmutable::now('UTC')->addSeconds((int) $header);
-        }
-
-        try {
-            return CarbonImmutable::parse($header)->utc();
-        } catch (Throwable) {
-            return null;
-        }
+        return $resetAt === null ? null : CarbonImmutable::instance($resetAt)->utc();
     }
 }

@@ -160,8 +160,6 @@ class PostController extends Controller
 
     public function storeMedia(StoreMediaRequest $request, Post $post): PostResource
     {
-        $this->authorize('update', $post);
-
         $file = $request->file('media');
 
         if ($violation = PostMediaRequestRules::typeViolation($post, MediaType::fromMime((string) $file->getMimeType()))) {
@@ -179,8 +177,6 @@ class PostController extends Controller
 
     public function attachMediaFromUpload(AttachMediaFromUploadRequest $request, Post $post): PostResource
     {
-        $this->authorize('update', $post);
-
         $media = $request->upload();
 
         if ($violation = PostMediaRequestRules::typeViolation($post, $media->type)) {
@@ -196,8 +192,6 @@ class PostController extends Controller
 
     public function attachMediaFromUrl(AttachMediaFromUrlRequest $request, Post $post): PostMediaAttachResource
     {
-        $this->authorize('update', $post);
-
         $result = app(MediaAttacher::class)->attachFromUrls($post, $request->validated('urls'), $request->user());
 
         $post->refresh()->load(['postPlatforms.socialAccount', 'labels']);

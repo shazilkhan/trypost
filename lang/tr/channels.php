@@ -205,16 +205,16 @@ return [
         'clear_confirm_description' => 'Bu işlem bu kanaldaki tüm paylaşım saatlerini kaldırır.',
         'generate' => 'Yeni paylaşım saatleri oluştur',
         'generate_goal' => 'Hedefime ulaş',
-        'generate_goal_disabled' => 'Hedefinden daha fazla paylaşım saatin var. Hedefini kanal ayarlarından değiştirebilirsin.',
+        'generate_goal_disabled' => 'Hedefinizden daha fazla paylaşım saatiniz var. Hedefinizi kanal ayarlarından değiştirebilirsiniz.',
         'generate_recommended' => 'Saatleri TryPost\'un önerilerine göre güncelle',
         'generate_copy' => 'Kanaldan kopyala',
         'generate_confirm_title' => 'Paylaşım saatleri değiştirilsin mi?',
         'generate_confirm_description' => 'Mevcut paylaşım saatlerin değiştirilecek.',
         'confirm' => 'Değiştir',
         'cancel' => 'İptal',
-        'empty' => 'Henüz paylaşım saati yok. Hedefinden oluştur veya aşağıdan saat ekle.',
+        'empty' => 'Henüz paylaşım saati yok. Hedefinizden oluşturun veya aşağıdan saat ekleyin.',
         'saved' => 'Paylaşım takvimi kaydedildi',
-        'save_failed' => 'Paylaşım takvimi kaydedilemedi. Lütfen tekrar dene.',
+        'save_failed' => 'Paylaşım takvimi kaydedilemedi. Lütfen tekrar deneyin.',
     ],
 
     'goal_dialog' => [
@@ -238,7 +238,7 @@ return [
         'change_goal' => 'Hedefi değiştir',
         'customize' => 'Özelleştir',
         'done' => 'Anladım',
-        'failed' => 'Paylaşım hedefi kaydedilemedi. Lütfen tekrar dene.',
+        'failed' => 'Paylaşım hedefi kaydedilemedi. Lütfen tekrar deneyin.',
     ],
 
     'timezone_select' => [

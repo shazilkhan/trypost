@@ -186,8 +186,8 @@ return [
             'no_facebook_instagram_pages' => 'Не найдено страниц Facebook со связанными аккаунтами Instagram.',
             'no_youtube_channels' => 'Каналы YouTube не найдены. Сначала создайте канал.',
             'not_linkedin_admin' => 'Вы не являетесь администратором ни одной страницы LinkedIn.',
-            'no_google_business_locations' => 'Местоположения Google Business Profile не найдены. Сначала подтвердите свою компанию.',
-            'location_not_found' => 'Местоположение не найдено.',
+            'no_google_business_locations' => 'Филиалы в Google Business Profile не найдены. Сначала подтвердите свою компанию.',
+            'location_not_found' => 'Филиал не найден.',
         ],
     ],
 ];

@@ -16,6 +16,10 @@ class XPublicationCollector extends AbstractPublicationHistoryCollector
 
     public function page(SocialAccount $account, ?string $cursor, CarbonImmutable $cutoff): PublicationPage
     {
+        if ($account->missingScope('tweet.read', 'users.read') !== null) {
+            return PublicationPage::scopeMissing();
+        }
+
         $response = $this->get(
             $account,
             config('trypost.platforms.x.api')."/users/{$account->platform_user_id}/tweets",

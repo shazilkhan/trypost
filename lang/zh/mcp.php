@@ -33,7 +33,7 @@ return [
         'page_title' => '授权应用 - TryPost',
         'app_title' => '授权 MCP',
         'heading' => '授权 :client',
-        'intro' => '此应用将能够:',
+        'intro' => '此应用将能够：',
         'intro_capability' => '使用可用的 MCP 功能。',
         'logged_in_as' => '当前登录:',
         'workspace' => '工作区:',
@@ -48,7 +48,7 @@ return [
         'scope_mcp_use' => '使用 MCP 服务器',
         'error_page_title' => '授权失败 - TryPost',
         'error_title' => '无法连接',
-        'error_body' => '此授权请求无效或已过期。请关闭此窗口,然后从 MCP 客户端重新连接。',
+        'error_body' => '此授权请求无效或已过期。请关闭此窗口，然后从 MCP 客户端重新连接。',
         'error_code' => '错误: :error',
     ],
 

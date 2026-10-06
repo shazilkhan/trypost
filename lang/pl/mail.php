@@ -57,7 +57,7 @@ return [
         'subject' => ':author dodał(a) notatkę do posta',
         'title' => 'Nowa notatka od :author',
         'heading' => 'Nowa notatka do posta',
-        'body' => ':author dodał(a) notatkę do posta w obszarze roboczym :workspace.',
+        'body' => ':author dodał(a) notatkę do posta w przestrzeni roboczej :workspace.',
         'post_title' => 'Post',
         'post_without_text' => 'Ten post nie ma jeszcze tekstu.',
         'button' => 'Zobacz notatkę',

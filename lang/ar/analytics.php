@@ -117,7 +117,7 @@ return [
 
     'channel' => [
         'title' => 'جميع الإحصاءات',
-        'page_title' => 'الإحصاءات · :channel',
+        'page_title' => 'Insights · :channel',
         'unsupported_title' => 'لا توجد تحليلات لهذه الشبكة',
         'unsupported_body' => 'لا تشارك :network بيانات التحليلات مع تطبيقات الجهات الخارجية، لذا لا يوجد ما يمكن عرضه هنا حتى الآن.',
         'performance' => 'الأداء لكل منشور',

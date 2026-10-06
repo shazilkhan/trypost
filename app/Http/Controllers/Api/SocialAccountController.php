@@ -66,12 +66,6 @@ class SocialAccountController extends Controller
 
     public function storeBoard(StorePinterestBoardRequest $request, SocialAccount $account): JsonResponse
     {
-        $this->authorize('view', $account);
-
-        abort_unless($account->platform === Platform::Pinterest, Response::HTTP_NOT_FOUND);
-
-        $this->authorize('createPost', $request->user()->currentWorkspace);
-
         try {
             $board = CreatePinterestBoard::execute($account, $request->validated());
         } catch (TokenExpiredException|PinterestPublishException|ConnectionException $e) {

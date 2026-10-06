@@ -404,6 +404,31 @@ class SocialAccount extends Model
     }
 
     /**
+     * The first requirement the stored grant does not meet, each requirement
+     * being a scope or a list of alternative scopes. An account with no stored
+     * grant (a network without scopes, or a row stored before grants were
+     * recorded) is not known to lack any.
+     *
+     * @param  string|list<string>  ...$requirements
+     */
+    public function missingScope(string|array ...$requirements): ?string
+    {
+        if (blank($this->scopes)) {
+            return null;
+        }
+
+        foreach ($requirements as $requirement) {
+            $alternatives = (array) $requirement;
+
+            if (array_intersect($alternatives, $this->scopes) === []) {
+                return $alternatives[0];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Frontend-facing mirror of accountDisplayName() — appended to JSON so
      * Vue components stop re-implementing this fallback.
      */

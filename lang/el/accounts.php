@@ -12,7 +12,7 @@ return [
         'submit' => 'Σύνδεση Bluesky',
         'submitting' => 'Σύνδεση...',
         'invalid_credentials' => 'Μη έγκυρα διαπιστευτήρια.',
-        'connection_error' => 'Σφάλμα σύνδεσης με το Bluesky. Δοκίμασε ξανά.',
+        'connection_error' => 'Σφάλμα σύνδεσης με το Bluesky. Δοκιμάστε ξανά.',
     ],
 
     'mastodon' => [
@@ -116,8 +116,8 @@ return [
         'close' => 'Κλείσιμο',
         'title_single' => 'Σύνδεση λογαριασμού',
         'title_select' => 'Επιλογή λογαριασμών',
-        'subtitle_single' => 'Επίλεξε τον λογαριασμό όπου το TryPost θα δημοσιεύει στο :network.',
-        'subtitle_select' => 'Επίλεξε τους λογαριασμούς όπου το TryPost θα δημοσιεύει στο :network.',
+        'subtitle_single' => 'Επιλέξτε τον λογαριασμό όπου το TryPost θα δημοσιεύει στο :network.',
+        'subtitle_select' => 'Επιλέξτε τους λογαριασμούς όπου το TryPost θα δημοσιεύει στο :network.',
         'selected' => 'Επιλεγμένα: :count',
         'select_all' => 'Επιλογή όλων',
         'connected' => 'Συνδεδεμένο',

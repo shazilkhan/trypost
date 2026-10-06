@@ -37,10 +37,6 @@ class LabelController extends Controller
 
     public function update(UpdateLabelRequest $request, WorkspaceLabel $label): LabelResource
     {
-        if ($label->workspace_id !== $request->user()->currentWorkspace->id) {
-            abort(Response::HTTP_NOT_FOUND);
-        }
-
         $label = UpdateLabel::execute($label, $request->validated());
 
         return new LabelResource($label);

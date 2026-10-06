@@ -60,7 +60,7 @@ return [
         'followers' => '粉丝',
         'performance' => '表现',
         'top_posts' => '前5条帖子',
-        'channel' => '渠道',
+        'channel' => '频道',
         'latest_snapshot_hint' => '此时间段内的帖子指标使用最近一次保存的测量值。',
         'followers_chart_mode' => '粉丝图表模式',
         'posts_chart_mode' => '帖子图表模式',
@@ -72,7 +72,7 @@ return [
         'no_follower_data' => '此时间段没有粉丝历史数据。',
         'no_post_data' => '此时间段没有已发布的帖子。',
         'no_ranked_posts' => '此时间段没有测得回应或评论的帖子。',
-        'no_performance' => '此时间段没有渠道表现数据。',
+        'no_performance' => '此时间段没有频道表现数据。',
         'filtered_no_posts' => '此期间所选频道或标签没有帖子。请尝试其他日期范围或清除筛选条件。',
         'filtered_no_followers' => '此期间所选频道没有粉丝数据。请尝试其他日期范围或清除频道筛选。',
         'filtered_no_data_title' => '没有符合这些筛选条件的内容',
@@ -117,7 +117,7 @@ return [
 
     'channel' => [
         'title' => '全部洞察',
-        'page_title' => '数据洞察 · :channel',
+        'page_title' => 'Insights · :channel',
         'unsupported_title' => '此平台暂无分析数据',
         'unsupported_body' => ':network 不向第三方应用提供分析数据，因此这里暂时没有可显示的内容。',
         'performance' => '单篇帖子表现',

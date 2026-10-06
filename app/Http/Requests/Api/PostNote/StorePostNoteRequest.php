@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\PostNote;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class StorePostNoteRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $gate = Gate::forUser($this->user());
+
+        $gate->authorize('view', $this->route('post'));
+        $gate->authorize('createPost', $this->route('post')->workspace);
+
         return true;
     }
 

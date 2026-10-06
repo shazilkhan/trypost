@@ -117,7 +117,7 @@ return [
 
     'channel' => [
         'title' => 'Вся статистика',
-        'page_title' => 'Аналитика · :channel',
+        'page_title' => 'Insights · :channel',
         'unsupported_title' => 'Нет аналитики для этой сети',
         'unsupported_body' => ':network не передаёт аналитику сторонним приложениям, поэтому показывать пока нечего.',
         'performance' => 'Эффективность по публикациям',

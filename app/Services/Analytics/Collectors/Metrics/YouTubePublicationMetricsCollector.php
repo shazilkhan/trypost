@@ -12,6 +12,7 @@ use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\AnalyticsPublication;
 use App\Models\SocialAccount;
 use App\Support\Analytics\SyncCadence;
+use App\Support\Analytics\YouTubeScopes;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -35,6 +36,7 @@ class YouTubePublicationMetricsCollector extends AbstractPublicationMetricsColle
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
         $account = $this->account($publication);
+        AnalyticsCollectionException::unlessGranted($account, YouTubeScopes::READ);
         $statistics = $this->statistics($account, $publication, $date);
         $report = $this->report($account, $publication, $date);
 
@@ -123,6 +125,10 @@ class YouTubePublicationMetricsCollector extends AbstractPublicationMetricsColle
      */
     private function report(SocialAccount $account, AnalyticsPublication $publication, CarbonImmutable $date): array
     {
+        if ($account->missingScope(YouTubeScopes::ANALYTICS) !== null) {
+            return [];
+        }
+
         try {
             $response = $this->get($account,
                 rtrim((string) config('trypost.platforms.youtube.analytics_api'), '/').'/reports',

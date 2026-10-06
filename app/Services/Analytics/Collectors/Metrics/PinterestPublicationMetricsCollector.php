@@ -18,6 +18,7 @@ class PinterestPublicationMetricsCollector extends AbstractPublicationMetricsCol
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
         $account = $this->account($publication);
+        AnalyticsCollectionException::unlessGranted($account, 'pins:read', 'boards:read');
         $isVideo = in_array($publication->content_type, [PublicationContentType::Video, PublicationContentType::Short], true);
         $fields = ['IMPRESSION', 'SAVE', 'PIN_CLICK', 'OUTBOUND_CLICK', 'SAVE_RATE', 'TOTAL_COMMENTS', 'TOTAL_REACTIONS'];
 

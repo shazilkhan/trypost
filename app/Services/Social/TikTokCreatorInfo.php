@@ -21,6 +21,8 @@ class TikTokCreatorInfo
 
     /**
      * Error codes with which TikTok answers that the creator cannot post.
+     * creator_info/query reports its refusals with HTTP 200 and error.code
+     * set, so the code is read whatever the status.
      */
     private const array CANNOT_POST_CODES = [
         'spam_risk_user_banned_from_posting',
@@ -153,13 +155,15 @@ class TikTokCreatorInfo
             ->withBody('{}', 'application/json; charset=UTF-8')
             ->post("{$this->baseUrl}/post/publish/creator_info/query/");
 
-        if ($response->failed()) {
+        $errorCode = data_get($response->json(), 'error.code');
+        $refused = $response->failed() || ($errorCode !== null && $errorCode !== 'ok');
+
+        if ($refused) {
             Log::warning('TikTok creator_info query failed', [
                 'social_account_id' => $account->id,
+                'status' => $response->status(),
                 'body' => $this->redactResponseBody($response->body()),
             ]);
-
-            $errorCode = data_get($response->json(), 'error.code');
 
             if (in_array($errorCode, self::CANNOT_POST_CODES, true)) {
                 return null;

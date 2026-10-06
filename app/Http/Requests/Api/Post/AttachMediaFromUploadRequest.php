@@ -7,16 +7,18 @@ namespace App\Http\Requests\Api\Post;
 use App\Actions\Media\ResolveWorkspaceMedia;
 use App\Models\Media;
 use App\Support\Requests\Post\PostMediaRequestRules;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
 class AttachMediaFromUploadRequest extends FormRequest
 {
     private ?Media $resolvedUpload = null;
 
-    public function authorize(): bool
+    public function authorize(): Response
     {
-        return true;
+        return Gate::forUser($this->user())->inspect('update', $this->route('post'));
     }
 
     /**

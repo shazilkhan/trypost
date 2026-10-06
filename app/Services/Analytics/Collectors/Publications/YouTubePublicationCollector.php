@@ -9,6 +9,7 @@ use App\Dto\Analytics\PublicationPage;
 use App\Enums\Analytics\PublicationContentType;
 use App\Exceptions\Analytics\AnalyticsCollectionException;
 use App\Models\SocialAccount;
+use App\Support\Analytics\YouTubeScopes;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 
@@ -20,6 +21,10 @@ class YouTubePublicationCollector extends AbstractPublicationHistoryCollector
 
     public function page(SocialAccount $account, ?string $cursor, CarbonImmutable $cutoff): PublicationPage
     {
+        if ($account->missingScope(YouTubeScopes::READ) !== null) {
+            return PublicationPage::scopeMissing();
+        }
+
         $api = config('trypost.platforms.youtube.data_api');
         $uploadsPlaylist = $this->uploadsPlaylist($account, (string) $api);
         $playlist = $this->get($account, "{$api}/playlistItems", [

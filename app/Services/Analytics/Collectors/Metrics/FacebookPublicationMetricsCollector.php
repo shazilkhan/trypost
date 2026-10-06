@@ -24,6 +24,7 @@ class FacebookPublicationMetricsCollector extends AbstractMetaPublicationMetrics
     {
         $this->refusals = [];
         $account = $this->account($publication);
+        AnalyticsCollectionException::unlessGranted($account, 'pages_read_engagement');
         $graph = rtrim((string) config('trypost.platforms.facebook.graph_api'), '/');
         $isStory = $publication->content_type === PublicationContentType::Story;
         $videoId = data_get($publication->provider_metadata, 'video_id');
@@ -35,9 +36,15 @@ class FacebookPublicationMetricsCollector extends AbstractMetaPublicationMetrics
             $isVideo => ['fb_reels_total_plays', 'post_video_likes_by_reaction_type', 'post_video_social_actions'],
             default => ['post_media_view', 'post_total_media_view_unique', 'post_reactions_like_total', 'post_clicks'],
         };
-        $values = $this->insights($this->optionalInsightItems($account, "{$graph}/{$insightsId}/{$edge}", $fields, [
-            'period' => 'lifetime',
-        ]));
+        $values = [];
+
+        if ($account->missingScope('read_insights') === null) {
+            $values = $this->insights($this->optionalInsightItems($account, "{$graph}/{$insightsId}/{$edge}", $fields, [
+                'period' => 'lifetime',
+            ]));
+        } else {
+            $this->refusals[] = 'permission';
+        }
 
         if (! $isStory && str_contains($publication->remote_id, '_')) {
             $post = "{$graph}/{$publication->remote_id}";

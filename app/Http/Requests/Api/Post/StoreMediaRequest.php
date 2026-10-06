@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\Post;
 
 use App\Support\Requests\Post\PostMediaRequestRules;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
 class StoreMediaRequest extends FormRequest
 {
-    public function authorize(): bool
+    public function authorize(): Response
     {
-        return true;
+        return Gate::forUser($this->user())->inspect('update', $this->route('post'));
     }
 
     /**

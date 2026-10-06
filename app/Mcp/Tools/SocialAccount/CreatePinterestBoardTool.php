@@ -38,13 +38,8 @@ class CreatePinterestBoardTool extends Tool
             $request->merge(['name' => trim($request->get('name'))]);
         }
 
-        $validated = $request->validate([
-            'account_id' => ['required', 'string', 'uuid'],
-            'name' => ['required', 'string', 'max:50'],
-        ]);
-
         $account = SocialAccount::where('workspace_id', $workspace->id)
-            ->find(data_get($validated, 'account_id'));
+            ->find(data_get($request->validate(['account_id' => ['required', 'string', 'uuid']]), 'account_id'));
 
         if (! $account) {
             return Response::error('Social account not found.');
@@ -57,6 +52,10 @@ class CreatePinterestBoardTool extends Tool
         if ($account->platform !== Platform::Pinterest) {
             return Response::error('This tool only works with Pinterest social accounts.');
         }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:50'],
+        ]);
 
         try {
             $board = CreatePinterestBoard::execute($account, ['name' => (string) data_get($validated, 'name')]);

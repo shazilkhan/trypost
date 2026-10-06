@@ -256,6 +256,22 @@ test('analytics jobs are rate limited per account with a shared guard only where
     'tiktok shares the app limit' => [Platform::TikTok, 'tiktok:app'],
 ]);
 
+test('bluesky analytics share the documented per-ip limit of the account pds host', function (?string $service, string $sharedKey) {
+    $publication = metricJobPublication(Platform::Bluesky, CarbonImmutable::now('UTC')->subDay());
+    config()->set('trypost.platforms.bluesky.default_service', 'https://bsky.social');
+    $publication->socialAccount->update(['meta' => $service === null ? [] : ['service' => $service]]);
+    $job = new CollectPublicationMetrics($publication->id, CarbonImmutable::now('UTC')->toDateString());
+
+    $shared = collect($job->analyticsRateLimits())->get(1);
+
+    expect($shared->key)->toBe($sharedKey)
+        ->and($shared->maxAttempts)->toBe(500)
+        ->and($shared->decaySeconds)->toBe(60);
+})->with([
+    'a self-hosted pds' => ['https://pds.example.com', 'bluesky:pds:pds.example.com'],
+    'the default service' => [null, 'bluesky:pds:bsky.social'],
+]);
+
 test('metric and follower jobs back off and stop after a few unexpected exceptions', function () {
     $metrics = new CollectPublicationMetrics(fake()->uuid(), '2026-09-23');
     $followers = new CollectAccountDailySnapshot(fake()->uuid(), '2026-09-23');

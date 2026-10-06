@@ -26,15 +26,11 @@ class AttachMediaFromUploadTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $validated = $request->validate([
-            'post_id' => ['required', 'uuid'],
-            ...PostMediaRequestRules::attachFromUpload(),
-        ]);
-
+        $postId = data_get($request->validate(['post_id' => ['required', 'uuid']]), 'post_id');
         $workspaceId = $request->user()?->current_workspace_id;
 
         $post = $workspaceId
-            ? Post::where('workspace_id', $workspaceId)->find(data_get($validated, 'post_id'))
+            ? Post::where('workspace_id', $workspaceId)->find($postId)
             : null;
 
         if (! $post) {
@@ -44,6 +40,8 @@ class AttachMediaFromUploadTool extends Tool
         if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Post not found.')) {
             return $denied;
         }
+
+        $validated = $request->validate(PostMediaRequestRules::attachFromUpload());
 
         $media = ResolveWorkspaceMedia::byUploadTokens($post->workspace, [(string) data_get($validated, 'upload_token')])->first();
 

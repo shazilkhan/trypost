@@ -33,8 +33,13 @@ class UpdatePostingScheduleTool extends Tool
             return $workspace;
         }
 
+        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($request->validate(['account_id' => ['required', 'string', 'uuid']]), 'account_id'));
+
+        if (! $account) {
+            return Response::error('Social account not found.');
+        }
+
         $validated = $request->validate([
-            'account_id' => ['required', 'string', 'uuid'],
             'timezone' => ['required', 'string', 'timezone:all'],
             'posting_goal' => ['nullable', 'integer', 'min:1', 'max:'.PostingSchedule::MAX_GOAL],
             'posting_schedule' => ['nullable', 'array', 'size:7'],
@@ -43,12 +48,6 @@ class UpdatePostingScheduleTool extends Tool
             'posting_schedule.*.times' => ['present', 'array', 'max:'.PostingSchedule::MAX_TIMES_PER_DAY],
             'posting_schedule.*.times.*' => ['required', 'date_format:H:i', $this->uniqueWithinDay($request->all())],
         ]);
-
-        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($validated, 'account_id'));
-
-        if (! $account) {
-            return Response::error('Social account not found.');
-        }
 
         try {
             $account = $update->handle($account, $validated);

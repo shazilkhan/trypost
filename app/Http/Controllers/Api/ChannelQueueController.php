@@ -18,9 +18,6 @@ class ChannelQueueController extends Controller
 {
     public function reorder(ReorderChannelQueueRequest $request, SocialAccount $account): EmptyResponse
     {
-        $this->authorize('view', $account);
-        $this->authorize('publishDirectly', $request->user()->currentWorkspace);
-
         ReorderChannelQueue::handle($account, $request->validated('post_ids'));
 
         return response()->noContent();
@@ -28,9 +25,6 @@ class ChannelQueueController extends Controller
 
     public function moveToSlot(MoveChannelPostToQueueSlotRequest $request, SocialAccount $account): PostResource
     {
-        $this->authorize('view', $account);
-        $this->authorize('publishDirectly', $request->user()->currentWorkspace);
-
         MoveChannelPostToQueueSlot::handle(
             $account,
             $request->validated('post_id'),

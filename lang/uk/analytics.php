@@ -117,7 +117,7 @@ return [
 
     'channel' => [
         'title' => 'Уся статистика',
-        'page_title' => 'Аналітика · :channel',
+        'page_title' => 'Insights · :channel',
         'unsupported_title' => 'Немає аналітики для цієї мережі',
         'unsupported_body' => ':network не передає аналітику стороннім застосункам, тому поки що нема що показувати.',
         'performance' => 'Ефективність за публікаціями',

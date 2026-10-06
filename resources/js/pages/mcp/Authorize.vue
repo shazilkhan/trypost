@@ -123,6 +123,7 @@ const onDenySubmit = (): void => {
                         <ComboboxTrigger as-child>
                             <button
                                 type="button"
+                                data-testid="mcp-authorize-workspace"
                                 class="flex h-10 w-full items-center justify-between rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-2xs transition-colors hover:bg-muted/40"
                             >
                                 <span
@@ -208,6 +209,7 @@ const onDenySubmit = (): void => {
                 <Button
                     type="submit"
                     class="w-full"
+                    data-testid="mcp-authorize-approve"
                     :class="{
                         'pointer-events-none opacity-25': !canApprove,
                     }"
@@ -228,7 +230,12 @@ const onDenySubmit = (): void => {
                 <input type="hidden" name="state" :value="state" />
                 <input type="hidden" name="client_id" :value="client.id" />
                 <input type="hidden" name="auth_token" :value="authToken" />
-                <Button type="submit" variant="outline" class="w-full">
+                <Button
+                    type="submit"
+                    variant="outline"
+                    class="w-full"
+                    data-testid="mcp-authorize-cancel"
+                >
                     {{ $t('mcp.authorize.cancel') }}
                 </Button>
             </form>

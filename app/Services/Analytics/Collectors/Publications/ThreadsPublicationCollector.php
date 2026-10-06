@@ -21,6 +21,10 @@ class ThreadsPublicationCollector extends AbstractMetaPublicationCollector
         ?string $cursor,
         CarbonImmutable $cutoff,
     ): PublicationPage {
+        if ($account->missingScope('threads_basic') !== null) {
+            return PublicationPage::scopeMissing();
+        }
+
         $response = $this->get(
             $account,
             config('trypost.platforms.threads.graph_api')."/{$account->platform_user_id}/threads",

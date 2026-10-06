@@ -37,10 +37,6 @@ class SignatureController extends Controller
 
     public function update(UpdateSignatureRequest $request, WorkspaceSignature $signature): SignatureResource
     {
-        if ($signature->workspace_id !== $request->user()->currentWorkspace->id) {
-            abort(Response::HTTP_NOT_FOUND);
-        }
-
         $signature = UpdateSignature::execute($signature, $request->validated());
 
         return new SignatureResource($signature);

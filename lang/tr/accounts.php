@@ -14,7 +14,7 @@ return [
         'submit' => 'Bluesky\'i Bağla',
         'submitting' => 'Bağlanıyor...',
         'invalid_credentials' => 'Geçersiz kimlik bilgileri.',
-        'connection_error' => 'Bluesky\'a bağlanırken hata oluştu. Lütfen tekrar dene.',
+        'connection_error' => 'Bluesky\'a bağlanırken hata oluştu. Lütfen tekrar deneyin.',
     ],
 
     'mastodon' => [
@@ -116,14 +116,14 @@ return [
     'connect' => [
         'label' => 'Kanal bağla',
         'close' => 'Kapat',
-        'title_single' => 'Hesabını bağla',
+        'title_single' => 'Hesabınızı bağlayın',
         'title_select' => 'Hesapları seç',
-        'subtitle_single' => ':network üzerinde TryPost\'un paylaşım yapacağı hesabı seç.',
-        'subtitle_select' => ':network üzerinde TryPost\'un paylaşım yapacağı hesapları seç.',
+        'subtitle_single' => ':network üzerinde TryPost\'un paylaşım yapacağı hesabı seçin.',
+        'subtitle_select' => ':network üzerinde TryPost\'un paylaşım yapacağı hesapları seçin.',
         'selected' => ':count seçildi',
         'select_all' => 'Tümünü seç',
         'connected' => 'Bağlı',
-        'all_connected' => 'Tüm :network hesapların zaten bağlı.',
+        'all_connected' => 'Tüm :network hesaplarınız zaten bağlı.',
         'finish' => 'Bağlantıyı tamamla',
         'switch' => [
             'button' => 'Hesap değiştir',
@@ -141,20 +141,20 @@ return [
         ],
         'help' => [
             'label' => 'Yardım',
-            'missing' => 'Bir hesap eksik mi? Yönettiğinden emin ol, tekrar dene ve tüm izinleri ver.',
+            'missing' => 'Bir hesap eksik mi? Onu yönettiğinizden emin olun, tekrar deneyin ve tüm izinleri verin.',
         ],
         'states' => [
             'cancelled' => [
                 'title' => 'Bağlantı iptal edildi',
-                'description' => 'Hiçbir şey bağlanmadı. İstediğin zaman tekrar deneyebilirsin.',
+                'description' => 'Hiçbir şey bağlanmadı. İstediğiniz zaman tekrar deneyebilirsiniz.',
             ],
             'missing_permission' => [
                 'title' => 'İzin gerekli',
-                'description' => 'TryPost\'un gönderilerini yayınlamak için izne ihtiyacı var. Tekrar bağlan ve bu izni işaretli bırak.',
+                'description' => 'TryPost\'un gönderilerinizi yayınlamak için izne ihtiyacı var. Yeniden bağlanın ve bu izni işaretli bırakın.',
             ],
             'expired' => [
                 'title' => 'Bu bağlantının süresi doldu',
-                'description' => 'Güvenliğin için bir bağlantı 15 dakika sonra sona erer. Hesabını bağlamak için baştan başla.',
+                'description' => 'Güvenliğiniz için bir bağlantı 15 dakika sonra sona erer. Hesabınızı bağlamak için baştan başlayın.',
             ],
             'error' => [
                 'title' => 'Bağlanılamadı',
@@ -181,7 +181,7 @@ return [
             'page_not_found' => 'Sayfa bulunamadı.',
             'channel_not_found' => 'Kanal bulunamadı.',
             'pages_read_incomplete' => 'Sayfalarınızın tamamını okuyamadık. Birazdan tekrar deneyin.',
-            'publish_permission_missing' => 'TryPost\'un gönderilerinizi yayınlamak için izne ihtiyacı var. Yeniden bağlanın ve bu iznin işaretini kaldırmayın.',
+            'publish_permission_missing' => 'TryPost\'un gönderilerinizi yayınlamak için izne ihtiyacı var. Yeniden bağlanın ve bu izni işaretli bırakın.',
             'cancelled' => 'Bağlantı iptal edildi.',
             'pages_missing_permission' => 'Sayfalar bulduk ama paylaşım yapabileceğiniz yok. Sayfanın kendisinde bir rolünüz ve tüm izinler gerekli.',
             'no_facebook_pages' => 'Facebook Sayfası bulunamadı. En az bir sayfanın yöneticisi olmanız gerekir.',

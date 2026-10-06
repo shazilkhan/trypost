@@ -210,16 +210,16 @@ return [
         'refresh' => '피드 새로고침',
         'caught_up' => '모두 확인했어요!',
         'empty' => [
-            'title' => '아직 피드가 없어요',
+            'title' => '아직 피드가 없습니다',
             'body' => 'RSS, Atom 또는 JSON 피드를 추가하거나 디렉터리에서 하나를 골라 최신 글을 여기서 읽어 보세요.',
         ],
         'empty_collection' => [
-            'title' => '이 컬렉션은 비어 있어요',
+            'title' => '이 컬렉션은 비어 있습니다',
             'body' => '컬렉션 메뉴에서 컬렉션에 추가를 사용하거나, 피드를 열고 이동을 사용하세요.',
         ],
         'empty_items' => [
-            'title' => '아직 글이 없어요',
-            'body' => '다음 새로고침 후 새 글이 여기에 표시돼요.',
+            'title' => '아직 글이 없습니다',
+            'body' => '다음 새로고침 후 새 글이 여기에 표시됩니다.',
         ],
         'open_article' => '글 열기: :title',
         'create_post' => '게시물 만들기',
@@ -238,7 +238,7 @@ return [
         'actions_for' => ':title 작업',
         'delete_feed' => [
             'title' => '이 피드를 삭제할까요?',
-            'body' => '피드와 글이 이 워크스페이스에서 삭제돼요. 이 피드에서 저장한 아이디어는 유지돼요.',
+            'body' => '피드와 글이 이 워크스페이스에서 삭제됩니다. 이 피드에서 저장한 아이디어는 유지됩니다.',
         ],
         'delete_collection' => [
             'title' => '이 컬렉션을 삭제할까요?',
@@ -247,7 +247,7 @@ return [
         'failing' => '이 피드를 새로고침하지 못했어요. :error',
         'add' => [
             'title' => '피드 추가',
-            'explainer' => 'RSS URL은 블로그나 뉴스 사이트의 새 글을 자동으로 가져오는 링크예요. 보통 사이트 주소 뒤에 "/feed" 또는 "/rss"가 붙어요.',
+            'explainer' => 'RSS URL은 블로그나 뉴스 사이트의 새 글을 자동으로 가져오는 링크입니다. 보통 사이트 주소 뒤에 "/feed" 또는 "/rss"가 붙습니다.',
             'url_label' => 'RSS URL',
             'url_placeholder' => 'https://',
             'submit' => '피드 추가',

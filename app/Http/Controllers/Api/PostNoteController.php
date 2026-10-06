@@ -28,8 +28,6 @@ class PostNoteController extends Controller
 
     public function store(StorePostNoteRequest $request, Post $post): JsonResponse
     {
-        $this->authorizeNotes($post);
-
         $note = CreatePostNote::execute($post, $request->user(), $request->validated());
 
         return (new PostNoteResource($note))
@@ -39,11 +37,6 @@ class PostNoteController extends Controller
 
     public function update(UpdatePostNoteRequest $request, Post $post, PostNote $note): PostNoteResource
     {
-        abort_unless($note->post_id === $post->id, Response::HTTP_NOT_FOUND);
-
-        $this->authorizeNotes($post);
-        $this->authorize('update', $note);
-
         return new PostNoteResource(UpdatePostNote::execute($post, $note, $request->validated()));
     }
 

@@ -77,8 +77,8 @@ return [
             'empty' => 'Bu fikri kaydetmek için bir başlık, metin veya medya ekleyin.',
             'stale_order' => 'Sayfa yüklendiğinden beri gruplar değişti. Sayfayı yenileyip tekrar deneyin.',
             'stale_idea_order' => 'Sayfayı yüklediğinizden beri fikirler değişti. Yenileyin ve tekrar deneyin.',
-            'move_failed' => 'Bu fikir taşınamadı. Sayfayı yenileyip tekrar dene.',
-            'generate_failed' => 'Fikirler oluşturulamadı. Tekrar dene.',
+            'move_failed' => 'Bu fikir taşınamadı. Sayfayı yenileyip tekrar deneyin.',
+            'generate_failed' => 'Fikirler oluşturulamadı. Tekrar deneyin.',
         ],
     ],
     'templates' => [
@@ -211,7 +211,7 @@ return [
         'caught_up' => 'Hepsini okudun!',
         'empty' => [
             'title' => 'Henüz akış yok',
-            'body' => 'En yeni makaleleri burada okumak için bir RSS, Atom veya JSON akışı ekle ya da dizinden birini seç.',
+            'body' => 'En yeni makaleleri burada okumak için bir RSS, Atom veya JSON akışı ekleyin ya da dizinden birini seçin.',
         ],
         'empty_collection' => [
             'title' => 'Bu koleksiyon boş',
@@ -273,7 +273,7 @@ return [
             'not_a_feed' => 'Bu URL bir RSS, Atom veya JSON akışı değil ve sayfa herhangi birine bağlantı vermiyor.',
             'already_added' => 'Bu akış zaten çalışma alanınızda.',
             'limit_reached' => 'Bu çalışma alanında :max akış sınırına ulaştınız.',
-            'request_failed' => 'Bir şeyler ters gitti. Lütfen tekrar dene.',
+            'request_failed' => 'Bir şeyler ters gitti. Lütfen tekrar deneyin.',
         ],
     ],
 ];

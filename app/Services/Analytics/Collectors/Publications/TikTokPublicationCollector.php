@@ -20,8 +20,8 @@ class TikTokPublicationCollector extends AbstractPublicationHistoryCollector
 
     public function page(SocialAccount $account, ?string $cursor, CarbonImmutable $cutoff): PublicationPage
     {
-        if (! in_array('video.list', $account->scopes ?? [], true)) {
-            return new PublicationPage([], null, true, true);
+        if ($account->missingScope('video.list') !== null) {
+            return PublicationPage::scopeMissing();
         }
 
         $payload = ['max_count' => self::PAGE_SIZE];

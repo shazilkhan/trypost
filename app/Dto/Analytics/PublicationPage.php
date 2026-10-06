@@ -17,4 +17,13 @@ final readonly class PublicationPage
         public ?string $partialReason = null,
         public bool $canStopAtTarget = true,
     ) {}
+
+    /**
+     * An exhausted, provider-limited page for an account whose grant lacks
+     * the scope the history read needs, so no request is made.
+     */
+    public static function scopeMissing(): self
+    {
+        return new self([], null, true, true);
+    }
 }

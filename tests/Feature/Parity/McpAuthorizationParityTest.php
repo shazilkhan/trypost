@@ -505,3 +505,42 @@ test('every mcp tool that names a record refuses an id that is not a uuid with a
 
     expect($failures)->toBe([]);
 });
+
+test('every mcp tool that names a record answers not found for one of another workspace even with nothing else sent, never a validation error', function () {
+    $foreignWorkspace = Workspace::factory()->create();
+    $foreignOwner = User::factory()->create(['account_id' => $foreignWorkspace->account_id]);
+    $foreignWorkspace->members()->attach($foreignOwner->id, membershipPivot('admin'));
+    $foreignWorkspace->update(['user_id' => $foreignOwner->id]);
+    $validatesReferences = ['create-post-tool', 'create-posts-tool', 'create-repurpose-tool', 'reorder-idea-stages-tool', 'delete-ideas-tool'];
+    $failures = [];
+
+    foreach (mcpAuthParityTools() as $name => [$tool, $refused, $web, $arguments]) {
+        if (in_array($name, $validatesReferences, true)) {
+            continue;
+        }
+
+        $foreign = mcpAuthParityFixture($foreignWorkspace, $foreignOwner);
+        $recordArguments = collect($arguments($foreign))
+            ->filter(fn (mixed $value, string $key): bool => str_ends_with($key, '_id') && is_string($value) && Str::isUuid($value))
+            ->all();
+
+        if ($recordArguments === []) {
+            continue;
+        }
+
+        $before = mcpAuthParitySnapshot($foreign);
+        $response = TryPostServer::actingAs($this->owner->fresh())->tool($tool, $recordArguments);
+
+        try {
+            $response->assertHasErrors()->assertSee('not found');
+        } catch (Throwable) {
+            $failures[$name] = 'answered without a not found error';
+        }
+
+        if (mcpAuthParitySnapshot($foreign) != $before) {
+            $failures[$name] = 'changed a record of the other workspace';
+        }
+    }
+
+    expect($failures)->toBe([]);
+});

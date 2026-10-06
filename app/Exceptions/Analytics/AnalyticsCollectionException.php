@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions\Analytics;
 
+use App\Models\SocialAccount;
 use App\Support\Analytics\RetryAfter;
 use Carbon\CarbonImmutable;
 use Exception;
@@ -33,6 +34,23 @@ class AnalyticsCollectionException extends Exception
     public static function gone(string $message): self
     {
         return new self('malformed', $message, gone: true);
+    }
+
+    /**
+     * Refuses a read before any request when the account's stored grant lacks
+     * a scope it needs, recorded as the permission refusal the network would answer.
+     *
+     * @param  string|list<string>  ...$requirements
+     *
+     * @throws self
+     */
+    public static function unlessGranted(SocialAccount $account, string|array ...$requirements): void
+    {
+        $missing = $account->missingScope(...$requirements);
+
+        if ($missing !== null) {
+            throw new self('permission', "account grant lacks the {$missing} scope");
+        }
     }
 
     public static function fromResponse(Response $response, string $operation): self

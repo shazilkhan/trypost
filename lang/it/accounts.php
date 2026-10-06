@@ -179,7 +179,7 @@ return [
             'page_not_found' => 'Pagina non trovata.',
             'channel_not_found' => 'Canale non trovato.',
             'pages_read_incomplete' => 'Non siamo riusciti a leggere tutte le tue Pagine. Riprova tra poco.',
-            'publish_permission_missing' => 'TryPost ha bisogno dell’autorizzazione a pubblicare i tuoi post. Connetti di nuovo e lascia selezionata quell’autorizzazione.',
+            'publish_permission_missing' => 'TryPost ha bisogno dell\'autorizzazione per pubblicare i tuoi post. Collega di nuovo e lascia attiva quell\'autorizzazione.',
             'cancelled' => 'Connessione annullata.',
             'pages_missing_permission' => 'Abbiamo trovato Pagine, ma nessuna su cui pubblicare. Serve un ruolo sulla Pagina stessa e tutte le autorizzazioni accettate.',
             'no_facebook_pages' => 'Nessuna pagina Facebook trovata. Devi essere amministratore di almeno una pagina.',

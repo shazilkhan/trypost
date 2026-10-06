@@ -30,6 +30,10 @@ class InstagramPublicationCollector extends AbstractMetaPublicationCollector
         ?string $cursor,
         CarbonImmutable $cutoff,
     ): PublicationPage {
+        if ($account->missingScope($account->platform === Platform::InstagramFacebook ? 'instagram_basic' : 'instagram_business_basic') !== null) {
+            return PublicationPage::scopeMissing();
+        }
+
         $response = $this->get(
             $account,
             "{$account->platform->instagramGraphBaseUrl()}/{$account->platform_user_id}/media",

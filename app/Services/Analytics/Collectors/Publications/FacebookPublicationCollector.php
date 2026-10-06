@@ -22,6 +22,10 @@ class FacebookPublicationCollector extends AbstractMetaPublicationCollector
         ?string $cursor,
         CarbonImmutable $cutoff,
     ): PublicationPage {
+        if ($account->missingScope('pages_read_engagement') !== null) {
+            return PublicationPage::scopeMissing();
+        }
+
         $response = $this->get(
             $account,
             config('trypost.platforms.facebook.graph_api')."/{$account->platform_user_id}/published_posts",

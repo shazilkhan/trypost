@@ -238,6 +238,23 @@ test('a later reset time from the network wins over the backoff, capped at 24 ho
     'Meta BUC regain access' => [['X-Business-Use-Case-Usage' => json_encode(['123' => [['type' => 'pages', 'call_count' => 100, 'estimated_time_to_regain_access' => 300]]])], [], 18000],
 ]);
 
+test('a bluesky 429 retries when the pds RateLimit-Reset says the limit lifts', function () {
+    Queue::fake();
+    $target = limitRetryTarget($this, Platform::Bluesky);
+    $resetAt = now()->addHours(3)->startOfSecond();
+    limitRetryPublisherThrows(BlueskyPublisher::class, BlueskyPublishException::fromApiResponse(limitRetryResponse(429, ['error' => 'RateLimitExceeded', 'message' => 'Rate Limit Exceeded'], [
+        'RateLimit-Limit' => '5000',
+        'RateLimit-Remaining' => '0',
+        'RateLimit-Reset' => (string) $resetAt->getTimestamp(),
+        'RateLimit-Policy' => '5000;w=3600',
+    ])));
+
+    (new PublishToSocialPlatform($target))->handle();
+
+    expect($target->fresh()->status)->not->toBe(PlatformStatus::Failed)
+        ->and($target->fresh()->retry_at->toIso8601String())->toBe($resetAt->toIso8601String());
+});
+
 test('a permanent refusal still fails at once', function (Platform $platform, string $publisherClass, Closure $refusal) {
     Queue::fake();
     $target = limitRetryTarget($this, $platform);

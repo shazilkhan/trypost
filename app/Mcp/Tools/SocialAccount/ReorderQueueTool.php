@@ -29,17 +29,16 @@ class ReorderQueueTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'account_id' => ['required', 'string', 'uuid'],
-            'post_ids' => ['required', 'array', 'max:500'],
-            'post_ids.*' => ['required', 'uuid', 'distinct'],
-        ]);
-
-        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($validated, 'account_id'));
+        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($request->validate(['account_id' => ['required', 'string', 'uuid']]), 'account_id'));
 
         if (! $account) {
             return Response::error('Social account not found.');
         }
+
+        $validated = $request->validate([
+            'post_ids' => ['required', 'array', 'max:500'],
+            'post_ids.*' => ['required', 'uuid', 'distinct'],
+        ]);
 
         try {
             ReorderChannelQueue::handle($account, data_get($validated, 'post_ids'));

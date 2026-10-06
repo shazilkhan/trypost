@@ -117,7 +117,7 @@ return [
 
     'channel' => [
         'title' => '모든 인사이트',
-        'page_title' => '인사이트 · :channel',
+        'page_title' => 'Insights · :channel',
         'unsupported_title' => '이 네트워크는 분석을 제공하지 않습니다',
         'unsupported_body' => ':network은(는) 타사 앱과 분석 데이터를 공유하지 않아 아직 표시할 내용이 없습니다.',
         'performance' => '게시물별 성과',

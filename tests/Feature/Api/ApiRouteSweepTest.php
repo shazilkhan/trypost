@@ -310,3 +310,25 @@ test('a malformed id inside a body is a validation error, never a database error
     expect($target->fresh()->enabled)->toBeTrue()
         ->and($draft->fresh()->content)->toBe($draft->content);
 });
+
+test('every api route that names a record answers 404 for one of another workspace even with an empty body, never 422', function () {
+    $failures = [];
+
+    foreach (apiSweepRoutesWithIds() as $name) {
+        $result = createApiTestToken();
+        $other = createApiTestToken();
+        $foreign = apiSweepRecords($other['workspace']);
+        $ids = apiSweepIds($name, $foreign, $other['user']->tokens()->value('id'));
+        $before = apiSweepSnapshot($foreign, $ids['apiToken']);
+
+        app('auth')->forgetGuards();
+        $response = $this->withHeaders(['Authorization' => "Bearer {$result['plain_token']}"])
+            ->json(apiSweepMethod($name), apiSweepUri($name, $ids), []);
+
+        if ($response->status() !== Response::HTTP_NOT_FOUND || apiSweepSnapshot($foreign, $ids['apiToken']) != $before) {
+            $failures[$name] = $response->status();
+        }
+    }
+
+    expect($failures)->toBe([]);
+});

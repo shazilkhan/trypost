@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\User\Locale;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -191,3 +192,28 @@ test('the create tabs border keeps the same padding as the publish page on every
     'templates' => 'app.create.templates.index',
     'feeds' => 'app.create.feeds.index',
 ]);
+
+test('no create tab wraps onto a second line in any language', function (int $width) {
+    $user = createShellUser();
+    $this->actingAs($user);
+
+    foreach (Locale::cases() as $locale) {
+        $user->update(['locale' => $locale]);
+
+        $page = visit(route('app.create.ideas.index'))->resize($width, 900);
+        waitForCreateShellTestId($page, 'create-tab-ideas');
+
+        $wrapped = $page->script(<<<'JS'
+            [...document.querySelectorAll('[data-testid^="create-tab-"]')]
+                .filter((tab) => {
+                    const range = document.createRange();
+                    range.selectNodeContents(tab);
+                    const tops = new Set([...range.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.top)));
+                    return tops.size > 1;
+                })
+                .map((tab) => tab.dataset.testid)
+        JS);
+
+        expect($wrapped)->toBe([], "{$locale->value} wraps");
+    }
+})->with([390, 1280]);

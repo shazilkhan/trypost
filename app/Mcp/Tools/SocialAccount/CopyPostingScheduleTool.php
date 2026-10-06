@@ -30,15 +30,15 @@ class CopyPostingScheduleTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'account_id' => ['required', 'string', 'uuid'],
-            'from' => ['required', 'uuid'],
-        ]);
+        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($request->validate(['account_id' => ['required', 'string', 'uuid']]), 'account_id'));
 
-        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($validated, 'account_id'));
-        $source = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($validated, 'from'));
+        if (! $account) {
+            return Response::error('Social account not found.');
+        }
 
-        if (! $account || ! $source) {
+        $source = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($request->validate(['from' => ['required', 'uuid']]), 'from'));
+
+        if (! $source) {
             return Response::error('Social account not found.');
         }
 

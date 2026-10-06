@@ -32,17 +32,16 @@ class GeneratePostingScheduleTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'account_id' => ['required', 'string', 'uuid'],
-            'mode' => ['required', Rule::in(['goal', 'recommended'])],
-            'goal' => ['nullable', 'integer', 'min:1', 'max:'.PostingSchedule::MAX_GOAL],
-        ]);
-
-        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($validated, 'account_id'));
+        $account = SocialAccount::where('workspace_id', $workspace->id)->find(data_get($request->validate(['account_id' => ['required', 'string', 'uuid']]), 'account_id'));
 
         if (! $account) {
             return Response::error('Social account not found.');
         }
+
+        $validated = $request->validate([
+            'mode' => ['required', Rule::in(['goal', 'recommended'])],
+            'goal' => ['nullable', 'integer', 'min:1', 'max:'.PostingSchedule::MAX_GOAL],
+        ]);
 
         $goal = data_get($validated, 'goal');
         try {

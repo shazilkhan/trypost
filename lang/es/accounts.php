@@ -148,7 +148,7 @@ return [
             ],
             'missing_permission' => [
                 'title' => 'Permiso necesario',
-                'description' => 'TryPost necesita permiso para publicar tus posts. Vuelve a conectar y mantén ese permiso marcado.',
+                'description' => 'TryPost necesita permiso para publicar tus publicaciones. Vuelve a conectar y mantén ese permiso marcado.',
             ],
             'expired' => [
                 'title' => 'Esta conexión ha caducado',
@@ -179,7 +179,7 @@ return [
             'page_not_found' => 'Página no encontrada.',
             'channel_not_found' => 'Canal no encontrado.',
             'pages_read_incomplete' => 'No pudimos terminar de leer tus páginas. Inténtalo de nuevo en un momento.',
-            'publish_permission_missing' => 'TryPost necesita permiso para publicar tus posts. Vuelve a conectar y deja ese permiso marcado.',
+            'publish_permission_missing' => 'TryPost necesita permiso para publicar tus publicaciones. Vuelve a conectar y mantén ese permiso marcado.',
             'cancelled' => 'Conexión cancelada.',
             'pages_missing_permission' => 'Encontramos páginas, pero ninguna en la que puedas publicar. Necesitas un rol en la página y aceptar todos los permisos.',
             'no_facebook_pages' => 'No se encontraron páginas de Facebook. Debes ser administrador de al menos una página.',

@@ -8,12 +8,18 @@ use App\Support\PostingSchedule;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class UpdatePostingScheduleRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $gate = Gate::forUser($this->user());
+
+        $gate->authorize('view', $this->route('account'));
+        $gate->authorize('manageAccounts', $this->user()->currentWorkspace);
+
         return true;
     }
 

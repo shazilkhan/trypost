@@ -10,10 +10,10 @@ return [
     'create' => '创建',
     'new_menu' => [
         'post' => '帖子',
-        'post_description' => '向渠道发布内容',
+        'post_description' => '向频道发布内容',
         'idea' => '创意',
         'idea_description' => '记录一个内容创意',
-        'channel' => '连接新渠道',
+        'channel' => '连接新频道',
         'member' => '邀请团队成员',
     ],
     'settings' => '设置',

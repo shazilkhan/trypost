@@ -461,3 +461,77 @@ test('linkedin reports a missing page when a page reconnect does not find it', f
     expect(socialConnectFailure())->toBe('page_not_found');
     $this->assertDatabaseCount('social_accounts', 1);
 });
+
+test('a profile reconnect cannot finish an organization and never downloads its logo', function () {
+    Storage::fake();
+    fakePublicDns();
+
+    $account = SocialAccount::factory()->linkedin()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform_user_id' => 'person-123',
+    ]);
+
+    startSocialConnect($this->workspace, Platform::LinkedIn, $account);
+    runLinkedInCallback($this, [['id' => 111, 'localizedName' => 'My Company', 'logoV2' => ['original~' => ['elements' => [['identifiers' => [['identifier' => 'https://93.184.216.34/logo.jpg']]]]]]]]);
+
+    expect(PendingConnection::current()->identityKeys())->toBe(['linkedin:person-123']);
+
+    finishSocialConnect(Platform::LinkedIn, ['linkedin-page:111'])->assertSessionHasErrors('identities.0');
+
+    Http::assertNotSent(fn ($request) => $request->url() === 'https://93.184.216.34/logo.jpg');
+
+    expect($account->fresh()->platform_user_id)->toBe('person-123')
+        ->and($this->workspace->socialAccounts()->count())->toBe(1);
+});
+
+test('a member already connected with no organization is offered locked and is not connected twice', function () {
+    $account = SocialAccount::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform' => Platform::LinkedIn,
+        'platform_user_id' => 'person-123',
+        'access_token' => 'old-token',
+    ]);
+
+    startSocialConnect($this->workspace, Platform::LinkedIn);
+    runLinkedInCallback($this);
+
+    $this->get(route('app.social.connect.show', Platform::LinkedIn))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('state', 'select')
+            ->has('identities', 1)
+            ->where('identities.0.key', 'linkedin:person-123')
+            ->where('identities.0.locked', true)
+        );
+
+    finishSocialConnect(Platform::LinkedIn, ['linkedin:person-123'])->assertSessionHasErrors('identities.0');
+
+    expect($this->workspace->socialAccounts()->count())->toBe(1)
+        ->and($account->fresh()->access_token)->toBe('old-token');
+});
+
+test('linkedin without a pending connection shows the expired page and finish connects nothing', function () {
+    $this->actingAs($this->user)
+        ->get(route('app.social.connect.show', Platform::LinkedIn))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('state', 'expired')
+            ->where('identities', [])
+            ->where('retryUrl', route('app.social.linkedin.connect'))
+        );
+
+    $this->post(route('app.social.connect.finish', Platform::LinkedIn), ['identities' => ['linkedin:person-123']])
+        ->assertRedirect(route('app.social.connect.show', Platform::LinkedIn));
+
+    $this->assertDatabaseCount('social_accounts', 0);
+});
+
+test('a finished linkedin connection leaves no identities or tokens in the session', function () {
+    startSocialConnect($this->workspace, Platform::LinkedIn);
+    runLinkedInCallback($this, [['id' => 123456, 'localizedName' => 'Test Company']]);
+
+    expect(json_encode(session()->all()))->toContain('test-access-token');
+
+    finishSocialConnect(Platform::LinkedIn, ['linkedin:person-123'])->assertRedirect();
+
+    expect(PendingConnection::current())->toBeNull()
+        ->and(json_encode(session()->all()))->not->toContain('test-access-token');
+});

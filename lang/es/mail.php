@@ -57,7 +57,7 @@ return [
         'subject' => ':author añadió una nota a una publicación',
         'title' => 'Nueva nota de :author',
         'heading' => 'Nueva nota en una publicación',
-        'body' => ':author añadió una nota a una publicación en el espacio de trabajo :workspace.',
+        'body' => ':author añadió una nota a una publicación en el workspace :workspace.',
         'post_title' => 'Publicación',
         'post_without_text' => 'Esta publicación aún no tiene texto.',
         'button' => 'Ver nota',

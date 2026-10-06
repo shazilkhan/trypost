@@ -30,17 +30,14 @@ class UpdateSignatureTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'signature_id' => ['required', 'string', 'uuid'],
-            ...SignatureRequestRules::rules(),
-        ]);
-
         $signature = WorkspaceSignature::where('workspace_id', $workspace->id)
-            ->find(data_get($validated, 'signature_id'));
+            ->find(data_get($request->validate(['signature_id' => ['required', 'string', 'uuid']]), 'signature_id'));
 
         if (! $signature) {
             return Response::error('Signature not found.');
         }
+
+        $validated = $request->validate(SignatureRequestRules::rules());
 
         $signature = UpdateSignature::execute($signature, $validated);
 

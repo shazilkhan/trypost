@@ -22,7 +22,9 @@ use Illuminate\Cache\RateLimiting\Limit;
  * - YouTube: the Data API quota is 10,000 units a day per Google Cloud project, shared with publishing.
  *   An analytics job spends at most 2 units (playlistItems + a 50-id videos.list), so 3,000 jobs a day
  *   stay under 6,000 units and leave the rest for uploads.
- * - Bluesky: the public AppView and the PDS limit unauthenticated reads per IP; guard 300/min.
+ * - Bluesky: a PDS allows 3,000 requests per 5 minutes per IP over all endpoints (600/min,
+ *   docs.bsky.app "Rate Limits", `global-ip` in @atproto/pds rate-limits.ts), shared with publishing
+ *   through the same host; guard 500/min per PDS host. The public AppView documents no number.
  * - Mastodon: 300 requests per 5 minutes per IP on each instance (60/min); guard 50/min per instance.
  */
 class AnalyticsRateLimits
@@ -55,7 +57,7 @@ class AnalyticsRateLimits
             Platform::X => Limit::perMinute(600)->by("{$network}:app"),
             Platform::TikTok => Limit::perMinute(500)->by("{$network}:app"),
             Platform::YouTube => Limit::perDay(3000)->by("{$network}:project"),
-            Platform::Bluesky => Limit::perMinute(300)->by("{$network}:ip"),
+            Platform::Bluesky => Limit::perMinute(500)->by("{$network}:pds:".parse_url((string) data_get($account->meta, 'service', config('trypost.platforms.bluesky.default_service')), PHP_URL_HOST)),
             Platform::Mastodon => Limit::perMinute(50)->by("{$network}:instance:{$account->mastodonInstance()}"),
             default => null,
         };

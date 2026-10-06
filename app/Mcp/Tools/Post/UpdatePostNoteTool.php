@@ -31,19 +31,18 @@ class UpdatePostNoteTool extends Tool
             return $workspace;
         }
 
-        $validated = $request->validate([
+        $ids = $request->validate([
             'post_id' => ['required', 'uuid'],
             'note_id' => ['required', 'uuid'],
-            'body' => ['required', 'string', 'max:2000'],
         ]);
 
-        $post = $this->notesPost($request, $workspace, data_get($validated, 'post_id'));
+        $post = $this->notesPost($request, $workspace, data_get($ids, 'post_id'));
 
         if (! $post instanceof Post) {
             return $post;
         }
 
-        $note = $this->noteOfPost($post, data_get($validated, 'note_id'));
+        $note = $this->noteOfPost($post, data_get($ids, 'note_id'));
 
         if (! $note instanceof PostNote) {
             return $note;
@@ -52,6 +51,10 @@ class UpdatePostNoteTool extends Tool
         if ($denied = $this->denyUnlessCan($request, 'update', $note)) {
             return $denied;
         }
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
 
         return Response::structured((new PostNoteResource(UpdatePostNote::execute($post, $note, $validated)))->resolve());
     }

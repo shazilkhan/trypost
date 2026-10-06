@@ -57,7 +57,7 @@ return [
         'subject' => ':author ha aggiunto una nota a un post',
         'title' => 'Nuova nota da :author',
         'heading' => 'Nuova nota su un post',
-        'body' => ':author ha aggiunto una nota a un post nello spazio di lavoro :workspace.',
+        'body' => ':author ha aggiunto una nota a un post nel workspace :workspace.',
         'post_title' => 'Post',
         'post_without_text' => 'Questo post non ha ancora testo.',
         'button' => 'Vedi nota',

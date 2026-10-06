@@ -5,7 +5,7 @@ return [
     'tabs' => [
         'ideas' => 'Pomysły',
         'templates' => 'Szablony',
-        'feeds' => 'Kanały',
+        'feeds' => 'Kanały RSS',
     ],
     'ideas' => [
         'title' => 'Pomysły',
@@ -202,8 +202,8 @@ return [
         'explore' => 'Przeglądaj kanały',
         'new_collection' => 'Nowa kolekcja',
         'collection_placeholder' => 'Nazwa kolekcji',
-        'all_feeds' => 'Wszystkie kanały',
-        'feeds_root' => 'Kanały',
+        'all_feeds' => 'Wszystkie kanały RSS',
+        'feeds_root' => 'Kanały RSS',
         'collection_menu' => 'Pokaż kanały w :name',
         'last_refreshed' => 'Odświeżono :time',
         'never_refreshed' => 'Jeszcze nie odświeżono',
@@ -238,11 +238,11 @@ return [
         'actions_for' => 'Akcje dla :title',
         'delete_feed' => [
             'title' => 'Usunąć ten kanał?',
-            'body' => 'Kanał i jego artykuły zostaną usunięte z tego obszaru roboczego. Zapisane z niego pomysły pozostaną.',
+            'body' => 'Kanał i jego artykuły zostaną usunięte z tej przestrzeni roboczej. Zapisane z niego pomysły pozostaną.',
         ],
         'delete_collection' => [
             'title' => 'Usunąć tę kolekcję?',
-            'body' => 'Jej kanały pozostaną i wrócą do sekcji Kanały.',
+            'body' => 'Jej kanały pozostaną i wrócą do sekcji Kanały RSS.',
         ],
         'failing' => 'Nie udało się odświeżyć tego kanału. :error',
         'add' => [
@@ -271,8 +271,8 @@ return [
             'blocked_url' => 'Ten adres URL wskazuje na prywatny lub nieobsługiwany adres.',
             'unreachable' => 'Nie udało się połączyć z tym adresem URL. Sprawdź adres i spróbuj ponownie.',
             'not_a_feed' => 'Ten adres URL nie jest kanałem RSS, Atom ani JSON, a strona nie wskazuje żadnego.',
-            'already_added' => 'Ten kanał jest już w Twoim obszarze roboczym.',
-            'limit_reached' => 'Osiągnięto limit :max kanałów w tym obszarze roboczym.',
+            'already_added' => 'Ten kanał jest już w Twojej przestrzeni roboczej.',
+            'limit_reached' => 'Osiągnięto limit :max kanałów w tej przestrzeni roboczej.',
             'request_failed' => 'Coś poszło nie tak. Spróbuj ponownie.',
         ],
     ],

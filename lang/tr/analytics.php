@@ -119,7 +119,7 @@ return [
 
     'channel' => [
         'title' => 'Tüm içgörüler',
-        'page_title' => 'İçgörüler · :channel',
+        'page_title' => 'Insights · :channel',
         'unsupported_title' => 'Bu ağ için analiz yok',
         'unsupported_body' => ':network analizleri üçüncü taraf uygulamalarla paylaşmadığı için burada henüz gösterilecek bir şey yok.',
         'performance' => 'Gönderi başına performans',
@@ -188,7 +188,7 @@ return [
                 'visibility' => [
                     'label' => 'Görünürlük',
                     'title' => 'Profil görüntülemeleri ve takipçiler',
-                    'about' => 'Profilini keşfeden kişilerden kaçının seni takip ettiğini gösterir.',
+                    'about' => 'Profilinizi keşfeden kişilerden kaçının sizi takip ettiğini gösterir.',
                 ],
                 'follower_growth_rate' => [
                     'label' => 'Takipçi büyümesi',
@@ -218,9 +218,9 @@ return [
                     'flat' => 'İçeriğinin etkisi bu dönemde sabit kaldı.',
                 ],
                 'visibility' => [
-                    'up' => 'Önceki döneme göre daha fazla kişi seni keşfetti.',
-                    'down' => 'Önceki döneme göre daha az kişi seni keşfetti.',
-                    'flat' => 'Önceki dönemle hemen hemen aynı sayıda kişi seni keşfetti.',
+                    'up' => 'Önceki döneme göre daha fazla kişi sizi keşfetti.',
+                    'down' => 'Önceki döneme göre daha az kişi sizi keşfetti.',
+                    'flat' => 'Önceki dönemle hemen hemen aynı sayıda kişi sizi keşfetti.',
                 ],
                 'reach' => [
                     'up' => 'Gönderilerin önceki döneme göre daha fazla kişiye ulaştı.',
