@@ -44,7 +44,7 @@ function assertLabelFilterSelected(mixed $page, string $testId, string $labelId)
         ->assertNoJavaScriptErrors();
 }
 
-test('label row menu opens posts and reporting filtered by the label in a new tab', function () {
+test('label row menu opens posts filtered by the label in a new tab', function () {
     [$user, $label] = labelMenuOwner();
     $this->actingAs($user);
 
@@ -54,7 +54,7 @@ test('label row menu opens posts and reporting filtered by the label in a new ta
     waitForLabelMenuTestId($page, "label-view-posts-{$label->id}");
 
     $links = $page->script(<<<JS
-        (() => ['label-view-posts-{$label->id}', 'label-open-reporting-{$label->id}'].map((id) => {
+        (() => ['label-view-posts-{$label->id}'].map((id) => {
             const link = document.querySelector('[data-testid="' + id + '"]');
             return { href: decodeURIComponent(link.href), target: link.target, rel: link.rel };
         }))();
@@ -63,21 +63,16 @@ test('label row menu opens posts and reporting filtered by the label in a new ta
     expect($links[0]['target'])->toBe('_blank')
         ->and($links[0]['rel'])->toContain('noopener')
         ->and($links[0]['href'])->toStartWith(route('app.posts.index'))
-        ->and($links[0]['href'])->toContain("labels[]={$label->id}")
-        ->and($links[1]['target'])->toBe('_blank')
-        ->and($links[1]['rel'])->toContain('noopener')
-        ->and($links[1]['href'])->toStartWith(route('app.insights'))
-        ->and($links[1]['href'])->toContain("labels[]={$label->id}");
+        ->and($links[0]['href'])->toContain("labels[]={$label->id}");
 
     $page->assertNoJavaScriptErrors();
 });
 
-test('filtered posts and analytics pages land with the label selected', function () {
+test('the filtered posts page lands with the label selected', function () {
     [$user, $label] = labelMenuOwner();
     $this->actingAs($user);
 
     assertLabelFilterSelected(visit(route('app.posts.index', ['labels' => [$label->id]])), 'posts-label', $label->id);
-    assertLabelFilterSelected(visit(route('app.insights', ['labels' => [$label->id]])), 'analytics-label', $label->id);
 });
 
 test('the labels page without labels shows the illustration and a create button', function () {

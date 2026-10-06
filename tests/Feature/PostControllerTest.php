@@ -78,7 +78,8 @@ test('posts index shows posts for current workspace', function () {
     $response->assertInertia(fn ($page) => $page
         ->component('publish/Index', false)
         ->where('tab', 'drafts')
-        ->has('posts.data', 1)
+        ->loadDeferredProps(fn ($reload) => $reload
+            ->has('posts.data', 1))
     );
 });
 
@@ -100,8 +101,9 @@ test('posts index exposes note counts and opens a note on an existing post', fun
             ->where('tab', 'drafts')
             ->where('openPostNotesId', $post->id)
             ->where('highlightNoteId', $note->id)
-            ->has('posts.data', 1)
-            ->where('posts.data.0.notes_count', 1)
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 1)
+                ->where('posts.data.0.notes_count', 1))
         );
 });
 
@@ -137,9 +139,10 @@ test('posts index filters posts by a single label id', function () {
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('posts.data', 1)
-        ->where('posts.data.0.id', $taggedPost->id)
         ->where('filters.labels', [$label->id])
+        ->loadDeferredProps(fn ($reload) => $reload
+            ->has('posts.data', 1)
+            ->where('posts.data.0.id', $taggedPost->id))
     );
 });
 
@@ -171,8 +174,9 @@ test('posts index filters posts by multiple labels (OR semantics)', function () 
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('posts.data', 2)
         ->where('filters.labels', [$marketing->id, $sales->id])
+        ->loadDeferredProps(fn ($reload) => $reload
+            ->has('posts.data', 2))
     );
 });
 
@@ -187,8 +191,9 @@ test('posts index ignores blank label query params', function () {
 
     $response->assertOk();
     $response->assertInertia(fn ($page) => $page
-        ->has('posts.data', 2)
         ->where('filters.labels', [])
+        ->loadDeferredProps(fn ($reload) => $reload
+            ->has('posts.data', 2))
     );
 });
 
@@ -235,12 +240,13 @@ test('posts index filters individual accounts and only displays selected targets
         ->get(route('app.posts.index', ['tab' => 'sent', 'channels' => [$firstInstagram->id]]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->has('posts.data', 1)
-            ->where('posts.data.0.id', $sharedPost->id)
-            ->has('posts.data.0.post_platforms', 1)
-            ->where('posts.data.0.post_platforms.0.social_account_id', $firstInstagram->id)
+            ->where('filters.channels', [$firstInstagram->id])
             ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 1, 'approvals' => 0])
-            ->where('filters.channels', [$firstInstagram->id]));
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 1)
+                ->where('posts.data.0.id', $sharedPost->id)
+                ->has('posts.data.0.post_platforms', 1)
+                ->where('posts.data.0.post_platforms.0.social_account_id', $firstInstagram->id)));
 });
 
 test('posts index combines selected channels with OR semantics and ignores disabled targets', function () {
@@ -257,9 +263,10 @@ test('posts index combines selected channels with OR semantics and ignores disab
         ->get(route('app.posts.index', ['channels' => [$firstInstagram->id, $secondInstagram->id], 'tab' => 'drafts']))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->has('posts.data', 2)
             ->where('counts.drafts', 2)
-            ->where('filters.channels', [$firstInstagram->id, $secondInstagram->id]));
+            ->where('filters.channels', [$firstInstagram->id, $secondInstagram->id])
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 2)));
 });
 
 test('posts index does not accept a channel from another workspace', function () {
@@ -271,8 +278,9 @@ test('posts index does not accept a channel from another workspace', function ()
         ->get(route('app.posts.index', ['tab' => 'drafts', 'channels' => [$otherAccount->id]]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->has('posts.data', 0)
-            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0, 'approvals' => 0]));
+            ->where('counts', ['queue' => 0, 'drafts' => 0, 'sent' => 0, 'approvals' => 0])
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 0)));
 });
 
 test('posts index redirects to create workspace if no workspace', function () {
@@ -431,12 +439,12 @@ test('opening the composer creates no draft', function () {
     expect(Post::where('workspace_id', $this->workspace->id)->count())->toBe(0);
 });
 
-test('composer data is loaded on demand for the current workspace', function () {
+test('composer live data is loaded on demand for the current workspace', function () {
     $this->actingAs($this->user)
-        ->getJson(route('app.posts.composer-data'))
+        ->getJson(route('app.posts.composer.live'))
         ->assertOk()
-        ->assertJsonPath('socialAccounts.0.id', $this->socialAccount->id)
-        ->assertJsonStructure(['labels', 'platformConfigs', 'pinterestBoards', 'tiktokCreatorInfos', 'signatures', 'xLinkTlds']);
+        ->assertJsonPath("takenSlots.{$this->socialAccount->id}", [])
+        ->assertJsonStructure(['takenSlots', 'pinterestBoards', 'tiktokCreatorInfos']);
 });
 
 test('composer data tells whether each channel has posting times', function () {
@@ -446,10 +454,10 @@ test('composer data tells whether each channel has posting times', function () {
         'posting_schedule' => PostingSchedule::empty()->withTime(1, '09:00'),
     ]);
 
-    $accounts = collect($this->actingAs($this->user)
-        ->getJson(route('app.posts.composer-data'))
+    $accounts = $this->actingAs($this->user)
+        ->get(route('app.posts.index'))
         ->assertOk()
-        ->json('socialAccounts'))->keyBy('id');
+        ->inertiaProps('composer.accounts');
 
     expect($accounts[$scheduled->id]['has_posting_schedule'])->toBeTrue()
         ->and($accounts[$this->socialAccount->id]['has_posting_schedule'])->toBeFalse();
@@ -470,8 +478,9 @@ test('posts list and calendar expose the schedule mode', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('publish/Index', false)
-            ->where('posts.data.0.id', $post->id)
-            ->where('posts.data.0.schedule_mode', ScheduleMode::Queue->value)
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->where('posts.data.0.id', $post->id)
+                ->where('posts.data.0.schedule_mode', ScheduleMode::Queue->value))
         );
 
     $this->actingAs($this->user)
@@ -495,8 +504,9 @@ test('posts tabs filter independently and expose counts', function () {
         ->assertInertia(fn ($page) => $page
             ->component('publish/Index', false)
             ->where('tab', 'drafts')
-            ->has('posts.data', 1)
-            ->where('counts', ['queue' => 1, 'drafts' => 1, 'sent' => 1, 'approvals' => 0]));
+            ->where('counts', ['queue' => 1, 'drafts' => 1, 'sent' => 1, 'approvals' => 0])
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 1)));
 });
 
 test('store post creates one independent draft per selected account', function () {
@@ -622,7 +632,8 @@ test('edit post opens its account in the composer', function () {
         ->assertInertia(fn ($page) => $page
             ->component('publish/Index')
             ->where('editPost.id', $post->id)
-            ->has('socialAccounts')
+            ->has("composer.accounts.{$this->socialAccount->id}")
+            ->where('channels.0.id', $this->socialAccount->id)
         );
 });
 
@@ -1586,9 +1597,10 @@ test('the post details deep link opens a published post on the sent tab', functi
             ->where('tab', 'sent')
             ->where('openPostDetailsId', $post->id)
             ->where('openPostNotesId', null)
-            ->has('posts.data', 1)
-            ->where('posts.data.0.id', $post->id)
-            ->has('posts.data.0.post_platforms', 1)
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 1)
+                ->where('posts.data.0.id', $post->id)
+                ->has('posts.data.0.post_platforms', 1))
         );
 });
 
@@ -1615,7 +1627,8 @@ test('the post details deep link exposes the content type of the post', function
         ->get(route('app.posts.index', ['post' => $post->id]))
         ->assertInertia(fn ($page) => $page
             ->component('publish/Index', false)
-            ->where('posts.data.0.post_platforms.0.content_type', ContentType::FacebookReel->value)
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->where('posts.data.0.post_platforms.0.content_type', ContentType::FacebookReel->value))
         );
 });
 
@@ -1678,7 +1691,7 @@ test('the post details deep link does not expose a post from another workspace',
     $this->actingAs($this->user)
         ->get(route('app.posts.index', ['post' => $post->id, 'tab' => 'sent']))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('posts.data', 0));
+        ->assertInertia(fn ($page) => $page->where('hasData', false)->has('posts.data', 0));
 });
 
 test('update post goes back to the queue after publishing without opening the post details', function () {
@@ -1975,9 +1988,8 @@ test('the editor receives the tld list only while x link defusing is on', functi
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('publish/Index')
-            ->where('xLinkTlds', fn (Collection $tlds): bool => $expectsList
-                ? $tlds->contains('com') && $tlds->count() === count(LinkTlds::all())
-                : $tlds->isEmpty())
+            ->when($expectsList, fn ($page) => $page->where('xLinkTlds', fn (Collection $tlds): bool => $tlds->contains('com') && $tlds->count() === count(LinkTlds::all())))
+            ->when(! $expectsList, fn ($page) => $page->missing('xLinkTlds'))
         );
 })->with([
     'enabled' => [true, true],
@@ -1991,10 +2003,10 @@ test('composer data carries each channel posting schedule', function () {
         'posting_schedule' => PostingSchedule::empty()->withTime(1, '09:00'),
     ]);
 
-    $accounts = collect($this->actingAs($this->user)
-        ->getJson(route('app.posts.composer-data'))
+    $accounts = $this->actingAs($this->user)
+        ->get(route('app.posts.index'))
         ->assertOk()
-        ->json('socialAccounts'))->keyBy('id');
+        ->inertiaProps('composer.accounts');
 
     expect($accounts[$scheduled->id]['posting_schedule'][1])->toEqual(['day' => 1, 'enabled' => true, 'times' => ['09:00']])
         ->and($accounts[$this->socialAccount->id]['posting_schedule'])->toEqual($this->socialAccount->fresh()->posting_schedule?->toArray());
@@ -2009,13 +2021,13 @@ test('composer data lists the instants already scheduled on each channel', funct
     $disabled = Post::factory()->scheduled()->create(['workspace_id' => $this->workspace->id, 'user_id' => $this->user->id, 'scheduled_at' => now()->addDays(4)]);
     PostPlatform::factory()->disabled()->create(['post_id' => $disabled->id, 'social_account_id' => $this->socialAccount->id]);
 
-    $accounts = collect($this->actingAs($this->user)
-        ->getJson(route('app.posts.composer-data'))
+    $takenSlots = $this->actingAs($this->user)
+        ->getJson(route('app.posts.composer.live'))
         ->assertOk()
-        ->json('socialAccounts'))->keyBy('id');
+        ->json('takenSlots');
 
-    expect($accounts[$this->socialAccount->id]['taken_slots'])->toBe([$taken->scheduled_at->toIso8601ZuluString()])
-        ->and($accounts[$other->id]['taken_slots'])->toBe([]);
+    expect($takenSlots[$this->socialAccount->id])->toBe([$taken->scheduled_at->toIso8601ZuluString()])
+        ->and($takenSlots[$other->id])->toBe([]);
 });
 
 test('channel filters do not carry posting schedules', function () {
@@ -2036,12 +2048,12 @@ test('composer data tells each channel time zone', function () {
         'timezone' => 'Asia/Tokyo',
     ]);
 
-    $accounts = collect($this->actingAs($this->user)
-        ->getJson(route('app.posts.composer-data'))
+    $channels = collect($this->actingAs($this->user)
+        ->get(route('app.posts.index'))
         ->assertOk()
-        ->json('socialAccounts'))->keyBy('id');
+        ->inertiaProps('channels'))->keyBy('id');
 
-    expect($accounts[$tokyo->id]['timezone'])->toBe('Asia/Tokyo');
+    expect($channels[$tokyo->id]['timezone'])->toBe('Asia/Tokyo');
 });
 
 function draftTabPost(mixed $test, array $attributes = []): array

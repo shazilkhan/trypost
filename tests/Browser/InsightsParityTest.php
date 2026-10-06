@@ -171,7 +171,7 @@ test('summary cards and sections explain themselves with info tooltips', functio
 
     $page->hover('@analytics-summary-posts-about');
     waitForInsightsParityTestId($page, 'analytics-summary-posts-about-content');
-    $page->assertSeeIn('@analytics-summary-posts-about-content', 'Posts published in the period.');
+    $page->assertSeeIn('@analytics-summary-posts-about-content', 'Number of posts published');
 
     $page->hover('@analytics-performance-about');
     waitForInsightsParityTestId($page, 'analytics-performance-about-content');

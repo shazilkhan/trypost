@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
+use App\Dto\Analytics\PublicationFilter;
 use App\Enums\Analytics\MetricAvailability;
 use App\Enums\Analytics\MetricKey;
 use App\Enums\SocialAccount\Platform;
@@ -29,10 +30,9 @@ class BuildInsightsExport
     /**
      * @param  array<string, mixed>  $report  The report built for the page.
      * @param  list<string>|null  $accountKeys
-     * @param  list<string>  $labelIds
      * @return array{title: string, meta: list<array{0: string, 1: string}>, sections: list<array{title: string, headers: list<string>, rows: iterable<list<int|float|string|null>>}>}
      */
-    public function execute(Workspace $workspace, array $report, DateRange $range, ?array $accountKeys, array $labelIds, bool $untagged, string $timezone): array
+    public function execute(Workspace $workspace, array $report, DateRange $range, ?array $accountKeys, string $timezone, ?PublicationFilter $filter = null): array
     {
         return [
             'title' => __('analytics.title'),
@@ -56,7 +56,7 @@ class BuildInsightsExport
                         __('analytics.insights.export.link'),
                         ...array_map(fn (string $metric): string => $this->metricLabel($metric), self::POST_METRICS),
                     ],
-                    'rows' => $this->posts($workspace, $range, $accountKeys, $labelIds, $untagged, $timezone),
+                    'rows' => $this->posts($workspace, $range, $accountKeys, $timezone, $filter),
                 ],
             ],
         ];
@@ -141,12 +141,11 @@ class BuildInsightsExport
 
     /**
      * @param  list<string>|null  $accountKeys
-     * @param  list<string>  $labelIds
      * @return Generator<int, list<int|float|string|null>>
      */
-    private function posts(Workspace $workspace, DateRange $range, ?array $accountKeys, array $labelIds, bool $untagged, string $timezone): Generator
+    private function posts(Workspace $workspace, DateRange $range, ?array $accountKeys, string $timezone, ?PublicationFilter $filter): Generator
     {
-        $rows = $this->publications->query($workspace, $range->start, $range->observedThrough, $accountKeys, $labelIds, $untagged)
+        $rows = $this->publications->query($workspace, $range->start, $range->observedThrough, $accountKeys, $filter)
             ->orderByDesc('publication.provider_published_at')
             ->orderBy('publication.id')
             ->cursor();

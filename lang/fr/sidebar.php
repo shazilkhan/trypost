@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Rechercher des canaux',
     'channel_submenu' => 'Sous-menu de :name',
     'toggle' => 'Afficher ou masquer la barre latérale',
+    'collapse' => 'Réduire la barre latérale',
+    'expand' => 'Développer la barre latérale',
     'mobile_title' => 'Navigation',
     'mobile_description' => 'Navigation principale de l’application.',
     'repurposes' => 'Repurpose',

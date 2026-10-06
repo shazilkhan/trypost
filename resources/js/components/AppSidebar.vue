@@ -4,6 +4,8 @@ import {
     IconAlertTriangle,
     IconBulb,
     IconCalendarEvent,
+    IconLayoutSidebarLeftCollapse,
+    IconLayoutSidebarLeftExpand,
     IconTrendingUp,
     IconFileText,
     IconLayoutGrid,
@@ -35,6 +37,7 @@ import {
     SidebarHeader,
     useSidebar,
 } from '@/components/ui/sidebar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import WorkspaceMenuContent from '@/components/WorkspaceMenuContent.vue';
 import WorkspaceUpgradeDialog from '@/components/workspaces/WorkspaceUpgradeDialog.vue';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
@@ -80,7 +83,7 @@ const openInviteMemberDialog = (): void => {
     inviteMemberDialogOpen.value = true;
 };
 
-const { isMobile, state: sidebarState } = useSidebar();
+const { isMobile, state: sidebarState, toggleSidebar } = useSidebar();
 
 const workspaceUpgradeDialogOpen = ref(false);
 
@@ -334,6 +337,39 @@ const mainNavItems = computed<NavItem[]>(() => [
                         />
                     </DropdownMenuContent>
                 </DropdownMenu>
+                <Tooltip v-if="!isMobile">
+                    <TooltipTrigger as-child>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            class="size-8 shrink-0 text-muted-foreground"
+                            :aria-label="
+                                sidebarState === 'collapsed'
+                                    ? $t('sidebar.expand')
+                                    : $t('sidebar.collapse')
+                            "
+                            data-testid="sidebar-footer-toggle"
+                            @click="toggleSidebar"
+                        >
+                            <IconLayoutSidebarLeftExpand
+                                v-if="sidebarState === 'collapsed'"
+                                class="size-4"
+                            />
+                            <IconLayoutSidebarLeftCollapse
+                                v-else
+                                class="size-4"
+                            />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent :side="sidebarState === 'collapsed' ? 'right' : 'top'">
+                        {{
+                            sidebarState === 'collapsed'
+                                ? $t('sidebar.expand')
+                                : $t('sidebar.collapse')
+                        }}
+                    </TooltipContent>
+                </Tooltip>
             </div>
         </SidebarFooter>
 

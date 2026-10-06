@@ -59,7 +59,7 @@ const selectEmoji = (emoji: string): void => {
 
 <template>
     <div
-        class="-mx-3 -mb-2 flex items-center pt-4"
+        class="-me-3 -mb-2 flex flex-wrap items-center gap-y-1 pt-4"
         :data-testid="`${testIdPrefix}-toolbar`"
     >
         <MediaSourceMenu

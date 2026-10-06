@@ -309,7 +309,8 @@ test('publish page cards report the size of their group', function () {
         ->get(route('app.posts.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('posts.data', fn ($posts) => collect($posts)->firstWhere('id', $post->id)['group_posts_count'] === 2
-                && collect($posts)->firstWhere('id', $post->id)['post_group_id'] === $groupId
-                && collect($posts)->firstWhere('id', $alone->id)['group_posts_count'] === 0));
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->where('posts.data', fn ($posts) => collect($posts)->firstWhere('id', $post->id)['group_posts_count'] === 2
+                    && collect($posts)->firstWhere('id', $post->id)['post_group_id'] === $groupId
+                    && collect($posts)->firstWhere('id', $alone->id)['group_posts_count'] === 0)));
 });

@@ -34,7 +34,7 @@ class PostCompositionValidator
             'media' => ['sometimes', 'array'],
             'destinations' => ['required', 'array', 'min:1'],
             'destinations.*.social_account_id' => ['required', 'uuid'],
-            'destinations.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
+            'destinations.*.content_type' => ['nullable', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
             'destinations.*.meta' => ['sometimes', 'array'],
             'destinations.*.content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
             'destinations.*.media' => ['sometimes', 'array'],
@@ -57,6 +57,9 @@ class PostCompositionValidator
 
         $composition['destinations'] = collect($composition['destinations'] ?? [])
             ->map(function (array $destination, int $index) use ($composition): array {
+                if (is_array(data_get($destination, 'meta'))) {
+                    $destination['meta'] = PostPlatformMetaRules::onlyKnown($destination['meta']);
+                }
                 $destination['media_error_key'] = array_key_exists('media', $destination)
                     ? "destinations.{$index}.media"
                     : 'media';
@@ -105,6 +108,11 @@ class PostCompositionValidator
                 $media = $canonical;
             }
             unset($media);
+
+            $account = $accounts->get($destination['social_account_id']);
+            if (blank(data_get($destination, 'content_type')) && $account !== null) {
+                $destination['content_type'] = ContentType::forMedia($account->platform, $destination['media'])->value;
+            }
         }
         unset($destination);
 
@@ -154,7 +162,7 @@ class PostCompositionValidator
                     $validator->errors()->add("{$key}.social_account_id", __('posts.errors.queue_requires_schedule'));
                 }
 
-                $contentType = ContentType::tryFrom($destination['content_type']);
+                $contentType = ContentType::tryFrom((string) $destination['content_type']);
                 if ($contentType && ! in_array($account->platform, $contentType->compatiblePlatforms(), true)) {
                     $validator->errors()->add("{$key}.content_type", trans('validation.in', ['attribute' => 'content type']));
                 }

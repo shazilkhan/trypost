@@ -6,6 +6,7 @@ namespace App\Http\Controllers\App;
 
 use App\Actions\Signature\CreateSignature;
 use App\Actions\Signature\DeleteSignature;
+use App\Actions\Signature\ListSignatures;
 use App\Actions\Signature\UpdateSignature;
 use App\Http\Requests\App\Signature\StoreSignatureRequest;
 use App\Http\Requests\App\Signature\UpdateSignatureRequest;
@@ -29,9 +30,7 @@ class WorkspaceSignatureController extends Controller
 
         $this->authorize('createPost', $workspace);
 
-        $signatures = $workspace->signatures()
-            ->when($request->input('search'), fn ($query, $search) => $query->whereLike('name', "%{$search}%"))
-            ->latest()
+        $signatures = ListSignatures::execute($workspace, $request->input('search'))
             ->paginate(config('app.pagination.default'));
 
         return Inertia::render('signatures/Index', [

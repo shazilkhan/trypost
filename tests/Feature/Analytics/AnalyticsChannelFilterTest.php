@@ -85,15 +85,13 @@ beforeEach(function () {
     }
 });
 
-function analyticsChannelFilterRoute(array $channels = [], array $labels = [], bool $untagged = false): string
+function analyticsChannelFilterRoute(array $channels = []): string
 {
     return route('app.insights', array_filter([
         'range' => 'custom',
         'start' => '2026-09-01',
         'end' => '2026-09-30',
         'channels' => $channels,
-        'labels' => $labels,
-        'untagged' => $untagged ? 1 : null,
     ]));
 }
 
@@ -178,23 +176,6 @@ test('invalid and foreign channel ids are ignored', function () {
             ->etc());
 });
 
-test('channels and labels combine as an intersection while followers follow the channels only', function () {
-    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
-    ($this->publish)($this->instagram, 5, $label);
-    ($this->publish)($this->facebook, 7, $label);
-
-    $this->actingAs($this->user)
-        ->get(analyticsChannelFilterRoute([$this->instagram->id], [$label->id]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('report.filters.channels', [$this->instagram->id])
-            ->where('report.filters.labels', [$label->id])
-            ->where('report.summary.posts.value', 1)
-            ->where('report.summary.reactions.value', 5)
-            ->where('report.summary.followers.value', 100)
-            ->etc());
-});
-
 test('a reconnected channel matches the rows stored under its previous analytics key', function () {
     $previousKey = $this->instagram->id;
     $platformUserId = $this->instagram->platform_user_id;
@@ -219,12 +200,10 @@ test('a reconnected channel matches the rows stored under its previous analytics
             ->etc());
 });
 
-test('previous-period values follow the channel filter, and the label filter leaves previous followers untouched', function () {
-    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
-
+test('previous-period values follow the channel filter', function () {
     foreach ([[$this->instagram, 50, 1], [$this->facebook, 60, 2], [$this->threads, 70, 4]] as [$account, $followers, $reactions]) {
         ($this->follower)($account, '2026-08-20', $followers);
-        ($this->publish)($account, $reactions, $account->is($this->threads) ? $label : null, null, '2026-08-15 12:00:00');
+        ($this->publish)($account, $reactions, null, null, '2026-08-15 12:00:00');
     }
 
     $this->actingAs($this->user)
@@ -236,16 +215,6 @@ test('previous-period values follow the channel filter, and the label filter lea
             ->where('report.summary.followers.previous', 120)
             ->where('report.summary.followers.change', 280)
             ->where('report.performance', fn ($rows) => collect($rows)->every(fn (array $row): bool => $row['posts']['previous'] === 1))
-            ->etc());
-
-    $this->actingAs($this->user)
-        ->get(analyticsChannelFilterRoute([], [$label->id]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('report.summary.posts.value', 0)
-            ->where('report.summary.posts.previous', 1)
-            ->where('report.summary.reactions.previous', 4)
-            ->where('report.summary.followers.previous', 180)
             ->etc());
 });
 
@@ -262,44 +231,6 @@ test('the follower total is each account latest snapshot in range and stays null
     $silent->delete();
 
     expect($report->forSelection($this->workspace, $selection)['summary']['followers']['value'])->toBe(600);
-});
-
-test('untagged counts every publication without labels, including external posts, and unions with selected labels', function () {
-    $label = WorkspaceLabel::factory()->create(['workspace_id' => $this->workspace->id]);
-    ($this->publish)($this->instagram, 5, $label);
-    AnalyticsPublication::factory()->create([
-        'workspace_id' => $this->workspace->id,
-        'social_account_id' => $this->instagram->id,
-        'social_account_key' => $this->instagram->id,
-        'post_platform_id' => null,
-        'platform' => Platform::Instagram,
-        'provider_published_at' => CarbonImmutable::parse('2026-09-15 12:00:00', 'UTC'),
-    ]);
-
-    $this->actingAs($this->user)
-        ->get(analyticsChannelFilterRoute([], [], true))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('report.filters.untagged', true)
-            ->where('report.summary.posts.value', 4)
-            ->where('report.summary.reactions.value', 70)
-            ->etc());
-
-    $this->actingAs($this->user)
-        ->get(analyticsChannelFilterRoute([$this->instagram->id], [$label->id], true))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('report.summary.posts.value', 3)
-            ->where('report.summary.reactions.value', 15)
-            ->etc());
-
-    $this->actingAs($this->user)
-        ->get(analyticsChannelFilterRoute())
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('report.filters.untagged', false)
-            ->where('report.summary.posts.value', 5)
-            ->etc());
 });
 
 test('account keys for every channel are resolved in two queries', function () {

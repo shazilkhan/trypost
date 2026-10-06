@@ -188,6 +188,7 @@ return [
         'slots_description' => 'I tuoi orari di pubblicazione dicono a TryPost quando inviare i post della tua coda. I prossimi post che aggiungi alla coda escono nei prossimi orari qui sotto.',
         'day_on' => 'Attivo',
         'day_off' => 'Disattivato',
+        'day_empty' => 'Nessun orario',
         'remove_time' => 'Rimuovi :time',
         'edit_hour' => 'Modifica l\'ora di :time',
         'edit_minute' => 'Modifica i minuti di :time',

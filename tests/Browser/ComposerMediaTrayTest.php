@@ -899,3 +899,21 @@ test('an upload that failed before customizing shows in the cards and removing i
     expect(composerMediaTrayDisabled($page, 'composer-save-draft'))->toBeFalse();
     $page->assertNoJavaScriptErrors();
 });
+
+test('the toolbar media button box lines up with the left edge of the media tray', function () {
+    [$page] = openComposerMediaTray($this);
+
+    waitForComposerMediaTrayTestId($page, 'composer-base-media-source-menu');
+
+    $offset = $page->script(<<<'JS'
+        (() => {
+            const icon = document.querySelector('[data-testid="composer-base-media-source-menu"]').getBoundingClientRect();
+            const tray = document.querySelector('[data-testid="composer-dropzone"]').getBoundingClientRect();
+
+            return Math.round(icon.left - tray.left);
+        })()
+    JS);
+
+    expect($offset)->toBe(0);
+    $page->assertNoJavaScriptErrors();
+});

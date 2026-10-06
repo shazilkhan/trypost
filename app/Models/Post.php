@@ -272,6 +272,19 @@ class Post extends Model
     }
 
     /**
+     * Posts with an enabled destination on any of the channels; no filter when $channelIds is null.
+     *
+     * @param  list<string>|null  $channelIds
+     */
+    public function scopeOnChannels(Builder $query, ?array $channelIds): Builder
+    {
+        return $query->when($channelIds !== null, fn (Builder $filtered): Builder => $filtered->whereHas(
+            'postPlatforms',
+            fn (Builder $platforms): Builder => $platforms->enabled()->whereIn('social_account_id', $channelIds),
+        ));
+    }
+
+    /**
      * Posts carrying any of the labels, plus posts without labels when $untagged is set; no filter when both are empty.
      *
      * @param  list<string>  $labelIds

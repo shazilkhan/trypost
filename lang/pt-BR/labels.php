@@ -19,7 +19,6 @@ return [
         'delete' => 'Excluir etiqueta',
         'more' => 'Mais ações',
         'view_posts' => 'Ver posts',
-        'open_reporting' => 'Abrir relatórios',
     ],
 
     'create' => [

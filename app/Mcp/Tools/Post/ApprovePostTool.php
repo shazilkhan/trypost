@@ -9,7 +9,7 @@ use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
-use App\Support\PostApproval;
+use App\Support\Requests\Post\ApprovalRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Arr;
 use Laravel\Mcp\Request;
@@ -29,7 +29,7 @@ class ApprovePostTool extends Tool
     {
         $validated = $request->validate([
             'post_id' => ['required', 'uuid'],
-            ...PostApproval::rules(),
+            ...ApprovalRequestRules::approve(),
         ]);
 
         $workspace = $request->user()?->currentWorkspace;
@@ -41,7 +41,7 @@ class ApprovePostTool extends Tool
             return Response::error('Post not found.');
         }
 
-        if ($denied = $this->denyUnlessCan($request, 'approve', $post, 'Not authorized to approve this post.')) {
+        if ($denied = $this->denyUnlessCan($request, 'approve', $post, 'Post not found.')) {
             return $denied;
         }
 

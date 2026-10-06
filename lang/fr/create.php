@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => 'p. ex. Des personnes passionnées de décoration et de cadeaux faits main',
             'notes_label' => 'Autre chose ? (facultatif)',
             'notes_placeholder' => 'Ton, sujets à aborder ou à éviter, lancements à venir',
-            'count_label' => 'Combien d\'idées ?',
-            'stage_label' => 'Ajouter au groupe',
+            'again' => 'Régénérer',
+            'use' => 'Utiliser cette idée',
             'submit' => 'Générer des idées',
         ],
         'default_stages' => [

@@ -58,6 +58,7 @@ return [
     'cancel' => 'İptal',
     'clear' => 'Temizle',
     'close' => 'Kapat',
+    'loading' => 'Yükleniyor...',
     'loading_more' => 'Daha fazla yükleniyor...',
 
     'actions' => [

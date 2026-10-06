@@ -145,11 +145,11 @@ test('analytics API requires authentication and MCP denies a foreign workspace',
 
     TryPostServer::actingAs($outsider)
         ->tool(GetAnalyticsReportTool::class, [])
-        ->assertHasErrors(['Not authorized to view workspace analytics.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(GetAnalyticsPublicationTool::class, ['publication_id' => $publication->id])
-        ->assertHasErrors(['Not authorized to view workspace analytics.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 });
 
 test('API and MCP expose imported publication metrics and isolate workspaces', function () {
@@ -241,7 +241,7 @@ test('the analytics API resolves a range preset in the user time zone without cl
         ->assertJsonPath('bounds.max', '2026-09-28');
 });
 
-test('the analytics API keeps the last 30 days of available data when no range is sent', function () {
+test('the analytics API reports the last 30 days like the web when no range is sent', function () {
     $this->travelTo('2026-09-30 12:00 UTC');
     $access = createApiTestToken();
     $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $access['workspace']->id]);
@@ -261,6 +261,12 @@ test('the analytics API keeps the last 30 days of available data when no range i
 
     $this->withHeaders(['Authorization' => "Bearer {$access['plain_token']}"])
         ->getJson(route('api.analytics.index'))
+        ->assertOk()
+        ->assertJsonPath('range.start', '2026-09-01')
+        ->assertJsonPath('range.end', '2026-09-30');
+
+    $this->withHeaders(['Authorization' => "Bearer {$access['plain_token']}"])
+        ->getJson(route('api.analytics.index', ['start' => '2026-07-12', 'end' => '2026-08-10']))
         ->assertOk()
         ->assertJsonPath('range.start', '2026-07-12')
         ->assertJsonPath('range.end', '2026-08-10');

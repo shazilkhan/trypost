@@ -221,7 +221,6 @@ test('instagram reels collect watch duration in milliseconds without losing enga
             ['name' => 'reach', 'values' => [['value' => 80]]],
             ['name' => 'likes', 'total_value' => ['value' => 5]],
         ]])
-        ->push(['data' => []])
         ->push(['data' => [
             ['name' => 'ig_reels_video_view_total_time', 'total_value' => ['value' => 185000]],
             ['name' => 'ig_reels_avg_watch_time', 'values' => [['value' => 23000]]],
@@ -238,7 +237,7 @@ test('instagram reels collect watch duration in milliseconds without losing enga
         'average_watch_time_milliseconds' => 23000,
         'engagements' => 5,
     ]);
-    Http::assertSentCount(3);
+    Http::assertSentCount(2);
 });
 
 test('an optional Instagram Reel insight rate limit stays retryable', function () {
@@ -252,14 +251,13 @@ test('an optional Instagram Reel insight rate limit stays retryable', function (
     ]);
     Http::fake(['*' => Http::sequence()
         ->push(['data' => [['name' => 'reach', 'values' => [['value' => 80]]]]])
-        ->push(['data' => []])
         ->push(['error' => ['code' => 4]], 429)]);
 
     expect(fn () => app(InstagramPublicationMetricsCollector::class)
         ->collect($publication, CarbonImmutable::today('UTC')))
         ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('rate_limited'));
 
-    Http::assertSentCount(3);
+    Http::assertSentCount(2);
 });
 
 test('an unsupported optional Instagram insight does not discard base metrics', function () {
@@ -273,8 +271,8 @@ test('an unsupported optional Instagram insight does not discard base metrics', 
     ]);
     Http::fake(['*' => Http::sequence()
         ->push(['data' => [['name' => 'reach', 'values' => [['value' => 80]]]]])
-        ->push(['data' => []])
-        ->push(['error' => ['code' => 200]], 400)]);
+        ->push(['error' => ['code' => 200]], 400)
+        ->whenEmpty(Http::response(['error' => ['code' => 200]], 400))]);
 
     $metrics = collect(app(InstagramPublicationMetricsCollector::class)
         ->collect($publication, CarbonImmutable::today('UTC'))->metrics);
@@ -697,6 +695,145 @@ test('facebook reports permission and logs the Graph code when every read is ref
     expect(fn () => app(FacebookPublicationMetricsCollector::class)
         ->collect($publication, CarbonImmutable::parse('2026-09-23', 'UTC')))
         ->toThrow(fn (AnalyticsCollectionException $exception) => expect($exception->category)->toBe('permission'));
-    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => $message === 'analytics.facebook_read_refused'
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => $message === 'analytics.meta_metric_rejected'
+        && data_get($context, 'metric') === 'post_clicks'
         && str_contains((string) data_get($context, 'reason'), 'Graph code 100'));
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => $message === 'analytics.facebook_read_refused'
+        && str_contains((string) data_get($context, 'reason'), 'Graph code 10)'));
+});
+
+function instagramInsightsPublication(PublicationContentType $contentType): AnalyticsPublication
+{
+    $account = SocialAccount::factory()->instagram()->create();
+
+    return AnalyticsPublication::factory()->create([
+        'workspace_id' => $account->workspace_id,
+        'social_account_id' => $account->id,
+        'platform' => Platform::Instagram,
+        'platform_user_id' => $account->platform_user_id,
+        'remote_id' => 'ig_media',
+        'content_type' => $contentType,
+    ]);
+}
+
+function instagramInsightsMetricsSent(): array
+{
+    return collect(Http::recorded())
+        ->map(fn (array $pair): string => (string) data_get($pair[0]->data(), 'metric'))
+        ->all();
+}
+
+function instagramInsightsFake(array $values, array $rejected = []): void
+{
+    $insights = config('trypost.platforms.instagram.graph_api').'/ig_media/insights*';
+
+    Http::fake([$insights => function (Request $request) use ($values, $rejected) {
+        $metrics = explode(',', (string) data_get($request->data(), 'metric'));
+
+        if (array_intersect($metrics, $rejected) !== []) {
+            return Http::response(['error' => [
+                'message' => '(#100) The Media Insights API does not support this metric for this media product type.',
+                'type' => 'OAuthException',
+                'code' => 100,
+            ]], 400);
+        }
+
+        return Http::response(['data' => collect($metrics)
+            ->filter(fn (string $metric): bool => array_key_exists($metric, $values))
+            ->map(fn (string $metric): array => is_array($values[$metric])
+                ? ['name' => $metric, 'total_value' => $values[$metric]]
+                : ['name' => $metric, 'values' => [['value' => $values[$metric]]]])
+            ->values()
+            ->all()]);
+    }]);
+}
+
+test('an Instagram feed post collects the follows and profile metrics documented for FEED', function () {
+    $publication = instagramInsightsPublication(PublicationContentType::Image);
+    instagramInsightsFake([
+        'reach' => 120, 'views' => 300, 'likes' => 10, 'comments' => 2, 'shares' => 1, 'saved' => 3,
+        'total_interactions' => 16, 'reposts' => 1, 'follows' => 4, 'profile_visits' => 9, 'profile_activity' => 6,
+    ]);
+
+    $metrics = collect(app(InstagramPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::today('UTC'))->metrics)
+        ->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value]);
+
+    expect($metrics->only(['follows', 'profile_visits', 'profile_activity', 'reposts', 'total_interactions', 'engagements'])->all())->toEqual([
+        'follows' => 4, 'profile_visits' => 9, 'profile_activity' => 6, 'reposts' => 1, 'total_interactions' => 16, 'engagements' => 16,
+    ])
+        ->and(instagramInsightsMetricsSent())->toBe([
+            'reach,views,likes,comments,shares,saved',
+            'total_interactions,reposts,follows,profile_visits,profile_activity',
+        ]);
+});
+
+test('an Instagram reel never asks for the FEED-only follows and profile metrics', function () {
+    $publication = instagramInsightsPublication(PublicationContentType::Reel);
+    instagramInsightsFake([
+        'reach' => 80, 'likes' => 5, 'total_interactions' => 7, 'reposts' => 2,
+        'ig_reels_video_view_total_time' => 185000, 'ig_reels_avg_watch_time' => 23000,
+    ], ['follows', 'profile_visits', 'profile_activity']);
+
+    $metrics = collect(app(InstagramPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::today('UTC'))->metrics)
+        ->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value]);
+
+    expect($metrics->only(['reach', 'reactions', 'total_interactions', 'reposts', 'watch_time_milliseconds', 'average_watch_time_milliseconds'])->all())->toEqual([
+        'reach' => 80, 'reactions' => 5, 'total_interactions' => 7, 'reposts' => 2,
+        'watch_time_milliseconds' => 185000, 'average_watch_time_milliseconds' => 23000,
+    ])
+        ->and($metrics->has('follows'))->toBeFalse()
+        ->and(instagramInsightsMetricsSent())->toBe([
+            'reach,views,likes,comments,shares,saved',
+            'total_interactions,reposts,ig_reels_video_view_total_time,ig_reels_avg_watch_time',
+        ]);
+});
+
+test('a rejected optional Instagram metric does not drop the other optional metrics', function () {
+    Log::spy();
+    $publication = instagramInsightsPublication(PublicationContentType::Image);
+    instagramInsightsFake([
+        'reach' => 120, 'likes' => 10, 'total_interactions' => 16, 'follows' => 4, 'profile_visits' => 9, 'profile_activity' => 6,
+    ], ['reposts']);
+
+    $metrics = collect(app(InstagramPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::today('UTC'))->metrics)
+        ->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value]);
+
+    expect($metrics->only(['reach', 'follows', 'profile_visits', 'profile_activity', 'total_interactions'])->all())->toEqual([
+        'reach' => 120, 'follows' => 4, 'profile_visits' => 9, 'profile_activity' => 6, 'total_interactions' => 16,
+    ])
+        ->and($metrics->has('reposts'))->toBeFalse();
+    Http::assertSentCount(7);
+    Log::shouldHaveReceived('info')->withArgs(fn (string $message, array $context): bool => $message === 'analytics.meta_metric_rejected'
+        && data_get($context, 'metric') === 'reposts'
+        && data_get($context, 'category') === 'malformed');
+});
+
+test('an Instagram story collects profile metrics and its navigation breakdown', function () {
+    $publication = instagramInsightsPublication(PublicationContentType::Story);
+    instagramInsightsFake([
+        'reach' => 50, 'views' => 70, 'replies' => 1, 'shares' => 2, 'follows' => 3, 'profile_visits' => 5,
+        'navigation' => ['breakdowns' => [[
+            'dimension_keys' => ['story_navigation_action_type'],
+            'results' => [
+                ['dimension_values' => ['TAP_FORWARD'], 'value' => 20],
+                ['dimension_values' => ['TAP_BACK'], 'value' => 4],
+                ['dimension_values' => ['TAP_EXIT'], 'value' => 6],
+                ['dimension_values' => ['SWIPE_FORWARD'], 'value' => 2],
+            ],
+        ]]],
+    ]);
+
+    $metrics = collect(app(InstagramPublicationMetricsCollector::class)
+        ->collect($publication, CarbonImmutable::today('UTC'))->metrics)
+        ->mapWithKeys(fn ($metric) => [$metric->key->value => $metric->value]);
+
+    expect($metrics->only(['reach', 'comments', 'shares', 'follows', 'profile_visits', 'story_navigation', 'story_taps_forward', 'story_taps_back', 'story_exits', 'story_swipes_forward'])->all())->toEqual([
+        'reach' => 50, 'comments' => 1, 'shares' => 2, 'follows' => 3, 'profile_visits' => 5,
+        'story_navigation' => 32, 'story_taps_forward' => 20, 'story_taps_back' => 4, 'story_exits' => 6, 'story_swipes_forward' => 2,
+    ]);
+    Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'metric') === 'navigation'
+        && data_get($request->data(), 'breakdown') === 'story_navigation_action_type');
 });

@@ -178,10 +178,11 @@ test('the previous period lists only publications in the previous range', functi
             ->etc());
 });
 
-test('the publication table is paginated by the default page size', function () {
-    $size = (int) config('app.pagination.default');
+test('the publication table shows ten posts per numbered page whatever the default page size', function () {
+    config(['app.pagination.default' => 25]);
+    $size = ListChannelPublicationPerformance::INSIGHTS_PAGE_SIZE;
 
-    foreach (range(1, $size + 1) as $day) {
+    foreach (range(1, $size + 3) as $day) {
         channelInsightsPublication($this->instagram, CarbonImmutable::parse('2026-08-01 10:00:00', 'UTC')->addDays($day % 28)->toDateTimeString(), ['reactions_count' => $day]);
     }
 
@@ -190,21 +191,31 @@ test('the publication table is paginated by the default page size', function () 
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('publications.data', $size)
-            ->where('publications.data.0.metrics.reactions', $size + 1)
+            ->where('publications.current_page', 1)
+            ->where('publications.last_page', 2)
+            ->where('publications.per_page', $size)
+            ->where('publications.total', $size + 3)
+            ->where('publications.data.0.metrics.reactions', $size + 3)
             ->etc());
 
     $this->actingAs($this->user)
         ->get(route('app.channels.insights', ['account' => $this->instagram, 'range' => 'custom', 'start' => '2026-08-01', 'end' => '2026-08-31', 'page' => 2]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('publications.data', 1)
+            ->has('publications.data', 3)
+            ->where('publications.current_page', 2)
             ->where('publications.data.0.rank', $size + 1)
-            ->where('publications.data.0.metrics.reactions', 1)
+            ->where('publications.data.2.metrics.reactions', 1)
             ->etc());
 });
 
+test('the publication page must be a positive number', function () {
+    $this->actingAs($this->user)
+        ->get(route('app.channels.insights', ['account' => $this->instagram, 'page' => 0]))
+        ->assertSessionHasErrors('page');
+});
+
 test('the publication table lists only the top posts of the period', function () {
-    config(['app.pagination.default' => 20]);
     $top = ListChannelPublicationPerformance::TOP_POSTS;
 
     foreach (range(1, $top + 5) as $index) {
@@ -215,12 +226,14 @@ test('the publication table lists only the top posts of the period', function ()
         ->get(route('app.channels.insights', ['account' => $this->instagram, 'range' => 'custom', 'start' => '2026-08-01', 'end' => '2026-08-31', 'page' => $number]))
         ->assertOk();
 
-    $page(3)->assertInertia(fn (Assert $inertia) => $inertia
-        ->has('publications.data', $top - 40)
+    $page(5)->assertInertia(fn (Assert $inertia) => $inertia
+        ->has('publications.data', 10)
         ->where('publications.data.0.rank', 41)
+        ->where('publications.last_page', 5)
+        ->where('publications.total', $top)
         ->etc());
 
-    $page(4)->assertInertia(fn (Assert $inertia) => $inertia
+    $page(6)->assertInertia(fn (Assert $inertia) => $inertia
         ->has('publications.data', 0)
         ->etc());
 });

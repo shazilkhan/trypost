@@ -16,6 +16,7 @@ use App\Exceptions\SocialAccount\NetworkAlreadyConnectedException;
 use App\Jobs\SendNotification;
 use App\Mail\AccountDisconnected;
 use App\Models\Scopes\SocialAccountOrderScope;
+use App\Observers\ComposerVersionObserver;
 use App\Observers\SocialAccountObserver;
 use App\Support\GoogleBusinessResourceName;
 use Database\Factories\SocialAccountFactory;
@@ -34,7 +35,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
-#[ObservedBy(SocialAccountObserver::class)]
+#[ObservedBy([SocialAccountObserver::class, ComposerVersionObserver::class])]
 #[ScopedBy(SocialAccountOrderScope::class)]
 class SocialAccount extends Model
 {

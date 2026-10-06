@@ -6,6 +6,7 @@ namespace App\Http\Requests\App\Idea;
 
 use App\Models\Idea;
 use App\Support\RequestIds;
+use App\Support\Requests\Idea\IdeaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 
@@ -21,14 +22,7 @@ class ListIdeasRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'view' => ['sometimes', 'nullable', 'string'],
-            'stage' => ['sometimes', 'nullable', 'string'],
-            'stages' => ['sometimes', 'nullable', 'array'],
-            'labels' => ['sometimes', 'nullable', 'array'],
-            'untagged' => ['sometimes', 'nullable'],
-            'unassigned' => ['sometimes', 'nullable'],
-        ];
+        return IdeaRequestRules::list();
     }
 
     public function isGallery(): bool

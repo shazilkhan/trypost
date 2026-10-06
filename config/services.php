@@ -162,4 +162,9 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
     ],
 
+    'bitly' => [
+        'client_id' => env('BITLY_CLIENT_ID'),
+        'client_secret' => env('BITLY_CLIENT_SECRET'),
+        'redirect' => env('BITLY_CLIENT_REDIRECT'),
+    ],
 ];

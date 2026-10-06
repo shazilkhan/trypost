@@ -11,6 +11,7 @@ return [
     'no_content' => 'Aucun contenu',
     'more' => '+:count de plus',
     'less' => 'Voir moins',
+    'empty_day' => 'Rien de prévu ce jour-là.',
     'status' => [
         'label' => 'Statut',
         'all' => 'Toutes les publications',

@@ -11,6 +11,7 @@ return [
     'no_content' => 'コンテンツなし',
     'more' => '他 :count 件',
     'less' => '閉じる',
+    'empty_day' => 'この日の予定はありません。',
     'status' => [
         'label' => 'ステータス',
         'all' => 'すべての投稿',

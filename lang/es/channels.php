@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Tus horarios de publicación le indican a TryPost cuándo enviar las publicaciones de tu cola. Las próximas publicaciones que añadas a la cola salen en los siguientes horarios de abajo.',
         'day_on' => 'Activo',
         'day_off' => 'Inactivo',
+        'day_empty' => 'Sin horarios',
         'remove_time' => 'Quitar :time',
         'edit_hour' => 'Cambiar la hora de :time',
         'edit_minute' => 'Cambiar los minutos de :time',

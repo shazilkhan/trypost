@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Vos horaires de publication indiquent à TryPost quand envoyer les publications de votre file d\'attente. Les prochaines publications que vous ajoutez à la file partent aux prochains créneaux ci-dessous.',
         'day_on' => 'Activé',
         'day_off' => 'Désactivé',
+        'day_empty' => 'Aucun horaire',
         'remove_time' => 'Supprimer :time',
         'edit_hour' => 'Modifier l\'heure de :time',
         'edit_minute' => 'Modifier les minutes de :time',

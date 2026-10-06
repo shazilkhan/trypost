@@ -58,7 +58,7 @@ const labelKey = computed(() => {
 
 const send = (payload: { scheduled_at?: string; publish_now?: true }): void => {
     router.put(approve.url(props.post.id), payload, {
-        only: ['posts', 'counts', 'queue'],
+        only: ['posts', 'counts', 'queue', 'hasData'],
         reset: ['posts'],
         preserveScroll: true,
         onSuccess: () => {

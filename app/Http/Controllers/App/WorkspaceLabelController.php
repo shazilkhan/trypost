@@ -6,6 +6,7 @@ namespace App\Http\Controllers\App;
 
 use App\Actions\Label\CreateLabel;
 use App\Actions\Label\DeleteLabel;
+use App\Actions\Label\ListLabels;
 use App\Actions\Label\UpdateLabel;
 use App\Http\Requests\App\Label\StoreLabelRequest;
 use App\Http\Requests\App\Label\UpdateLabelRequest;
@@ -27,10 +28,8 @@ class WorkspaceLabelController extends Controller
 
         $this->authorize('createPost', $workspace);
 
-        $labels = $workspace->labels()
+        $labels = ListLabels::execute($workspace, $request->input('search'))
             ->withCount('posts')
-            ->when($request->input('search'), fn ($query, $search) => $query->whereLike('name', "%{$search}%"))
-            ->latest()
             ->paginate(config('app.pagination.default'));
 
         return Inertia::render('labels/Index', [

@@ -8,7 +8,7 @@ import { toast } from 'vue-sonner';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import CreateHeader from '@/components/create/CreateHeader.vue';
 import CreateTabs from '@/components/create/CreateTabs.vue';
-import GenerateIdeasPopover from '@/components/create/ideas/GenerateIdeasPopover.vue';
+import GenerateIdeasDialog from '@/components/create/ideas/GenerateIdeasDialog.vue';
 import IdeaBoard from '@/components/create/ideas/IdeaBoard.vue';
 import IdeaEditorDialog from '@/components/create/ideas/IdeaEditorDialog.vue';
 import IdeaGallery from '@/components/create/ideas/IdeaGallery.vue';
@@ -38,6 +38,7 @@ import {
     UNASSIGNED,
     type IdeaCard,
     type IdeaCardPage,
+    type IdeaDraft,
     type IdeaEditorState,
     type IdeaFilters,
     type IdeaStage,
@@ -112,6 +113,26 @@ const editorKey = computed(() =>
 
 const newIdeaHref = (stageId: string | null = null): string =>
     create.url({ query: { ...query(), stage: stageId ?? undefined } });
+
+const prefill = ref<IdeaDraft | null>(null);
+
+watch(
+    () => props.editor,
+    (editor) => {
+        if (editor?.mode !== 'create') {
+            prefill.value = null;
+        }
+    },
+);
+
+const useGeneratedIdea = (idea: IdeaDraft): void => {
+    prefill.value = idea;
+    router.visit(newIdeaHref(), {
+        preserveState: true,
+        preserveScroll: true,
+        only: ['editor'],
+    });
+};
 
 const labelsById = computed(
     () => new Map(props.labels.map((label) => [label.id, label])),
@@ -488,7 +509,7 @@ const hasGalleryFilters = computed(
                 </Button>
             </div>
             <div v-else class="flex items-center gap-2">
-                <GenerateIdeasPopover :stages="localStages" />
+                <GenerateIdeasDialog @use="useGeneratedIdea" />
                 <Button
                     variant="outline"
                     as-child
@@ -583,6 +604,7 @@ const hasGalleryFilters = computed(
         v-if="editor"
         :key="editorKey"
         :editor="editor"
+        :prefill="editor.mode === 'create' ? prefill : null"
         :stages="localStages"
         :labels="labels"
         :close-url="closeUrl"

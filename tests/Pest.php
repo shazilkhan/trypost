@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\BrowserTestCase;
 use Tests\TestCase;
 
@@ -381,5 +382,46 @@ function strandedMemberOnSharedAccount(
         'owner' => $owner->fresh(),
         'member' => $member->fresh(),
         'shared_workspaces' => $shared,
+    ];
+}
+
+/**
+ * A workspace reachable both through a REST API token and as the MCP actor,
+ * for tests that run one scenario through both surfaces.
+ *
+ * @return array{user: User, workspace: Workspace, token: string}
+ */
+function parityContext(): array
+{
+    $result = createApiTestToken();
+
+    return [
+        'user' => $result['user']->fresh(),
+        'workspace' => $result['workspace'],
+        'token' => $result['plain_token'],
+    ];
+}
+
+/**
+ * @return array<string, string>
+ */
+function parityApi(string $token): array
+{
+    return ['Authorization' => "Bearer {$token}", 'Accept' => 'application/json'];
+}
+
+/**
+ * The structured content an MCP list tool returns for the same page as a paginated API list response.
+ *
+ * @return array<string, mixed>
+ */
+function parityMcpPage(string $key, TestResponse $api): array
+{
+    return [
+        $key => $api->json('data'),
+        'total' => $api->json('meta.total'),
+        'per_page' => $api->json('meta.per_page'),
+        'current_page' => $api->json('meta.current_page'),
+        'last_page' => $api->json('meta.last_page'),
     ];
 }

@@ -434,7 +434,7 @@ watch(
 
         <SettingsRow>
             <div
-                class="space-y-1 pb-4 text-xs text-muted-foreground"
+                class="space-y-1 pb-4 text-xs break-words text-muted-foreground"
                 data-testid="tiktok-compliance"
             >
                 <p>

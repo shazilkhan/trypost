@@ -9,6 +9,7 @@ use App\Http\Controllers\App\CanvaController;
 use App\Http\Controllers\App\ChannelController;
 use App\Http\Controllers\App\ChannelPostingScheduleController;
 use App\Http\Controllers\App\ChannelQueueController;
+use App\Http\Controllers\App\ComposerLiveDataController;
 use App\Http\Controllers\App\DiscordController as AppDiscordController;
 use App\Http\Controllers\App\GoogleMediaController;
 use App\Http\Controllers\App\GooglePhotosSessionController;
@@ -209,6 +210,9 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->where('view', 'week|month')
         ->name('app.channels.calendar');
     Route::get('channels/{account}/insights', [ChannelController::class, 'insights'])->name('app.channels.insights');
+    Route::get('channels/{account}/insights/download/{format}', [ChannelController::class, 'downloadInsights'])
+        ->whereIn('format', ExportFormat::values())
+        ->name('app.channels.insights.download');
     Route::get('channels/{account}/settings', [ChannelController::class, 'settings'])->name('app.channels.settings');
     Route::put('channels/{account}/queue/order', [ChannelQueueController::class, 'reorder'])->name('app.channels.queue.order');
     Route::put('channels/{account}/queue/slot', [ChannelQueueController::class, 'moveToSlot'])->name('app.channels.queue.slot');
@@ -229,7 +233,7 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
         ->name('app.calendar');
 
     // Posts
-    Route::get('posts/composer-data', [PostController::class, 'composerData'])->name('app.posts.composer-data');
+    Route::get('posts/composer/live', ComposerLiveDataController::class)->name('app.posts.composer.live');
     Route::get('posts/create', [PostController::class, 'create'])->name('app.posts.create');
     Route::post('posts', [PostController::class, 'store'])->name('app.posts.store');
     Route::get('posts/{post}/edit', [PostController::class, 'edit'])->name('app.posts.edit');

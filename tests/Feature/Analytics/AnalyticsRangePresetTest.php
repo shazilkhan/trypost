@@ -49,9 +49,7 @@ test('month presets follow the user calendar day rather than the UTC day', funct
     $action = new ResolveAnalyticsRangePreset;
 
     expect($action->handle('mtd', null, null, 'America/Sao_Paulo'))
-        ->toBe(['start' => '2026-09-01', 'end' => '2026-09-30'])
-        ->and($action->handle('last_month', null, null, 'America/Sao_Paulo'))
-        ->toBe(['start' => '2026-08-01', 'end' => '2026-08-31']);
+        ->toBe(['start' => '2026-09-01', 'end' => '2026-09-30']);
 });
 
 test('custom returns the given dates', function () {

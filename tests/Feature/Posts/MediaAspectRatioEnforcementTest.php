@@ -337,6 +337,23 @@ test('a legacy aspect ratio no longer lets a too-wide instagram feed image throu
     expect($stored->fresh()->status)->toBe(Status::Draft);
 })->with(['1:1', '4:5', '16:9', 'original']);
 
+test('the web schedule still refuses a ratio-breaking composer item that carries a non-null upload_token', function () {
+    $upload = aspectTestAsset($this->workspace, 500, 1000, ['width' => 500, 'height' => 1000]);
+    [$post, $platform] = aspectTestPost($this->workspace, $this->user, $this->instagram, $upload, ContentType::InstagramFeed);
+
+    expect($upload->upload_token)->not->toBeNull();
+
+    $this->actingAs($this->user)->put(route('app.posts.update', $post), [
+        'status' => Status::Scheduled->value,
+        'scheduled_at' => now()->addDay()->toIso8601String(),
+        'media' => [[...MediaItem::fromMedia($upload)->toArray(), 'upload_token' => $upload->upload_token]],
+        'platforms' => [['id' => $platform->id, 'content_type' => ContentType::InstagramFeed->value]],
+    ]);
+
+    expect(implode(' ', sessionErrorMessages()))->toContain('0.50')
+        ->and($post->fresh()->status)->toBe(Status::Draft);
+});
+
 test('a facebook post schedules an image of any ratio on web, api and mcp', function (int $width, int $height) {
     $facebook = SocialAccount::factory()->facebook()->create(['workspace_id' => $this->workspace->id]);
     $upload = uploadAspectTestImage($this->user, $width, $height);

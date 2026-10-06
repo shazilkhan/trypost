@@ -27,7 +27,7 @@ test('list signatures returns wrapped signatures array with SignatureResource sh
 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
-            $json->has('signatures', 2, function (AssertableJson $sig) {
+            $json->where('current_page', 1)->where('per_page', (int) config('app.pagination.default'))->etc()->has('signatures', 2, function (AssertableJson $sig) {
                 $sig->hasAll(['id', 'name', 'content', 'created_at', 'updated_at'])
                     ->missing('workspace_id');
             });

@@ -18,6 +18,7 @@ use App\Models\RepurposeItem;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
 use App\Services\Repurpose\SourceFetcherFactory;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -372,7 +373,7 @@ test('polling the same video twice queues it only once', function () {
     Repurpose::factory()->active()->create([
         'workspace_id' => $workspace->id,
         'source_social_account_id' => $source->id,
-        'activated_at' => now()->subDays(30),
+        'activated_at' => CarbonImmutable::parse('2026-09-01 00:00:00', 'UTC'),
     ]);
 
     (new PollRepurposeSource($source))->handle(app(SourceFetcherFactory::class));

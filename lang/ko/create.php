@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => '예: 홈 데코와 수제 선물을 좋아하는 사람들',
             'notes_label' => '더 알려줄 내용이 있나요? (선택)',
             'notes_placeholder' => '어조, 다루거나 피할 주제, 예정된 출시',
-            'count_label' => '아이디어 개수',
-            'stage_label' => '그룹에 추가',
+            'again' => '다시 생성',
+            'use' => '이 아이디어 사용',
             'submit' => '아이디어 생성',
         ],
         'default_stages' => [

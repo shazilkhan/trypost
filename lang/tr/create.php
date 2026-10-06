@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => 'örn. Ev dekorasyonunu ve el yapımı hediyeleri sevenler',
             'notes_label' => 'Eklemek istediğiniz bir şey var mı? (isteğe bağlı)',
             'notes_placeholder' => 'Ton, ele alınacak veya kaçınılacak konular, yaklaşan lansmanlar',
-            'count_label' => 'Kaç fikir?',
-            'stage_label' => 'Gruba ekle',
+            'again' => 'Yeniden üret',
+            'use' => 'Bu fikri kullan',
             'submit' => 'Fikir üret',
         ],
         'default_stages' => [

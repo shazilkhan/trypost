@@ -188,6 +188,7 @@ return [
         'slots_description' => '게시 시간은 대기열의 게시물을 언제 보낼지 TryPost에 알려 줍니다. 대기열에 추가하는 다음 게시물은 아래의 가장 가까운 시간에 게시됩니다.',
         'day_on' => '켜짐',
         'day_off' => '꺼짐',
+        'day_empty' => '게시 시간 없음',
         'remove_time' => ':time 삭제',
         'edit_hour' => ':time의 시 변경',
         'edit_minute' => ':time의 분 변경',

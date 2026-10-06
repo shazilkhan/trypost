@@ -38,11 +38,22 @@ class TikTokCreatorInfo
      */
     public function fetch(SocialAccount $account): array
     {
-        return Cache::remember(
-            "tiktok:creator_info:{$account->id}",
-            now()->addMinutes(5),
-            fn () => $this->fetchFresh($account),
-        );
+        $cacheKey = "tiktok:creator_info:{$account->id}";
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $creatorInfo = $this->fetchFresh($account);
+
+        if ($creatorInfo === null) {
+            return $this->emptyPayload();
+        }
+
+        Cache::put($cacheKey, $creatorInfo, now()->addMinutes(5));
+
+        return $creatorInfo;
     }
 
     /**
@@ -55,9 +66,9 @@ class TikTokCreatorInfo
      *     duet_disabled: bool,
      *     stitch_disabled: bool,
      *     max_video_post_duration_sec: ?int,
-     * }
+     * }|null
      */
-    private function fetchFresh(SocialAccount $account): array
+    private function fetchFresh(SocialAccount $account): ?array
     {
         if ($account->needsProactiveTokenRefresh()) {
             app(ConnectionVerifier::class)->refreshToken($account);
@@ -75,10 +86,14 @@ class TikTokCreatorInfo
                 'body' => $this->redactResponseBody($response->body()),
             ]);
 
-            return $this->emptyPayload();
+            return null;
         }
 
         $data = data_get($response->json(), 'data', []);
+
+        if (blank($data)) {
+            return null;
+        }
 
         return [
             'creator_nickname' => data_get($data, 'creator_nickname'),

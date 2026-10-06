@@ -11,6 +11,7 @@ return [
     'no_content' => 'Geen inhoud',
     'more' => '+:count meer',
     'less' => 'Minder tonen',
+    'empty_day' => 'Niets gepland voor deze dag.',
     'status' => [
         'label' => 'Status',
         'all' => 'Alle berichten',

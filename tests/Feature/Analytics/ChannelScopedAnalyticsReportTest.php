@@ -128,8 +128,8 @@ test('the unscoped report equals the sum over every channel', function () {
 
     expect(array_keys($workspaceReport))->toBe(['bounds', 'range', 'previous_range', 'summary', 'followers', 'posts', 'top_posts', 'performance', 'coverage'])
         ->and(array_keys($workspaceReport['summary']))->toBe([
-            'posts', 'followers', 'reactions', 'comments', 'engagement_rate',
-            'views', 'reach', 'shares', 'saves', 'watch_time_minutes', 'average_watch_time_seconds', 'follows_gained',
+            'posts', 'followers', 'net_followers', 'reactions', 'comments', 'engagement_rate', 'views', 'impressions',
+            'clicks', 'reposts', 'quotes', 'reach', 'shares', 'saves', 'watch_time_minutes', 'average_watch_time_seconds', 'follows_gained',
         ])
         ->and($workspaceReport['summary']['followers']['value'])->toBe(120)
         ->and(count($workspaceReport['performance']))->toBe(2);

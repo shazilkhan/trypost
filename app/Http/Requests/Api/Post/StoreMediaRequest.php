@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Api\Post;
 
-use App\Enums\Media\Type as MediaType;
-use App\Rules\HeicAccepted;
+use App\Support\Requests\Post\PostMediaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreMediaRequest extends FormRequest
 {
@@ -16,27 +16,23 @@ class StoreMediaRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, string>>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
-        $allowedMimes = [
-            ...MediaType::Image->allowedMimeTypes(),
-            ...MediaType::Video->allowedMimeTypes(),
-            ...MediaType::Document->allowedMimeTypes(),
-        ];
+        return PostMediaRequestRules::file();
+    }
 
-        return [
-            // Use the largest per-type cap as the upper bound; per-type
-            // and per-post enforcement happens in the controller.
-            'media' => [
-                'bail',
-                'required',
-                'file',
-                new HeicAccepted,
-                'max:'.MediaType::Video->maxSizeInKb(),
-                'mimetypes:'.implode(',', $allowedMimes),
-            ],
-        ];
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if ($violation = PostMediaRequestRules::fileViolation($this->file('media'))) {
+                $validator->errors()->add('media', $violation);
+            }
+        });
     }
 }

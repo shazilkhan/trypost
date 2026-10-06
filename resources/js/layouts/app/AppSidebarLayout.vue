@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core';
+import { ref, watch } from 'vue';
+
 import AppHeader from '@/components/AppHeader.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import ConnectChannelDialog from '@/components/channels/ConnectChannelDialog.vue';
@@ -11,6 +14,7 @@ import {
     SidebarProvider,
     SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { SIDEBAR_COOKIE_NAME } from '@/components/ui/sidebar/utils';
 
 type Props = {
     fullWidth?: boolean;
@@ -19,15 +23,30 @@ type Props = {
 withDefaults(defineProps<Props>(), {
     fullWidth: false,
 });
+
+const readSidebarOpen = (): boolean => {
+    if (typeof document === 'undefined') {
+        return true;
+    }
+
+    return !document.cookie.split('; ').includes(`${SIDEBAR_COOKIE_NAME}=false`);
+};
+
+const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+const sidebarOpen = ref(!isCompactViewport.value && readSidebarOpen());
+
+watch(isCompactViewport, (isCompact) => {
+    sidebarOpen.value = !isCompact && readSidebarOpen();
+});
 </script>
 
 <template>
-    <SidebarProvider :open="true" class="bg-sidebar">
+    <SidebarProvider v-model:open="sidebarOpen" class="bg-sidebar">
         <slot name="sidebar">
             <AppSidebar />
         </slot>
         <SidebarInset
-            class="overflow-hidden bg-card md:my-2 md:me-2 md:rounded-xl md:border md:border-border"
+            class="min-w-0 overflow-hidden bg-card md:my-2 md:me-2 md:rounded-xl md:border md:border-border"
             data-testid="app-content-shell"
         >
             <AppHeader v-if="$slots['header'] || $slots['header-actions']">
@@ -47,7 +66,7 @@ withDefaults(defineProps<Props>(), {
                 data-testid="app-layout-scroller"
                 :class="
                     fullWidth
-                        ? 'flex min-h-0 flex-1 flex-col overflow-y-auto'
+                        ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto'
                         : 'flex-1 overflow-y-auto'
                 "
             >
@@ -55,7 +74,7 @@ withDefaults(defineProps<Props>(), {
                     data-testid="app-layout-content"
                     :class="[
                         fullWidth
-                            ? 'flex min-h-0 flex-1 flex-col'
+                            ? 'flex min-h-0 min-w-0 flex-1 flex-col'
                             : 'mx-auto w-full max-w-7xl',
                         !$slots['header'] && !$slots['header-actions']
                             ? 'pt-14 md:pt-0'

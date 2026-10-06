@@ -35,6 +35,7 @@ const props = defineProps<{
     timezone: string;
     postingSchedule?: PostingSchedule | null;
     takenSlots?: string[];
+    slotsLoading?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -237,13 +238,13 @@ const done = (): void => {
                     />
                     <div class="flex items-center gap-1">
                         <CalendarPrev
-                            class="flex size-7 cursor-pointer items-center justify-center rounded-md text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                            class="flex size-7 cursor-pointer items-center justify-center rounded-md text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent max-sm:size-10 disabled:cursor-not-allowed disabled:opacity-40"
                             data-testid="composer-schedule-calendar-prev"
                         >
                             <IconChevronLeft class="size-4 rtl:rotate-180" />
                         </CalendarPrev>
                         <CalendarNext
-                            class="flex size-7 cursor-pointer items-center justify-center rounded-md text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent"
+                            class="flex size-7 cursor-pointer items-center justify-center rounded-md text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent max-sm:size-10"
                             data-testid="composer-schedule-calendar-next"
                         >
                             <IconChevronRight class="size-4 rtl:rotate-180" />
@@ -287,7 +288,7 @@ const done = (): void => {
                                             ? ''
                                             : undefined
                                     "
-                                    class="font-emphasis [&[data-today]:not([data-selected])]:bg-transparent [&[data-today]:not([data-selected]):not([data-zone-today])]:font-emphasis! [&[data-zone-today]:not([data-selected])]:font-semibold"
+                                    class="font-emphasis max-sm:size-11 [&[data-today]:not([data-selected])]:bg-transparent [&[data-today]:not([data-selected]):not([data-zone-today])]:font-emphasis! [&[data-zone-today]:not([data-selected])]:font-semibold"
                                 />
                             </CalendarCell>
                         </CalendarGridRow>
@@ -310,7 +311,7 @@ const done = (): void => {
                         v-for="time in slotTimes"
                         :key="time"
                         type="button"
-                        :disabled="isUnavailableSlot(time)"
+                        :disabled="slotsLoading || isUnavailableSlot(time)"
                         :aria-pressed="time === pickedTime"
                         :data-testid="`composer-schedule-slot-${time.replace(':', '')}`"
                         class="h-7 rounded-md border border-border-strong px-2 text-xs font-emphasis transition-control outline-none disabled:cursor-not-allowed disabled:opacity-40"
@@ -406,12 +407,13 @@ const done = (): void => {
         </div>
 
         <div
-            class="flex items-center justify-between gap-2 border-t border-border-strong px-2 py-2"
+            class="flex items-center justify-between gap-2 border-t border-border-strong px-2 py-2 max-sm:sticky max-sm:bottom-0 max-sm:bg-background"
+            data-testid="composer-schedule-picker-footer"
         >
             <button
                 type="button"
                 data-testid="composer-schedule-more-actions"
-                class="flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-emphasis text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent"
+                class="flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-emphasis text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent max-sm:h-11"
                 @click="emit('back')"
             >
                 <IconArrowLeft class="size-4 rtl:rotate-180" />{{
@@ -422,7 +424,7 @@ const done = (): void => {
                 type="button"
                 data-testid="composer-schedule-done"
                 :disabled="isPast"
-                class="flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-emphasis text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                class="flex h-9 items-center gap-1.5 rounded-md px-2.5 text-sm font-emphasis text-foreground transition-control outline-none hover:bg-accent focus-visible:bg-accent disabled:cursor-not-allowed disabled:opacity-50 max-sm:h-11"
                 @click="done"
             >
                 <IconCheck class="size-4" />{{

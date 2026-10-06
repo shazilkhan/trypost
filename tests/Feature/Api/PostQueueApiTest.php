@@ -153,7 +153,7 @@ test('queue on a channel without posting times is rejected', function () {
 test('social accounts expose has_posting_schedule', function () {
     $response = $this->withHeaders($this->headers)->getJson(route('api.social-accounts.index'))->assertOk();
 
-    $byId = collect($response->json())->keyBy('id');
+    $byId = collect($response->json('data'))->keyBy('id');
     expect($byId[$this->channel->id]['has_posting_schedule'])->toBeTrue()
         ->and($byId[$this->bareChannel->id]['has_posting_schedule'])->toBeFalse();
 });

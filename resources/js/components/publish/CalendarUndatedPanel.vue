@@ -9,6 +9,7 @@ import {
     getPlatformLogo,
 } from '@/composables/usePlatformLogo';
 import { isImage } from '@/lib/mediaType';
+import { htmlToPlainText } from '@/lib/utils';
 import { edit as editPost } from '@/routes/app/posts';
 import type { UndatedDraft } from '@/types/publish';
 
@@ -22,6 +23,9 @@ const emit = defineEmits<{
 
 const thumbnail = (draft: UndatedDraft): string | null =>
     (draft.media ?? []).find(isImage)?.url ?? null;
+
+const plainText = (draft: UndatedDraft): string =>
+    htmlToPlainText(draft.content ?? '').trim();
 
 const target = (draft: UndatedDraft) => draft.post_platforms[0] ?? null;
 </script>
@@ -111,13 +115,13 @@ const target = (draft: UndatedDraft) => draft.post_platforms[0] ?? null;
                             </Badge>
                         </div>
                         <div
-                            v-if="draft.content?.trim() || thumbnail(draft)"
+                            v-if="plainText(draft) || thumbnail(draft)"
                             class="flex min-w-0 items-end gap-2"
                         >
                             <p
                                 class="line-clamp-2 min-w-0 flex-1 text-sm leading-[17.5px] break-words text-foreground"
                             >
-                                {{ draft.content?.trim() }}
+                                {{ plainText(draft) }}
                             </p>
                             <img
                                 v-if="thumbnail(draft)"

@@ -6,9 +6,23 @@ namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\Analytics\GetAnalyticsPublicationTool;
 use App\Mcp\Tools\Analytics\GetAnalyticsReportTool;
+use App\Mcp\Tools\Analytics\GetChannelInsightsTool;
+use App\Mcp\Tools\Analytics\ListChannelPublicationsTool;
 use App\Mcp\Tools\ApiKey\CreateApiKeyTool;
 use App\Mcp\Tools\ApiKey\DeleteApiKeyTool;
 use App\Mcp\Tools\ApiKey\ListApiKeysTool;
+use App\Mcp\Tools\Idea\CreateIdeaStageTool;
+use App\Mcp\Tools\Idea\CreateIdeaTool;
+use App\Mcp\Tools\Idea\DeleteIdeaStageTool;
+use App\Mcp\Tools\Idea\DeleteIdeasTool;
+use App\Mcp\Tools\Idea\DuplicateIdeaTool;
+use App\Mcp\Tools\Idea\GetIdeaTool;
+use App\Mcp\Tools\Idea\ListIdeaStagesTool;
+use App\Mcp\Tools\Idea\ListIdeasTool;
+use App\Mcp\Tools\Idea\MoveIdeasTool;
+use App\Mcp\Tools\Idea\ReorderIdeaStagesTool;
+use App\Mcp\Tools\Idea\UpdateIdeaStageTool;
+use App\Mcp\Tools\Idea\UpdateIdeaTool;
 use App\Mcp\Tools\Label\CreateLabelTool;
 use App\Mcp\Tools\Label\DeleteLabelTool;
 use App\Mcp\Tools\Label\ListLabelsTool;
@@ -17,6 +31,7 @@ use App\Mcp\Tools\Platform\ListContentTypesTool;
 use App\Mcp\Tools\Post\ApprovePostTool;
 use App\Mcp\Tools\Post\AttachMediaFromUploadTool;
 use App\Mcp\Tools\Post\AttachMediaFromUrlTool;
+use App\Mcp\Tools\Post\ClearPostRecurrenceTool;
 use App\Mcp\Tools\Post\CreatePostsTool;
 use App\Mcp\Tools\Post\CreatePostTool;
 use App\Mcp\Tools\Post\DeletePostTool;
@@ -27,6 +42,7 @@ use App\Mcp\Tools\Post\PreviewPostTool;
 use App\Mcp\Tools\Post\PublishPostTool;
 use App\Mcp\Tools\Post\RejectPostTool;
 use App\Mcp\Tools\Post\RequestMediaUploadTool;
+use App\Mcp\Tools\Post\SetPostRecurrenceTool;
 use App\Mcp\Tools\Post\UpdatePostTool;
 use App\Mcp\Tools\Repurpose\ActivateRepurposeTool;
 use App\Mcp\Tools\Repurpose\CreateRepurposeTool;
@@ -43,9 +59,17 @@ use App\Mcp\Tools\Signature\CreateSignatureTool;
 use App\Mcp\Tools\Signature\DeleteSignatureTool;
 use App\Mcp\Tools\Signature\ListSignaturesTool;
 use App\Mcp\Tools\Signature\UpdateSignatureTool;
+use App\Mcp\Tools\SocialAccount\CopyPostingScheduleTool;
+use App\Mcp\Tools\SocialAccount\CreatePinterestBoardTool;
+use App\Mcp\Tools\SocialAccount\GeneratePostingScheduleTool;
+use App\Mcp\Tools\SocialAccount\GetPostingScheduleTool;
 use App\Mcp\Tools\SocialAccount\ListDiscordChannelsTool;
+use App\Mcp\Tools\SocialAccount\ListFreeSlotsTool;
 use App\Mcp\Tools\SocialAccount\ListPinterestBoardsTool;
 use App\Mcp\Tools\SocialAccount\ListSocialAccountsTool;
+use App\Mcp\Tools\SocialAccount\MovePostToSlotTool;
+use App\Mcp\Tools\SocialAccount\ReorderQueueTool;
+use App\Mcp\Tools\SocialAccount\UpdatePostingScheduleTool;
 use App\Mcp\Tools\Webhook\CreateWebhookTool;
 use App\Mcp\Tools\Webhook\DeleteWebhookTool;
 use App\Mcp\Tools\Webhook\GetWebhookTool;
@@ -90,6 +114,8 @@ class TryPostServer extends Server
         // Analytics
         GetAnalyticsReportTool::class,
         GetAnalyticsPublicationTool::class,
+        GetChannelInsightsTool::class,
+        ListChannelPublicationsTool::class,
 
         // Platforms (read-only metadata)
         ListContentTypesTool::class,
@@ -100,6 +126,22 @@ class TryPostServer extends Server
         UpdateSignatureTool::class,
         DeleteSignatureTool::class,
 
+        // Ideas
+        ListIdeasTool::class,
+        GetIdeaTool::class,
+        CreateIdeaTool::class,
+        UpdateIdeaTool::class,
+        DeleteIdeasTool::class,
+        DuplicateIdeaTool::class,
+        MoveIdeasTool::class,
+
+        // Idea stages
+        ListIdeaStagesTool::class,
+        CreateIdeaStageTool::class,
+        UpdateIdeaStageTool::class,
+        DeleteIdeaStageTool::class,
+        ReorderIdeaStagesTool::class,
+
         // Labels
         ListLabelsTool::class,
         CreateLabelTool::class,
@@ -108,7 +150,17 @@ class TryPostServer extends Server
 
         // Social Accounts
         ListSocialAccountsTool::class,
+        GetPostingScheduleTool::class,
+        UpdatePostingScheduleTool::class,
+        GeneratePostingScheduleTool::class,
+        CopyPostingScheduleTool::class,
+        ListFreeSlotsTool::class,
+        ReorderQueueTool::class,
+        MovePostToSlotTool::class,
+        SetPostRecurrenceTool::class,
+        ClearPostRecurrenceTool::class,
         ListPinterestBoardsTool::class,
+        CreatePinterestBoardTool::class,
         ListDiscordChannelsTool::class,
         ListRepurposesTool::class,
         CreateRepurposeTool::class,

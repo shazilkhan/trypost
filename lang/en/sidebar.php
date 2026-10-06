@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Search channels',
     'channel_submenu' => ':name submenu',
     'toggle' => 'Toggle sidebar',
+    'collapse' => 'Collapse sidebar',
+    'expand' => 'Expand sidebar',
     'mobile_title' => 'Navigation',
     'mobile_description' => 'Main app navigation.',
     'repurposes' => 'Repurpose',

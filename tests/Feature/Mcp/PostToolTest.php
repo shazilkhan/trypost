@@ -46,10 +46,10 @@ test('list posts returns wrapped posts array with PostResource shape', function 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
             $json->has('posts', 3, function (AssertableJson $post) {
-                $post->hasAll(['id', 'content', 'media', 'status', 'schedule_mode', 'scheduled_at', 'published_at', 'origin', 'platforms', 'labels', 'created_at', 'updated_at'])
+                $post->hasAll(['id', 'post_group_id', 'author', 'content', 'media', 'status', 'schedule_mode', 'scheduled_at', 'published_at', 'approval_requested_by', 'approval_requested_at', 'approved_by', 'approved_at', 'recurrence', 'origin', 'platforms', 'labels', 'created_at', 'updated_at'])
                     ->missing('user_id')
                     ->missing('workspace_id');
-            });
+            })->where('total', 3)->where('current_page', 1)->where('last_page', 1)->has('per_page');
         });
 });
 
@@ -664,18 +664,18 @@ test('a user outside the workspace cannot create update or delete posts via mcp'
 
     TryPostServer::actingAs($outsider)
         ->tool(CreatePostTool::class, ['content' => 'Nope'])
-        ->assertHasErrors(['Not authorized to create posts.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(UpdatePostTool::class, [
             'post_id' => $post->id,
             'content' => 'Changed',
         ])
-        ->assertHasErrors(['Not authorized to update this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(DeletePostTool::class, ['post_id' => $post->id])
-        ->assertHasErrors(['Not authorized to delete this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     expect($post->fresh()->content)->toBe('Protected');
 });

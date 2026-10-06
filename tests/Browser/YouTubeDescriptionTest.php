@@ -81,13 +81,13 @@ test('youtube description editor counts UTF-8 bytes and saves only its independe
         ->assertAttributeMissing('@youtube-description-0', 'aria-invalid');
 
     if ($width < 1024) {
-        $page->click('@composer-preview-toggle');
+        $page->click('@composer-view-preview');
     }
     $page->click('details > summary')
         ->assertSeeIn('@youtube-preview-description', 'if (a < b && c > d) {}')
         ->assertNoJavaScriptErrors();
     if ($width < 1024) {
-        $page->click('@composer-mobile-compose');
+        $page->click('@composer-view-edit');
     }
 
     $page->click('@composer-save-draft')->assertMissing('@post-composer-dialog');
@@ -108,7 +108,7 @@ test('youtube description clearing restores content fallback without changing an
         ->and(data_get($platforms[1]->fresh()->meta, 'description'))->toBe('Channel 2');
 
     $page = visit(route('app.posts.edit', $post))->resize(375, 812);
-    $page->click('@composer-preview-toggle')
+    $page->click('@composer-view-preview')
         ->click('details > summary')
         ->assertSeeIn('@youtube-preview-description', 'Short title')
         ->assertNoJavaScriptErrors();
@@ -123,7 +123,7 @@ test('youtube description long preview stays inside the preview card', function 
     $platforms[0]->update(['meta' => ['description' => $description]]);
     $page = visit(route('app.posts.edit', $post))->resize($width, $height);
     if ($width < 1024) {
-        $page->click('@composer-preview-toggle');
+        $page->click('@composer-view-preview');
     }
     $page->click('details > summary')->assertSeeIn('@youtube-preview-description', 'Full description');
 

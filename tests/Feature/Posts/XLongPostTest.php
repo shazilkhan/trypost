@@ -39,10 +39,11 @@ test('the composer receives the account limit', function () {
     $premium = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id, 'meta' => ['x_subscription_type' => 'Premium']]);
     $free = SocialAccount::factory()->x()->create(['workspace_id' => $this->workspace->id, 'meta' => []]);
 
-    $this->actingAs($this->user)->getJson(route('app.posts.composer-data'))
+    $this->actingAs($this->user)->get(route('app.posts.index'))
         ->assertOk()
-        ->assertJsonPath("platformConfigs.{$premium->id}.maxContentLength", 25000)
-        ->assertJsonPath("platformConfigs.{$free->id}.maxContentLength", 280);
+        ->assertInertia(fn ($page) => $page
+            ->where("composer.accounts.{$premium->id}.platform_config.maxContentLength", 25000)
+            ->where("composer.accounts.{$free->id}.platform_config.maxContentLength", 280));
 });
 
 test('a premium x account publishes a long post', function () {

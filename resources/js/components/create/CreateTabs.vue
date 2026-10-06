@@ -19,10 +19,10 @@ const tabs: { key: CreateTab; href: () => string }[] = [
 
 <template>
     <div
-        class="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 mx-4 md:mx-8 shadow-[inset_0_-1px_0_var(--color-border-strong)]"
+        class="flex min-w-0 shrink-0 items-center justify-between gap-x-4 mx-4 md:mx-8 shadow-[inset_0_-1px_0_var(--color-border-strong)]"
     >
         <nav
-            class="flex gap-4 overflow-x-auto"
+            class="flex min-w-0 gap-4 overflow-x-auto"
             :aria-label="$t('create.title')"
             data-testid="create-tabs"
         >
@@ -42,7 +42,7 @@ const tabs: { key: CreateTab; href: () => string }[] = [
                 {{ $t(`create.tabs.${tab.key}`) }}
             </Link>
         </nav>
-        <div class="flex items-center gap-2 py-1">
+        <div class="flex shrink-0 items-center gap-2 py-1">
             <slot name="filters" />
         </div>
     </div>

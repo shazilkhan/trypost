@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
+use App\Dto\Analytics\PublicationFilter;
 use App\Enums\Analytics\MetricAvailability;
 use App\Enums\Analytics\MetricKey;
 use App\Enums\User\WeekStart;
-use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\Workspace;
 use App\Support\Analytics\MetricComparison;
@@ -34,12 +34,11 @@ class BuildPublicationAnalyticsReport
 
     /**
      * @param  list<string>|null  $accountKeys  Analytics account keys to scope to; null means every account.
-     * @param  list<string>  $labelIds  Only count publications of TryPost posts carrying any of these labels.
-     * @param  bool  $untagged  Also count publications without labels, including posts published outside TryPost.
      * @param  WeekStart  $weekStart  The viewer's week start; weekly buckets end on its last day.
+     * @param  PublicationFilter|null  $filter  Narrows both periods by label and post type.
      * @return array<string, mixed>
      */
-    public function execute(Workspace $workspace, DateRange $previous, DateRange $current, ?array $accountKeys = null, array $labelIds = [], bool $untagged = false, WeekStart $weekStart = WeekStart::DEFAULT): array
+    public function execute(Workspace $workspace, DateRange $previous, DateRange $current, ?array $accountKeys = null, WeekStart $weekStart = WeekStart::DEFAULT, ?PublicationFilter $filter = null): array
     {
         $currentTotals = $this->emptyTotals();
         $previousTotals = $this->emptyTotals();
@@ -57,7 +56,7 @@ class BuildPublicationAnalyticsReport
             }
         }
 
-        foreach ($this->publications($workspace, $previous->start, $current->observedThrough, $accountKeys, $labelIds, $untagged) as $row) {
+        foreach ($this->publications($workspace, $previous->start, $current->observedThrough, $accountKeys, $filter) as $row) {
             $key = $row->social_account_key;
 
             if (! $this->inRange($row->provider_published_at, $current)) {
@@ -128,33 +127,22 @@ class BuildPublicationAnalyticsReport
 
     /**
      * @param  list<string>|null  $accountKeys
-     * @param  list<string>  $labelIds
      */
-    private function publications(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys, array $labelIds, bool $untagged): LazyCollection
+    private function publications(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys, ?PublicationFilter $filter): LazyCollection
     {
-        return $this->query($workspace, $start, $end, $accountKeys, $labelIds, $untagged)->cursor();
+        return $this->query($workspace, $start, $end, $accountKeys, $filter)->cursor();
     }
 
     /**
-     * Publications in the window with their latest saved metrics, filtered the same way as the report.
+     * Publications in the window with their latest saved metrics.
      *
      * @param  list<string>|null  $accountKeys
-     * @param  list<string>  $labelIds
      */
-    public function query(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys = null, array $labelIds = [], bool $untagged = false): Builder
+    public function query(Workspace $workspace, CarbonImmutable $start, CarbonImmutable $end, ?array $accountKeys = null, ?PublicationFilter $filter = null): Builder
     {
-        $labelPivot = (new Post)->labels()->getTable();
-        $labels = fn (Builder $labelled): Builder => $labelled
-            ->selectRaw('1')
-            ->from($labelPivot)
-            ->whereColumn("{$labelPivot}.post_id", 'destination.post_id');
-
         return $this->latestSnapshots->execute($workspace->id, $accountKeys, $start, $end)
             ->leftJoin((new PostPlatform)->getTable().' as destination', 'destination.id', '=', 'publication.post_platform_id')
-            ->when($labelIds !== [] || $untagged, fn (Builder $query): Builder => $query->where(fn (Builder $filtered): Builder => $filtered
-                ->when($labelIds !== [], fn (Builder $any): Builder => $any->whereExists(fn (Builder $labelled): Builder => $labels($labelled)
-                    ->whereIn("{$labelPivot}.workspace_label_id", $labelIds)))
-                ->when($untagged, fn (Builder $none): Builder => $none->orWhereNotExists($labels))))
+            ->when($filter !== null, fn (Builder $filtered): Builder => $filter->apply($filtered))
             ->select([
                 'publication.id', 'publication.social_account_key', 'publication.social_account_id',
                 'publication.post_platform_id', 'destination.post_id', 'publication.platform', 'publication.network',
@@ -171,7 +159,7 @@ class BuildPublicationAnalyticsReport
             ]);
     }
 
-    /** @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool} */
+    /** @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, quotes: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_quotes: bool, has_watch_time: bool, has_follows: bool} */
     private function emptyTotals(): array
     {
         return [
@@ -187,6 +175,7 @@ class BuildPublicationAnalyticsReport
             'impressions' => 0,
             'clicks' => 0,
             'reposts' => 0,
+            'quotes' => 0,
             'watch_time' => 0,
             'average_watch_time' => 0,
             'average_watch_time_posts' => 0,
@@ -200,14 +189,15 @@ class BuildPublicationAnalyticsReport
             'has_impressions' => false,
             'has_clicks' => false,
             'has_reposts' => false,
+            'has_quotes' => false,
             'has_watch_time' => false,
             'has_follows' => false,
         ];
     }
 
     /**
-     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool}  $totals
-     * @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool}
+     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, quotes: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_quotes: bool, has_watch_time: bool, has_follows: bool}  $totals
+     * @return array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, quotes: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_quotes: bool, has_watch_time: bool, has_follows: bool}
      */
     private function addTotals(array $totals, object $row): array
     {
@@ -224,6 +214,7 @@ class BuildPublicationAnalyticsReport
             'impressions' => $row->impressions_count,
             'clicks' => $this->measured($measured, MetricKey::Clicks) ?? $this->measured($measured, MetricKey::LinkClicks),
             'reposts' => $this->measured($measured, MetricKey::Reposts),
+            'quotes' => $this->measured($measured, MetricKey::Quotes),
             'watch_time' => $row->watch_time_milliseconds,
             'follows' => $this->measured($measured, MetricKey::Follows),
         ] as $metric => $value) {
@@ -257,8 +248,8 @@ class BuildPublicationAnalyticsReport
     }
 
     /**
-     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_watch_time: bool, has_follows: bool}  $totals
-     * @return array{posts: int, reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, reach: ?int, shares: ?int, saves: ?int, impressions: ?int, clicks: ?int, reposts: ?int, watch_time_minutes: ?float, average_watch_time_seconds: ?float, follows_gained: ?int}
+     * @param  array{posts: int, reactions: int, comments: int, engagement: int, exposure: int, views: int, reach: int, shares: int, saves: int, impressions: int, clicks: int, reposts: int, quotes: int, watch_time: int, average_watch_time: int, average_watch_time_posts: int, follows: int, has_reactions: bool, has_comments: bool, has_views: bool, has_reach: bool, has_shares: bool, has_saves: bool, has_impressions: bool, has_clicks: bool, has_reposts: bool, has_quotes: bool, has_watch_time: bool, has_follows: bool}  $totals
+     * @return array{posts: int, reactions: ?int, comments: ?int, engagement_rate: ?float, views: ?int, reach: ?int, shares: ?int, saves: ?int, impressions: ?int, clicks: ?int, reposts: ?int, quotes: ?int, watch_time_minutes: ?float, average_watch_time_seconds: ?float, follows_gained: ?int}
      */
     private function finalizeTotals(array $totals): array
     {
@@ -276,6 +267,7 @@ class BuildPublicationAnalyticsReport
             'impressions' => data_get($totals, 'has_impressions') ? data_get($totals, 'impressions') : null,
             'clicks' => data_get($totals, 'has_clicks') ? data_get($totals, 'clicks') : null,
             'reposts' => data_get($totals, 'has_reposts') ? data_get($totals, 'reposts') : null,
+            'quotes' => data_get($totals, 'has_quotes') ? data_get($totals, 'quotes') : null,
             'watch_time_minutes' => data_get($totals, 'has_watch_time') ? round(data_get($totals, 'watch_time') / 60000, 2) : null,
             'average_watch_time_seconds' => $averagePosts === 0 ? null : round(data_get($totals, 'average_watch_time') / $averagePosts / 1000, 2),
             'follows_gained' => data_get($totals, 'has_follows') ? data_get($totals, 'follows') : null,

@@ -10,7 +10,7 @@ use App\Dto\MediaItem;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
-use App\Support\PostMediaRules;
+use App\Support\Requests\Post\PostMediaRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -18,7 +18,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Attach a Media uploaded via request-media-upload-tool to a post. The upload_token is the value returned by request-media-upload-tool; the Media is resolved by that token within the current workspace, then appended to the post. The media type must be accepted by the platforms enabled on the post. Size, video duration, GIF and MOV caps per content_type (see list-content-types-tool) are checked when the post is scheduled or published, not here.')]
+#[Description('Attach a Media uploaded via request-media-upload-tool to a post. The upload_token is the value returned by request-media-upload-tool; the Media is resolved by that token within the current workspace, then appended to the post. The media type must be accepted by the post\'s channel and content type. Size, video duration, GIF and MOV caps per content_type (see list-content-types-tool) are checked when the post is scheduled or published, not here.')]
 class AttachMediaFromUploadTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -27,8 +27,7 @@ class AttachMediaFromUploadTool extends Tool
     {
         $validated = $request->validate([
             'post_id' => ['required', 'uuid'],
-            'upload_token' => ['required', 'uuid'],
-            'alt' => ['nullable', 'string', 'max:'.PostMediaRules::ALT_TEXT_MAX_LENGTH],
+            ...PostMediaRequestRules::attachFromUpload(),
         ]);
 
         $workspaceId = $request->user()?->current_workspace_id;
@@ -41,7 +40,7 @@ class AttachMediaFromUploadTool extends Tool
             return Response::error('Post not found.');
         }
 
-        if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Not authorized to update this post.')) {
+        if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Post not found.')) {
             return $denied;
         }
 
@@ -51,8 +50,8 @@ class AttachMediaFromUploadTool extends Tool
             return Response::error(__('posts.errors.media_expired'));
         }
 
-        if (! in_array($media->type, $post->allowedMediaTypes(), true)) {
-            return Response::error('No enabled platform on this post accepts this media type.');
+        if ($violation = PostMediaRequestRules::typeViolation($post, $media->type)) {
+            return Response::error($violation);
         }
 
         AppendPostMedia::execute($post, [MediaItem::fromMedia($media, data_get($validated, 'alt'))->toArray()], $request->user());

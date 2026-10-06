@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, useForm } from '@inertiajs/vue3';
-import { IconPlus, IconSettings, IconTag } from '@tabler/icons-vue';
+import { IconPlus, IconSettings, IconTag, IconX } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import FilterEmptyState from '@/components/FilterEmptyState.vue';
@@ -26,8 +26,14 @@ const props = withDefaults(
         testId?: string;
         showUntagged?: boolean;
         align?: 'start' | 'center' | 'end';
+        sheetBelowSm?: boolean;
     }>(),
-    { testId: 'posts-label', showUntagged: true, align: 'end' },
+    {
+        testId: 'posts-label',
+        showUntagged: true,
+        align: 'end',
+        sheetBelowSm: false,
+    },
 );
 const emit = defineEmits<{ created: [label: Label] }>();
 const selectedIds = defineModel<string[]>({ required: true });
@@ -98,9 +104,11 @@ const clear = (): void => {
         :show-header="false"
         :extra-count="untagged ? 1 : 0"
         compact
+        icon-only-on-mobile
         content-class="w-80"
         checkbox-position="start"
         :align="align"
+        :sheet-below-sm="sheetBelowSm"
         @close="showList"
     >
         <template v-if="creating" #panel>
@@ -118,21 +126,41 @@ const clear = (): void => {
                 @cancel="showList"
             />
         </template>
-        <template v-if="labels.length > 0" #header>
-            <div class="mb-3 flex items-center justify-between gap-2">
+        <template
+            v-if="labels.length > 0 || sheetBelowSm"
+            #header="{ sheet, close }"
+        >
+            <div
+                v-if="labels.length > 0 || sheet"
+                class="mb-3 flex items-center justify-between gap-2"
+            >
                 <h3 class="text-sm font-semibold">
                     {{ $t('labels.title') }}
                 </h3>
-                <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    :aria-label="$t('labels.create.title')"
-                    :data-testid="`${testId}-create`"
-                    @click="startCreate"
-                >
-                    <IconPlus class="size-4" />
-                </Button>
+                <div class="flex items-center gap-1">
+                    <Button
+                        v-if="labels.length > 0"
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        :aria-label="$t('labels.create.title')"
+                        :data-testid="`${testId}-create`"
+                        @click="startCreate"
+                    >
+                        <IconPlus class="size-4" />
+                    </Button>
+                    <Button
+                        v-if="sheet"
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        :aria-label="$t('common.close')"
+                        :data-testid="`${testId}-close`"
+                        @click="close"
+                    >
+                        <IconX class="size-4" />
+                    </Button>
+                </div>
             </div>
         </template>
         <template v-if="$slots.trigger" #trigger="slotProps">

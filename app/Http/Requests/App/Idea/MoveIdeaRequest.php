@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\App\Idea;
 
-use App\Models\Idea;
+use App\Support\Requests\Idea\IdeaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class MoveIdeaRequest extends FormRequest
 {
@@ -20,14 +19,6 @@ class MoveIdeaRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'idea_stage_id' => [
-                'nullable',
-                'uuid',
-                Rule::exists('idea_stages', 'id')->where('workspace_id', $this->user()->current_workspace_id),
-            ],
-            'idea_ids' => ['required', 'array', 'max:'.Idea::MAX_BATCH],
-            'idea_ids.*' => ['required', 'uuid', 'distinct'],
-        ];
+        return IdeaRequestRules::move($this->user()->currentWorkspace);
     }
 }

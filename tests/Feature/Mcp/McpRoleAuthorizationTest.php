@@ -83,25 +83,25 @@ test('a user outside the workspace cannot publish attach media or request upload
 
     TryPostServer::actingAs($outsider)
         ->tool(PublishPostTool::class, ['post_id' => $this->post->id])
-        ->assertHasErrors(['Not authorized to publish this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(AttachMediaFromUrlTool::class, [
             'post_id' => $this->post->id,
             'urls' => [['url' => 'https://example.com/photo.jpg']],
         ])
-        ->assertHasErrors(['Not authorized to update this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(AttachMediaFromUploadTool::class, [
             'post_id' => $this->post->id,
             'upload_token' => $uploadToken,
         ])
-        ->assertHasErrors(['Not authorized to update this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(RequestMediaUploadTool::class, [])
-        ->assertHasErrors(['Not authorized to upload media.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 });
 
 test('a user outside the workspace cannot manage labels or signatures via mcp', function () {
@@ -112,7 +112,7 @@ test('a user outside the workspace cannot manage labels or signatures via mcp', 
 
     TryPostServer::actingAs($outsider)
         ->tool(CreateLabelTool::class, ['name' => 'Nope', 'color' => '#112233'])
-        ->assertHasErrors(['Not authorized to manage labels.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(UpdateLabelTool::class, [
@@ -120,15 +120,15 @@ test('a user outside the workspace cannot manage labels or signatures via mcp', 
             'name' => 'Nope',
             'color' => '#112233',
         ])
-        ->assertHasErrors(['Not authorized to manage labels.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(DeleteLabelTool::class, ['label_id' => $label->id])
-        ->assertHasErrors(['Not authorized to manage labels.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(CreateSignatureTool::class, ['name' => 'Nope', 'content' => 'x'])
-        ->assertHasErrors(['Not authorized to manage signatures.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(UpdateSignatureTool::class, [
@@ -136,11 +136,11 @@ test('a user outside the workspace cannot manage labels or signatures via mcp', 
             'name' => 'Nope',
             'content' => 'x',
         ])
-        ->assertHasErrors(['Not authorized to manage signatures.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(DeleteSignatureTool::class, ['signature_id' => $signature->id])
-        ->assertHasErrors(['Not authorized to manage signatures.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     expect($label->fresh())->not->toBeNull()
         ->and($signature->fresh())->not->toBeNull();
@@ -158,11 +158,11 @@ test('a user outside the workspace cannot list compose helpers via mcp', functio
 
     TryPostServer::actingAs($outsider)
         ->tool(ListDiscordChannelsTool::class, ['account_id' => $discord->id])
-        ->assertHasErrors(['Not authorized to manage posts.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($outsider)
         ->tool(ListPinterestBoardsTool::class, ['account_id' => $pinterest->id])
-        ->assertHasErrors(['Not authorized to manage posts.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 });
 
 test('members who are not admins cannot list or create webhooks via mcp', function (string $role) {
@@ -170,14 +170,14 @@ test('members who are not admins cannot list or create webhooks via mcp', functi
 
     TryPostServer::actingAs($user)
         ->tool(ListWebhooksTool::class, [])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($user)
         ->tool(CreateWebhookTool::class, [
             'endpoint' => 'https://example.com/webhooks',
             'events' => ['post.published'],
         ])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 })->with([
     'approval',
     'member',

@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => '例：インテリアやハンドメイドのギフトが好きな人',
             'notes_label' => 'ほかにありますか？（任意）',
             'notes_placeholder' => 'トーン、扱いたい話題や避けたい話題、今後のリリース',
-            'count_label' => 'アイデアの数',
-            'stage_label' => 'グループに追加',
+            'again' => 'もう一度生成',
+            'use' => 'このアイデアを使う',
             'submit' => 'アイデアを生成',
         ],
         'default_stages' => [

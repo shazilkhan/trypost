@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\Post;
 
 use App\Actions\Analytics\ReadPublicationAnalytics;
+use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -18,18 +19,28 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[Description('Read all latest saved analytics for a TryPost post across its published platforms, including reactions, comments, saves, reach, views, and watch time where supported. Values may lag the provider until the next analytics job. Returns "unsupported" for excluded or unpublished platforms.')]
 class GetPostMetricsTool extends Tool
 {
+    use AuthorizesMcpTool;
+
     public function handle(Request $request): Response|ResponseFactory
     {
         $validated = $request->validate([
             'post_id' => ['required', 'uuid'],
         ]);
 
-        $post = Post::where('workspace_id', $request->user()->current_workspace_id)
-            ->with(['postPlatforms.socialAccount'])
-            ->find(data_get($validated, 'post_id'));
+        $workspace = $request->user()?->currentWorkspace;
+
+        $post = $workspace
+            ? Post::where('workspace_id', $workspace->id)
+                ->with(['postPlatforms.socialAccount'])
+                ->find(data_get($validated, 'post_id'))
+            : null;
 
         if (! $post) {
             return Response::error('Post not found.');
+        }
+
+        if ($denied = $this->denyUnlessCan($request, 'view', $post, 'Post not found.')) {
+            return $denied;
         }
 
         return Response::structured([

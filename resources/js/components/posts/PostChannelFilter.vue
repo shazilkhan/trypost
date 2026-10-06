@@ -56,6 +56,7 @@ const { open: openConnectDialog } = useConnectChannelDialog();
         :deselect-all-label="$t('posts.composer.deselect_all')"
         :test-id="testId"
         content-class="w-96"
+        icon-only-on-mobile
     >
         <template #icon>
             <IconLayoutGrid class="size-4" />

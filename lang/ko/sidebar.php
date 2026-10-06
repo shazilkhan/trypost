@@ -33,6 +33,8 @@ return [
     'search_channels' => '채널 검색',
     'channel_submenu' => ':name 하위 메뉴',
     'toggle' => '사이드바 전환',
+    'collapse' => '사이드바 접기',
+    'expand' => '사이드바 펼치기',
     'mobile_title' => '내비게이션',
     'mobile_description' => '앱 기본 내비게이션.',
     'repurposes' => 'Repurpose',

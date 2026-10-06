@@ -94,6 +94,40 @@ function createIdeaEditorIdea(Workspace $workspace, User $user, array $attribute
     ]);
 }
 
+test('a label created from the idea editor is selected and saved with the idea', function () {
+    [$user, $workspace] = createIdeaEditorSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.create'));
+    waitForCreateIdeaEditorDialog($page);
+
+    $page->fill('@idea-editor-title', 'Labelled idea')
+        ->click('@idea-editor-labels');
+    waitForCreateIdeaEditorTestId($page, 'idea-editor-label-empty-create');
+    $page->click('@idea-editor-label-empty-create');
+    waitForCreateIdeaEditorTestId($page, 'idea-editor-label-new-name');
+    $page->fill('@idea-editor-label-new-name', 'Launch')
+        ->click('@submit-idea-editor-label-new');
+
+    $label = null;
+    waitForCreateIdeaEditorDatabase($page, function () use ($workspace, &$label): bool {
+        $label = WorkspaceLabel::where('workspace_id', $workspace->id)->where('name', 'Launch')->first();
+
+        return $label !== null;
+    });
+    waitForCreateIdeaEditorTestId($page, "idea-editor-label-checkbox-{$label->id}");
+
+    $page->assertScript("document.querySelector('[data-testid=\"idea-editor-label-checkbox-{$label->id}\"]').getAttribute('data-state')", 'checked')
+        ->click('@idea-editor-labels')
+        ->click('@idea-editor-save');
+
+    waitForCreateIdeaEditorDatabase($page, fn (): bool => Idea::where('title', 'Labelled idea')->exists());
+    $idea = Idea::where('title', 'Labelled idea')->sole();
+
+    expect($idea->labels()->pluck('workspace_labels.id')->all())->toBe([$label->id]);
+    $page->assertNoJavaScriptErrors();
+});
+
 test('a new idea is saved with its stage and label and the editor returns to the board', function () {
     [$user, $workspace, $stage] = createIdeaEditorSetup();
     $label = WorkspaceLabel::factory()->create(['workspace_id' => $workspace->id]);
@@ -111,8 +145,8 @@ test('a new idea is saved with its stage and label and the editor returns to the
     $page->click("@idea-editor-stage-option-{$stage->id}")
         ->assertSeeIn('@idea-editor-stage', $stage->name)
         ->click('@idea-editor-labels');
-    waitForCreateIdeaEditorTestId($page, "idea-editor-label-{$label->id}");
-    $page->click("@idea-editor-label-{$label->id}")
+    waitForCreateIdeaEditorTestId($page, "idea-editor-label-option-{$label->id}");
+    $page->click("@idea-editor-label-option-{$label->id}")
         ->click('@idea-editor-labels')
         ->click('@idea-editor-save');
 
@@ -418,48 +452,97 @@ test('create post closes the editor and opens the composer with the idea', funct
     expect(Idea::whereKey($idea->id)->exists())->toBeTrue();
 });
 
-test('generate ideas needs both answers, adds cards to unassigned and remembers the answers', function () {
+test('generate ideas shows one idea, generates again and opens it unsaved in the new idea editor', function (?array $size) {
     [$user, $workspace] = createIdeaEditorSetup();
-    IdeaGenerator::fake([['ideas' => [
+    IdeaGenerator::fake([
         ['title' => 'Behind the kiln', 'body' => 'Show the firing process.'],
         ['title' => 'Glaze of the week', 'body' => 'Feature one glaze.'],
-        ['title' => 'Customer tables', 'body' => 'Share customer photos.'],
-    ]]]);
+    ]);
     $this->actingAs($user);
 
     $page = visit(route('app.create.ideas.index'));
+    if ($size !== null) {
+        $page->resize(...$size);
+    }
     waitForCreateIdeaEditorTestId($page, 'ideas-generate');
     $page->click('@ideas-generate');
-    waitForCreateIdeaEditorTestId($page, 'ideas-generate-popover');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-dialog');
 
-    $page->assertDisabled('@ideas-generate-submit')
-        ->fill('@ideas-generate-business', 'A handmade ceramics studio')
+    $page->assertMissing('@ideas-generate-count')
+        ->assertMissing('@ideas-generate-stage')
         ->assertDisabled('@ideas-generate-submit')
         ->fill('@ideas-generate-audience', 'Home decor lovers')
+        ->assertDisabled('@ideas-generate-submit')
+        ->fill('@ideas-generate-business', 'A handmade ceramics studio')
         ->assertEnabled('@ideas-generate-submit')
         ->click('@ideas-generate-submit');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-result', 'Behind the kiln');
 
-    waitForCreateIdeaEditorDatabase($page, fn (): bool => Idea::where('workspace_id', $workspace->id)->count() === 3);
-    $ideas = Idea::where('workspace_id', $workspace->id)->orderBy('position')->get();
-    waitForCreateIdeaEditorCondition($page, "document.querySelectorAll('[data-testid=\"idea-column-unassigned\"] [data-idea-id]').length === 3");
+    $page->assertSeeIn('@ideas-generate-result', 'Behind the kiln')
+        ->assertSeeIn('@ideas-generate-result', 'Show the firing process.');
+    expect($page->script(<<<'JS'
+        (() => {
+            const ids = ['ideas-generate-cancel', 'ideas-generate-again', 'ideas-generate-use'];
+            const nodes = ids.map((id) => document.querySelector(`[data-testid="${id}"]`));
+            return nodes.every(Boolean)
+                && Boolean(nodes[0].compareDocumentPosition(nodes[1]) & Node.DOCUMENT_POSITION_FOLLOWING)
+                && Boolean(nodes[1].compareDocumentPosition(nodes[2]) & Node.DOCUMENT_POSITION_FOLLOWING)
+                && document.documentElement.scrollWidth <= window.innerWidth;
+        })()
+    JS))->toBeTrue();
 
-    expect($ideas->pluck('idea_stage_id')->unique()->all())->toBe([null]);
-    expect($page->script("[...document.querySelectorAll('[data-testid=\"idea-column-unassigned\"] [data-idea-id]')].map((el) => el.dataset.ideaId)"))
-        ->toBe($ideas->pluck('id')->all());
+    $page->click('@ideas-generate-again');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-result', 'Glaze of the week');
 
-    $page->refresh();
-    waitForCreateIdeaEditorTestId($page, 'ideas-generate');
+    $page->assertSeeIn('@ideas-generate-result', 'Feature one glaze.')
+        ->assertDontSeeIn('@ideas-generate-result', 'Behind the kiln');
+    IdeaGenerator::assertPrompted(fn ($prompt): bool => $prompt->agent->audience === 'Home decor lovers'
+        && $prompt->agent->business === 'A handmade ceramics studio');
+
+    $page->click('@ideas-generate-use');
+    waitForCreateIdeaEditorDialog($page);
+    waitForCreateIdeaEditorTestId($page, 'idea-editor-title', 'Glaze of the week');
+
+    $page->assertMissing('@ideas-generate-dialog')
+        ->assertValue('@idea-editor-title', 'Glaze of the week')
+        ->assertValue('@idea-editor-body', 'Feature one glaze.')
+        ->assertSeeIn('@idea-editor-stage', __('create.ideas.unassigned'));
+    expect(Idea::where('workspace_id', $workspace->id)->exists())->toBeFalse();
+
+    $page->click('@idea-editor-save');
+    waitForCreateIdeaEditorDatabase($page, fn (): bool => Idea::where('workspace_id', $workspace->id)->exists());
+
+    $idea = Idea::where('workspace_id', $workspace->id)->sole();
+    expect($idea->title)->toBe('Glaze of the week')
+        ->and($idea->body)->toBe('Feature one glaze.')
+        ->and($idea->idea_stage_id)->toBeNull();
+
+    waitForCreateIdeaEditorCondition($page, "!document.querySelector('[data-testid=\"idea-editor\"]')");
+    waitForCreateIdeaEditorTestId($page, 'ideas-new');
+    $page->click('@ideas-new');
+    waitForCreateIdeaEditorDialog($page);
+
+    $page->assertValue('@idea-editor-title', '')
+        ->assertValue('@idea-editor-body', '');
+
+    $page->click('@idea-editor-cancel');
+    waitForCreateIdeaEditorCondition($page, "!document.querySelector('[data-testid=\"idea-editor\"]')");
     $page->click('@ideas-generate');
-    waitForCreateIdeaEditorTestId($page, 'ideas-generate-business', 'A handmade ceramics studio');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-audience');
 
-    $page->assertValue('@ideas-generate-business', 'A handmade ceramics studio')
-        ->assertValue('@ideas-generate-audience', 'Home decor lovers')
+    $page->assertValue('@ideas-generate-audience', '')
+        ->assertValue('@ideas-generate-business', '')
+        ->assertMissing('@ideas-generate-result')
+        ->assertDisabled('@ideas-generate-submit')
         ->assertNoJavaScriptErrors();
-});
+})->with([
+    'desktop' => [null],
+    'phone' => [[390, 844]],
+]);
 
 test('generate ideas shows the payment required message inline when AI is denied', function () {
     [$user, $workspace] = createIdeaEditorSetup();
-    IdeaGenerator::fake([['ideas' => []]]);
+    IdeaGenerator::fake();
     Gate::before(fn (User $user, string $ability): ?AuthResponse => $ability === 'useAi'
         ? AuthResponse::deny(__('billing.flash.subscription_required'))
         : null);
@@ -468,7 +551,7 @@ test('generate ideas shows the payment required message inline when AI is denied
     $page = visit(route('app.create.ideas.index'));
     waitForCreateIdeaEditorTestId($page, 'ideas-generate');
     $page->click('@ideas-generate');
-    waitForCreateIdeaEditorTestId($page, 'ideas-generate-popover');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-dialog');
     $page->fill('@ideas-generate-business', 'A handmade ceramics studio')
         ->fill('@ideas-generate-audience', 'Home decor lovers')
         ->click('@ideas-generate-submit');
@@ -672,3 +755,81 @@ test('the assistant buttons only open the AI sidebar; it closes from its X', fun
         ->assertAttribute("@{$button}", 'aria-pressed', 'false')
         ->assertNoJavaScriptErrors();
 })->with(['idea-editor-ai', 'idea-editor-use-assistant']);
+
+test('on a phone the title and close share the first row and the stage and labels triggers share the second', function (string $locale) {
+    [$user] = createIdeaEditorSetup();
+    $user->update(['locale' => $locale]);
+    $this->actingAs($user->fresh());
+
+    $page = visit(route('app.create.ideas.create'))->resize(390, 844);
+    waitForCreateIdeaEditorDialog($page);
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const rect = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+            const dialog = rect('idea-editor');
+            const stage = rect('idea-editor-stage');
+            const labels = rect('idea-editor-labels');
+            const title = document.querySelector('[data-testid="idea-editor"] [data-slot="dialog-title"]').getBoundingClientRect();
+            const close = document.querySelector('[data-testid="idea-editor"] [data-slot="dialog-close"]').getBoundingClientRect();
+            return {
+                titleAndCloseShareRow: Math.abs((title.top + title.bottom) / 2 - (close.top + close.bottom) / 2) < 12,
+                pickersShareRow: Math.abs(stage.top - labels.top) < 2,
+                pickersBelowTitle: stage.top >= title.bottom,
+                noOverflow: labels.right <= dialog.right && stage.left >= dialog.left && stage.right <= labels.left,
+            };
+        })()
+    JS))->toBe(['titleAndCloseShareRow' => true, 'pickersShareRow' => true, 'pickersBelowTitle' => true, 'noOverflow' => true]);
+
+    $page->assertNoJavaScriptErrors();
+})->with(['en', 'de', 'fr', 'uk', 'ru', 'pl', 'pt-BR']);
+
+test('generate ideas opens as a dialog on a phone with cancel before generate', function () {
+    [$user] = createIdeaEditorSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'))->resize(390, 844);
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate');
+    $page->click('@ideas-generate');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-dialog');
+
+    expect($page->script("document.querySelector('[data-testid=\"ideas-generate-dialog\"]').getAttribute('role') === 'dialog' && document.querySelector('[data-testid=\"ideas-generate-dialog\"]').dataset.slot === 'dialog-content'"))->toBeTrue();
+    expect($page->script("(() => { const c = document.querySelector('[data-testid=\"ideas-generate-cancel\"]'); const s = document.querySelector('[data-testid=\"ideas-generate-submit\"]'); return c.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING ? true : false; })()"))->toBeTrue();
+
+    $page->click('@ideas-generate-cancel')->assertNoJavaScriptErrors();
+});
+
+test('the generate ideas dialog keeps its footer on screen at 390px in the form and result states', function () {
+    [$user] = createIdeaEditorSetup();
+    IdeaGenerator::fake([
+        ['title' => str_repeat('A very long idea title ', 6), 'body' => str_repeat('Show the whole firing process from raw clay to glazed piece. ', 30)],
+    ]);
+    $this->actingAs($user);
+
+    $footerOnScreen = <<<'JS'
+        (() => {
+            const footer = document.querySelector('[data-testid="ideas-generate-cancel"]').parentElement.getBoundingClientRect();
+
+            return footer.top >= 0
+                && footer.bottom <= window.innerHeight
+                && document.documentElement.scrollWidth <= window.innerWidth;
+        })()
+    JS;
+
+    $page = visit(route('app.create.ideas.index'))->resize(390, 844);
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate');
+    $page->click('@ideas-generate');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-dialog');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-submit');
+
+    expect($page->script($footerOnScreen))->toBeTrue();
+
+    $page->fill('@ideas-generate-audience', 'Home decor lovers')
+        ->fill('@ideas-generate-business', 'A handmade ceramics studio')
+        ->click('@ideas-generate-submit');
+    waitForCreateIdeaEditorTestId($page, 'ideas-generate-result', 'A very long idea title');
+
+    expect($page->script($footerOnScreen))->toBeTrue()
+        ->and($page->script("document.querySelector('[data-testid=\"ideas-generate-use\"]').getBoundingClientRect().bottom <= window.innerHeight"))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});

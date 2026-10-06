@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Deine Veröffentlichungszeiten sagen TryPost, wann Beiträge aus deiner Warteschlange gesendet werden. Die nächsten Beiträge, die du zur Warteschlange hinzufügst, gehen zu den nächsten Zeiten unten raus.',
         'day_on' => 'An',
         'day_off' => 'Aus',
+        'day_empty' => 'Keine Zeiten',
         'remove_time' => ':time entfernen',
         'edit_hour' => 'Stunde von :time ändern',
         'edit_minute' => 'Minute von :time ändern',

@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace App\Mcp\Tools\Repurpose;
 
 use App\Actions\Repurpose\CreateRepurpose;
-use App\Enums\Repurpose\SourceFormat;
 use App\Http\Resources\Api\RepurposeResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
-use App\Mcp\Requests\Repurpose\CreateRepurposeRequest;
+use App\Models\Repurpose;
 use App\Models\Workspace;
-use App\Support\Repurpose\SourceIsFree;
-use App\Support\Repurpose\SourceIsNotADestination;
+use App\Support\Requests\Repurpose\RepurposeRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\ValidationException;
 use Laravel\Mcp\Request;
@@ -27,24 +25,13 @@ class CreateRepurposeTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $workspace = $this->authorizeCurrentWorkspace($request, 'manageRepurposes', 'Not authorized to manage repurposes.');
+        $workspace = $this->authorizeCurrentWorkspace($request, 'create', Repurpose::class);
 
         if (! $workspace instanceof Workspace) {
             return $workspace;
         }
 
-        $validated = $request->validate(CreateRepurposeRequest::rules($workspace->id));
-
-        SourceIsFree::assert(
-            $workspace->id,
-            data_get($validated, 'source_social_account_id'),
-            SourceFormat::from(data_get($validated, 'source_format', SourceFormat::Reel->value)),
-        );
-
-        SourceIsNotADestination::assert(
-            (array) data_get($validated, 'destinations', []),
-            data_get($validated, 'source_social_account_id'),
-        );
+        $validated = RepurposeRequestRules::validate($request->all(), $workspace->id);
 
         try {
             $repurpose = CreateRepurpose::execute($workspace, $request->user(), $validated);

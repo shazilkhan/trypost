@@ -7,26 +7,27 @@ namespace App\Mcp\Tools\Post;
 use App\Actions\Post\CreatePosts;
 use App\Actions\Post\HostInlineMedia;
 use App\Enums\Post\CreatedVia;
-use App\Enums\PostPlatform\ContentType;
+use App\Enums\Post\QueuePosition;
+use App\Enums\Post\Status;
+use App\Enums\SocialAccount\Platform;
+use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Mcp\Concerns\DescribesPostMedia;
 use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
-use App\Rules\ContentTypeMatchesPlatform;
-use App\Rules\PostContentFitsMaxLength;
-use App\Support\PostMediaRules;
 use App\Support\PostPlatformMetaRules;
+use App\Support\PostStatusRules;
+use App\Support\Requests\Post\PostRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Create one post for one social account in the current workspace. Use create-posts-tool to create a batch. Use list-content-types-tool to discover valid content_types.')]
+#[Description('Create one post for one social account in the current workspace: a draft, a post scheduled at a custom time, a post queued in the channel\'s next free slot (queue: next) or first slot (queue: top), a queue post in one specific free slot (queue_slot, an instant from list-free-slots-tool), or a post published now. When the acting member needs approval in this workspace, a scheduled, queued or publish-now post is stored with status pending_approval instead and waits for approve-post-tool. Use create-posts-tool to create a batch. Use list-content-types-tool to discover valid content_types.')]
 class CreatePostTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -34,52 +35,37 @@ class CreatePostTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $workspace = $this->authorizeCurrentWorkspace(
-            $request,
-            'createPost',
-            'Not authorized to create posts.',
-        );
+        $workspace = $this->authorizeCurrentWorkspace($request, 'createPost');
 
         if (! $workspace instanceof Workspace) {
             return $workspace;
         }
 
         $validated = $request->validate(
-            [
-                'content' => ['nullable', 'string', new PostContentFitsMaxLength],
-                ...PostMediaRules::rules(),
-                'scheduled_at' => ['nullable', 'date', 'after:now', 'before:2038-01-19'],
-                'label_ids' => ['sometimes', 'array'],
-                'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)->withoutTrashed()],
-                'platforms' => ['required', 'array', 'size:1'],
-                'platforms.*.social_account_id' => [
-                    'required',
-                    'uuid',
-                    Rule::exists('social_accounts', 'id')
-                        ->where('workspace_id', $workspace->id),
-                ],
-                'platforms.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value')), new ContentTypeMatchesPlatform],
-                ...PostPlatformMetaRules::rules(),
-            ],
-            PostPlatformMetaRules::messages(),
-            PostPlatformMetaRules::attributes(),
+            PostRequestRules::store($workspace, $request->all()),
+            PostRequestRules::messages(),
+            PostRequestRules::attributes(),
         );
 
-        $platform = SocialAccount::query()->whereKey($validated['platforms'][0]['social_account_id'])->value('platform');
+        $platforms = PostRequestRules::selectedAccounts($workspace, $validated)
+            ->map(fn (SocialAccount $account): Platform => $account->platform)
+            ->values();
 
-        $post = CreatePosts::execute($workspace, $request->user(), [
-            'status' => 'draft',
-            'content' => $validated['content'] ?? '',
-            'media' => HostInlineMedia::execute(
-                $workspace,
-                Post::allowedMediaTypesFor(collect([$platform])),
-                $validated['media'] ?? [],
-            ),
-            'scheduled_at' => $validated['scheduled_at'] ?? null,
-            'label_ids' => $validated['label_ids'] ?? [],
-            'created_via' => CreatedVia::Mcp,
-            'destinations' => [$validated['platforms'][0]],
-        ])->sole();
+        try {
+            $post = CreatePosts::execute($workspace, $request->user(), [
+                'status' => $validated['status'] ?? Status::Draft->value,
+                'content' => $validated['content'] ?? '',
+                'media' => HostInlineMedia::execute($workspace, Post::allowedMediaTypesFor($platforms), $validated['media'] ?? []),
+                'scheduled_at' => $validated['scheduled_at'] ?? $validated['queue_slot'] ?? null,
+                'queue' => $validated['queue'] ?? null,
+                'queue_slot' => $validated['queue_slot'] ?? null,
+                'label_ids' => $validated['label_ids'] ?? [],
+                'created_via' => CreatedVia::Mcp,
+                'destinations' => [$validated['platforms'][0]],
+            ])->sole();
+        } catch (QueueBusyException) {
+            return Response::error(__('posts.errors.queue_busy'));
+        }
 
         $post->load(['postPlatforms.socialAccount', 'labels']);
 
@@ -91,14 +77,19 @@ class CreatePostTool extends Tool
         return [
             'content' => $schema->string()->description('The post caption/text body. Optional — can be edited later.'),
             'media' => $this->mediaSchema($schema, 'Media for the post.'),
-            'scheduled_at' => $schema->string()->description('Optional ISO 8601 datetime in the future (e.g. 2026-05-10T15:30:00Z). Omit it or pass null to create an unscheduled draft.'),
+            'status' => $schema->string()
+                ->enum([Status::Draft->value, Status::Scheduled->value, Status::Publishing->value])
+                ->description('draft (default) keeps the post editable, scheduled schedules it at scheduled_at or in the queue, publishing publishes it now.'),
+            'scheduled_at' => $schema->string()->description('ISO 8601 datetime in the future (e.g. 2026-05-10T15:30:00Z), required when status is scheduled without queue.'),
+            'queue' => $schema->string()->enum(array_column(QueuePosition::cases(), 'value'))->description(PostStatusRules::QUEUE_DESCRIPTION),
+            'queue_slot' => $schema->string()->description(PostStatusRules::QUEUE_SLOT_DESCRIPTION),
             'label_ids' => $schema->array()
                 ->items($schema->string())
                 ->description('Workspace label IDs to attach to the post.'),
             'platforms' => $schema->array()
                 ->items($schema->object(fn ($p) => [
                     'social_account_id' => $p->string()->required()->description('UUID of the connected social account.'),
-                    'content_type' => $p->string()->required()->description('Format for this platform (e.g. linkedin_post, x_post, instagram_feed).'),
+                    'content_type' => $p->string()->description('Format for this platform (e.g. linkedin_post, x_post, instagram_feed). Optional. Omitted, it is chosen as the web composer does: on pinterest a video makes pinterest_video_pin, several images pinterest_carousel, else pinterest_pin; on tiktok images only make tiktok_photo, else tiktok_video; every other network takes its default_content_type (list-content-types-tool). A type sent explicitly is validated against the media and refused when they do not match.'),
                     'meta' => $p->object()->description(PostPlatformMetaRules::documentation()),
                 ]))
                 ->required()

@@ -29,6 +29,7 @@ const props = defineProps<{
     testid?: string;
     compact?: boolean;
     variant?: 'outline' | 'ghost';
+    iconOnlyOnMobile?: boolean;
 }>();
 
 const model = defineModel<string>({ required: true });
@@ -109,17 +110,19 @@ const choose = (value: string): void => {
                 :variant="variant ?? 'outline'"
                 role="combobox"
                 :aria-expanded="open"
+                :aria-label="iconOnlyOnMobile ? $t('posts.publish.timezone.label') : undefined"
                 :data-testid="`${id}-trigger`"
                 :class="
                     cn(
                         'data-[state=open]:bg-accent',
+                        iconOnlyOnMobile && 'max-sm:border max-sm:border-border-strong',
                         variant === 'ghost' || compact ? 'gap-1' : 'gap-2 font-normal',
                         compact ? 'max-w-full' : 'w-full justify-start',
                     )
                 "
             >
                 <IconWorld class="size-4 shrink-0 text-muted-foreground" />
-                <span class="truncate">
+                <span :class="cn('truncate', iconOnlyOnMobile && 'max-sm:hidden')">
                     {{ selected ? (compact ? selected.label : `${selected.label} (${selected.offset})`) : model }}
                 </span>
                 <IconChevronDown v-if="compact" class="size-4 shrink-0 text-muted-foreground" />

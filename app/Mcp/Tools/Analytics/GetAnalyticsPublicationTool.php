@@ -26,7 +26,7 @@ class GetAnalyticsPublicationTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $workspace = $this->authorizeCurrentWorkspace($request, 'view', 'Not authorized to view workspace analytics.');
+        $workspace = $this->authorizeCurrentWorkspace($request, 'view');
 
         if (! $workspace instanceof Workspace) {
             return $workspace;

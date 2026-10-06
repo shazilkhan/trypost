@@ -9,28 +9,25 @@ use App\Actions\Post\UpdatePost;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\Status;
-use App\Enums\PostPlatform\ContentType;
 use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Mcp\Concerns\DescribesPostMedia;
 use App\Models\Post;
 use App\Models\Workspace;
-use App\Rules\ContentTypeCompatibleWithMedia;
-use App\Rules\PostContentFitsMaxLength;
-use App\Support\PostMediaRules;
 use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
+use App\Support\Requests\Post\PostRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Validator as ValidatorContract;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Update one post for its existing social account. Caption, content type, platform settings, schedule, and labels may change. The social account is fixed.')]
+#[Description('Update one post for its existing social account. Caption, media, content_type, meta (platform settings, merged with the stored ones), status, schedule, queue and labels may change; content_type and meta are top-level fields because a post has exactly one social account, which is fixed. When the acting member needs approval in this workspace, a scheduled, queued or publish-now update is stored with status pending_approval instead.')]
 class UpdatePostTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -38,6 +35,8 @@ class UpdatePostTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
+        $request->validate(['post_id' => ['required', 'uuid']]);
+
         $workspace = $request->user()?->currentWorkspace;
         $post = $workspace instanceof Workspace
             ? Post::where('workspace_id', $workspace->id)->find(data_get($request->all(), 'post_id'))
@@ -47,57 +46,22 @@ class UpdatePostTool extends Tool
             return Response::error('Post not found.');
         }
 
-        if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Not authorized to update this post.')) {
+        if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Post not found.')) {
             return $denied;
         }
 
-        $status = data_get($request->all(), 'status');
+        $input = PostRequestRules::updateInput($post, $request->all());
 
-        $validated = $request->validate(
-            [
-                'post_id' => ['required', 'uuid'],
-                'content' => ['nullable', 'string', new PostContentFitsMaxLength],
-                ...PostMediaRules::rules(),
-                'scheduled_at' => PostStatusRules::scheduledAtRules($post, $status, filled(data_get($request->all(), 'queue'))),
-                'queue' => PostStatusRules::queueRules(),
-                'status' => ['sometimes', 'string', Rule::in([Status::Draft->value, Status::Scheduled->value])],
-                'label_ids' => ['sometimes', 'array'],
-                'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)->withoutTrashed()],
-                'social_account_id' => ['prohibited'],
-                'platforms' => ['prohibited'],
-                'content_type' => ['sometimes', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
-                'meta' => ['sometimes', 'array'],
-            ],
-            [...PostPlatformMetaRules::messages(), ...PostStatusRules::queueMessages()],
-            PostPlatformMetaRules::attributes(),
-        );
+        $validated = Validator::make($input, PostRequestRules::update($workspace, $post, $input), PostRequestRules::messages(), PostRequestRules::attributes())
+            ->after(fn (ValidatorContract $validator) => PostRequestRules::afterUpdate($validator, $post, $input))
+            ->validate();
 
         if (array_key_exists('media', $validated)) {
             $validated['media'] = HostInlineMedia::execute($workspace, $post->allowedMediaTypes(), $validated['media']);
         }
 
-        // Without new media, scheduling validates the stored media against the
-        // effective type even when the request omits content_type.
-        if ($status === Status::Scheduled->value && ! array_key_exists('media', $validated)) {
-            $selectedTarget = $post->postPlatforms()->enabled()->first();
-            $submittedTarget = $selectedTarget && isset($validated['content_type'])
-                ? [['id' => $selectedTarget->id, 'content_type' => $validated['content_type']]]
-                : null;
-            $errors = ContentTypeCompatibleWithMedia::errorsFor(
-                ContentTypeCompatibleWithMedia::entriesForUpdate($post, $submittedTarget),
-                (array) ($post->media ?? []),
-                $post->workspace,
-            );
-
-            if ($errors !== []) {
-                throw ValidationException::withMessages($errors);
-            }
-        }
-
-        $payload = collect($validated)->except('post_id')->all();
-
         try {
-            $result = UpdatePost::execute($workspace, $post, $payload, $request->user());
+            $result = UpdatePost::execute($workspace, $post, $validated, $request->user());
         } catch (QueueBusyException) {
             return Response::error(__('posts.errors.queue_busy'));
         }
@@ -122,12 +86,12 @@ class UpdatePostTool extends Tool
             'scheduled_at' => $schema->string()->description('Future ISO 8601 datetime. Required for status "scheduled" unless the post already has a future schedule.'),
             'queue' => $schema->string()->enum(array_column(QueuePosition::cases(), 'value'))->description(PostStatusRules::QUEUE_DESCRIPTION),
             'status' => $schema->string()
-                ->enum([Status::Draft->value, Status::Scheduled->value])
-                ->description('Post status. Use "draft" to keep editing, "scheduled" to schedule the post. Use publish-post-tool for immediate publish.'),
+                ->enum([Status::Draft->value, Status::Scheduled->value, Status::Publishing->value])
+                ->description('Post status. Omit it to keep the current one. Use "draft" to keep editing (a scheduled post is unscheduled), "scheduled" to schedule the post at scheduled_at or in the queue, "publishing" to publish it now.'),
             'label_ids' => $schema->array()
                 ->items($schema->string())
                 ->description('Workspace label IDs to attach (replaces existing labels).'),
-            'content_type' => $schema->string()->description('New format for the post’s existing social account.'),
+            'content_type' => $schema->string()->description('New format for the post’s existing social account. Omitted, the stored type is kept, except on pinterest and tiktok, where new media re-decides it as on create (video -> pinterest_video_pin / tiktok_video, several images -> pinterest_carousel, images only -> tiktok_photo).'),
             'meta' => $schema->object()->description('Settings for the existing account, merged with stored settings. '.PostPlatformMetaRules::documentation()),
         ];
     }

@@ -291,7 +291,8 @@ test('rapid star clicks keep only the last default posting action', function () 
 });
 
 test('the schedule menu lists all four options before any channel is selected and keeps the choice', function () {
-    [$user] = composerQueueWorkspace();
+    [$user, $workspace] = composerQueueWorkspace();
+    composerQueueChannel($workspace, composerQueueSchedule());
     $user->update(['default_post_action' => DefaultPostAction::Now]);
     $this->actingAs($user);
 
@@ -534,7 +535,8 @@ test('the schedule trigger points up and its icon follows the selected mode', fu
 });
 
 test('picking a day and typing a time schedules a custom date with the user time format', function () {
-    [$user] = composerQueueWorkspace();
+    [$user, $workspace] = composerQueueWorkspace();
+    composerQueueChannel($workspace, composerQueueSchedule());
     $user->update(['time_format' => TimeFormat::TwelveHour, 'timezone' => 'Asia/Tokyo']);
     $this->actingAs($user);
 
@@ -554,7 +556,8 @@ test('picking a day and typing a time schedules a custom date with the user time
 });
 
 test('the time input opens a fifteen minute list that sets the time', function () {
-    [$user] = composerQueueWorkspace();
+    [$user, $workspace] = composerQueueWorkspace();
+    composerQueueChannel($workspace, composerQueueSchedule());
     $user->update(['time_format' => TimeFormat::TwentyFourHour]);
     $this->actingAs($user);
 
@@ -586,7 +589,8 @@ test('the time input opens a fifteen minute list that sets the time', function (
 });
 
 test('more posting actions returns from the picker to the when menu', function () {
-    [$user] = composerQueueWorkspace();
+    [$user, $workspace] = composerQueueWorkspace();
+    composerQueueChannel($workspace, composerQueueSchedule());
     $this->actingAs($user);
 
     $page = visit(route('app.posts.create'));
@@ -601,7 +605,8 @@ test('more posting actions returns from the picker to the when menu', function (
 });
 
 test('the picker calendar starts the week on the user preference', function (WeekStart $weekStart, string $firstWeekday, int $dayOfWeek) {
-    [$user] = composerQueueWorkspace();
+    [$user, $workspace] = composerQueueWorkspace();
+    composerQueueChannel($workspace, composerQueueSchedule());
     $user->update(['week_starts_on' => $weekStart]);
     $this->actingAs($user);
 

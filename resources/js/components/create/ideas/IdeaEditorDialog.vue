@@ -13,6 +13,7 @@ import {
 import { computed, nextTick, ref, watch } from 'vue';
 
 import WritingAssistantPanel from '@/components/ai/WritingAssistantPanel.vue';
+import LabelFilter from '@/components/labels/LabelFilter.vue';
 import MediaTray from '@/components/media/MediaTray.vue';
 import UnsplashDialog from '@/components/media/UnsplashDialog.vue';
 import MediaEditorDialog, {
@@ -46,6 +47,7 @@ import { store, update } from '@/routes/app/create/ideas';
 import type { MediaUploadLimits, SharedData } from '@/types';
 import {
     columnKey,
+    type IdeaDraft,
     type IdeaEditorState,
     type IdeaLabel,
     type IdeaStage,
@@ -54,6 +56,7 @@ import type { MediaItem } from '@/types/media';
 
 const props = defineProps<{
     editor: IdeaEditorState;
+    prefill?: IdeaDraft | null;
     stages: IdeaStage[];
     labels: IdeaLabel[];
     closeUrl: string;
@@ -63,8 +66,8 @@ const props = defineProps<{
 const idea = props.editor.mode === 'edit' ? props.editor.idea : null;
 
 const form = useForm({
-    title: idea?.title ?? '',
-    body: idea?.body ?? '',
+    title: idea?.title ?? props.prefill?.title ?? '',
+    body: idea?.body ?? props.prefill?.body ?? '',
     idea_stage_id: idea
         ? idea.idea_stage_id
         : props.editor.mode === 'create'
@@ -179,8 +182,6 @@ const openAssistant = (): void => {
 
 const stageOpen = ref(false);
 const stageSearch = ref('');
-const labelsOpen = ref(false);
-const labelSearch = ref('');
 const emojiOpen = ref(false);
 const body = ref<HTMLTextAreaElement | null>(null);
 
@@ -204,29 +205,32 @@ const filteredStages = computed(() => {
         : props.stages;
 });
 
-const selectedLabels = computed(() =>
-    props.labels.filter((label) => form.label_ids.includes(label.id)),
+const availableLabels = ref([...props.labels]);
+
+watch(
+    () => props.labels,
+    (labels) => {
+        availableLabels.value = [...labels];
+    },
 );
 
-const filteredLabels = computed(() => {
-    const query = labelSearch.value.trim().toLocaleLowerCase();
+const selectedLabels = computed(() =>
+    availableLabels.value.filter((label) =>
+        form.label_ids.includes(label.id),
+    ),
+);
 
-    return query
-        ? props.labels.filter((label) =>
-              label.name.toLocaleLowerCase().includes(query),
-          )
-        : props.labels;
-});
+const addLabel = (label: IdeaLabel): void => {
+    if (!availableLabels.value.some(({ id }) => id === label.id)) {
+        availableLabels.value = [...availableLabels.value, label];
+    }
+
+    form.label_ids = [...form.label_ids, label.id];
+};
 
 watch(stageOpen, (isOpen) => {
     if (!isOpen) {
         stageSearch.value = '';
-    }
-});
-
-watch(labelsOpen, (isOpen) => {
-    if (!isOpen) {
-        labelSearch.value = '';
     }
 });
 
@@ -260,12 +264,6 @@ const focusOption = (event: KeyboardEvent, step: number): void => {
     const index = options.indexOf(document.activeElement as HTMLElement);
 
     options[(index + step + options.length) % options.length]?.focus();
-};
-
-const toggleLabel = (id: string): void => {
-    form.label_ids = form.label_ids.includes(id)
-        ? form.label_ids.filter((labelId) => labelId !== id)
-        : [...form.label_ids, id];
 };
 
 const insertEmoji = (emoji: string): void => {
@@ -408,7 +406,7 @@ const iconButtonClass =
                 <header
                     class="flex shrink-0 flex-wrap items-center gap-2 px-6 pt-6 pe-14 pb-4"
                 >
-                    <DialogTitle class="me-auto">
+                    <DialogTitle class="w-full sm:me-auto sm:w-auto">
                         {{
                             idea
                                 ? $t('create.ideas.editor.edit_title')
@@ -491,8 +489,15 @@ const iconButtonClass =
                         </PopoverContent>
                     </Popover>
 
-                    <Popover v-model:open="labelsOpen">
-                        <PopoverTrigger as-child>
+                    <LabelFilter
+                        v-model="form.label_ids"
+                        :labels="availableLabels"
+                        :show-untagged="false"
+                        test-id="idea-editor-label"
+                        align="end"
+                        @created="addLabel"
+                    >
+                        <template #trigger>
                             <Button
                                 type="button"
                                 variant="outline"
@@ -535,80 +540,8 @@ const iconButtonClass =
                                     class="size-4 shrink-0 text-muted-foreground"
                                 />
                             </Button>
-                        </PopoverTrigger>
-                        <PopoverContent class="w-72 p-3" align="end">
-                            <div class="relative mb-2">
-                                <IconSearch
-                                    class="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground"
-                                />
-                                <input
-                                    v-model="labelSearch"
-                                    type="search"
-                                    :aria-label="
-                                        $t('posts.label_search_placeholder')
-                                    "
-                                    :placeholder="
-                                        $t('posts.label_search_placeholder')
-                                    "
-                                    class="h-8 w-full rounded-lg border border-input bg-background pr-2 pl-8 text-sm transition-control outline-none placeholder:text-subtle-foreground focus-visible:border-primary-text"
-                                />
-                            </div>
-                            <p
-                                v-if="!filteredLabels.length"
-                                class="px-2 py-3 text-sm text-muted-foreground"
-                            >
-                                {{ $t('posts.no_labels') }}
-                            </p>
-                            <div
-                                role="listbox"
-                                aria-multiselectable="true"
-                                :aria-label="$t('create.ideas.editor.labels')"
-                                class="max-h-60 space-y-0.5 overflow-y-auto"
-                                @keydown.down.prevent="focusOption($event, 1)"
-                                @keydown.up.prevent="focusOption($event, -1)"
-                            >
-                                <button
-                                    v-for="label in filteredLabels"
-                                    :key="label.id"
-                                    type="button"
-                                    role="option"
-                                    :data-testid="`idea-editor-label-${label.id}`"
-                                    :aria-selected="
-                                        form.label_ids.includes(label.id)
-                                    "
-                                    class="flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-sm transition-control hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                    @click.stop="toggleLabel(label.id)"
-                                >
-                                    <span
-                                        class="flex size-4 shrink-0 items-center justify-center rounded-sm border"
-                                        :class="
-                                            form.label_ids.includes(label.id)
-                                                ? 'border-primary-strong bg-primary-strong text-primary-strong-foreground'
-                                                : 'border-input'
-                                        "
-                                    >
-                                        <IconCheck
-                                            v-if="
-                                                form.label_ids.includes(
-                                                    label.id,
-                                                )
-                                            "
-                                            class="size-3"
-                                        />
-                                    </span>
-                                    <span
-                                        class="size-2.5 shrink-0 rounded-full"
-                                        :style="{
-                                            backgroundColor: label.color,
-                                        }"
-                                    />
-                                    <span class="truncate">{{
-                                        label.name
-                                    }}</span>
-                                </button>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
+                        </template>
+                    </LabelFilter>
                 </header>
 
                 <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-6">

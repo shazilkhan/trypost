@@ -72,6 +72,6 @@ test('post pages use the full-width design while retaining the composer', functi
     expect($tabs)->toContain('data-testid="posts-tabs"');
 
     expect($layout)
-        ->toContain(':open="true"')
+        ->toContain('<SidebarProvider v-model:open="sidebarOpen"')
         ->toContain('<GlobalPostComposer />');
 });

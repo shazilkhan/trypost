@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\App\Post;
 
-use App\Support\PostApproval;
+use App\Support\Requests\Post\ApprovalRequestRules;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,6 +22,6 @@ class ApprovePostRequest extends FormRequest
      */
     public function rules(): array
     {
-        return PostApproval::rules();
+        return ApprovalRequestRules::approve();
     }
 }

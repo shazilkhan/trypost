@@ -15,7 +15,6 @@ import SummaryCards from '@/components/analytics/workspace/SummaryCards.vue';
 import TopPosts from '@/components/analytics/workspace/TopPosts.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import HeaderTitle from '@/components/HeaderTitle.vue';
-import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import { useAnalyticsCoveragePoll } from '@/composables/useAnalyticsCoveragePoll';
 import date from '@/date';
@@ -31,38 +30,26 @@ import type {
 
 const props = defineProps<{
     report: WorkspaceAnalyticsReport;
-    labels: { id: string; name: string; color: string }[];
     channelOptions: AnalyticsChannelOption[];
     availableMetrics: SummaryMetric[] | null;
     sync: InsightsSyncCadence;
 }>();
 
-const selectedLabelIds = ref<string[]>([...props.report.filters.labels]);
-const selectedUntagged = ref<boolean>(props.report.filters.untagged);
 const selectedChannelIds = ref<string[]>([...props.report.filters.channels]);
 
 const filterQuery = computed((): Record<string, string | string[]> => ({
     ...(selectedChannelIds.value.length
         ? { channels: selectedChannelIds.value }
         : {}),
-    ...(selectedLabelIds.value.length ? { labels: selectedLabelIds.value } : {}),
-    ...(selectedUntagged.value ? { untagged: '1' } : {}),
 }));
 
-const filtered = computed(
-    () =>
-        props.report.filters.channels.length > 0 ||
-        props.report.filters.labels.length > 0 ||
-        props.report.filters.untagged,
-);
+const filtered = computed(() => props.report.filters.channels.length > 0);
 
 const sameIds = (left: string[], right: string[]): boolean =>
     left.length === right.length && left.every((id) => right.includes(id));
 
 const selectionMatchesServer = (): boolean =>
-    sameIds(selectedChannelIds.value, props.report.filters.channels) &&
-    sameIds(selectedLabelIds.value, props.report.filters.labels) &&
-    selectedUntagged.value === props.report.filters.untagged;
+    sameIds(selectedChannelIds.value, props.report.filters.channels);
 
 watch(
     () => props.report.filters,
@@ -70,12 +57,6 @@ watch(
         if (!sameIds(selectedChannelIds.value, filters.channels)) {
             selectedChannelIds.value = [...filters.channels];
         }
-
-        if (!sameIds(selectedLabelIds.value, filters.labels)) {
-            selectedLabelIds.value = [...filters.labels];
-        }
-
-        selectedUntagged.value = filters.untagged;
     },
 );
 
@@ -89,7 +70,7 @@ const rangeQuery = (): Record<string, string> =>
         : { range: props.report.filters.range };
 
 watch(
-    [selectedChannelIds, selectedLabelIds, selectedUntagged],
+    [selectedChannelIds],
     () => {
         if (selectionMatchesServer()) {
             return;
@@ -172,12 +153,6 @@ const accountColors = computed<Record<string, string>>(() => {
                             v-model="selectedChannelIds"
                             :channels="channelOptions"
                             test-id="analytics-channel"
-                        />
-                        <LabelFilter
-                            v-model="selectedLabelIds"
-                            v-model:untagged="selectedUntagged"
-                            :labels="labels"
-                            test-id="analytics-label"
                         />
                     </div>
                 </div>

@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import { IconCheck, IconChevronDown } from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
 
 import { DateRangePicker } from '@/components/ui/date-range-picker';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import type {
@@ -24,7 +31,6 @@ const presets: Exclude<AnalyticsRangePreset, 'custom'>[] = [
     '7d',
     '30d',
     'mtd',
-    'last_month',
 ];
 const buttonClass = (preset: AnalyticsRangePreset): string =>
     props.filters.range === preset
@@ -34,6 +40,7 @@ const toDates = (start: string, end: string): { start: Date; end: Date } => ({
     start: dayjs(start).toDate(),
     end: dayjs(end).toDate(),
 });
+const mobileTriggerLabelKey = (): string => `analytics.ranges.${props.filters.range}`;
 const selectedRange = ref(toDates(props.range.start, props.range.end));
 
 watch(
@@ -76,8 +83,58 @@ const changeRange = (range: { start: Date; end: Date }): void => {
         data-testid="insights-range-presets"
     >
         <div class="flex max-w-full flex-wrap items-center gap-2 sm:justify-end">
+            <div class="flex items-center gap-2 sm:hidden">
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <button
+                            type="button"
+                            data-testid="insights-range-mobile-trigger"
+                            class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border-strong bg-background px-3 text-sm font-medium whitespace-nowrap text-foreground transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                            :aria-label="$t('analytics.ranges.label')"
+                        >
+                            {{ $t(mobileTriggerLabelKey()) }}
+                            <IconChevronDown class="size-4 text-muted-foreground" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                            v-for="preset in presets"
+                            :key="preset"
+                            :data-testid="`insights-range-mobile-${preset}`"
+                            :aria-checked="filters.range === preset"
+                            @select="choose(preset)"
+                        >
+                            {{ $t(`analytics.ranges.${preset}`) }}
+                            <IconCheck
+                                v-if="filters.range === preset"
+                                :data-testid="`insights-range-mobile-${preset}-check`"
+                                class="ms-auto size-4 text-primary-text"
+                            />
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <DateRangePicker
+                    :model-value="selectedRange"
+                    :min-date="bounds.min ? dayjs(bounds.min).toDate() : undefined"
+                    :max-date="bounds.max ? dayjs(bounds.max).toDate() : undefined"
+                    @update:model-value="changeRange"
+                >
+                    <template #trigger>
+                        <button
+                            type="button"
+                            data-testid="insights-range-mobile-custom"
+                            class="inline-flex h-8 shrink-0 items-center rounded-lg border border-border-strong px-3 text-sm font-medium whitespace-nowrap transition-control disabled:cursor-not-allowed disabled:text-subtle-foreground disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+                            :class="buttonClass('custom')"
+                            :aria-pressed="filters.range === 'custom'"
+                            :disabled="!bounds.min"
+                        >
+                            {{ $t('analytics.ranges.custom') }}
+                        </button>
+                    </template>
+                </DateRangePicker>
+            </div>
             <div
-                class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-lg border border-border-strong p-1 sm:flex-nowrap"
+                class="hidden max-w-full flex-wrap items-center gap-1 rounded-lg border border-border-strong p-1 sm:inline-flex sm:flex-nowrap"
                 role="group"
                 :aria-label="$t('analytics.ranges.label')"
             >

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import ComposerLiveDataPending from '@/components/posts/composer/ComposerLiveDataPending.vue';
 import AiGeneratedRow from '@/components/posts/editor/AiGeneratedRow.vue';
 import DiscordSettings from '@/components/posts/editor/DiscordSettings.vue';
 import GoogleBusinessSettings from '@/components/posts/editor/GoogleBusinessSettings.vue';
@@ -11,6 +12,7 @@ import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import ThreadsSettings from '@/components/posts/editor/ThreadsSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
 import YouTubeSettings from '@/components/posts/editor/YouTubeSettings.vue';
+import { useComposerLiveState } from '@/composables/useComposerData';
 import type {
     ComposerAccount,
     DestinationDraft,
@@ -41,6 +43,15 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{ 'update:meta': [value: Record<string, any>] }>();
+
+const { loaded: liveLoaded } = useComposerLiveState();
+
+const waitsForLiveData = computed(
+    () =>
+        !liveLoaded.value &&
+        (props.account.platform === Platform.TikTok ||
+            props.account.platform === Platform.Pinterest),
+);
 
 const videoDurationSec = computed(
     () =>
@@ -112,6 +123,7 @@ const aiGenerated = computed({
             :disabled="disabled"
             @update:meta="update"
         />
+        <ComposerLiveDataPending v-else-if="waitsForLiveData" />
         <TikTokSettings
             v-else-if="account.platform === Platform.TikTok"
             :social-account="account"

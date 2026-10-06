@@ -20,9 +20,6 @@ use Illuminate\Support\Facades\Log;
  */
 class FacebookPublicationMetricsCollector extends AbstractMetaPublicationMetricsCollector
 {
-    /** @var list<string> */
-    private array $refusals = [];
-
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
         $this->refusals = [];
@@ -38,10 +35,9 @@ class FacebookPublicationMetricsCollector extends AbstractMetaPublicationMetrics
             $isVideo => ['fb_reels_total_plays', 'post_video_likes_by_reaction_type', 'post_video_social_actions'],
             default => ['post_media_view', 'post_total_media_view_unique', 'post_reactions_like_total', 'post_clicks'],
         };
-        $values = $this->insights((array) data_get($this->optional($account, "{$graph}/{$insightsId}/{$edge}", [
-            'metric' => implode(',', $fields),
+        $values = $this->insights($this->optionalInsightItems($account, "{$graph}/{$insightsId}/{$edge}", $fields, [
             'period' => 'lifetime',
-        ]), 'data', []));
+        ]));
 
         if (! $isStory && str_contains($publication->remote_id, '_')) {
             $post = "{$graph}/{$publication->remote_id}";

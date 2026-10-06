@@ -11,6 +11,7 @@ return [
     'no_content' => '내용 없음',
     'more' => '+:count개 더보기',
     'less' => '접기',
+    'empty_day' => '이 날 예정된 게시물이 없습니다.',
     'status' => [
         'label' => '상태',
         'all' => '모든 게시물',

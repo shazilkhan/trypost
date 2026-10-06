@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\App;
 
+use App\Actions\Analytics\BuildChannelMetricSeries;
+use App\Actions\Analytics\BuildFollowerGrowthRateSeries;
+use App\Actions\Analytics\BuildInsightsExport;
 use App\Actions\Analytics\BuildWorkspaceAnalyticsReport;
 use App\Actions\Analytics\ListAvailableChannelMetrics;
 use App\Actions\Analytics\ListChannelPublicationPerformance;
@@ -13,15 +16,19 @@ use App\Actions\Post\BuildCalendarPageProps;
 use App\Actions\Post\BuildPublishPageProps;
 use App\Actions\SocialAccount\ListInstagramGridPosts;
 use App\Actions\SocialAccount\ReorderSocialAccounts;
+use App\Enums\Analytics\ExportFormat;
+use App\Enums\PostPlatform\ContentType;
 use App\Http\Controllers\App\Concerns\EnsuresChannelInCurrentWorkspace;
 use App\Http\Controllers\App\Concerns\RendersPublishPage;
 use App\Http\Requests\App\Channel\ChannelInsightsRequest;
+use App\Http\Requests\App\Channel\DownloadChannelInsightsRequest;
 use App\Http\Requests\App\Channel\ReorderChannelsRequest;
 use App\Http\Resources\App\ChannelPostingScheduleResource;
 use App\Http\Resources\App\InstagramGridTileResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\SocialAccount;
 use App\Support\Analytics\ChannelMetrics;
+use App\Support\Analytics\InsightsExportWriter;
 use App\Support\Analytics\SyncCadence;
 use App\Support\Timezone;
 use Illuminate\Http\RedirectResponse;
@@ -30,6 +37,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ChannelController extends Controller
 {
@@ -124,6 +132,8 @@ class ChannelController extends Controller
         BuildWorkspaceAnalyticsReport $analytics,
         ListAvailableChannelMetrics $availableMetrics,
         ListChannelPublicationPerformance $performance,
+        BuildChannelMetricSeries $series,
+        BuildFollowerGrowthRateSeries $growthRate,
     ): Response {
         $workspace = $request->user()->currentWorkspace;
         $this->authorize('view', $workspace);
@@ -143,15 +153,17 @@ class ChannelController extends Controller
             $request->user()->timezone,
         );
         $period = $request->validated('period', 'current');
+        $filter = $request->publicationFilter();
         $accountKey = $accountKeys->for($account);
         $resolved = null;
         $resolve = function () use (&$resolved, $analytics, $workspace, $selection, $accountKey, $clamped): array {
             return $resolved ??= $analytics->resolveRange($workspace, $selection, [$accountKey], $clamped);
         };
-        $available = null;
-        $metrics = function () use (&$available, $availableMetrics, $account, $accountKey): array {
-            return $available ??= $availableMetrics->handle($account, $accountKey);
+        $availability = null;
+        $resolveAvailability = function () use (&$availability, $availableMetrics, $account, $accountKey): array {
+            return $availability ??= $availableMetrics->availability($account, $accountKey);
         };
+        $metrics = fn (): array => $availableMetrics->handle($account, $accountKey, $resolveAvailability());
         $sort = fn (): string => ChannelMetrics::sortFor($request->validated('sort'), $metrics());
 
         return Inertia::render('channels/Insights', [
@@ -159,12 +171,17 @@ class ChannelController extends Controller
             'sortableMetrics' => ChannelMetrics::sortable(),
             'sync' => SyncCadence::toArray(),
             'availableMetrics' => $metrics,
-            'report' => function () use ($resolve, $analytics, $workspace, $account, $accountKey, $request): array {
+            'labels' => fn () => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
+            'contentTypes' => fn (): array => array_values(array_map(fn (ContentType $type): array => [
+                'value' => $type->value,
+                'label' => __("posts.content_types.{$type->value}.label"),
+            ], ContentType::forPlatform($account->platform))),
+            'report' => function () use ($resolve, $analytics, $workspace, $account, $accountKey, $request, $filter): array {
                 ['bounds' => $bounds, 'range' => $current] = $resolve();
 
-                return $analytics->execute($workspace, $current, $bounds, $account, $accountKey, $request->user()->week_starts_on);
+                return $analytics->execute($workspace, $current, $bounds, $account, $accountKey, $request->user()->week_starts_on, $filter);
             },
-            'filters' => function () use ($resolve, $range, $period, $sort): array {
+            'filters' => function () use ($resolve, $range, $period, $sort, $filter): array {
                 $current = data_get($resolve(), 'range');
 
                 return [
@@ -173,14 +190,57 @@ class ChannelController extends Controller
                     'end' => $current->end->toDateString(),
                     'period' => $period,
                     'sort' => $sort(),
+                    'labels' => $filter->labelIds,
+                    'untagged' => $filter->untagged,
+                    'types' => array_map(fn (ContentType $type): string => $type->value, $filter->contentTypes),
                 ];
             },
-            'publications' => Inertia::scroll(function () use ($resolve, $performance, $account, $accountKey, $period, $sort): LengthAwarePaginator {
+            'metricSeries' => Inertia::defer(function () use ($resolve, $series, $growthRate, $account, $accountKey, $request, $filter, $resolveAvailability): array {
+                $availability = $resolveAvailability();
+
+                return [
+                    ...$series->handle($account, $accountKey, data_get($resolve(), 'range'), $request->user()->week_starts_on, $filter, $availability),
+                    'growth' => data_get($availability, 'net_followers')
+                        ? $growthRate->handle($account->workspace_id, $accountKey, now($request->user()->timezone))
+                        : null,
+                ];
+            }),
+            'publications' => function () use ($resolve, $performance, $account, $accountKey, $period, $sort, $filter, $request): LengthAwarePaginator {
                 $current = data_get($resolve(), 'range');
 
-                return $performance->handle($account, $period === 'previous' ? $current->previous() : $current, $sort(), $accountKey);
-            }),
+                return $performance->insightsPage($account, $period === 'previous' ? $current->previous() : $current, $sort(), $accountKey, $filter, (int) $request->validated('page', 1));
+            },
         ]);
+    }
+
+    public function downloadInsights(
+        DownloadChannelInsightsRequest $request,
+        SocialAccount $account,
+        string $format,
+        ResolveAnalyticsRangePreset $presets,
+        ResolveAnalyticsAccountKey $accountKeys,
+        BuildWorkspaceAnalyticsReport $analytics,
+        BuildInsightsExport $export,
+    ): StreamedResponse {
+        $workspace = $request->user()->currentWorkspace;
+        $this->authorize('view', $workspace);
+        abort_unless($account->platform->isIncludedInAnalytics(), HttpResponse::HTTP_NOT_FOUND);
+
+        $format = ExportFormat::from($format);
+        $timezone = $request->user()->timezone;
+        $filter = $request->publicationFilter();
+        $accountKey = $accountKeys->for($account);
+        ['selection' => $selection, 'clamped' => $clamped] = $presets->selection($request->safe()->only(['range', 'start', 'end']), $timezone);
+        ['bounds' => $bounds, 'range' => $current] = $analytics->resolveRange($workspace, $selection, [$accountKey], $clamped);
+        $report = $analytics->execute($workspace, $current, $bounds, $account, $accountKey, $request->user()->week_starts_on, $filter);
+        $sections = $export->execute($workspace, $report, $current, [$accountKey], $timezone, $filter);
+        $filename = 'trypost-insights-'.now($timezone)->toDateString().".{$format->value}";
+
+        return response()->streamDownload(function () use ($format, $sections): void {
+            $stream = fopen('php://output', 'wb');
+            InsightsExportWriter::write($format, $sections, $stream);
+            fclose($stream);
+        }, $filename, ['Content-Type' => $format->contentType()]);
     }
 
     public function settings(Request $request, SocialAccount $account): Response

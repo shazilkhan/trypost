@@ -182,14 +182,14 @@ test('a channel of another workspace is not found', function () {
 });
 
 test('a busy queue lock returns a conflict and moves nothing', function () {
-    $custom = moveToSlotCustomPost($this->channel, $this->user);
+    $this->travelBack();
+    $custom = moveToSlotCustomPost($this->channel, $this->user, ['scheduled_at' => now()->addDays(10)->setTime(15, 30)]);
     $lock = Cache::lock("queue:{$this->channel->id}", 10);
     expect($lock->get())->toBeTrue();
-    $this->travelBack();
 
     try {
         $this->actingAs($this->user)
-            ->putJson(route('app.channels.queue.slot', $this->channel), ['post_id' => $custom->id, 'slot_at' => '2026-10-06T12:00:00+00:00'])
+            ->putJson(route('app.channels.queue.slot', $this->channel), ['post_id' => $custom->id, 'slot_at' => now()->addDays(2)->setTime(12, 0)->toIso8601String()])
             ->assertConflict();
     } finally {
         $lock->release();

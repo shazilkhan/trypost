@@ -1,28 +1,30 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { IconChartBar, IconChartBarOff } from '@tabler/icons-vue';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import AnalyticsRangePresets from '@/components/analytics/AnalyticsRangePresets.vue';
+import ChannelMetricsCard from '@/components/analytics/channel/ChannelMetricsCard.vue';
 import ChannelPublicationTable from '@/components/analytics/channel/ChannelPublicationTable.vue';
+import PostTypeFilter from '@/components/analytics/channel/PostTypeFilter.vue';
 import InsightsExportMenu from '@/components/analytics/InsightsExportMenu.vue';
 import InsightsSyncStatus from '@/components/analytics/InsightsSyncStatus.vue';
-import FollowersChart from '@/components/analytics/workspace/FollowersChart.vue';
 import ImportCoverage from '@/components/analytics/workspace/ImportCoverage.vue';
-import PostsChart from '@/components/analytics/workspace/PostsChart.vue';
 import SummaryCards from '@/components/analytics/workspace/SummaryCards.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
 import { useAnalyticsCoveragePoll } from '@/composables/useAnalyticsCoveragePoll';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { accountColor } from '@/lib/analyticsColors';
 import { insights } from '@/routes/app/channels';
 import type {
     AnalyticsReport,
     ChannelInsightsFilters,
-    ChannelPublicationRow,
+    ChannelMetricSeries,
+    ChannelPublicationPage,
+    ContentTypeOption,
     InsightsSyncCadence,
     SummaryMetric,
 } from '@/types/analytics';
@@ -36,31 +38,45 @@ const props = defineProps<{
     filters?: ChannelInsightsFilters;
     availableMetrics?: SummaryMetric[];
     sortableMetrics?: SummaryMetric[];
-    publications?: { data: ChannelPublicationRow[] };
+    publications?: ChannelPublicationPage;
     sync?: InsightsSyncCadence;
+    labels?: { id: string; name: string; color: string }[];
+    contentTypes?: ContentTypeOption[];
+    metricSeries?: ChannelMetricSeries;
 }>();
 
 useAnalyticsCoveragePoll(() => props.report?.coverage, {
     firstDay: () => props.report?.bounds.min,
-    only: ['availableMetrics', 'publications', 'filters'],
-    reset: ['publications'],
+    only: ['availableMetrics', 'publications', 'filters', 'metricSeries'],
 });
 
 const url = computed(() => insights.url(props.channel.id));
 const span = (range: { start: string; end: string }): string =>
     `${date.formatDayMonthYear(range.start)} – ${date.formatDayMonthYear(range.end)}`;
-const keep = computed((): Record<string, string> => {
+const selectedLabelIds = ref<string[]>(props.filters?.labels ?? []);
+const selectedUntagged = ref<boolean>(props.filters?.untagged ?? false);
+const selectedTypes = ref<string[]>(props.filters?.types ?? []);
+const publicationFilters = computed(
+    (): Record<string, string | string[]> => ({
+        ...(selectedLabelIds.value.length
+            ? { labels: selectedLabelIds.value }
+            : {}),
+        ...(selectedUntagged.value ? { untagged: '1' } : {}),
+        ...(selectedTypes.value.length ? { types: selectedTypes.value } : {}),
+    }),
+);
+const keep = computed((): Record<string, string | string[]> => {
     if (!props.filters) {
         return {};
     }
 
     const { period, sort } = props.filters;
 
-    return { period, sort };
+    return { period, sort, ...publicationFilters.value };
 });
 const exportQuery = computed((): Record<string, string | string[]> => {
     if (!props.filters) {
-        return { channels: [props.channel.id] };
+        return {};
     }
 
     const { range, start, end } = props.filters;
@@ -68,27 +84,35 @@ const exportQuery = computed((): Record<string, string | string[]> => {
     return {
         range,
         ...(range === 'custom' ? { start, end } : {}),
-        channels: [props.channel.id],
+        ...publicationFilters.value,
     };
 });
-const accountColors = computed<Record<string, string>>(() => {
-    if (!props.report) {
-        return {};
+
+const applyFilters = (): void => {
+    if (!props.filters) {
+        return;
     }
 
-    const keys = [
-        ...new Set(
-            [
-                ...props.report.followers.accounts,
-                ...props.report.posts.accounts,
-            ].map((account) => account.social_account_key),
-        ),
-    ];
+    const { range, start, end } = props.filters;
 
-    return Object.fromEntries(
-        keys.map((key, index) => [key, accountColor(index)]),
+    router.get(
+        url.value,
+        {
+            range,
+            ...(range === 'custom' ? { start, end } : {}),
+            ...keep.value,
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        },
     );
-});
+};
+
+watch(selectedLabelIds, applyFilters, { deep: true });
+watch(selectedUntagged, applyFilters);
+watch(selectedTypes, applyFilters, { deep: true });
 </script>
 
 <template>
@@ -127,12 +151,15 @@ const accountColors = computed<Record<string, string>>(() => {
                             :cadence="sync"
                             :coverage="report.coverage"
                         />
-                        <InsightsExportMenu :query="exportQuery" />
+                        <InsightsExportMenu
+                            :query="exportQuery"
+                            :channel-id="channel.id"
+                        />
                     </div>
                 </div>
                 <div
                     v-if="report && filters"
-                    class="flex min-h-12 min-w-0 items-center pt-2 pb-4"
+                    class="flex min-h-12 min-w-0 items-center justify-between gap-2 pt-2 pb-4"
                 >
                     <AnalyticsRangePresets
                         :filters="filters"
@@ -143,6 +170,21 @@ const accountColors = computed<Record<string, string>>(() => {
                         :keep="keep"
                         hide-caption
                     />
+                    <div
+                        class="flex shrink-0 items-center gap-2"
+                        data-testid="insights-publication-filters"
+                    >
+                        <LabelFilter
+                            v-model="selectedLabelIds"
+                            v-model:untagged="selectedUntagged"
+                            :labels="labels ?? []"
+                            test-id="insights-label"
+                        />
+                        <PostTypeFilter
+                            v-model="selectedTypes"
+                            :types="contentTypes ?? []"
+                        />
+                    </div>
                 </div>
             </header>
 
@@ -180,26 +222,19 @@ const accountColors = computed<Record<string, string>>(() => {
                             })
                         "
                         subtitle-testid="insights-range-caption"
+                        :network="getPlatformLabel(channel.platform)"
                     />
                     <ChannelPublicationTable
                         v-if="filters"
                         :report="report"
                         :filters="filters"
-                        :rows="publications?.data ?? []"
+                        :publications="publications"
                         :available-metrics="availableMetrics ?? []"
                         :sortable-metrics="sortableMetrics ?? []"
                         :url="url"
+                        :platform="channel.platform"
                     />
-                    <FollowersChart
-                        :followers="report.followers"
-                        :range="report.range"
-                        :colors="accountColors"
-                    />
-                    <PostsChart
-                        :posts="report.posts"
-                        :range="report.range"
-                        :colors="accountColors"
-                    />
+                    <ChannelMetricsCard :series="metricSeries" />
                 </template>
             </template>
         </div>

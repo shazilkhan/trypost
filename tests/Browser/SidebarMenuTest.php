@@ -546,3 +546,100 @@ test('the sidebar menu opens right to left for a right-to-left language', functi
 
     $page->assertNoJavaScriptErrors();
 });
+
+function waitForSidebarState(mixed $page, string $state): void
+{
+    $page->script(<<<JS
+        (async () => {
+            for (let i = 0; i < 100; i++) {
+                if (document.querySelector('[data-slot="sidebar"][data-state]')?.dataset.state === '{$state}') return;
+                await new Promise((r) => setTimeout(r, 50));
+            }
+        })();
+    JS);
+}
+
+test('the sidebar footer toggle collapses and expands the sidebar and the state survives a reload', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $layout = <<<'JS'
+        (() => {
+            const toggle = document.querySelector('[data-testid="sidebar-footer-toggle"]').getBoundingClientRect();
+            const avatar = document.querySelector('[data-testid="sidebar-workspace-menu"]').getBoundingClientRect();
+            return {
+                state: document.querySelector('[data-slot="sidebar"][data-state]')?.dataset.state,
+                above: toggle.bottom <= avatar.top + 1,
+                beside: toggle.left >= avatar.right - 1,
+                label: document.querySelector('[data-testid="sidebar-footer-toggle"]').getAttribute('aria-label'),
+            };
+        })()
+    JS;
+
+    $page = visit(route('app.posts.index'))->resize(1280, 900);
+    waitForSidebarTestId($page, 'sidebar-footer-toggle');
+
+    expect($page->script($layout))->toMatchArray(['state' => 'expanded', 'beside' => true, 'label' => 'Collapse sidebar']);
+
+    $page->click('@sidebar-footer-toggle');
+    waitForSidebarState($page, 'collapsed');
+
+    expect($page->script($layout))->toMatchArray(['state' => 'collapsed', 'above' => true, 'label' => 'Expand sidebar']);
+
+    $page->script('location.reload()');
+    waitForSidebarTestId($page, 'sidebar-footer-toggle');
+    waitForSidebarState($page, 'collapsed');
+
+    expect($page->script($layout))->toMatchArray(['state' => 'collapsed', 'above' => true]);
+
+    $page->click('@sidebar-footer-toggle');
+    waitForSidebarState($page, 'expanded');
+
+    expect($page->script($layout))->toMatchArray(['state' => 'expanded', 'beside' => true]);
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the sidebar auto-collapses below 1024px, can be expanded there, and restores the saved state above it', function () {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $this->actingAs($user);
+
+    $state = "document.querySelector('[data-slot=\"sidebar\"][data-state]')?.dataset.state";
+
+    $page = visit(route('app.posts.index'))->resize(1280, 900);
+    waitForSidebarTestId($page, 'sidebar-footer-toggle');
+    waitForSidebarState($page, 'expanded');
+
+    $page->resize(900, 900);
+    waitForSidebarState($page, 'collapsed');
+    expect($page->script($state))->toBe('collapsed');
+
+    $page->click('@sidebar-footer-toggle');
+    waitForSidebarState($page, 'expanded');
+    expect($page->script($state))->toBe('expanded')
+        ->and($page->script('document.cookie.includes("sidebar_state")'))->toBeFalse();
+
+    $page->resize(700, 900);
+    waitForSidebarTestId($page, 'app-sidebar-trigger');
+    expect($page->script("document.querySelector('[data-testid=\"sidebar-footer-toggle\"]')"))->toBeNull();
+
+    $page->resize(1280, 900);
+    waitForSidebarState($page, 'expanded');
+    expect($page->script($state))->toBe('expanded');
+
+    $page->assertNoJavaScriptErrors();
+});

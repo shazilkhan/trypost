@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Paylaşım saatlerin, TryPost\'a kuyruğundaki gönderileri ne zaman göndereceğini söyler. Kuyruğa eklediğin sonraki gönderiler aşağıdaki sıradaki saatlerde yayınlanır.',
         'day_on' => 'Açık',
         'day_off' => 'Kapalı',
+        'day_empty' => 'Saat yok',
         'remove_time' => ':time saatini kaldır',
         'edit_hour' => ':time saatini değiştir',
         'edit_minute' => ':time dakikasını değiştir',

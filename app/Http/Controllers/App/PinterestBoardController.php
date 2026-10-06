@@ -7,7 +7,6 @@ namespace App\Http\Controllers\App;
 use App\Actions\SocialAccount\CreatePinterestBoard;
 use App\Actions\SocialAccount\ListPinterestBoards;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
-use App\Exceptions\Social\ErrorCategory;
 use App\Exceptions\Social\PinterestPublishException;
 use App\Exceptions\TokenExpiredException;
 use App\Http\Controllers\Controller;
@@ -15,6 +14,7 @@ use App\Http\Requests\App\Pinterest\StorePinterestBoardRequest;
 use App\Http\Resources\App\PinterestBoardResource;
 use App\Http\Resources\App\PinterestBoardsResource;
 use App\Models\SocialAccount;
+use App\Support\Social\PinterestBoardFailure;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +29,7 @@ class PinterestBoardController extends Controller
         $this->authorizePinterestAccount($request, $account);
 
         return new PinterestBoardsResource(
-            $this->callPinterest('boards', fn (): array => ListPinterestBoards::execute($account)),
+            $this->callPinterest('boards', fn (): array => ListPinterestBoards::refresh($account)),
         );
     }
 
@@ -63,16 +63,8 @@ class PinterestBoardController extends Controller
     {
         try {
             return $callback();
-        } catch (TokenExpiredException) {
-            throw ValidationException::withMessages([$field => __('posts.form.pinterest.boards_reconnect')]);
-        } catch (PinterestPublishException $e) {
-            throw ValidationException::withMessages([$field => __(match ($e->category) {
-                ErrorCategory::Permission => 'posts.form.pinterest.boards_reconnect',
-                ErrorCategory::RateLimit => 'posts.form.pinterest.boards_rate_limited',
-                default => 'posts.form.pinterest.boards_failed',
-            })]);
-        } catch (ConnectionException) {
-            throw ValidationException::withMessages([$field => __('posts.form.pinterest.boards_failed')]);
+        } catch (TokenExpiredException|PinterestPublishException|ConnectionException $e) {
+            throw ValidationException::withMessages([$field => PinterestBoardFailure::message($e)]);
         }
     }
 }

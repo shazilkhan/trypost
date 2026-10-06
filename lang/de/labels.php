@@ -21,7 +21,6 @@ return [
         'delete' => 'Label löschen',
         'more' => 'Weitere Aktionen',
         'view_posts' => 'Beiträge ansehen',
-        'open_reporting' => 'Berichte öffnen',
     ],
 
     'create' => [

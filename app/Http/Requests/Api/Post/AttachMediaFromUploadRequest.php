@@ -6,7 +6,7 @@ namespace App\Http\Requests\Api\Post;
 
 use App\Actions\Media\ResolveWorkspaceMedia;
 use App\Models\Media;
-use App\Support\PostMediaRules;
+use App\Support\Requests\Post\PostMediaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -24,10 +24,7 @@ class AttachMediaFromUploadRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'upload_token' => ['required', 'uuid'],
-            'alt' => ['nullable', 'string', 'max:'.PostMediaRules::ALT_TEXT_MAX_LENGTH],
-        ];
+        return PostMediaRequestRules::attachFromUpload();
     }
 
     public function withValidator(Validator $validator): void

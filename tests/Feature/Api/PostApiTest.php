@@ -423,11 +423,12 @@ it('validates post creation platform fields', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.store'), [
             'platforms' => [
-                ['content' => 'missing social_account_id and content_type'],
+                ['content' => 'missing social_account_id'],
             ],
         ])
         ->assertUnprocessable()
-        ->assertJsonValidationErrors(['platforms.0.social_account_id', 'platforms.0.content_type']);
+        ->assertJsonValidationErrors(['platforms.0.social_account_id'])
+        ->assertJsonMissingValidationErrors(['platforms.0.content_type']);
 });
 
 it('validates post update invalid status', function () {
@@ -507,6 +508,7 @@ it('rejects scheduling an over-limit threads post via the api store', function (
     $response = $this->withHeaders(['Authorization' => 'Bearer '.$this->plainToken])
         ->postJson(route('api.posts.store'), [
             'content' => str_repeat('a', 537),
+            'status' => 'scheduled',
             'scheduled_at' => now()->addDay()->toIso8601String(),
             'platforms' => [
                 ['social_account_id' => $threadsAccount->id, 'content_type' => ContentType::ThreadsPost->value],

@@ -578,3 +578,101 @@ test('a popover action reloads the calendar and closes the popover', function ()
         ->assertNoJavaScriptErrors();
     expect($post->refresh()->status)->toBe(PostStatus::Draft);
 });
+
+test('on a phone the week shows a day strip and the agenda of the tapped day', function () {
+    [$user, $linkedin, $x] = calendarPageSetup();
+    $weekStart = now('UTC')->startOfWeek()->addWeek();
+    $first = $weekStart->copy()->addDays(2);
+    $second = $weekStart->copy()->addDays(4);
+
+    $firstPost = calendarPagePost($linkedin, $first->copy()->setTime(9, 0));
+    $secondPost = calendarPagePost($x, $second->copy()->setTime(16, 0));
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'week', 'week' => $weekStart->format('Y-m-d')]))->resize(390, 844);
+    waitForCalendarTestId($page, 'calendar-week-strip');
+
+    $page->assertMissing('@calendar-time-grid')
+        ->assertVisible("@calendar-agenda-{$weekStart->format('Y-m-d')}")
+        ->assertVisible('@calendar-agenda-empty')
+        ->assertAttribute("@calendar-strip-day-{$weekStart->format('Y-m-d')}", 'aria-pressed', 'true');
+
+    expect($page->script("document.querySelectorAll('[data-testid=\"calendar-strip-day-{$first->format('Y-m-d')}\"] [data-testid=\"calendar-day-dot\"]').length"))->toBe(1);
+
+    $page->click("@calendar-strip-day-{$first->format('Y-m-d')}");
+    waitForCalendarTestId($page, "calendar-post-{$firstPost->id}");
+
+    $page->assertVisible("@calendar-agenda-{$first->format('Y-m-d')}")
+        ->assertMissing("@calendar-post-{$secondPost->id}")
+        ->click("@calendar-strip-day-{$second->format('Y-m-d')}");
+    waitForCalendarTestId($page, "calendar-post-{$secondPost->id}");
+
+    $page->assertMissing("@calendar-post-{$firstPost->id}")
+        ->assertAttribute("@calendar-strip-day-{$second->format('Y-m-d')}", 'aria-pressed', 'true')
+        ->assertScript('document.documentElement.scrollWidth <= window.innerWidth', true)
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a phone the month shows dots and the tapped day lists its posts', function () {
+    [$user, $linkedin, $x] = calendarPageSetup();
+    $day = now('UTC')->addMonthNoOverflow()->startOfMonth()->addDays(12);
+    $dayKey = $day->format('Y-m-d');
+    $posts = collect(range(0, 4))->map(fn (int $index): Post => calendarPagePost($index % 2 ? $x : $linkedin, $day->copy()->setTime(9 + $index, 0)));
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'month', 'month' => $dayKey]))->resize(390, 844);
+    waitForCalendarTestId($page, 'calendar-month-dots');
+
+    expect($page->script("document.querySelectorAll('[data-testid=\"calendar-month-day-{$dayKey}\"] [data-testid=\"calendar-day-dot\"]').length"))->toBe(3);
+
+    $page->assertMissing("@calendar-post-{$posts[0]->id}")
+        ->click("@calendar-month-day-{$dayKey}");
+    waitForCalendarTestId($page, "calendar-post-{$posts[4]->id}");
+
+    foreach ($posts as $post) {
+        $page->assertPresent("@calendar-post-{$post->id}");
+    }
+
+    $page->assertVisible("@calendar-agenda-{$dayKey}")
+        ->assertScript('document.documentElement.scrollWidth <= window.innerWidth', true)
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a phone a free posting slot in the agenda opens the composer at that instant', function () {
+    [$user, $linkedin] = calendarPageSetup();
+    $schedule = PostingSchedule::empty();
+
+    foreach (range(0, 6) as $weekday) {
+        $schedule = $schedule->withTime($weekday, '15:00');
+    }
+
+    $linkedin->update(['posting_schedule' => $schedule]);
+
+    $weekStart = now('UTC')->startOfWeek()->addWeek();
+    $day = $weekStart->copy()->addDays(2);
+    $slotKey = "{$linkedin->id}-{$day->copy()->setTime(15, 0)->getTimestamp()}";
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'week', 'week' => $weekStart->format('Y-m-d')]))->resize(390, 844);
+    $page->script('window.localStorage.clear()');
+    $page->refresh();
+    waitForCalendarTestId($page, "calendar-strip-day-{$day->format('Y-m-d')}");
+    $page->click("@calendar-strip-day-{$day->format('Y-m-d')}");
+    waitForCalendarTestId($page, "calendar-posting-slot-{$slotKey}");
+
+    $page->assertSeeIn("@calendar-posting-slot-{$slotKey}", __('posts.publish.add_post_in_slot'))
+        ->click("@calendar-posting-slot-{$slotKey}");
+    waitForCalendarTestId($page, "composer-caption-{$linkedin->id}");
+    $page->fill("@composer-caption-{$linkedin->id}", 'From a phone slot');
+    waitForCalendarTestId($page, 'composer-submit');
+    $page->click('@composer-submit');
+    waitForCalendarCondition($page, '!document.querySelector(\'[data-testid="post-composer-dialog"]\')');
+    $post = Post::query()->where('workspace_id', $linkedin->workspace_id)->sole();
+
+    expect($post->scheduled_at->equalTo($day->copy()->setTime(15, 0)))->toBeTrue()
+        ->and($post->schedule_mode)->toBe(ScheduleMode::Queue);
+    $page->assertNoJavaScriptErrors();
+});

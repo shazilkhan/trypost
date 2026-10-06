@@ -42,7 +42,7 @@ test('list webhooks returns wrapped webhooks without signing secret', function (
         ->tool(ListWebhooksTool::class, [])
         ->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
-            $json->has('webhooks', 2, function (AssertableJson $webhook) {
+            $json->where('current_page', 1)->where('per_page', (int) config('app.pagination.default'))->etc()->has('webhooks', 2, function (AssertableJson $webhook) {
                 $webhook->hasAll(['id', 'endpoint', 'events', 'status', 'created_at', 'updated_at'])
                     ->missing('signing_secret')
                     ->missing('workspace_id')
@@ -319,11 +319,12 @@ test('list webhook logs', function () {
             $json->has('logs', 2, function (AssertableJson $log) {
                 $log->hasAll(['id', 'event_type', 'payload', 'response_status', 'created_at'])
                     ->etc();
-            });
+            })->where('total', 2)->etc();
         });
 });
 
-test('list webhook logs honors limit', function () {
+test('list webhook logs pages by the app default', function () {
+    config()->set('app.pagination.default', 1);
     $webhook = Webhook::factory()->create([
         'workspace_id' => $this->workspace->id,
     ]);
@@ -334,10 +335,10 @@ test('list webhook logs honors limit', function () {
     TryPostServer::actingAs($this->user)
         ->tool(ListWebhookLogsTool::class, [
             'webhook_id' => $webhook->id,
-            'limit' => 1,
+            'page' => 2,
         ])
         ->assertOk()
-        ->assertStructuredContent(fn (AssertableJson $json) => $json->has('logs', 1)->etc());
+        ->assertStructuredContent(fn (AssertableJson $json) => $json->has('logs', 1)->where('total', 3)->where('per_page', 1)->where('current_page', 2)->where('last_page', 3));
 });
 
 test('replay webhook log', function () {
@@ -447,48 +448,48 @@ test('members who are not admins cannot manage webhooks through mcp', function (
 
     TryPostServer::actingAs($teammate)
         ->tool(ListWebhooksTool::class, [])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(CreateWebhookTool::class, [
             'endpoint' => 'https://member.example.com/webhooks',
             'events' => [EventType::PostPublished->value],
         ])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(GetWebhookTool::class, ['webhook_id' => $webhook->id])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(UpdateWebhookTool::class, [
             'webhook_id' => $webhook->id,
             'status' => Status::Disabled->value,
         ])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(SendWebhookTestTool::class, ['webhook_id' => $webhook->id])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(RotateWebhookSecretTool::class, ['webhook_id' => $webhook->id])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(ListWebhookLogsTool::class, ['webhook_id' => $webhook->id])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(ReplayWebhookLogTool::class, [
             'webhook_id' => $webhook->id,
             'log_id' => $log->id,
         ])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($teammate)
         ->tool(DeleteWebhookTool::class, ['webhook_id' => $webhook->id])
-        ->assertHasErrors(['Not authorized to manage webhooks.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     expect($webhook->fresh())->not->toBeNull();
     $this->assertDatabaseMissing('webhooks', [

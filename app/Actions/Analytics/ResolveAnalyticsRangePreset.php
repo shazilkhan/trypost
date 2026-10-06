@@ -9,7 +9,7 @@ use Illuminate\Support\Arr;
 
 class ResolveAnalyticsRangePreset
 {
-    public const array PRESETS = ['7d', '30d', 'mtd', 'last_month', 'custom'];
+    public const array PRESETS = ['7d', '30d', 'mtd', 'custom'];
 
     public const string DEFAULT = '30d';
 
@@ -49,10 +49,6 @@ class ResolveAnalyticsRangePreset
             '7d' => $this->between($today->subDays(6), $today),
             '30d' => $this->between($today->subDays(29), $today),
             'mtd' => $this->between($today->startOfMonth(), $today),
-            'last_month' => $this->between(
-                $today->subMonthNoOverflow()->startOfMonth(),
-                $today->subMonthNoOverflow()->endOfMonth(),
-            ),
             default => ['start' => (string) $start, 'end' => (string) $end],
         };
     }

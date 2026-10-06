@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\App\Idea;
 
 use App\Models\Idea;
+use App\Support\Requests\Idea\IdeaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BulkDestroyIdeasRequest extends FormRequest
@@ -19,9 +20,6 @@ class BulkDestroyIdeasRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'idea_ids' => ['required', 'array', 'max:'.Idea::MAX_BATCH],
-            'idea_ids.*' => ['required', 'uuid', 'distinct'],
-        ];
+        return IdeaRequestRules::bulk();
     }
 }

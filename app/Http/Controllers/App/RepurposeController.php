@@ -183,7 +183,7 @@ class RepurposeController extends Controller
                 ->where('platform', Platform::Pinterest)
                 ->mapWithKeys(fn (SocialAccount $account): array => [
                     $account->id => rescue(
-                        fn () => ListPinterestBoards::execute($account),
+                        fn () => ListPinterestBoards::cached($account),
                         ['boards' => [], 'truncated' => false],
                         report: false,
                     ),

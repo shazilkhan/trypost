@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\App\Repurpose;
 
-use App\Enums\Repurpose\SourceFormat;
 use App\Models\Repurpose;
-use App\Support\Repurpose\DestinationMetaRules;
-use App\Support\Repurpose\RepurposeRules;
-use App\Support\Repurpose\SourceIsFree;
-use App\Support\Repurpose\SourceIsNotADestination;
+use App\Support\Requests\Repurpose\RepurposeRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -35,10 +31,7 @@ class UpdateRepurposeRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            ...RepurposeRules::settings($this->workspaceId(), sourceRequired: false),
-            ...RepurposeRules::destinations($this->workspaceId()),
-        ];
+        return RepurposeRequestRules::rules($this->workspaceId(), sourceRequired: false);
     }
 
     /**
@@ -46,7 +39,7 @@ class UpdateRepurposeRequest extends FormRequest
      */
     public function messages(): array
     {
-        return RepurposeRules::messages();
+        return RepurposeRequestRules::messages();
     }
 
     /**
@@ -54,41 +47,16 @@ class UpdateRepurposeRequest extends FormRequest
      */
     public function attributes(): array
     {
-        return RepurposeRules::attributes();
+        return RepurposeRequestRules::attributes();
     }
 
     public function withValidator(Validator $validator): void
     {
-        $validator->after(function (Validator $validator): void {
-            if ($validator->errors()->isNotEmpty()) {
-                return;
-            }
-
-            $sourceAccountId = $this->input('source_social_account_id', $this->repurpose()->source_social_account_id);
-
-            SourceIsFree::addErrors(
-                $validator,
-                $this->workspaceId(),
-                $sourceAccountId,
-                SourceFormat::from($this->input('source_format', $this->repurpose()->source_format->value)),
-                $this->repurpose()->id,
-            );
-
-            SourceIsNotADestination::addErrors(
-                $validator,
-                (array) $this->input('destinations', []),
-                $sourceAccountId,
-            );
-
-            if (! DestinationMetaRules::enforcedFor($this->repurpose())) {
-                return;
-            }
-
-            DestinationMetaRules::addRequiredErrors(
-                $validator,
-                (array) $this->input('destinations', []),
-                $this->workspaceId(),
-            );
-        });
+        $validator->after(fn (Validator $validator) => RepurposeRequestRules::addCrossFieldErrors(
+            $validator,
+            $this->workspaceId(),
+            $this->all(),
+            $this->repurpose(),
+        ));
     }
 }

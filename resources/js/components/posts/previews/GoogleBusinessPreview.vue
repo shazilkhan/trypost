@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconDotsVertical, IconRosetteDiscountCheckFilled, IconShare } from '@tabler/icons-vue';
+import { IconDotsVertical, IconShare } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import PreviewTextPost from '@/components/posts/previews/PreviewTextPost.vue';
@@ -88,11 +88,6 @@ const event = computed(() => {
         :trailing-actions="[{ icon: IconShare }]"
         action-class="text-info"
     >
-        <template #avatar-badge>
-            <IconRosetteDiscountCheckFilled
-                class="absolute -right-1.5 -bottom-1.5 size-4 rounded-full bg-card text-info"
-            />
-        </template>
         <template #aside>
             <IconDotsVertical class="size-5 shrink-0 text-muted-foreground" />
         </template>

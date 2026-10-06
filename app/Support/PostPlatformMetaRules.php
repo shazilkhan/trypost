@@ -137,6 +137,23 @@ class PostPlatformMetaRules
     }
 
     /**
+     * The meta without any key that has no rule in rules().
+     *
+     * @param  array<string, mixed>  $meta
+     * @return array<string, mixed>
+     */
+    public static function onlyKnown(array $meta): array
+    {
+        $known = collect(array_keys(self::rules()))
+            ->filter(fn (string $key): bool => str_starts_with($key, 'platforms.*.meta.'))
+            ->map(fn (string $key): string => explode('.', substr($key, strlen('platforms.*.meta.')))[0])
+            ->unique()
+            ->all();
+
+        return array_intersect_key($meta, array_flip($known));
+    }
+
+    /**
      * The meta of each submitted platform entry, keyed by the given field.
      *
      * @param  array<int, mixed>  $platforms

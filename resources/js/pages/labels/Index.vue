@@ -7,7 +7,6 @@ import {
     IconPlus,
     IconTag,
     IconTrash,
-    IconTrendingUp,
 } from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
 
@@ -29,7 +28,6 @@ import {
 import { TableLoadMore } from '@/components/ui/table';
 import debounce from '@/debounce';
 import SettingsLayout from '@/layouts/SettingsLayout.vue';
-import { insights } from '@/routes/app';
 import {
     destroy as labelsDestroy,
     index as labelsIndex,
@@ -220,17 +218,6 @@ const labelQuery = (label: Label) => ({ query: { labels: [label.id] } });
                                             >
                                                 <IconLayoutGrid class="size-4" />
                                                 {{ $t('labels.actions.view_posts') }}
-                                            </a>
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem as-child>
-                                            <a
-                                                :href="insights.url(labelQuery(label))"
-                                                target="_blank"
-                                                rel="noopener"
-                                                :data-testid="`label-open-reporting-${label.id}`"
-                                            >
-                                                <IconTrendingUp class="size-4" />
-                                                {{ $t('labels.actions.open_reporting') }}
                                             </a>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />

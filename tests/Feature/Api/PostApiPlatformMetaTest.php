@@ -37,7 +37,7 @@ it('youtube description survives create read update omission and clear', functio
     $this->withHeaders($this->headers)->putJson(route('api.posts.update', $post), [
         'status' => PostStatus::Draft->value,
         'meta' => ['description' => str_repeat('é', 2501)],
-    ])->assertUnprocessable()->assertJsonValidationErrors('destinations.0.meta.description');
+    ])->assertUnprocessable()->assertJsonValidationErrors('platforms.0.meta.description');
     expect(data_get($platform->fresh()->meta, 'description'))->toBe($description);
     $this->withHeaders($this->headers)->putJson(route('api.posts.update', $post), [
         'status' => PostStatus::Draft->value,
@@ -112,7 +112,7 @@ it('youtube description checks effective API metadata before scheduling or publi
             Queue::assertPushed(PublishPost::class);
         }
     } else {
-        $response->assertUnprocessable()->assertJsonValidationErrors('destinations.0.meta.description');
+        $response->assertUnprocessable()->assertJsonValidationErrors(($data['meta'] ?? []) !== [] ? 'platforms.0.meta.description' : 'destinations.0.meta.description');
         expect($post->fresh()->status)->toBe(PostStatus::Draft);
         Queue::assertNotPushed(PublishPost::class);
     }
@@ -1090,7 +1090,7 @@ it('rejects scheduling a youtube title with angle brackets', function () {
         'status' => PostStatus::Scheduled->value,
         'scheduled_at' => now()->addHour()->toIso8601String(),
         'meta' => ['title' => '<script>'],
-    ])->assertUnprocessable()->assertJsonValidationErrors('destinations.0.meta.title');
+    ])->assertUnprocessable()->assertJsonValidationErrors('platforms.0.meta.title');
 });
 
 it('requires a youtube title when the post has no text to take it from', function (string $content, array $meta, bool $allowed) {
@@ -1230,6 +1230,7 @@ it('rejects scheduling an instagram caption with more than five hashtags', funct
 
     $response = $this->withHeaders($this->headers)->postJson(route('api.posts.store'), [
         'content' => 'Launch #a #b #c #d #e #f',
+        'status' => 'scheduled',
         'scheduled_at' => now()->addHour()->toIso8601String(),
         'platforms' => [['social_account_id' => $instagram->id, 'content_type' => ContentType::InstagramFeed->value]],
     ])->assertUnprocessable();
@@ -1281,6 +1282,7 @@ it('persists a mastodon content warning and counts it toward the limit when sche
 
     $this->withHeaders($this->headers)->postJson(route('api.posts.store'), [
         'content' => str_repeat('b', $limit - 9),
+        'status' => 'scheduled',
         'scheduled_at' => now()->addDay()->toIso8601String(),
         'platforms' => $platform(str_repeat('a', 10)),
     ])->assertUnprocessable();

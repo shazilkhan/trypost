@@ -19,7 +19,6 @@ return [
         'delete' => 'Supprimer l\'étiquette',
         'more' => 'Plus d\'actions',
         'view_posts' => 'Voir les publications',
-        'open_reporting' => 'Ouvrir les rapports',
     ],
 
     'create' => [

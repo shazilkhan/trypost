@@ -19,7 +19,6 @@ return [
         'delete' => 'حذف التسمية',
         'more' => 'مزيد من الإجراءات',
         'view_posts' => 'عرض المنشورات',
-        'open_reporting' => 'فتح التقارير',
     ],
 
     'create' => [

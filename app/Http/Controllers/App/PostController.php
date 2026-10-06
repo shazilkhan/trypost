@@ -6,7 +6,6 @@ namespace App\Http\Controllers\App;
 
 use App\Actions\Analytics\ReadPublicationAnalytics;
 use App\Actions\Post\BuildCalendarPageProps;
-use App\Actions\Post\BuildComposerProps;
 use App\Actions\Post\CreatePosts;
 use App\Actions\Post\DeletePost;
 use App\Actions\Post\DuplicatePost;
@@ -24,6 +23,7 @@ use App\Support\PostStatusRules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -83,18 +83,6 @@ class PostController extends Controller
         }
 
         return Inertia::render('posts/Calendar', BuildCalendarPageProps::handle($request, $workspace, null, $view ?? $request->query('view')));
-    }
-
-    public function composerData(Request $request): JsonResponse
-    {
-        $workspace = $request->user()->currentWorkspace;
-
-        $this->authorize('createPost', $workspace);
-
-        return response()->json([
-            'labels' => $workspace->labels()->orderBy('name')->get(['id', 'name', 'color']),
-            ...BuildComposerProps::handle($workspace, true),
-        ]);
     }
 
     public function create(Request $request): RedirectResponse
@@ -234,14 +222,14 @@ class PostController extends Controller
 
         $this->authorize('delete', $post);
 
-        if (PostStatusRules::blocksDeletion($post)) {
-            session()->flash('flash.banner', __('posts.flash.cannot_delete_published'));
+        try {
+            DeletePost::execute($post, respectStatus: true);
+        } catch (ValidationException $exception) {
+            session()->flash('flash.banner', data_get($exception->errors(), 'post.0'));
             session()->flash('flash.bannerStyle', 'danger');
 
             return back();
         }
-
-        DeletePost::execute($post);
 
         session()->flash('flash.banner', __('posts.flash.deleted'));
         session()->flash('flash.bannerStyle', 'success');

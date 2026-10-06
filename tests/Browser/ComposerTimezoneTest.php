@@ -360,6 +360,14 @@ test('posting slots already taken by a scheduled post are disabled', function ()
     composerTimezoneSelect($page, $channel);
     composerTimezoneOpenPicker($page);
     waitForComposerTimezoneTestId($page, 'composer-schedule-slot-1600');
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 80; attempt++) {
+                if (document.querySelector('[data-testid="composer-schedule-slot-1500"]')?.disabled) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
 
     expect($page->script('document.querySelector("[data-testid=composer-schedule-slot-1500]").disabled'))->toBeTrue()
         ->and($page->script('document.querySelector("[data-testid=composer-schedule-slot-1600]").disabled'))->toBeFalse();

@@ -15,8 +15,16 @@ use Carbon\CarbonImmutable;
 
 class InstagramPublicationMetricsCollector extends AbstractMetaPublicationMetricsCollector
 {
+    private const array STORY_NAVIGATION_ACTIONS = [
+        'TAP_FORWARD' => 'taps_forward',
+        'TAP_BACK' => 'taps_back',
+        'TAP_EXIT' => 'exits',
+        'SWIPE_FORWARD' => 'swipes_forward',
+    ];
+
     public function collect(AnalyticsPublication $publication, CarbonImmutable $date): PublicationMetricObservation
     {
+        $this->refusals = [];
         $account = $this->account($publication);
         $isStory = $publication->content_type === PublicationContentType::Story;
         $isReel = $publication->content_type === PublicationContentType::Reel;
@@ -31,12 +39,18 @@ class InstagramPublicationMetricsCollector extends AbstractMetaPublicationMetric
             throw AnalyticsCollectionException::malformed('Instagram insights response lacks data.');
         }
 
-        $values = $this->insights($items);
-        $extras = $isStory
-            ? $this->optionalInsights($account, $url, ['navigation', 'taps_forward', 'taps_back', 'exits'])
-            : $this->optionalInsights($account, $url, ['total_interactions', 'reposts', 'follows', 'profile_visits', 'profile_activity']);
-        $values = array_merge($values, $extras);
-        $metrics = $this->present([
+        $optional = match (true) {
+            $isStory => ['shares', 'total_interactions', 'reposts', 'follows', 'profile_visits', 'profile_activity'],
+            $isReel => ['total_interactions', 'reposts', 'ig_reels_video_view_total_time', 'ig_reels_avg_watch_time'],
+            default => ['total_interactions', 'reposts', 'follows', 'profile_visits', 'profile_activity'],
+        };
+        $values = array_merge(
+            $this->insights($items),
+            $this->insights($this->optionalInsightItems($account, $url, $optional)),
+            $isStory ? $this->storyNavigation($account, $url) : [],
+        );
+
+        return $this->observation($date, $this->withEngagements($this->present([
             $this->count(MetricKey::Reach, $values, 'reach'),
             $this->count(MetricKey::Views, $values, 'views'),
             $this->count(MetricKey::Reactions, $values, 'likes'),
@@ -52,36 +66,44 @@ class InstagramPublicationMetricsCollector extends AbstractMetaPublicationMetric
             $this->count(MetricKey::StoryTapsForward, $values, 'taps_forward'),
             $this->count(MetricKey::StoryTapsBack, $values, 'taps_back'),
             $this->count(MetricKey::StoryExits, $values, 'exits'),
-        ]);
-
-        if ($isReel) {
-            $reelValues = $this->optionalInsights($account, $url, ['ig_reels_video_view_total_time', 'ig_reels_avg_watch_time']);
-            $metrics = array_merge($metrics, $this->present([
-                $this->decimal(MetricKey::WatchTimeMilliseconds, $reelValues, 'ig_reels_video_view_total_time', MetricUnit::Milliseconds),
-                $this->decimal(MetricKey::AverageWatchTimeMilliseconds, $reelValues, 'ig_reels_avg_watch_time', MetricUnit::Milliseconds),
-            ]));
-        }
-
-        return $this->observation($date, $this->withEngagements($metrics));
+            $this->count(MetricKey::StorySwipesForward, $values, 'swipes_forward'),
+            $this->decimal(MetricKey::WatchTimeMilliseconds, $values, 'ig_reels_video_view_total_time', MetricUnit::Milliseconds),
+            $this->decimal(MetricKey::AverageWatchTimeMilliseconds, $values, 'ig_reels_avg_watch_time', MetricUnit::Milliseconds),
+        ])));
     }
 
-    /** @param list<string> $fields @return array<string, int|float> */
-    private function optionalInsights(SocialAccount $account, string $url, array $fields): array
+    /** @return array<string, int|float> */
+    private function storyNavigation(SocialAccount $account, string $url): array
     {
-        try {
-            $response = $this->get($account, $url, [
-                'metric' => implode(',', $fields),
-            ]);
-        } catch (AnalyticsCollectionException $exception) {
-            if (! in_array($exception->category, ['permission', 'malformed'], true)) {
-                throw $exception;
+        $item = data_get($this->optionalInsightItems($account, $url, ['navigation'], [
+            'breakdown' => 'story_navigation_action_type',
+        ]), 0);
+        $values = [];
+        $total = 0;
+
+        foreach ((array) data_get($item, 'total_value.breakdowns.0.results', []) as $result) {
+            $value = data_get($result, 'value');
+
+            if (! is_numeric($value)) {
+                continue;
             }
 
-            return [];
+            $total += $value + 0;
+            $key = data_get(self::STORY_NAVIGATION_ACTIONS, (string) data_get($result, 'dimension_values.0'));
+
+            if ($key !== null) {
+                $values[$key] = $value + 0;
+            }
         }
 
-        $data = $response->json('data');
+        $navigation = data_get($item, 'total_value.value');
 
-        return is_array($data) ? $this->insights($data) : [];
+        if (is_numeric($navigation)) {
+            $values['navigation'] = $navigation + 0;
+        } elseif (data_get($item, 'total_value.breakdowns.0.results') !== null) {
+            $values['navigation'] = $total;
+        }
+
+        return $values;
     }
 }

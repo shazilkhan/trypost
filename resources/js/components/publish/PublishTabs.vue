@@ -14,7 +14,7 @@ const tabs: PublishTab[] = ['queue', 'approvals', 'drafts', 'sent'];
 
 <template>
     <nav
-        class="flex shrink-0 gap-4 overflow-x-auto md:self-end shadow-[inset_0_-1px_0_var(--color-border-strong)] md:overflow-visible md:shadow-none"
+        class="flex shrink-0 gap-4 overflow-x-auto max-md:pe-8 max-md:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] max-md:rtl:[mask-image:linear-gradient(to_left,black_calc(100%-2rem),transparent)] md:self-end md:overflow-visible"
         :aria-label="$t('posts.publish.title')"
         data-testid="posts-tabs"
     >

@@ -13,6 +13,7 @@ use App\Enums\Post\ApprovalDecision;
 use App\Enums\Post\QueuePosition;
 use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
+use App\Enums\PostPlatform\ContentType;
 use App\Enums\PostPlatform\Status as PlatformStatus;
 use App\Enums\SocialAccount\Platform;
 use App\Jobs\PublishPost;
@@ -262,7 +263,8 @@ class UpdatePost
             'label_ids' => data_get($data, 'label_ids') ?? $post->labels()->pluck('workspace_labels.id')->all(),
             'destinations' => [[
                 'social_account_id' => $target->social_account_id,
-                'content_type' => data_get($data, 'content_type') ?? $target->content_type->value,
+                'content_type' => data_get($data, 'content_type')
+                    ?? (array_key_exists('media', $data) && ContentType::derivesFromMedia($target->platform) ? null : $target->content_type->value),
                 'meta' => $meta,
             ]],
         ], $post->media ?? []);

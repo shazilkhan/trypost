@@ -19,7 +19,6 @@ return [
         'delete' => 'Label verwijderen',
         'more' => 'Meer acties',
         'view_posts' => 'Berichten bekijken',
-        'open_reporting' => 'Rapportage openen',
     ],
 
     'create' => [

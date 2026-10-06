@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Поиск каналов',
     'channel_submenu' => 'Подменю :name',
     'toggle' => 'Показать или скрыть боковую панель',
+    'collapse' => 'Свернуть боковую панель',
+    'expand' => 'Развернуть боковую панель',
     'mobile_title' => 'Навигация',
     'mobile_description' => 'Основная навигация приложения.',
     'repurposes' => 'Repurpose',

@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Je publicatietijden vertellen TryPost wanneer berichten uit je wachtrij worden verzonden. De volgende berichten die je aan de wachtrij toevoegt, gaan uit op de eerstvolgende tijden hieronder.',
         'day_on' => 'Aan',
         'day_off' => 'Uit',
+        'day_empty' => 'Geen tijden',
         'remove_time' => ':time verwijderen',
         'edit_hour' => 'Uur van :time wijzigen',
         'edit_minute' => 'Minuten van :time wijzigen',

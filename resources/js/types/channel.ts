@@ -49,6 +49,8 @@ export interface SidebarChannel {
     network: string;
     username: string;
     display_name: string | null;
+    display_label: string;
+    handle_label: string;
     avatar_url: string | null;
     verified_badge?: VerifiedBadge | null;
     status: SocialAccountStatusValue | null;

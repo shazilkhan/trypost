@@ -34,6 +34,11 @@ export type IdeaEditorState =
     | { mode: 'create'; idea_stage_id: string | null }
     | { mode: 'edit'; idea: Idea };
 
+export interface IdeaDraft {
+    title: string;
+    body: string;
+}
+
 export interface IdeaLabel {
     id: string;
     name: string;

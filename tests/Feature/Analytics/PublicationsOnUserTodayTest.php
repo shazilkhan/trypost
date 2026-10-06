@@ -73,7 +73,7 @@ test('a range that ended before the user today does not take a later post', func
     expect(data_get($report, 'summary.posts.value'))->toBe(0)
         ->and(app(ListChannelPublicationPerformance::class)->handle(
             $this->account,
-            app(BuildWorkspaceAnalyticsReport::class)->resolveRange($this->workspace, publicationsOnUserTodaySelection('last_month'), [$this->account->id], false)['range'],
+            app(BuildWorkspaceAnalyticsReport::class)->resolveRange($this->workspace, ['start' => '2026-09-01', 'end' => '2026-09-30'], [$this->account->id], false)['range'],
             'reactions',
             $this->account->id,
         )->total())->toBe(0);

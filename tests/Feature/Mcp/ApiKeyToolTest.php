@@ -40,7 +40,7 @@ test('list api keys returns wrapped api_keys array with ApiKeyResource shape', f
 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
-            $json->has('api_keys', 2, function (AssertableJson $key) {
+            $json->where('current_page', 1)->where('per_page', (int) config('app.pagination.default'))->etc()->has('api_keys', 2, function (AssertableJson $key) {
                 $key->hasAll(['id', 'name', 'last_used_at', 'expires_at', 'created_at'])
                     ->missing('token')
                     ->missing('user_id')
@@ -70,9 +70,11 @@ test('create api key returns plain token only at creation', function () {
 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
-            $json->where('name', 'My Key')
-                ->has('token')
-                ->hasAll(['id', 'last_used_at', 'expires_at', 'created_at'])
+            $json->has('plain_token')
+                ->has('token', fn (AssertableJson $token) => $token->where('name', 'My Key')
+                    ->hasAll(['id', 'last_used_at', 'expires_at', 'created_at'])
+                    ->missing('token')
+                    ->etc())
                 ->etc();
         });
 
@@ -128,8 +130,9 @@ test('create api key omits expiration when not provided', function () {
 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
-            $json->where('name', 'Never Expires')
+            $json->has('token', fn (AssertableJson $token) => $token->where('name', 'Never Expires')
                 ->where('expires_at', null)
+                ->etc())
                 ->etc();
         });
 

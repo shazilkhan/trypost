@@ -11,6 +11,7 @@ return [
     'no_content' => '无内容',
     'more' => '还有 :count 项',
     'less' => '收起',
+    'empty_day' => '这一天没有安排。',
     'status' => [
         'label' => '状态',
         'all' => '所有帖子',

@@ -86,7 +86,7 @@ test('a range that ended before today does not take a later observation', functi
 
     $report = app(BuildWorkspaceAnalyticsReport::class)->forSelection(
         $this->workspace,
-        app(ResolveAnalyticsRangePreset::class)->selection(['range' => 'last_month'], $this->user->timezone)['selection'],
+        ['start' => '2026-09-01', 'end' => '2026-09-30'],
         clampToBounds: false,
     );
 

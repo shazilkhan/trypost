@@ -8,18 +8,15 @@ use App\Actions\Post\CreatePosts;
 use App\Actions\Post\HostInlineMedia;
 use App\Enums\Post\CreatedVia;
 use App\Enums\Post\QueuePosition;
-use App\Enums\PostPlatform\ContentType;
 use App\Exceptions\Post\QueueBusyException;
 use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Mcp\Concerns\DescribesPostMedia;
 use App\Models\Post;
 use App\Models\Workspace;
-use App\Rules\PostContentFitsMaxLength;
-use App\Support\PostMediaRules;
 use App\Support\PostStatusRules;
+use App\Support\Requests\Post\PostRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
@@ -34,35 +31,13 @@ class CreatePostsTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $workspace = $this->authorizeCurrentWorkspace(
-            $request,
-            'createPost',
-            'Not authorized to create posts.',
-        );
+        $workspace = $this->authorizeCurrentWorkspace($request, 'createPost');
 
         if (! $workspace instanceof Workspace) {
             return $workspace;
         }
 
-        $validated = $request->validate([
-            'status' => ['required', 'string', Rule::in(['draft', 'scheduled', 'publishing'])],
-            'content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
-            ...PostMediaRules::rules(),
-            'scheduled_at' => ['nullable', 'date', 'after:now', 'before:2038-01-19'],
-            'queue' => PostStatusRules::queueRules(),
-            'label_ids' => ['sometimes', 'array'],
-            'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $workspace->id)->withoutTrashed()],
-            'destinations' => ['required', 'array', 'min:1'],
-            'destinations.*.social_account_id' => [
-                'required',
-                'uuid',
-                Rule::exists('social_accounts', 'id')->where('workspace_id', $workspace->id),
-            ],
-            'destinations.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value'))],
-            'destinations.*.content' => ['sometimes', 'nullable', 'string', new PostContentFitsMaxLength],
-            ...PostMediaRules::rules('destinations.*.media'),
-            'destinations.*.meta' => ['sometimes', 'array'],
-        ], PostStatusRules::queueMessages());
+        $validated = $request->validate(PostRequestRules::batch($workspace), PostRequestRules::messages());
 
         $validated = HostInlineMedia::forBatch($workspace, $validated);
 
@@ -95,7 +70,7 @@ class CreatePostsTool extends Tool
             'destinations' => $schema->array()
                 ->items($schema->object(fn ($destination) => [
                     'social_account_id' => $destination->string()->required(),
-                    'content_type' => $destination->string()->required(),
+                    'content_type' => $destination->string()->description('Format for this destination. Optional. Omitted, it is chosen as the web composer does: on pinterest a video makes pinterest_video_pin, several images pinterest_carousel, else pinterest_pin; on tiktok images only make tiktok_photo, else tiktok_video; every other network takes its default_content_type (list-content-types-tool). A type sent explicitly is validated against the media and refused when they do not match.'),
                     'content' => $destination->string()->description('Caption override.'),
                     'media' => $this->mediaSchema($schema, 'Media override for this destination; same item shape as the shared media.'),
                     'meta' => $destination->object()->description('Platform settings.'),

@@ -132,6 +132,14 @@ test('an Instagram channel shows only the metrics it reports', function () {
         ->assertNoJavaScriptErrors();
 });
 
+test('the channel insights page offers exactly 7 days, 30 days, month to date and custom', function () {
+    $page = visit(route('app.channels.insights', ['account' => $this->instagram]));
+    waitForChannelInsightsTestId($page, 'insights-range-7d');
+
+    $page->assertScript('Array.from(document.querySelectorAll("[data-testid^=insights-range-]")).map((element) => element.dataset.testid).filter((id) => ["insights-range-7d", "insights-range-30d", "insights-range-mtd", "insights-range-last_month", "insights-range-custom"].includes(id)).join(",")', 'insights-range-7d,insights-range-30d,insights-range-mtd,insights-range-custom')
+        ->assertNoJavaScriptErrors();
+});
+
 test('a range preset reloads the page with that range and keeps the table state', function () {
     $page = visit(route('app.channels.insights', ['account' => $this->instagram, 'sort' => 'views', 'period' => 'previous']));
     waitForChannelInsightsTestId($page, 'insights-range-7d');
@@ -243,8 +251,7 @@ test('the channel header exports this channel and rows open the post details or 
     $href = (string) $page->script('document.querySelector("[data-testid=insights-export-csv]").getAttribute("href")');
     parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
 
-    expect(parse_url($href, PHP_URL_PATH))->toBe(parse_url(route('app.insights.download', 'csv'), PHP_URL_PATH))
-        ->and(data_get($query, 'channels'))->toBe([$this->instagram->id])
+    expect(parse_url($href, PHP_URL_PATH))->toBe(parse_url(route('app.channels.insights.download', ['account' => $this->instagram, 'format' => 'csv']), PHP_URL_PATH))
         ->and(data_get($query, 'range'))->toBe('7d');
 
     $page->keys('@insights-export-csv', 'Escape')
@@ -295,5 +302,121 @@ test('a publication without a TryPost post opens its details on the insights pag
     $page->assertSeeIn("@publication-details-text-{$this->mostViews->id}", 'Posted straight on Instagram')
         ->assertAttribute("@publication-details-view-{$this->mostViews->id}", 'href', 'https://www.instagram.com/p/most-views/')
         ->assertScript('location.pathname', $path)
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a phone the channel insights range presets collapse into a dropdown', function () {
+    $page = visit(route('app.channels.insights', ['account' => $this->instagram]))->resize(390, 844);
+    waitForChannelInsightsTestId($page, 'insights-range-mobile-trigger');
+
+    $page->assertScript('document.querySelector("[data-testid=insights-range-7d]").getBoundingClientRect().height', 0)
+        ->assertSeeIn('@insights-range-mobile-trigger', '30 Days')
+        ->click('@insights-range-mobile-trigger');
+    waitForChannelInsightsTestId($page, 'insights-range-mobile-30d-check');
+
+    $page->assertPresent('@insights-range-mobile-30d-check')
+        ->assertMissing('@insights-range-mobile-7d-check')
+        ->click('@insights-range-mobile-7d');
+    waitForChannelInsightsScript($page, 'new URLSearchParams(location.search).get("range") === "7d"');
+
+    $page->assertScript('new URLSearchParams(location.search).get("range")', '7d')
+        ->assertSeeIn('@insights-range-mobile-trigger', '7 Days')
+        ->assertNoJavaScriptErrors();
+});
+
+test('on desktop the channel insights range keeps the segmented control', function () {
+    $page = visit(route('app.channels.insights', ['account' => $this->instagram]));
+    waitForChannelInsightsTestId($page, 'insights-range-7d');
+
+    $page->assertScript('document.querySelector("[data-testid=insights-range-mobile-trigger]").getBoundingClientRect().height', 0)
+        ->assertNoJavaScriptErrors();
+});
+
+test('the per post table shows ten posts per page with numbered pages kept in the url', function () {
+    $today = CarbonImmutable::today('UTC');
+
+    foreach (range(1, 11) as $index) {
+        channelInsightsBrowserPublication($this->instagram, $today->subDays(1 + $index % 20)->setTime(9, $index), [
+            'reactions_count' => $index,
+            'comments_count' => 0,
+            'views_count' => 200 + $index,
+        ]);
+    }
+
+    $page = visit(route('app.channels.insights', $this->instagram));
+    waitForChannelInsightsTestId($page, 'insights-posts-pagination');
+
+    $page->assertScript('document.querySelectorAll("#insights-posts-body tr").length', 10)
+        ->assertAttribute('@insights-posts-page-1', 'aria-current', 'page')
+        ->assertVisible('@insights-posts-page-2')
+        ->assertMissing('@insights-posts-page-3')
+        ->assertAttribute('@insights-posts-page-previous', 'disabled', '')
+        ->click('@insights-posts-page-2');
+    waitForChannelInsightsScript($page, 'new URLSearchParams(location.search).get("page") === "2" && document.querySelectorAll("#insights-posts-body tr").length === 3');
+
+    $page->assertScript('new URLSearchParams(location.search).get("page")', '2')
+        ->assertScript('document.querySelectorAll("#insights-posts-body tr").length', 3)
+        ->assertScript('document.querySelector("#insights-posts-body tr td").textContent.trim().startsWith("#11")', true)
+        ->assertAttribute('@insights-posts-page-2', 'aria-current', 'page')
+        ->assertAttribute('@insights-posts-page-next', 'disabled', '');
+
+    $page->refresh();
+    waitForChannelInsightsTestId($page, 'insights-posts-pagination');
+    $page->assertAttribute('@insights-posts-page-2', 'aria-current', 'page')
+        ->assertScript('document.querySelectorAll("#insights-posts-body tr").length', 3)
+        ->click('@insights-posts-page-previous');
+    waitForChannelInsightsScript($page, 'document.querySelectorAll("#insights-posts-body tr").length === 10');
+
+    $page->assertAttribute('@insights-posts-page-1', 'aria-current', 'page')
+        ->assertNoJavaScriptErrors();
+});
+
+test('a sort or period change goes back to the first page', function () {
+    $today = CarbonImmutable::today('UTC');
+
+    foreach (range(1, 11) as $index) {
+        channelInsightsBrowserPublication($this->instagram, $today->subDays(1 + $index % 20)->setTime(9, $index), [
+            'reactions_count' => $index,
+            'comments_count' => 0,
+            'views_count' => 200 + $index,
+        ]);
+    }
+
+    $page = visit(route('app.channels.insights', ['account' => $this->instagram, 'page' => 2]));
+    waitForChannelInsightsTestId($page, 'insights-posts-pagination');
+
+    $page->assertAttribute('@insights-posts-page-2', 'aria-current', 'page')
+        ->click('@insights-sort-views');
+    waitForChannelInsightsScript($page, 'new URLSearchParams(location.search).get("sort") === "views" && document.querySelectorAll("#insights-posts-body tr").length === 10');
+
+    $page->assertScript('new URLSearchParams(location.search).has("page")', false)
+        ->assertAttribute('@insights-posts-page-1', 'aria-current', 'page')
+        ->click('@insights-posts-page-2');
+    waitForChannelInsightsScript($page, 'new URLSearchParams(location.search).get("page") === "2"');
+
+    $page->click('@insights-period-previous');
+    waitForChannelInsightsScript($page, 'new URLSearchParams(location.search).get("period") === "previous"');
+
+    $page->assertScript('new URLSearchParams(location.search).has("page")', false)
+        ->assertMissing('@insights-posts-pagination')
+        ->assertVisible("@insights-posts-row-{$this->previous->id}")
+        ->assertNoJavaScriptErrors();
+});
+
+test('a row shows its type and offers its actions', function () {
+    $reel = channelInsightsBrowserPublication($this->instagram, CarbonImmutable::today('UTC')->subDays(3)->setTime(10, 0), ['reactions_count' => 1]);
+    $reel->update(['content_type' => 'reel', 'permalink' => 'https://www.instagram.com/reel/abc/']);
+
+    $page = visit(route('app.channels.insights', $this->instagram));
+    waitForChannelInsightsTestId($page, "insights-posts-actions-{$reel->id}");
+
+    $page->assertSeeIn("@insights-posts-type-{$reel->id}", 'Reel')
+        ->assertVisible("@insights-posts-type-icon-{$reel->id}")
+        ->click("@insights-posts-actions-{$reel->id}");
+    waitForChannelInsightsTestId($page, "insights-posts-open-{$reel->id}");
+
+    $page->assertAttribute("@insights-posts-open-{$reel->id}", 'href', 'https://www.instagram.com/reel/abc/')
+        ->assertVisible("@insights-posts-copy-{$reel->id}")
+        ->assertVisible("@insights-posts-details-{$reel->id}")
         ->assertNoJavaScriptErrors();
 });

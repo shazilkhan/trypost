@@ -123,13 +123,13 @@ test('the CSV export streams the summary, performance, followers and posts the p
         ->and($rows)->toContain(['Range', '2026-09-01 – 2026-09-30'])
         ->and($rows)->toContain(['Metric', 'Value', 'Previous period', 'Change'])
         ->and($rows)->toContain(['Posts', '2', '0', ''])
-        ->and($rows)->toContain(['Total followers', '300', '', ''])
+        ->and($rows)->toContain(['Total Followers', '300', '', ''])
         ->and($rows)->toContain(['Reactions', '30', '', ''])
-        ->and($rows)->toContain(['Channel', 'Network', 'Posts', 'Reactions', 'Comments', 'Eng. rate', 'Reposts', 'Impressions', 'Clicks', 'Views', 'Shares', 'Saves', 'Follows gained from posts', 'Reach', 'Watch time (min)', 'Avg. watch time (sec)'])
+        ->and($rows)->toContain(['Channel', 'Network', 'Posts', 'Reactions', 'Comments', 'Eng. Rate', 'Reposts', 'Impressions', 'Clicks', 'Views', 'Shares', 'Saves', 'Follows gained from posts', 'Reach', 'Watch Time (min)', 'Avg. Watch Time (sec)'])
         ->and($rows)->toContain(['alpha', 'Instagram', '1', '10', '1', '', '4', '100', '', '', '', '', '', '', '', ''])
         ->and($rows)->toContain(['bravo', 'Facebook Page', '1', '20', '1', '', '', '200', '7', '', '', '', '', '', '', ''])
         ->and($rows)->toContain(['alpha', 'Instagram', '100', ''])
-        ->and($rows)->toContain(['Published at', 'Channel', 'Network', 'Type', 'Text', 'Link', 'Reactions', 'Comments', 'Eng. rate', 'Reposts', 'Impressions', 'Clicks', 'Views', 'Shares', 'Saves', 'Reach']);
+        ->and($rows)->toContain(['Published at', 'Channel', 'Network', 'Type', 'Text', 'Link', 'Reactions', 'Comments', 'Eng. Rate', 'Reposts', 'Impressions', 'Clicks', 'Views', 'Shares', 'Saves', 'Reach']);
 
     $posts = array_values(array_filter($rows, fn (array $row): bool => in_array(data_get($row, 4), ['alpha-reel', 'bravo-post'], true)));
 
@@ -160,7 +160,7 @@ test('the Markdown export renders each section as a table', function () {
         ->toContain('| 2026-09-16 09:30 | bravo | Facebook Page |');
 });
 
-test('the export applies the channel and label filters of the page', function () {
+test('the export applies the channel filter of the page', function () {
     $channelOnly = $this->actingAs($this->user)
         ->get(insightsExportRoute('md', ['channels' => [$this->facebook->id]]))
         ->assertOk()
@@ -170,13 +170,13 @@ test('the export applies the channel and label filters of the page', function ()
         ->not->toContain('alpha-reel')
         ->not->toContain('alpha');
 
-    $labelOnly = $this->actingAs($this->user)
-        ->get(insightsExportRoute('md', ['labels' => [$this->label->id]]))
+    $ignoresLabels = $this->actingAs($this->user)
+        ->get(insightsExportRoute('md', ['labels' => [$this->label->id], 'untagged' => 1]))
         ->assertOk()
         ->streamedContent();
 
-    expect($labelOnly)->toContain('alpha-reel')
-        ->not->toContain('bravo-post');
+    expect($ignoresLabels)->toContain('alpha-reel')
+        ->toContain('bravo-post');
 });
 
 test('the export never leaks another workspace and ignores foreign channel ids', function () {

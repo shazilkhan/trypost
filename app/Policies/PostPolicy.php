@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Enums\Post\Status;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
@@ -17,7 +18,7 @@ class PostPolicy
      */
     public function view(User $user, Post $post): bool|Response
     {
-        if ($post->workspace_id !== $user->current_workspace_id) {
+        if ($this->isHidden($user, $post)) {
             return Response::denyAsNotFound();
         }
 
@@ -31,7 +32,7 @@ class PostPolicy
      */
     public function update(User $user, Post $post): bool|Response
     {
-        if ($post->workspace_id !== $user->current_workspace_id) {
+        if ($this->isHidden($user, $post)) {
             return Response::denyAsNotFound();
         }
 
@@ -44,7 +45,7 @@ class PostPolicy
      */
     public function delete(User $user, Post $post): bool|Response
     {
-        if ($post->workspace_id !== $user->current_workspace_id) {
+        if ($this->isHidden($user, $post)) {
             return Response::denyAsNotFound();
         }
 
@@ -59,7 +60,7 @@ class PostPolicy
      */
     public function duplicate(User $user, Post $post): bool|Response
     {
-        if ($post->workspace_id !== $user->current_workspace_id) {
+        if ($this->isHidden($user, $post)) {
             return Response::denyAsNotFound();
         }
 
@@ -77,5 +78,22 @@ class PostPolicy
         }
 
         return $user->can('approvePosts', $user->currentWorkspace);
+    }
+
+    /**
+     * A post outside the user's current workspace, or another member's pending
+     * request seen by someone who cannot approve it, is hidden as not found.
+     */
+    private function isHidden(User $user, Post $post): bool
+    {
+        if ($post->workspace_id !== $user->current_workspace_id) {
+            return true;
+        }
+
+        if ($post->status !== Status::PendingApproval || $user->can('approvePosts', $user->currentWorkspace)) {
+            return false;
+        }
+
+        return $post->approvalRequester()?->id !== $user->id;
     }
 }

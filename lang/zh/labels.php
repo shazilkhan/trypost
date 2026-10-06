@@ -19,7 +19,6 @@ return [
         'delete' => '删除标签',
         'more' => '更多操作',
         'view_posts' => '查看帖子',
-        'open_reporting' => '打开报告',
     ],
 
     'create' => [

@@ -18,10 +18,13 @@ class PeriodBuckets
         };
     }
 
-    /** @return list<array{start: string, end: string}> */
-    public function for(DateRange $range, WeekStart $weekStart): array
+    /**
+     * @param  'daily'|'weekly'|'monthly'|null  $resolution  Defaults to the resolution the range length picks.
+     * @return list<array{start: string, end: string}>
+     */
+    public function for(DateRange $range, WeekStart $weekStart, ?string $resolution = null): array
     {
-        $resolution = $this->resolution($range);
+        $resolution ??= $this->resolution($range);
         $cursor = $range->start;
         $buckets = [];
 

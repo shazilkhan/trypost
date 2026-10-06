@@ -112,8 +112,8 @@ test('workspace report keeps accounts separate and aggregates only latest normal
     );
 
     expect(array_keys($report['summary']))->toBe([
-        'posts', 'followers', 'reactions', 'comments', 'engagement_rate',
-        'views', 'reach', 'shares', 'saves', 'watch_time_minutes', 'average_watch_time_seconds', 'follows_gained',
+        'posts', 'followers', 'net_followers', 'reactions', 'comments', 'engagement_rate', 'views', 'impressions',
+        'clicks', 'reposts', 'quotes', 'reach', 'shares', 'saves', 'watch_time_minutes', 'average_watch_time_seconds', 'follows_gained',
     ])
         ->and($report['summary']['posts']['value'])->toBe(3)
         ->and($report['summary']['posts']['previous'])->toBe(1)

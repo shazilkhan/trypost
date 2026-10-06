@@ -28,18 +28,27 @@ import {
 } from './socialAccountChart';
 
 const props = defineProps<{
-    rows: { account: AccountIdentityData; value: number | null }[];
+    rows: {
+        account: AccountIdentityData;
+        value: number | null;
+        gained?: number | null;
+    }[];
     colors: Record<string, string>;
     valueLabel?: string;
     detail?: (index: number) => string | null;
 }>();
 
-type BarPoint = { index: number; value: number };
+type BarPoint = { index: number; value: number; base: number; gained: number };
+const split = computed(() =>
+    props.rows.some((row) => row.gained !== undefined),
+);
 const chartData = computed<BarPoint[]>(() =>
-    props.rows.map((row, index) => ({
-        index,
-        value: row.value ?? 0,
-    })),
+    props.rows.map((row, index) => {
+        const value = row.value ?? 0;
+        const gained = Math.min(Math.max(row.gained ?? 0, 0), value);
+
+        return { index, value, base: value - gained, gained };
+    }),
 );
 const chartConfig = computed(() =>
     socialAccountChartConfig(
@@ -52,10 +61,18 @@ const chartHeight = computed(
 );
 const indexAccessor = (point: BarPoint): number => point.index;
 const valueAccessor = (point: BarPoint): number => point.value;
-const colorAccessor = (point: BarPoint): string => {
+const splitAccessors = [
+    (point: BarPoint): number => point.base,
+    (point: BarPoint): number => point.gained,
+];
+const rowColor = (point: BarPoint): string => {
     const key = props.rows[point.index]?.account.social_account_key;
     return (key && props.colors[key]) || accountColor(point.index);
 };
+const colorAccessor = (point: BarPoint, stack: number): string =>
+    split.value && stack === 0 && point.gained > 0
+        ? `color-mix(in srgb, ${rowColor(point)} 40%, var(--card))`
+        : rowColor(point);
 const formatAccount = (tick: number | Date): string => {
     const index = typeof tick === 'number' ? Math.round(tick) : 0;
     const account = props.rows[index]?.account;
@@ -249,7 +266,7 @@ const barAttributes = {
         >
             <VisStackedBar
                 :x="indexAccessor"
-                :y="valueAccessor"
+                :y="split ? splitAccessors : valueAccessor"
                 :color="colorAccessor"
                 orientation="horizontal"
                 :rounded-corners="2"

@@ -58,6 +58,7 @@ return [
     'cancel' => 'Отмена',
     'clear' => 'Очистить',
     'close' => 'Закрыть',
+    'loading' => 'Загрузка...',
     'loading_more' => 'Загрузка...',
 
     'actions' => [

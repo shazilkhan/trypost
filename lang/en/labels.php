@@ -19,7 +19,6 @@ return [
         'delete' => 'Delete label',
         'more' => 'More actions',
         'view_posts' => 'View posts',
-        'open_reporting' => 'Open reporting',
     ],
 
     'create' => [

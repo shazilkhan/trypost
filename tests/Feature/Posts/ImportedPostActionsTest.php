@@ -57,7 +57,8 @@ test('an imported post opens in its read only post details', function () {
         ->assertInertia(fn ($page) => $page
             ->where('tab', 'sent')
             ->where('openPostDetailsId', $post->id)
-            ->where('posts.data.0.id', $post->id)
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->where('posts.data.0.id', $post->id))
         );
 });
 

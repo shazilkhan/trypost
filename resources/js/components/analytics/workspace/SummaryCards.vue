@@ -17,6 +17,7 @@ const props = defineProps<{
     availableMetrics?: SummaryMetric[];
     subtitle?: string;
     subtitleTestid?: string;
+    network?: string;
 }>();
 
 const defaultCards = computed(() => [
@@ -63,6 +64,11 @@ const cards = computed(() =>
         : defaultCards.value,
 );
 
+const aboutKey = (key: string): string =>
+    key === 'reactions' && props.network
+        ? 'analytics.channel.metrics.reactions.about_network'
+        : `analytics.channel.metrics.${key}.about`;
+
 const testId = (key: string): string =>
     props.availableMetrics ? `insights-card-${key}` : `analytics-summary-${key}`;
 
@@ -102,7 +108,7 @@ const changeLabel = (key: string, change: number | null): string | null => {
                         {{ $t(card.label) }}
                     </p>
                     <InfoTip
-                        :text="$t(`analytics.channel.metrics.${card.key}.about`)"
+                        :text="$t(aboutKey(card.key), { network: network ?? '' })"
                         :test-id="`${testId(card.key)}-about`"
                     />
                 </div>

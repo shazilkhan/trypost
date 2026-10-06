@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\App\Idea;
 
 use App\Models\IdeaStage;
+use App\Support\Requests\Idea\IdeaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReorderIdeaStagesRequest extends FormRequest
@@ -19,9 +20,6 @@ class ReorderIdeaStagesRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'stage_ids' => ['required', 'array'],
-            'stage_ids.*' => ['required', 'uuid'],
-        ];
+        return IdeaRequestRules::reorderStages();
     }
 }

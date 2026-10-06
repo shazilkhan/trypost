@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Kanallarda ara',
     'channel_submenu' => ':name alt menüsü',
     'toggle' => 'Kenar çubuğunu aç/kapat',
+    'collapse' => 'Kenar çubuğunu daralt',
+    'expand' => 'Kenar çubuğunu genişlet',
     'mobile_title' => 'Gezinme',
     'mobile_description' => 'Uygulamanın ana gezinmesi.',
     'repurposes' => 'Repurpose',

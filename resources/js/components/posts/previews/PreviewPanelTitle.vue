@@ -15,7 +15,7 @@ defineProps<{
 
 <template>
     <h3
-        class="flex shrink-0 items-center gap-3 px-8 pt-[22px] pb-[18px] text-base leading-5 font-medium"
+        class="flex shrink-0 items-center gap-3 px-4 pt-[22px] pb-[18px] text-base leading-5 font-medium sm:px-8"
         data-testid="composer-preview-title"
     >
         {{ title }}

@@ -29,7 +29,7 @@ test('list api keys', function () {
     );
 
     $response->assertOk();
-    $response->assertJsonCount(3);
+    $response->assertJsonCount(3, 'data');
 });
 
 test('list api keys excludes revoked and other-workspace tokens', function () {
@@ -54,7 +54,7 @@ test('list api keys excludes revoked and other-workspace tokens', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$result['plain_token']])
         ->getJson(route('api.api-keys.index'))
         ->assertOk()
-        ->assertJsonCount(1)
+        ->assertJsonCount(1, 'data')
         ->assertJsonMissing(['id' => $revoked->id])
         ->assertJsonMissing(['id' => $other->id]);
 });
@@ -66,7 +66,7 @@ test('list api keys excludes workspace-bound mcp oauth grants', function () {
     $this->withHeaders(['Authorization' => 'Bearer '.$result['plain_token']])
         ->getJson(route('api.api-keys.index'))
         ->assertOk()
-        ->assertJsonCount(1)
+        ->assertJsonCount(1, 'data')
         ->assertJsonMissing(['id' => $oauth->id]);
 });
 

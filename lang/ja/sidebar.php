@@ -33,6 +33,8 @@ return [
     'search_channels' => 'チャンネルを検索',
     'channel_submenu' => ':name のサブメニュー',
     'toggle' => 'サイドバーを切り替え',
+    'collapse' => 'サイドバーを閉じる',
+    'expand' => 'サイドバーを開く',
     'mobile_title' => 'ナビゲーション',
     'mobile_description' => 'アプリのメインナビゲーション。',
     'repurposes' => 'Repurpose',

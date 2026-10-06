@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 
 import date from '@/date';
 import { activeLocale } from '@/language';
+import { accountColor } from '@/lib/analyticsColors';
 import { formatNumberCompact, formatPercentChange } from '@/lib/utils';
 import type { WorkspaceAnalyticsReport } from '@/types/analytics';
 
@@ -42,34 +43,43 @@ const buttons = [
 
 const barDetail = (index: number): string | null => {
     const account = props.followers.accounts[index];
+    const change = account?.net ?? null;
 
     if (
         mode.value !== 'bar' ||
         !account ||
         account.value === null ||
-        account.growth === null
+        change === null
     ) {
         return null;
     }
 
-    const start = account.value - account.growth;
+    const start = account.value - change;
     const count = (value: number): string =>
         value.toLocaleString(activeLocale.value);
 
     return trans(
-        account.growth < 0
+        change < 0
             ? 'analytics.dashboard.followers_lost_detail'
             : 'analytics.dashboard.followers_gained_detail',
         {
             start: count(start),
-            change: count(Math.abs(account.growth)),
+            change: count(Math.abs(change)),
             percent:
-                start > 0
-                    ? formatPercentChange((account.growth / start) * 100)
-                    : '—',
+                start > 0 ? formatPercentChange((change / start) * 100) : '—',
         },
     );
 };
+const hasGains = computed(() =>
+    props.followers.accounts.some((account) => (account.net ?? 0) > 0),
+);
+const legendColor = computed(() => {
+    const first = props.followers.accounts[0];
+
+    return first
+        ? (props.colors[first.social_account_key] ?? accountColor(0))
+        : accountColor(0);
+});
 const shownChannels = computed(() =>
     props.channelFiltered &&
     props.totalChannels &&
@@ -148,17 +158,41 @@ const rangeLabel = computed(
                 <SocialAccountMetricBarChart
                     v-else
                     :rows="
-                        followers.accounts.map((account) => ({
-                            account,
-                            value:
-                                mode === 'growth'
-                                    ? account.growth
-                                    : account.value,
-                        }))
+                        followers.accounts.map((account) =>
+                            mode === 'growth'
+                                ? { account, value: account.growth }
+                                : {
+                                      account,
+                                      value: account.value,
+                                      gained: Math.max(account.net ?? 0, 0),
+                                  },
+                        )
                     "
                     :colors="colors"
                     :detail="barDetail"
                 />
+            </div>
+            <div
+                v-if="mode === 'bar' && hasGains"
+                class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
+                data-testid="analytics-followers-split-legend"
+            >
+                <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <span
+                        class="size-2.5 rounded-[3px]"
+                        :style="{
+                            backgroundColor: `color-mix(in srgb, ${legendColor} 40%, var(--card))`,
+                        }"
+                    />
+                    {{ $t('analytics.dashboard.followers_at_start') }}
+                </span>
+                <span class="inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <span
+                        class="size-2.5 rounded-[3px]"
+                        :style="{ backgroundColor: legendColor }"
+                    />
+                    {{ $t('analytics.dashboard.followers_gained_in_range') }}
+                </span>
             </div>
             <div
                 class="mt-5 grid gap-x-5 gap-y-2.5 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-3"

@@ -13,6 +13,7 @@ return [
     'no_content' => 'Kein Inhalt',
     'more' => '+:count weitere',
     'less' => 'Weniger anzeigen',
+    'empty_day' => 'Für diesen Tag ist nichts geplant.',
     'status' => [
         'label' => 'Status',
         'all' => 'Alle Beiträge',

@@ -33,6 +33,8 @@ return [
     'search_channels' => 'البحث في القنوات',
     'channel_submenu' => 'القائمة الفرعية لـ :name',
     'toggle' => 'تبديل الشريط الجانبي',
+    'collapse' => 'طي الشريط الجانبي',
+    'expand' => 'توسيع الشريط الجانبي',
     'mobile_title' => 'التنقل',
     'mobile_description' => 'التنقل الرئيسي في التطبيق.',
     'repurposes' => 'Repurpose',

@@ -289,7 +289,7 @@ watch(
 );
 
 const addTriggerClass =
-    'h-10 gap-2 rounded-lg border-border-strong data-[size=default]:h-10 bg-transparent px-4 font-medium transition-control hover:bg-accent data-[state=open]:bg-accent [&_svg]:opacity-100';
+    'h-10 gap-2 rounded-lg border-border-strong data-[size=default]:h-10 max-md:w-full bg-transparent px-4 font-medium transition-control hover:bg-accent data-[state=open]:bg-accent [&_svg]:opacity-100';
 
 const hours = Array.from({ length: 24 }, (_, hour) =>
     String(hour).padStart(2, '0'),
@@ -598,14 +598,14 @@ const addSlot = (): void => {
                         />
 
                         <div
-                            class="flex flex-wrap items-center gap-2 text-sm font-medium"
+                            class="grid grid-cols-2 gap-2 text-sm font-medium md:flex md:flex-wrap md:items-center"
                         >
-                            <span>{{
+                            <span class="col-span-2">{{
                                 $t('channels.settings_page.add_prefix')
                             }}</span>
                             <Select v-model="addTarget">
                                 <SelectTrigger
-                                    :class="addTriggerClass"
+                                    :class="[addTriggerClass, 'col-span-2']"
                                     :aria-label="
                                         $t('channels.settings_page.add_prefix')
                                     "
@@ -632,7 +632,9 @@ const addSlot = (): void => {
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
-                            <span>{{ $t('channels.settings_page.add_at') }}</span>
+                            <span class="max-md:hidden">{{
+                                $t('channels.settings_page.add_at')
+                            }}</span>
                             <Select v-model="addHour">
                                 <SelectTrigger
                                     :class="[addTriggerClass, 'tabular-nums']"
@@ -681,6 +683,7 @@ const addSlot = (): void => {
                                 v-if="canAdd"
                                 type="button"
                                 size="lg"
+                                class="col-span-2 md:col-span-1"
                                 data-testid="schedule-add-submit"
                                 @click="addSlot"
                             >
@@ -688,7 +691,7 @@ const addSlot = (): void => {
                             </Button>
                             <span
                                 v-else
-                                class="font-normal text-muted-foreground"
+                                class="col-span-2 font-normal text-muted-foreground"
                                 data-testid="schedule-add-limit"
                             >
                                 {{
@@ -702,7 +705,7 @@ const addSlot = (): void => {
                                 type="button"
                                 variant="ghost"
                                 size="lg"
-                                class="ms-auto text-destructive-text hover:text-destructive-text"
+                                class="col-span-2 justify-self-start text-destructive-text hover:text-destructive-text md:col-span-1 md:ms-auto"
                                 data-testid="schedule-clear"
                                 @click="openClearDialog"
                             >

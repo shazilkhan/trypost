@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\PostPlatform;
 
+use App\Dto\MediaItem;
 use App\Enums\Analytics\PublicationContentType;
 use App\Enums\Media\Type as MediaType;
 use App\Enums\SocialAccount\Platform as SocialPlatform;
@@ -780,6 +781,41 @@ enum ContentType: string
             SocialPlatform::Telegram => self::TelegramPost,
             SocialPlatform::Discord => self::DiscordMessage,
             SocialPlatform::GoogleBusiness => self::GoogleBusinessPost,
+        };
+    }
+
+    /**
+     * Networks with no post-type choice: the attached media decides the type,
+     * as `derivedContentType.ts` does in the composer.
+     */
+    public static function derivesFromMedia(SocialPlatform $platform): bool
+    {
+        return in_array($platform, [SocialPlatform::Pinterest, SocialPlatform::TikTok], true);
+    }
+
+    /**
+     * The type the composer sends for a destination that names none: on Pinterest
+     * and TikTok the media decides it (a video makes a video pin or video, several
+     * images a carousel, images alone TikTok photos), every other network takes
+     * its default type.
+     *
+     * @param  array<int, mixed>  $media
+     */
+    public static function forMedia(SocialPlatform $platform, array $media): self
+    {
+        $items = collect($media)
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $item): MediaItem => MediaItem::fromArray($item));
+        $hasVideo = $items->contains(fn (MediaItem $item): bool => $item->isVideo());
+
+        return match ($platform) {
+            SocialPlatform::Pinterest => match (true) {
+                $hasVideo => self::PinterestVideoPin,
+                $items->count() > 1 => self::PinterestCarousel,
+                default => self::PinterestPin,
+            },
+            SocialPlatform::TikTok => $items->isNotEmpty() && ! $hasVideo ? self::TikTokPhoto : self::TikTokVideo,
+            default => self::defaultFor($platform),
         };
     }
 

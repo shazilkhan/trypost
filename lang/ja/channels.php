@@ -188,6 +188,7 @@ return [
         'slots_description' => '投稿時間は、キューの投稿をいつ送信するかをTryPostに伝えます。キューに追加した次の投稿は、下の直近の時間に公開されます。',
         'day_on' => 'オン',
         'day_off' => 'オフ',
+        'day_empty' => '投稿時間なし',
         'remove_time' => ':time を削除',
         'edit_hour' => ':time の時を変更',
         'edit_minute' => ':time の分を変更',

@@ -26,6 +26,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Inertia\Support\Header;
 
 class BuildPublishPageProps
 {
@@ -79,18 +80,28 @@ class BuildPublishPageProps
 
         $scopedChannelIds = $channel ? [$channel->id] : ($requestedChannelIds !== [] ? $requestedChannelIds : null);
 
-        $basePosts = $workspace->posts()->when($scopedChannelIds !== null, fn (Builder $query) => $query->whereHas(
-            'postPlatforms',
-            fn (Builder $platforms) => $platforms->enabled()->whereIn('social_account_id', $scopedChannelIds),
-        ));
+        $basePosts = $workspace->posts()->onChannels($scopedChannelIds);
 
         $openPostNotesId = self::uuidQuery($request, 'notes');
         $openPostDetailsId = self::uuidQuery($request, 'post');
         $focusedPostId = $openPostNotesId ?? $openPostDetailsId;
 
-        $tab = self::tab($request->query('tab'), $focusedPostId ? (clone $basePosts)->whereKey($focusedPostId)->value('status') : null);
+        $resolveTab = fn (mixed $requested, ?string $focusedId): string => self::tab($requested, $focusedId ? (clone $basePosts)->whereKey($focusedId)->value('status') : null);
+
+        $tab = $resolveTab($request->query('tab'), $focusedPostId);
 
         $cards = fn (): Builder => self::cardQuery(clone $basePosts, $scopedChannelIds, $labelIds, $untagged);
+
+        $hasDataResult = null;
+        $hasData = function () use (&$hasDataResult, $tab, $workspace, $channel, $requester): bool {
+            return $hasDataResult ??= self::hasData($tab, $workspace, $channel, $requester);
+        };
+
+        $hasQueueSlotsResult = null;
+        $hasQueueSlots = function () use (&$hasQueueSlotsResult, $tab, $channel, $filterAccounts): bool {
+            return $hasQueueSlotsResult ??= $tab === self::TAB_QUEUE
+                && ($channel ? collect([$channel]) : $filterAccounts())->contains(fn (SocialAccount $account): bool => $account->hasPostingSchedule());
+        };
 
         $props = [
             'workspace' => $workspace,
@@ -110,19 +121,25 @@ class BuildPublishPageProps
                 'channels' => $requestedChannelIds,
             ],
             'filterAccounts' => fn () => SocialAccountResource::collection($filterAccounts()),
+            'hasData' => $hasData,
+            'hasQueueSlots' => $hasQueueSlots,
         ];
 
+        $defersList = ! $request->hasHeader(Header::PARTIAL_ONLY)
+            && ($hasData() || $hasQueueSlots())
+            && ! self::reloadsSameList($request, $tab, $resolveTab);
+
         if ($tab === self::TAB_QUEUE) {
-            $props['queue'] = fn (): array => self::queue($workspace, $channels(), $displayTimezone, $request, $labelIds, $untagged, $cards, $channel !== null, $requester);
+            $queue = fn (): array => self::queue($workspace, $channels(), $displayTimezone, $request, $labelIds, $untagged, $cards, $channel !== null, $requester);
+            $props['queue'] = $defersList ? Inertia::defer($queue) : $queue;
         }
 
-        $props['posts'] = Inertia::scroll(fn () => self::paginatedCards($tab, $cards(), $tab === self::TAB_QUEUE ? null : $focusedPostId, $requester));
-
-        $composerRequested = $editPost !== null;
+        $posts = Inertia::scroll(fn () => self::paginatedCards($tab, $cards(), $tab === self::TAB_QUEUE ? null : $focusedPostId, $requester));
+        $props['posts'] = $defersList ? $posts->defer() : $posts;
 
         return [
             ...$props,
-            'openComposer' => $composerRequested,
+            'openComposer' => $editPost !== null,
             'openComposerAssistant' => $request->boolean('assistant'),
             'initialComposerDate' => $request->query('date'),
             'openPostNotesId' => $openPostNotesId,
@@ -130,7 +147,6 @@ class BuildPublishPageProps
             'highlightNoteId' => is_string($request->query('note')) ? $request->query('note') : null,
             'authUserId' => $user->id,
             'editPost' => $editPost,
-            ...BuildComposerProps::lazy($workspace, $composerRequested),
         ];
     }
 
@@ -157,6 +173,61 @@ class BuildPublishPageProps
         $normalized = Timezone::normalize($requested);
 
         return $normalized === Timezone::DEFAULT && $requested !== Timezone::DEFAULT ? $userTimezone : $normalized;
+    }
+
+    /**
+     * Whether the tab has any post at all on this page, read without the label and
+     * channel filters, so an empty list can tell first use from no results.
+     */
+    private static function hasData(string $tab, Workspace $workspace, ?SocialAccount $channel, ?User $requester): bool
+    {
+        $posts = $workspace->posts()->when($channel !== null, fn (Builder $query) => $query->whereHas(
+            'postPlatforms',
+            fn (Builder $platforms) => $platforms->enabled()->where('social_account_id', $channel->id),
+        ));
+
+        return match ($tab) {
+            self::TAB_QUEUE => $posts->where(fn (Builder $query) => $query
+                ->whereIn('status', self::QUEUE_STATUSES)
+                ->orWhere(fn (Builder $pending) => $pending
+                    ->pendingApproval()
+                    ->where('posts.schedule_mode', ScheduleMode::Queue)
+                    ->where('posts.scheduled_at', '>', now())
+                    ->visiblePendingApprovalsFor($requester)))
+                ->exists(),
+            self::TAB_DRAFTS => $posts->where('status', PostStatus::Draft)->exists(),
+            self::TAB_APPROVALS => $posts->pendingApproval()->visiblePendingApprovalsFor($requester)->exists(),
+            default => $posts->whereIn('status', self::SENT_STATUSES)->exists(),
+        };
+    }
+
+    /**
+     * A visit that stays on the list it came from (the redirect back after a
+     * create, edit or delete, opening or closing the composer) gets its cards in
+     * the same response, so they never give way to the skeleton. Landing on the
+     * page or switching tabs defers them. Like
+     * RendersPublishPage::publishPageReturnUrl(), it reads the Referer.
+     *
+     * @param  callable(mixed, ?string): string  $resolveTab
+     */
+    private static function reloadsSameList(Request $request, string $tab, callable $resolveTab): bool
+    {
+        $referer = $request->headers->get('referer');
+
+        if (! is_string($referer) || $referer === '') {
+            return false;
+        }
+
+        if (rtrim(Str::before(Str::before($referer, '#'), '?'), '/') !== rtrim($request->url(), '/')) {
+            return false;
+        }
+
+        parse_str((string) data_get(parse_url($referer), 'query', ''), $query);
+
+        $focusedId = collect([data_get($query, 'notes'), data_get($query, 'post')])
+            ->first(fn (mixed $value): bool => is_string($value) && Str::isUuid($value));
+
+        return $resolveTab(data_get($query, 'tab'), $focusedId) === $tab;
     }
 
     private static function uuidQuery(Request $request, string $key): ?string

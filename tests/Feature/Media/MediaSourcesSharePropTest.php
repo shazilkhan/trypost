@@ -52,10 +52,10 @@ test('the prop lists only enabled sources in menu order', function () {
         );
 });
 
-test('the prop is null for a guest', function () {
+test('the prop is absent for a guest', function () {
     mediaSourcesEnableAll();
 
-    $this->get(route('login'))->assertInertia(fn ($page) => $page->where('mediaSources', null));
+    $this->get(route('login'))->assertInertia(fn ($page) => $page->missing('mediaSources'));
 });
 
 test('secrets never reach the shared prop', function () {

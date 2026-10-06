@@ -407,7 +407,7 @@ test('composer slide-over fills the mobile viewport without horizontal overflow'
         ->fill('@composer-base-content', 'Mobile preview')
         ->click('@composer-add-account')
         ->click('@composer-select-all')
-        ->click('@composer-preview-toggle')
+        ->click('@composer-view-preview')
         ->assertVisible('@composer-preview-frame');
 
     $dimensions = $page->script(<<<'JS'
@@ -433,7 +433,7 @@ test('composer slide-over fills the mobile viewport without horizontal overflow'
         ->and(abs($dimensions['height'] - $dimensions['viewportHeight']))->toBeLessThan(2)
         ->and($dimensions['scrollWidth'])->toBeLessThanOrEqual($dimensions['viewportWidth']);
 
-    $page->click('@composer-mobile-compose')
+    $page->click('@composer-view-edit')
         ->assertValue("@composer-caption-{$account->id}", 'Mobile preview');
 });
 

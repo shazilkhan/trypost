@@ -18,7 +18,6 @@ class IdeaGenerator implements Agent, HasStructuredOutput
 
     public function __construct(
         public Locale $locale,
-        public int $count,
         public string $business,
         public string $audience,
         public ?string $notes = null,
@@ -30,7 +29,6 @@ class IdeaGenerator implements Agent, HasStructuredOutput
             'business' => $this->business,
             'audience' => $this->audience,
             'notes' => $this->notes,
-            'count' => $this->count,
             'language' => $this->locale->promptLanguage(),
         ])->render();
     }
@@ -41,12 +39,8 @@ class IdeaGenerator implements Agent, HasStructuredOutput
     public function schema(JsonSchema $schema): array
     {
         return [
-            'ideas' => $schema->array()
-                ->items($schema->object([
-                    'title' => $schema->string()->required(),
-                    'body' => $schema->string()->required(),
-                ]))
-                ->required(),
+            'title' => $schema->string()->required(),
+            'body' => $schema->string()->required(),
         ];
     }
 }

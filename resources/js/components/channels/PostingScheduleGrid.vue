@@ -79,18 +79,20 @@ const commitEdit = (
 
 <template>
     <div
-        class="overflow-x-auto rounded-lg border border-border bg-card"
+        class="@container"
         data-testid="schedule-grid"
     >
-        <div class="grid min-w-[63rem] grid-cols-7">
+        <div
+            class="grid grid-cols-1 overflow-hidden rounded-lg border border-border bg-card @min-[63rem]:grid-cols-7"
+        >
             <div
                 v-for="entry in orderedSchedule"
                 :key="entry.day"
-                class="flex min-w-0 flex-col border-e border-border last:border-e-0"
+                class="flex min-w-0 flex-col border-b border-border last:border-b-0 @min-[63rem]:border-e @min-[63rem]:border-b-0 @min-[63rem]:last:border-e-0"
                 :data-testid="`schedule-day-${entry.day}`"
             >
                 <div
-                    class="flex flex-col items-center gap-4 border-b border-border px-2 py-6"
+                    class="flex items-center justify-between gap-4 px-4 py-3 @min-[63rem]:flex-col @min-[63rem]:justify-center @min-[63rem]:border-b @min-[63rem]:border-border @min-[63rem]:px-2 @min-[63rem]:py-6"
                 >
                     <p
                         class="text-sm font-medium whitespace-nowrap text-foreground"
@@ -102,7 +104,7 @@ const commitEdit = (
                             v-if="entry.times.length > 0"
                             class="flex max-w-full min-w-0 cursor-pointer items-center gap-1 text-sm font-medium text-muted-foreground"
                         >
-                            <span class="truncate">
+                            <span class="truncate leading-none">
                                 {{
                                     entry.enabled
                                         ? $t('channels.settings_page.day_on')
@@ -122,16 +124,24 @@ const commitEdit = (
                     </div>
                 </div>
 
+                <p
+                    v-if="entry.times.length === 0"
+                    class="mx-4 mb-3 rounded-md border border-dashed border-border-strong px-3 py-2 text-center text-sm text-muted-foreground @min-[63rem]:mx-2 @min-[63rem]:mt-4 @min-[63rem]:mb-0"
+                    :data-testid="`schedule-day-${entry.day}-empty`"
+                >
+                    {{ $t('channels.settings_page.day_empty') }}
+                </p>
+
                 <ul
                     :class="[
-                        'flex flex-col py-4',
+                        'flex flex-wrap gap-x-2 gap-y-2 px-4 pb-3 empty:hidden @min-[63rem]:flex-col @min-[63rem]:flex-nowrap @min-[63rem]:gap-0 @min-[63rem]:p-0 @min-[63rem]:py-4',
                         entry.enabled ? '' : 'opacity-50',
                     ]"
                 >
                     <li
                         v-for="time in entry.times"
                         :key="time"
-                        class="group flex h-8 items-center justify-center"
+                        class="group flex h-8 items-center justify-center @max-[63rem]:rounded-md @max-[63rem]:border @max-[63rem]:border-border @max-[63rem]:pe-1"
                         :data-testid="`schedule-day-${entry.day}-time-${testTime(time)}`"
                     >
                         <div class="flex items-center">

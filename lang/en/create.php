@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => 'e.g. People who love home decor and handmade gifts',
             'notes_label' => 'Anything else? (optional)',
             'notes_placeholder' => 'Tone, topics to cover or avoid, upcoming launches',
-            'count_label' => 'How many ideas?',
-            'stage_label' => 'Add to group',
+            'again' => 'Generate again',
+            'use' => 'Use this idea',
             'submit' => 'Generate ideas',
         ],
         'default_stages' => [

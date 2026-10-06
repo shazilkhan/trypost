@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\ApiKeyController;
+use App\Http\Controllers\Api\ChannelInsightsController;
+use App\Http\Controllers\Api\ChannelPostingScheduleController;
+use App\Http\Controllers\Api\ChannelQueueController;
+use App\Http\Controllers\Api\IdeaController;
+use App\Http\Controllers\Api\IdeaStageController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\PostApprovalController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\PostRecurrenceController;
 use App\Http\Controllers\Api\RepurposeController;
 use App\Http\Controllers\Api\SignatureController;
 use App\Http\Controllers\Api\SocialAccountController;
@@ -38,6 +44,8 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('api.posts.show');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('api.posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('api.posts.destroy');
+    Route::patch('/posts/{post}/recurrence', [PostRecurrenceController::class, 'update'])->name('api.posts.recurrence.update');
+    Route::delete('/posts/{post}/recurrence', [PostRecurrenceController::class, 'destroy'])->name('api.posts.recurrence.destroy');
     Route::post('/posts/{post}/media', [PostController::class, 'storeMedia'])->name('api.posts.store-media');
     Route::post('/posts/{post}/media/from-upload', [PostController::class, 'attachMediaFromUpload'])->name('api.posts.attach-media-from-upload');
     Route::post('/posts/{post}/media/from-url', [PostController::class, 'attachMediaFromUrl'])->name('api.posts.attach-media-from-url');
@@ -58,6 +66,23 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::put('/signatures/{signature}', [SignatureController::class, 'update'])->name('api.signatures.update');
     Route::delete('/signatures/{signature}', [SignatureController::class, 'destroy'])->name('api.signatures.destroy');
 
+    // Ideas
+    Route::get('/ideas', [IdeaController::class, 'index'])->name('api.ideas.index');
+    Route::post('/ideas', [IdeaController::class, 'store'])->name('api.ideas.store');
+    Route::delete('/ideas', [IdeaController::class, 'bulkDestroy'])->name('api.ideas.bulk-destroy');
+    Route::get('/ideas/{idea}', [IdeaController::class, 'show'])->whereUuid('idea')->name('api.ideas.show');
+    Route::put('/ideas/{idea}', [IdeaController::class, 'update'])->whereUuid('idea')->name('api.ideas.update');
+    Route::delete('/ideas/{idea}', [IdeaController::class, 'destroy'])->whereUuid('idea')->name('api.ideas.destroy');
+    Route::post('/ideas/{idea}/duplicate', [IdeaController::class, 'duplicate'])->whereUuid('idea')->name('api.ideas.duplicate');
+    Route::put('/ideas/{idea}/move', [IdeaController::class, 'move'])->whereUuid('idea')->name('api.ideas.move');
+
+    // Idea stages
+    Route::get('/idea-stages', [IdeaStageController::class, 'index'])->name('api.idea-stages.index');
+    Route::post('/idea-stages', [IdeaStageController::class, 'store'])->name('api.idea-stages.store');
+    Route::put('/idea-stages/order', [IdeaStageController::class, 'reorder'])->name('api.idea-stages.reorder');
+    Route::put('/idea-stages/{ideaStage}', [IdeaStageController::class, 'update'])->whereUuid('ideaStage')->name('api.idea-stages.update');
+    Route::delete('/idea-stages/{ideaStage}', [IdeaStageController::class, 'destroy'])->whereUuid('ideaStage')->name('api.idea-stages.destroy');
+
     // Labels
     Route::get('/labels', [LabelController::class, 'index'])->name('api.labels.index');
     Route::post('/labels', [LabelController::class, 'store'])->name('api.labels.store');
@@ -69,9 +94,41 @@ Route::middleware(['auth:api', 'workspace.token', 'throttle:api'])->group(functi
     Route::get('/social-accounts/{account}/boards', [SocialAccountController::class, 'boards'])
         ->middleware('throttle:60,1')
         ->name('api.social-accounts.boards');
+    Route::post('/social-accounts/{account}/boards', [SocialAccountController::class, 'storeBoard'])
+        ->middleware('throttle:60,1')
+        ->name('api.social-accounts.boards.store');
     Route::get('/social-accounts/{account}/channels', [SocialAccountController::class, 'channels'])
         ->middleware('throttle:60,1')
         ->name('api.social-accounts.channels');
+
+    // Channels
+    Route::get('/channels/{account}/insights', [ChannelInsightsController::class, 'show'])
+        ->whereUuid('account')
+        ->name('api.channels.insights.show');
+    Route::get('/channels/{account}/insights/publications', [ChannelInsightsController::class, 'publications'])
+        ->whereUuid('account')
+        ->name('api.channels.insights.publications');
+    Route::get('/channels/{account}/posting-schedule', [SocialAccountController::class, 'postingSchedule'])
+        ->whereUuid('account')
+        ->name('api.channels.posting-schedule.show');
+    Route::put('/channels/{account}/posting-schedule', [ChannelPostingScheduleController::class, 'update'])
+        ->whereUuid('account')
+        ->name('api.channels.posting-schedule.update');
+    Route::post('/channels/{account}/posting-schedule/generate', [ChannelPostingScheduleController::class, 'generate'])
+        ->whereUuid('account')
+        ->name('api.channels.posting-schedule.generate');
+    Route::post('/channels/{account}/posting-schedule/copy', [ChannelPostingScheduleController::class, 'copy'])
+        ->whereUuid('account')
+        ->name('api.channels.posting-schedule.copy');
+    Route::get('/channels/{account}/queue/slots', [SocialAccountController::class, 'freeSlots'])
+        ->whereUuid('account')
+        ->name('api.channels.queue.slots');
+    Route::put('/channels/{account}/queue/order', [ChannelQueueController::class, 'reorder'])
+        ->whereUuid('account')
+        ->name('api.channels.queue.order');
+    Route::put('/channels/{account}/queue/slot', [ChannelQueueController::class, 'moveToSlot'])
+        ->whereUuid('account')
+        ->name('api.channels.queue.slot');
 
     // Repurpose
     Route::get('/repurpose-source-formats', [RepurposeController::class, 'sourceFormats'])->name('api.repurpose-source-formats.index');

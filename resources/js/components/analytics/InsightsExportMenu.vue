@@ -14,24 +14,34 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { download as channelDownload } from '@/routes/app/channels/insights';
 import { download } from '@/routes/app/insights';
 
 const props = defineProps<{
     query: Record<string, string | string[]>;
+    channelId?: string;
 }>();
+
+const hrefFor = (format: string): string =>
+    props.channelId
+        ? channelDownload.url(
+              { account: props.channelId, format },
+              { query: props.query },
+          )
+        : download.url(format, { query: props.query });
 
 const formats = computed(() => [
     {
         format: 'csv',
         label: 'analytics.insights.export.csv',
         icon: IconFileText,
-        href: download.url('csv', { query: props.query }),
+        href: hrefFor('csv'),
     },
     {
         format: 'md',
         label: 'analytics.insights.export.markdown',
         icon: IconMarkdown,
-        href: download.url('md', { query: props.query }),
+        href: hrefFor('md'),
     },
 ]);
 </script>

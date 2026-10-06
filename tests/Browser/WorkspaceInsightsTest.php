@@ -213,11 +213,12 @@ test('the custom preset opens the calendar with quick ranges that apply a custom
     $page->assertMissing('@date-range-picker-trigger')
         ->assertScript('document.querySelector("[data-testid=insights-range-custom]")?.getAttribute("aria-pressed")', 'true')
         ->assertScript('document.querySelector("[data-testid=insights-range-presets] [role=group]")?.getAttribute("aria-label")', 'Período')
-        ->click('@insights-range-custom');
+        ->assertPresent('@insights-range-custom');
     $page->script(<<<'JS'
         (async () => {
             for (let attempt = 0; attempt < 100; attempt++) {
                 if (document.querySelector('[role="dialog"]')) return;
+                if (attempt % 10 === 0) document.querySelector('[data-testid="insights-range-custom"]').click();
                 await new Promise((resolve) => setTimeout(resolve, 50));
             }
         })();
@@ -238,6 +239,33 @@ test('the custom preset opens the calendar with quick ranges that apply a custom
     $page->assertScript('location.search.includes("range=custom") && location.search.includes("start=2026-06-25") && location.search.includes("end=2026-07-01")', true)
         ->assertNoJavaScriptErrors()
         ->assertNoConsoleLogs();
+});
+
+test('the workspace insights page offers exactly 7 days, 30 days, month to date and custom', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'platform' => $account->platform,
+        'network' => $account->platform->network(),
+        'platform_user_id' => $account->platform_user_id,
+        'date' => now('UTC')->toDateString(),
+        'followers_count' => 100,
+    ]);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'insights-range-7d');
+
+    $page->assertScript('Array.from(document.querySelectorAll("[data-testid^=insights-range-]")).map((element) => element.dataset.testid).filter((id) => ["insights-range-7d", "insights-range-30d", "insights-range-mtd", "insights-range-last_month", "insights-range-custom"].includes(id)).join(",")', 'insights-range-7d,insights-range-30d,insights-range-mtd,insights-range-custom')
+        ->assertNoJavaScriptErrors();
 });
 
 test('a range preset on the workspace dashboard reloads with that range', function () {
@@ -485,4 +513,83 @@ test('the insights toolbar border keeps the page padding instead of touching the
         ->and($edges[1])->toBeGreaterThanOrEqual(32)
         ->and($edges[2])->toBe('1px');
     $page->assertNoJavaScriptErrors();
+});
+
+test('the workspace insights page has no label filter', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    SocialAccount::factory()->create(['workspace_id' => $workspace->id, 'platform' => Platform::Instagram]);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'analytics-filters');
+
+    $page->assertVisible('@analytics-channel-filter')
+        ->assertMissing('@analytics-label-filter')
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a phone the workspace insights range presets collapse into a dropdown', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+    $account = SocialAccount::factory()->instagram()->create(['workspace_id' => $workspace->id]);
+    AnalyticsAccountDailySnapshot::factory()->create([
+        'workspace_id' => $workspace->id,
+        'social_account_id' => $account->id,
+        'social_account_key' => $account->id,
+        'platform' => $account->platform,
+        'network' => $account->platform->network(),
+        'platform_user_id' => $account->platform_user_id,
+        'date' => now('UTC')->toDateString(),
+        'followers_count' => 100,
+    ]);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'))->resize(390, 844);
+    waitForWorkspaceInsightsTestId($page, 'insights-range-mobile-trigger');
+
+    $page->assertScript('document.querySelector("[data-testid=insights-range-7d]").getBoundingClientRect().height', 0)
+        ->assertSeeIn('@insights-range-mobile-trigger', '30 Days')
+        ->click('@insights-range-mobile-trigger');
+    waitForWorkspaceInsightsTestId($page, 'insights-range-mobile-30d-check');
+
+    $page->assertPresent('@insights-range-mobile-30d-check')
+        ->assertMissing('@insights-range-mobile-7d-check')
+        ->click('@insights-range-mobile-7d');
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if (new URLSearchParams(location.search).get('range') === '7d') return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        })();
+    JS);
+
+    $page->assertScript('new URLSearchParams(location.search).get("range")', '7d')
+        ->assertSeeIn('@insights-range-mobile-trigger', '7 Days')
+        ->assertNoJavaScriptErrors();
+});
+
+test('on desktop the workspace insights range keeps the segmented control', function () {
+    Queue::fake([BootstrapAccountAnalytics::class, CollectAccountDailySnapshot::class]);
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create(['user_id' => $user->id, 'account_id' => $user->account_id]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+    subscribeAccount($user->account);
+
+    $this->actingAs($user);
+    $page = visit(route('app.insights'));
+    waitForWorkspaceInsightsTestId($page, 'insights-range-7d');
+
+    $page->assertScript('document.querySelector("[data-testid=insights-range-mobile-trigger]").getBoundingClientRect().height', 0)
+        ->assertNoJavaScriptErrors();
 });

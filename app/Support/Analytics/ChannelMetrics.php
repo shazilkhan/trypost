@@ -8,8 +8,8 @@ final class ChannelMetrics
 {
     /** @var list<string> */
     public const array ORDER = [
-        'followers', 'posts', 'reactions', 'comments', 'engagement_rate', 'views',
-        'shares', 'saves', 'follows_gained', 'reach', 'watch_time_minutes', 'average_watch_time_seconds',
+        'followers', 'net_followers', 'posts', 'reactions', 'comments', 'engagement_rate', 'views', 'impressions',
+        'shares', 'reposts', 'quotes', 'saves', 'clicks', 'follows_gained', 'reach', 'watch_time_minutes', 'average_watch_time_seconds',
     ];
 
     /** @var array<string, string> */
@@ -18,6 +18,7 @@ final class ChannelMetrics
         'comments' => 'metric.comments_count',
         'engagement_rate' => '(metric.engagement_count * 1.0) / NULLIF(metric.exposure_count, 0)',
         'views' => 'metric.views_count',
+        'impressions' => 'metric.impressions_count',
         'shares' => 'metric.shares_count',
         'saves' => 'metric.saves_count',
         'reach' => 'metric.reach_count',

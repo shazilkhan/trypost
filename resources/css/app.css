@@ -526,6 +526,25 @@
     }
 }
 
+@media (width < 40rem) {
+    :is([data-slot='dialog-content'], [data-slot='alert-dialog-content']) {
+        border-style: solid;
+        border-color: transparent;
+        border-width: env(safe-area-inset-top) env(safe-area-inset-right)
+            env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+}
+
+@media (width < 40rem) and (prefers-reduced-motion: no-preference) {
+    .motion-dialog[data-state='open'] {
+        animation-name: motion-fade-in;
+    }
+
+    .motion-dialog[data-state='closed'] {
+        animation-name: motion-fade-out;
+    }
+}
+
 @media (prefers-reduced-motion: no-preference) {
     .motion-view-swap {
         animation-name: motion-fade-in, motion-slide-from-top;

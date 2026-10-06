@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => 'bijv. Mensen die van woondecoratie en handgemaakte cadeaus houden',
             'notes_label' => 'Nog iets? (optioneel)',
             'notes_placeholder' => 'Toon, onderwerpen om te behandelen of te vermijden, aankomende lanceringen',
-            'count_label' => 'Hoeveel ideeën?',
-            'stage_label' => 'Toevoegen aan groep',
+            'again' => 'Opnieuw genereren',
+            'use' => 'Dit idee gebruiken',
             'submit' => 'Ideeën genereren',
         ],
         'default_stages' => [

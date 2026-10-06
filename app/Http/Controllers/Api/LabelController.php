@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Actions\Label\CreateLabel;
 use App\Actions\Label\DeleteLabel;
+use App\Actions\Label\ListLabels;
 use App\Actions\Label\UpdateLabel;
 use App\Http\Requests\Api\Label\StoreLabelRequest;
 use App\Http\Requests\Api\Label\UpdateLabelRequest;
@@ -20,7 +21,7 @@ class LabelController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $labels = $request->user()->currentWorkspace->labels()->latest()->get();
+        $labels = ListLabels::execute($request->user()->currentWorkspace)->paginate((int) config('app.pagination.default'));
 
         return LabelResource::collection($labels);
     }

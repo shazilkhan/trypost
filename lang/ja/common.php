@@ -58,6 +58,7 @@ return [
     'cancel' => 'キャンセル',
     'clear' => 'クリア',
     'close' => '閉じる',
+    'loading' => '読み込み中...',
     'loading_more' => 'さらに読み込み中...',
 
     'actions' => [

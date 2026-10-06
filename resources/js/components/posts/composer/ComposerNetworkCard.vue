@@ -149,12 +149,13 @@ const showsHeader = computed(
             v-if="platform"
             :platform="platform"
             :size="24"
-            class="shrink-0"
+            class="sticky top-0 z-20 shrink-0 self-start"
+            :data-testid="`${testIdPrefix}-logo`"
         />
         <div class="flex min-w-0 flex-1 flex-col gap-4">
             <div
                 v-if="platform && showsHeader"
-                class="flex min-h-6 flex-wrap items-center gap-3"
+                class="sticky top-0 z-10 flex min-h-6 flex-wrap items-center gap-3 bg-card shadow-[0_-1rem_0_var(--color-card),-2.25rem_0_0_var(--color-card),-2.25rem_-1rem_0_var(--color-card)] rtl:shadow-[0_-1rem_0_var(--color-card),2.25rem_0_0_var(--color-card),2.25rem_-1rem_0_var(--color-card)]"
                 :data-testid="`${testIdPrefix}-header`"
             >
                 <ContentTypeRadioGroup

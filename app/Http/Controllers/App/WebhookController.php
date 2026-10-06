@@ -6,6 +6,7 @@ namespace App\Http\Controllers\App;
 
 use App\Actions\Webhook\CreateWebhook;
 use App\Actions\Webhook\DeleteWebhook;
+use App\Actions\Webhook\ListWebhookLogs;
 use App\Actions\Webhook\ReplayWebhookLog;
 use App\Actions\Webhook\RotateWebhookSecret;
 use App\Actions\Webhook\SendWebhookTest;
@@ -46,7 +47,7 @@ class WebhookController extends Controller
         return Inertia::render('webhooks/Show', [
             'webhook' => $webhook->makeVisible('signing_secret'),
             'logs' => Inertia::scroll(
-                fn () => $webhook->logs()->orderByDesc('created_at')->paginate((int) config('app.pagination.default')),
+                fn () => ListWebhookLogs::execute($webhook)->paginate((int) config('app.pagination.default')),
             )->matchOn('data.id'),
         ]);
     }

@@ -10,13 +10,22 @@ use App\Enums\SocialAccount\Platform;
 use App\Events\PostDeleted;
 use App\Models\AnalyticsPublication;
 use App\Models\Post;
+use App\Support\PostStatusRules;
 use App\Support\Social\GoogleBusinessDerivativeCleaner;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class DeletePost
 {
-    public static function execute(Post $post): void
+    /**
+     * @throws ValidationException
+     */
+    public static function execute(Post $post, bool $respectStatus = false): void
     {
+        if ($respectStatus && PostStatusRules::blocksDeletion($post)) {
+            throw ValidationException::withMessages(['post' => __('posts.flash.cannot_delete_published')]);
+        }
+
         $post->postPlatforms()
             ->where('platform', Platform::GoogleBusiness)
             ->pluck('id')

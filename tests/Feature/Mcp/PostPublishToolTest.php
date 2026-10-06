@@ -253,7 +253,7 @@ test('publish post fails when no platforms enabled', function () {
     $response = TryPostServer::actingAs($this->user)
         ->tool(PublishPostTool::class, ['post_id' => $post->id]);
 
-    $response->assertHasErrors(['Post has no enabled platforms. Use update-post-tool to enable at least one platform first.']);
+    $response->assertHasErrors([__('posts.errors.no_social_account')]);
 });
 
 test('publish post 404 from another workspace', function () {

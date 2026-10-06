@@ -332,7 +332,7 @@ test('at 390px the header fits and every side panel toggle works', function () {
     $overflow = $page->script(<<<'JS'
         (() => {
             const header = document.querySelector('[data-testid="composer-header"]');
-            const toggles = ['composer-templates-toggle', 'composer-ai-assistant', 'composer-preview-toggle']
+            const toggles = ['composer-templates-toggle', 'composer-ai-assistant', 'composer-view-preview']
                 .map((testId) => document.querySelector(`[data-testid="${testId}"]`).getBoundingClientRect());
 
             return header.scrollWidth > header.clientWidth
@@ -343,18 +343,20 @@ test('at 390px the header fits and every side panel toggle works', function () {
     expect($overflow)->toBeFalse();
 
     $page->click('@composer-templates-toggle');
-    waitForComposerTemplatesTestId($page, 'composer-templates-panel');
+    waitForComposerTemplatesDialog($page, 'composer-templates-sheet');
     $page->assertVisible('@composer-templates-panel')
-        ->click('@composer-mobile-compose')
-        ->click('@composer-ai-assistant');
-    waitForComposerTemplatesTestId($page, 'composer-assistant-panel');
+        ->click('@composer-templates-sheet-close');
+    waitForComposerTemplatesCondition($page, "!document.querySelector('[data-testid=\"composer-templates-sheet\"]')");
+    $page->click('@composer-ai-assistant');
+    waitForComposerTemplatesDialog($page, 'composer-assistant-sheet');
     $page->assertVisible('@composer-assistant-panel')
-        ->click('@composer-mobile-compose')
-        ->click('@composer-preview-toggle');
+        ->click('@composer-assistant-sheet-close');
+    waitForComposerTemplatesCondition($page, "!document.querySelector('[data-testid=\"composer-assistant-sheet\"]')");
+    $page->click('@composer-view-preview');
     waitForComposerTemplatesTestId($page, 'composer-previews-scroll');
 
     $page->assertVisible('@composer-previews-scroll')
-        ->assertAttribute('@composer-preview-toggle', 'aria-pressed', 'true')
+        ->assertAttribute('@composer-view-preview', 'aria-pressed', 'true')
         ->assertNoJavaScriptErrors();
 });
 
@@ -407,7 +409,7 @@ test('at 390px picking a template returns to the compose view', function () {
     $page->click('@composer-templates-toggle');
     waitForComposerTemplatesTestId($page, 'composer-template-quick_win');
     $page->click('@composer-template-quick_win');
-    waitForComposerTemplatesCondition($page, "document.querySelector('[data-testid=\"composer-templates-panel\"]')?.getBoundingClientRect().height === 0");
+    waitForComposerTemplatesCondition($page, "!document.querySelector('[data-testid=\"composer-templates-sheet\"]')");
     waitForComposerTemplatesTestId($page, 'composer-base-content');
 
     $page->assertValue('@composer-base-content', __('template_library.quick_win.body'))

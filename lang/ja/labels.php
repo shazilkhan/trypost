@@ -19,7 +19,6 @@ return [
         'delete' => 'ラベルを削除',
         'more' => 'その他の操作',
         'view_posts' => '投稿を表示',
-        'open_reporting' => 'レポートを開く',
     ],
 
     'create' => [

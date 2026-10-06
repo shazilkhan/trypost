@@ -152,7 +152,7 @@ const submitStage = (): void => {
         ref="boardGroup"
         tag="div"
         move-class="transition-transform duration-200 ease-out motion-reduce:transition-none"
-        class="relative flex min-h-0 flex-1 gap-4 overflow-x-auto overscroll-x-contain px-4 pt-4 pb-4 md:px-8"
+        class="relative flex min-h-0 min-w-0 max-w-full flex-1 gap-4 overflow-x-auto overscroll-x-contain px-4 pt-4 pb-4 md:px-8"
         data-testid="ideas-board"
     >
         <IdeaColumn

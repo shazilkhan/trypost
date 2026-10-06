@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { SwitchRootEmits, SwitchRootProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
-import { IconCheck, IconX } from "@tabler/icons-vue"
 import { reactiveOmit } from "@vueuse/core"
 import {
   SwitchRoot,
@@ -34,18 +33,6 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       props.class,
     )"
   >
-    <template v-if="size === 'sm'">
-      <IconCheck
-        aria-hidden="true"
-        stroke-width="2.2"
-        :class="cn('pointer-events-none absolute start-[3px] size-2.5 text-white transition-opacity duration-(--motion-duration-control-feedback) ease-(--motion-easing-control-feedback)', slotProps.modelValue ? 'opacity-100' : 'opacity-0')"
-      />
-      <IconX
-        aria-hidden="true"
-        stroke-width="2.2"
-        :class="cn('pointer-events-none absolute end-[3px] size-2.5 text-white transition-opacity duration-(--motion-duration-control-feedback) ease-(--motion-easing-control-feedback)', slotProps.modelValue ? 'opacity-0' : 'opacity-100')"
-      />
-    </template>
     <SwitchThumb
       data-slot="switch-thumb"
       :class="cn(

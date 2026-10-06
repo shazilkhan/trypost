@@ -58,6 +58,7 @@ return [
     'cancel' => 'إلغاء',
     'clear' => 'مسح',
     'close' => 'إغلاق',
+    'loading' => 'جارٍ التحميل...',
     'loading_more' => 'جارٍ تحميل المزيد...',
 
     'actions' => [

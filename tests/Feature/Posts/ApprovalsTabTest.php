@@ -65,12 +65,13 @@ test('approvers count and list every pending post, timed first then unscheduled'
             ->where('counts.approvals', 3)
             ->where('counts.queue', 0)
             ->where('counts.drafts', 0)
-            ->has('posts.data', 3)
-            ->where('posts.data.0.id', $sooner->id)
-            ->where('posts.data.1.id', $later->id)
-            ->where('posts.data.2.id', $queued->id)
-            ->where('posts.data.2.approval_queue_position', 'next')
-            ->where('posts.data.2.user.name', $this->requester->name));
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 3)
+                ->where('posts.data.0.id', $sooner->id)
+                ->where('posts.data.1.id', $later->id)
+                ->where('posts.data.2.id', $queued->id)
+                ->where('posts.data.2.approval_queue_position', 'next')
+                ->where('posts.data.2.user.name', $this->requester->name)));
 });
 
 test('requesters only count and see their own pending posts', function () {
@@ -81,8 +82,9 @@ test('requesters only count and see their own pending posts', function () {
         ->get(route('app.posts.index', ['tab' => 'approvals']))
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.approvals', 1)
-            ->has('posts.data', 1)
-            ->where('posts.data.0.id', $own->id));
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 1)
+                ->where('posts.data.0.id', $own->id)));
 });
 
 test('the approvals count follows the channel scope', function () {
@@ -100,10 +102,10 @@ test('pending posts never show in the queue or drafts tabs', function () {
 
     $this->actingAs($this->owner)
         ->get(route('app.posts.index', ['tab' => 'drafts']))
-        ->assertInertia(fn (AssertableInertia $page) => $page->has('posts.data', 0));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('hasData', false)->has('posts.data', 0));
 
     $this->get(route('app.posts.index'))
-        ->assertInertia(fn (AssertableInertia $page) => $page->where('tab', 'queue')->has('posts.data', 0));
+        ->assertInertia(fn (AssertableInertia $page) => $page->where('tab', 'queue')->where('hasData', false)->has('posts.data', 0));
 });
 
 test('a notes link to a pending post opens the approvals tab', function () {
@@ -129,13 +131,15 @@ test('a requester sees in approvals the scheduled post they sent back for approv
         ->get(route('app.posts.index', ['tab' => 'approvals']))
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.approvals', 1)
-            ->has('posts.data', 1)
-            ->where('posts.data.0.id', $scheduled->id));
+            ->loadDeferredProps(fn ($reload) => $reload
+                ->has('posts.data', 1)
+                ->where('posts.data.0.id', $scheduled->id)));
 
     $this->actingAs($this->otherRequester)
         ->get(route('app.posts.index', ['tab' => 'approvals']))
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.approvals', 0)
+            ->where('hasData', false)
             ->has('posts.data', 0));
 });
 
@@ -146,6 +150,7 @@ test('a requester does not see another member\'s request when it was edited by s
         ->get(route('app.posts.index', ['tab' => 'approvals']))
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('counts.approvals', 0)
+            ->where('hasData', false)
             ->has('posts.data', 0));
 });
 
@@ -157,5 +162,6 @@ test('a requester deep link to someone else\'s pending post reveals nothing', fu
         ->assertInertia(fn (AssertableInertia $page) => $page
             ->where('tab', 'approvals')
             ->where('counts.approvals', 0)
+            ->where('hasData', false)
             ->has('posts.data', 0));
 });

@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Пошук каналів',
     'channel_submenu' => 'Підменю :name',
     'toggle' => 'Показати або сховати бічну панель',
+    'collapse' => 'Згорнути бічну панель',
+    'expand' => 'Розгорнути бічну панель',
     'mobile_title' => 'Навігація',
     'mobile_description' => 'Основна навігація застосунку.',
     'repurposes' => 'Repurpose',

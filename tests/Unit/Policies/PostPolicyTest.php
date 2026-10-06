@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\Post\Status;
 use App\Models\Account;
 use App\Models\Post;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Policies\PostPolicy;
+use Illuminate\Auth\Access\Response;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 beforeEach(function () {
     $this->policy = new PostPolicy;
@@ -55,3 +58,28 @@ test('post update/delete/duplicate is allowed for every member and denied outsid
     'needs approval' => ['approval', true],
     'outsider' => ['outsider', false],
 ]);
+
+test('another member pending request is hidden as not found from a member who cannot approve it', function (string $access, bool $visible) {
+    [$actor, $post] = postPolicyActor($access);
+    $post->update(['status' => Status::PendingApproval]);
+
+    foreach (['view', 'update', 'delete', 'duplicate'] as $ability) {
+        $result = $this->policy->{$ability}($actor, $post->fresh());
+
+        expect($visible ? $result === true : $result instanceof Response && $result->status() === HttpResponse::HTTP_NOT_FOUND)->toBeTrue();
+    }
+})->with([
+    'owner' => ['owner', true],
+    'admin' => ['admin', true],
+    'member who publishes directly' => ['member', true],
+    'needs approval' => ['approval', false],
+]);
+
+test('a member who needs approval still reaches the pending request they asked for', function () {
+    [$actor, $post] = postPolicyActor('approval');
+    $post->update(['status' => Status::PendingApproval, 'approval_requested_by' => $actor->id]);
+
+    expect($this->policy->view($actor, $post->fresh()))->toBeTrue()
+        ->and($this->policy->update($actor, $post->fresh()))->toBeTrue()
+        ->and($this->policy->delete($actor, $post->fresh()))->toBeTrue();
+});

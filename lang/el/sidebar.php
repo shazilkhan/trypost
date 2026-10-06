@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Αναζήτηση καναλιών',
     'channel_submenu' => 'Υπομενού :name',
     'toggle' => 'Εναλλαγή πλευρικής στήλης',
+    'collapse' => 'Σύμπτυξη πλευρικής στήλης',
+    'expand' => 'Ανάπτυξη πλευρικής στήλης',
     'mobile_title' => 'Πλοήγηση',
     'mobile_description' => 'Κύρια πλοήγηση της εφαρμογής.',
     'repurposes' => 'Repurpose',

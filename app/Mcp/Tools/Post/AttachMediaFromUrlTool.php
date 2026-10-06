@@ -8,7 +8,7 @@ use App\Http\Resources\Api\PostResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Post;
 use App\Services\Post\MediaAttacher;
-use App\Support\PostMediaRules;
+use App\Support\Requests\Post\PostMediaRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -16,7 +16,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 
-#[Description('Download images, videos, or PDF documents from public URLs and attach them to a post. Each URL is fetched, stored, and registered as a Media record on the workspace. Allowed types are intersected with the platforms enabled on the post (e.g. nothing accepted if no platform supports the media type). Video duration is measured on the server. Per-network size, duration, GIF and MOV caps (see list-content-types-tool) are enforced when the post is scheduled or published.')]
+#[Description('Download images, videos, or PDF documents from public URLs and attach them to a post. Each URL is fetched, stored, and registered as a Media record on the workspace. Only the types the post\'s channel accepts are kept; a URL whose file type the channel does not accept is reported in failed_urls. Video duration is measured on the server. Per-network size, duration, GIF and MOV caps (see list-content-types-tool) are enforced when the post is scheduled or published.')]
 class AttachMediaFromUrlTool extends Tool
 {
     use AuthorizesMcpTool;
@@ -25,9 +25,7 @@ class AttachMediaFromUrlTool extends Tool
     {
         $validated = $request->validate([
             'post_id' => ['required', 'uuid'],
-            'urls' => ['required', 'array', 'min:1', 'max:10'],
-            'urls.*.url' => ['required', 'url:http,https', 'active_url'],
-            'urls.*.alt' => ['nullable', 'string', 'max:'.PostMediaRules::ALT_TEXT_MAX_LENGTH],
+            ...PostMediaRequestRules::attachFromUrl(),
         ]);
 
         $post = Post::where('workspace_id', $request->user()?->current_workspace_id)
@@ -37,7 +35,7 @@ class AttachMediaFromUrlTool extends Tool
             return Response::error('Post not found.');
         }
 
-        if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Not authorized to update this post.')) {
+        if ($denied = $this->denyUnlessCan($request, 'update', $post, 'Post not found.')) {
             return $denied;
         }
 

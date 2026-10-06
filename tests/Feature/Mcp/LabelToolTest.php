@@ -27,7 +27,7 @@ test('list labels returns wrapped labels array with LabelResource shape', functi
 
     $response->assertOk()
         ->assertStructuredContent(function (AssertableJson $json) {
-            $json->has('labels', 2, function (AssertableJson $label) {
+            $json->where('current_page', 1)->where('per_page', (int) config('app.pagination.default'))->etc()->has('labels', 2, function (AssertableJson $label) {
                 $label->hasAll(['id', 'name', 'color', 'created_at', 'updated_at'])
                     ->missing('workspace_id');
             });

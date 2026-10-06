@@ -11,6 +11,7 @@ return [
     'no_content' => 'No content',
     'more' => '+:count more',
     'less' => 'Show less',
+    'empty_day' => 'Nothing planned for this day.',
     'status' => [
         'label' => 'Status',
         'all' => 'All posts',

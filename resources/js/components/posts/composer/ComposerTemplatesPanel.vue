@@ -214,25 +214,28 @@ const openDelete = (template: PostTemplate): void => {
         data-testid="composer-templates-panel"
     >
         <div
-            class="flex shrink-0 items-center justify-between gap-2 px-8 pt-[22px] pb-3"
+            class="flex shrink-0 items-center justify-between gap-2 px-4 pt-[22px] pb-3 sm:px-8"
         >
             <h3 class="text-base leading-5 font-medium">
                 {{ $t('create.templates.panel.title') }}
             </h3>
-            <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                :aria-label="$t('create.templates.panel.new')"
-                data-testid="composer-templates-new"
-                @click="openCreate"
-            >
-                <IconPlus class="size-4" />
-            </Button>
+            <div class="flex items-center gap-1">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    :aria-label="$t('create.templates.panel.new')"
+                    data-testid="composer-templates-new"
+                    @click="openCreate"
+                >
+                    <IconPlus class="size-4" />
+                </Button>
+                <slot name="actions" />
+            </div>
         </div>
 
         <div
-            class="mx-8 flex shrink-0 gap-2 shadow-[inset_0_-1px_0_var(--color-border)]"
+            class="mx-4 flex shrink-0 gap-2 sm:mx-8 shadow-[inset_0_-1px_0_var(--color-border)]"
             role="tablist"
             :aria-label="$t('create.templates.scopes_label')"
         >
@@ -260,7 +263,7 @@ const openDelete = (template: PostTemplate): void => {
             </button>
         </div>
 
-        <div class="flex shrink-0 items-center gap-2 px-8 pt-3 pb-3">
+        <div class="flex shrink-0 items-center gap-2 px-4 pt-3 pb-3 sm:px-8">
             <div class="relative min-w-0 flex-1">
                 <IconSearch
                     class="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -290,7 +293,7 @@ const openDelete = (template: PostTemplate): void => {
             id="composer-templates-tabpanel"
             role="tabpanel"
             :aria-labelledby="`composer-templates-tab-${scope}`"
-            class="min-h-0 flex-1 space-y-3 overflow-y-auto px-8 pb-6"
+            class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-6 sm:px-8"
             data-testid="composer-templates-list"
         >
             <TemplateCard

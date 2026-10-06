@@ -37,8 +37,8 @@ test('list webhooks omits the signing secret', function () {
     );
 
     $response->assertOk();
-    $response->assertJsonCount(2);
-    expect($response->json('0'))->not->toHaveKey('signing_secret');
+    $response->assertJsonCount(2, 'data');
+    expect($response->json('data.0'))->not->toHaveKey('signing_secret');
 });
 
 test('list webhooks does not include other workspace webhooks', function () {
@@ -58,8 +58,8 @@ test('list webhooks does not include other workspace webhooks', function () {
     );
 
     $response->assertOk();
-    $response->assertJsonCount(1);
-    $response->assertJsonPath('0.endpoint', 'https://own.example.com/hook');
+    $response->assertJsonCount(1, 'data');
+    $response->assertJsonPath('data.0.endpoint', 'https://own.example.com/hook');
 });
 
 test('create webhook returns the signing secret', function () {

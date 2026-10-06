@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { IconChevronDown, IconSearch } from '@tabler/icons-vue';
+import { createReusableTemplate, useMediaQuery } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 
+import BottomSheet from '@/components/BottomSheet.vue';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -33,6 +35,8 @@ const props = withDefaults(
         extraCount?: number;
         align?: 'start' | 'center' | 'end';
         compact?: boolean;
+        iconOnlyOnMobile?: boolean;
+        sheetBelowSm?: boolean;
     }>(),
     {
         contentClass: 'w-72',
@@ -41,8 +45,14 @@ const props = withDefaults(
         extraCount: 0,
         align: 'end',
         compact: false,
+        iconOnlyOnMobile: false,
+        sheetBelowSm: false,
     },
 );
+
+const [DefinePanel, ReusePanel] = createReusableTemplate();
+const belowSm = useMediaQuery('(max-width: 639.98px)');
+const asSheet = computed(() => props.sheetBelowSm && belowSm.value);
 
 const emit = defineEmits<{ clear: []; close: [] }>();
 
@@ -75,6 +85,10 @@ const selectedCount = computed(
     () => selectedIds.value.length + props.extraCount,
 );
 
+const close = (): void => {
+    open.value = false;
+};
+
 const toggleAll = (): void => {
     if (selectedCount.value) {
         selectedIds.value = [];
@@ -88,6 +102,90 @@ const toggleAll = (): void => {
 </script>
 
 <template>
+    <DefinePanel>
+        <slot v-if="$slots.panel" name="panel" />
+        <template v-else>
+        <slot name="header" :sheet="asSheet" :close="close" />
+        <div class="relative">
+            <IconSearch
+                class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+                v-model="search"
+                type="search"
+                :placeholder="searchPlaceholder"
+                :aria-label="searchPlaceholder"
+                class="pl-9"
+                :data-testid="`${testId}-search`"
+            />
+        </div>
+
+        <div
+            v-if="showHeader"
+            class="mt-2 flex items-center justify-between p-2 text-sm text-foreground"
+        >
+            <span>{{ label }}</span>
+            <button
+                type="button"
+                class="rounded-sm transition-control hover:text-primary-text"
+                :data-testid="`${testId}-toggle-all`"
+                @click="toggleAll"
+            >
+                {{ selectedCount ? deselectAllLabel : selectAllLabel }}
+            </button>
+        </div>
+
+        <slot name="before-options" :search="search" />
+
+        <div
+            class="max-h-72 overflow-y-auto"
+            role="group"
+            :aria-label="label"
+        >
+            <template v-if="!visibleOptions.length">
+                <slot name="empty">
+                    <p
+                        class="px-2 py-6 text-center text-sm text-muted-foreground"
+                    >
+                        {{ emptyMessage }}
+                    </p>
+                </slot>
+            </template>
+            <div
+                v-for="option in visibleOptions"
+                :key="option.id"
+                class="flex cursor-pointer items-center gap-3 rounded-lg text-sm transition-control hover:bg-accent"
+                :class="compact ? 'min-h-8 px-2 py-1.5 leading-5' : 'min-h-12 p-2'"
+                :data-testid="`${testId}-option-${option.id}`"
+                @click="toggle(option.id)"
+            >
+                <Checkbox
+                    v-if="checkboxPosition === 'start'"
+                    :model-value="selectedIds.includes(option.id)"
+                    :aria-label="option.ariaLabel ?? option.label"
+                    :data-testid="`${testId}-checkbox-${option.id}`"
+                    @click.stop
+                    @update:model-value="toggle(option.id)"
+                />
+                <span class="min-w-0 flex-1">
+                    <slot name="option" :option="option">{{
+                        option.label
+                    }}</slot>
+                </span>
+                <Checkbox
+                    v-if="checkboxPosition === 'end'"
+                    :model-value="selectedIds.includes(option.id)"
+                    :aria-label="option.ariaLabel ?? option.label"
+                    :data-testid="`${testId}-checkbox-${option.id}`"
+                    @click.stop
+                    @update:model-value="toggle(option.id)"
+                />
+            </div>
+        </div>
+
+        <slot name="footer" />
+        </template>
+    </DefinePanel>
     <Popover v-model:open="open">
         <PopoverTrigger as-child>
             <slot name="trigger" :open="open">
@@ -96,7 +194,11 @@ const toggleAll = (): void => {
                     variant="ghost"
                     role="combobox"
                     :aria-expanded="open"
-                    class="shrink-0 data-[state=open]:bg-accent"
+                    :aria-label="iconOnlyOnMobile ? label : undefined"
+                    :class="[
+                        'shrink-0 data-[state=open]:bg-accent',
+                        { 'max-sm:border max-sm:border-border-strong': iconOnlyOnMobile },
+                    ]"
                     :data-testid="`${testId}-filter`"
                 >
                     <span
@@ -104,7 +206,9 @@ const toggleAll = (): void => {
                     >
                         <slot name="icon" />
                     </span>
-                    <span>{{ label }}</span>
+                    <span :class="{ 'max-sm:hidden': iconOnlyOnMobile }">{{
+                        label
+                    }}</span>
                     <span
                         v-if="selectedCount"
                         class="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-xs font-medium text-primary-foreground"
@@ -119,91 +223,21 @@ const toggleAll = (): void => {
         </PopoverTrigger>
 
         <PopoverContent
+            v-if="!asSheet"
             :class="['max-w-[calc(100vw-2rem)] p-3', contentClass]"
             :align="align"
         >
-            <slot v-if="$slots.panel" name="panel" />
-            <template v-else>
-            <slot name="header" />
-            <div class="relative">
-                <IconSearch
-                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                    v-model="search"
-                    type="search"
-                    :placeholder="searchPlaceholder"
-                    :aria-label="searchPlaceholder"
-                    class="pl-9"
-                    :data-testid="`${testId}-search`"
-                />
-            </div>
-
-            <div
-                v-if="showHeader"
-                class="mt-2 flex items-center justify-between p-2 text-sm text-foreground"
-            >
-                <span>{{ label }}</span>
-                <button
-                    type="button"
-                    class="rounded-sm transition-control hover:text-primary-text"
-                    :data-testid="`${testId}-toggle-all`"
-                    @click="toggleAll"
-                >
-                    {{ selectedCount ? deselectAllLabel : selectAllLabel }}
-                </button>
-            </div>
-
-            <slot name="before-options" :search="search" />
-
-            <div
-                class="max-h-72 overflow-y-auto"
-                role="group"
-                :aria-label="label"
-            >
-                <template v-if="!visibleOptions.length">
-                    <slot name="empty">
-                        <p
-                            class="px-2 py-6 text-center text-sm text-muted-foreground"
-                        >
-                            {{ emptyMessage }}
-                        </p>
-                    </slot>
-                </template>
-                <div
-                    v-for="option in visibleOptions"
-                    :key="option.id"
-                    class="flex cursor-pointer items-center gap-3 rounded-lg text-sm transition-control hover:bg-accent"
-                    :class="compact ? 'min-h-8 px-2 py-1.5 leading-5' : 'min-h-12 p-2'"
-                    :data-testid="`${testId}-option-${option.id}`"
-                    @click="toggle(option.id)"
-                >
-                    <Checkbox
-                        v-if="checkboxPosition === 'start'"
-                        :model-value="selectedIds.includes(option.id)"
-                        :aria-label="option.ariaLabel ?? option.label"
-                        :data-testid="`${testId}-checkbox-${option.id}`"
-                        @click.stop
-                        @update:model-value="toggle(option.id)"
-                    />
-                    <span class="min-w-0 flex-1">
-                        <slot name="option" :option="option">{{
-                            option.label
-                        }}</slot>
-                    </span>
-                    <Checkbox
-                        v-if="checkboxPosition === 'end'"
-                        :model-value="selectedIds.includes(option.id)"
-                        :aria-label="option.ariaLabel ?? option.label"
-                        :data-testid="`${testId}-checkbox-${option.id}`"
-                        @click.stop
-                        @update:model-value="toggle(option.id)"
-                    />
-                </div>
-            </div>
-
-            <slot name="footer" />
-            </template>
+            <ReusePanel />
         </PopoverContent>
     </Popover>
+    <BottomSheet
+        v-if="asSheet"
+        v-model:open="open"
+        :title="label"
+        :show-header="false"
+        :test-id="`${testId}-sheet`"
+        content-class="p-3"
+    >
+        <ReusePanel />
+    </BottomSheet>
 </template>

@@ -816,3 +816,59 @@ test('the new stage button turns into an empty column in place and escape brings
         ->and($restored['focused'])->toBeTrue();
     $page->assertNoJavaScriptErrors();
 });
+
+test('on a phone the label filter shows only its icon and the page does not scroll sideways', function () {
+    [$user, $workspace, $stages] = createIdeasBoardSetup();
+    createIdeasBoardIdea($workspace, $user, null, 0, 'First');
+    foreach ($stages as $stage) {
+        foreach (range(1, 3) as $position) {
+            createIdeasBoardIdea($workspace, $user, $stage, $position, "Idea {$position}");
+        }
+    }
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'))->resize(390, 844);
+    waitForCreateIdeasBoardTestId($page, 'ideas-filter-labels-filter');
+    waitForCreateIdeasBoardTestId($page, 'ideas-board');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const trigger = document.querySelector('[data-testid="ideas-filter-labels-filter"]');
+            const visibleText = [...trigger.querySelectorAll('span')].filter((span) => span.offsetParent !== null && span.textContent.trim() !== '').length;
+
+            return {
+                visibleText,
+                label: trigger.getAttribute('aria-label') !== null,
+                overflow: document.documentElement.scrollWidth - window.innerWidth,
+                boardScrolls: document.querySelector('[data-testid="ideas-board"]').scrollWidth > document.querySelector('[data-testid="ideas-board"]').clientWidth,
+            };
+        })()
+    JS))->toBe(['visibleText' => 0, 'label' => true, 'overflow' => 0, 'boardScrolls' => true]);
+
+    $page->resize(1280, 900);
+    waitForCreateIdeasBoardCondition($page, "[...document.querySelector('[data-testid=\"ideas-filter-labels-filter\"]').querySelectorAll('span')].some((span) => span.offsetParent !== null && span.textContent.trim() !== '')");
+    expect($page->script("[...document.querySelector('[data-testid=\"ideas-filter-labels-filter\"]').querySelectorAll('span')].some((span) => span.offsetParent !== null && span.textContent.trim() !== '')"))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('on a phone the create tabs and the board toolbar share one header row', function () {
+    [$user, $workspace] = createIdeasBoardSetup();
+    createIdeasBoardIdea($workspace, $user, null, 0, 'First');
+    $this->actingAs($user);
+
+    $page = visit(route('app.create.ideas.index'))->resize(390, 844);
+    waitForCreateIdeasBoardTestId($page, 'ideas-filter-labels-filter');
+
+    expect($page->script(<<<'JS'
+        (() => {
+            const tabs = document.querySelector('[data-testid="create-tabs"]').getBoundingClientRect();
+            const filter = document.querySelector('[data-testid="ideas-filter-labels-filter"]').getBoundingClientRect();
+
+            return {
+                sameRow: filter.top < tabs.bottom && filter.bottom > tabs.top,
+                overflow: document.documentElement.scrollWidth - window.innerWidth,
+            };
+        })()
+    JS))->toBe(['sameRow' => true, 'overflow' => 0]);
+    $page->assertNoJavaScriptErrors();
+});

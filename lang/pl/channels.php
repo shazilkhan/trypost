@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Twoje godziny publikacji mówią TryPost, kiedy wysyłać posty z kolejki. Kolejne posty dodane do kolejki zostaną opublikowane w najbliższych godzinach poniżej.',
         'day_on' => 'Wł.',
         'day_off' => 'Wył.',
+        'day_empty' => 'Brak godzin',
         'remove_time' => 'Usuń :time',
         'edit_hour' => 'Zmień godzinę :time',
         'edit_minute' => 'Zmień minuty :time',

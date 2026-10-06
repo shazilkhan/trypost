@@ -19,7 +19,6 @@ return [
         'delete' => '라벨 삭제',
         'more' => '추가 작업',
         'view_posts' => '게시물 보기',
-        'open_reporting' => '리포트 열기',
     ],
 
     'create' => [

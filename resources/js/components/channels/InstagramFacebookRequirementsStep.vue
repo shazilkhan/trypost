@@ -25,7 +25,7 @@ const LINK_PAGE_HELP_URL =
             <div
                 class="mx-auto flex w-full max-w-[720px] flex-col gap-8 px-4 pt-2 pb-8 sm:px-6"
             >
-                <header class="flex flex-col gap-2 text-center">
+                <header class="flex flex-col gap-2 text-center max-sm:px-10">
                     <DialogTitle
                         class="font-sans text-xl leading-tight font-medium text-foreground"
                     >

@@ -33,15 +33,17 @@ defineProps<{
                     <InfoTip v-if="info" :text="info" :test-id="infoTestid" />
                 </div>
                 <p
-                    v-if="subtitle || range"
+                    v-if="subtitle || range || $slots.subtitle"
                     class="text-xs text-muted-foreground"
                     :data-testid="subtitleTestid"
                 >
-                    {{
-                        range
-                            ? `${date.formatDayMonthYear(range.start)} – ${date.formatDayMonthYear(range.end)}`
-                            : subtitle
-                    }}
+                    <slot name="subtitle">
+                        {{
+                            range
+                                ? `${date.formatDayMonthYear(range.start)} – ${date.formatDayMonthYear(range.end)}`
+                                : subtitle
+                        }}
+                    </slot>
                 </p>
             </div>
             <slot name="actions" />

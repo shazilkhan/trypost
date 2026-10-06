@@ -66,11 +66,11 @@ test('members who need approval cannot use the approval tools', function () {
 
     TryPostServer::actingAs($this->requester)
         ->tool(ApprovePostTool::class, ['post_id' => $request->id])
-        ->assertHasErrors(['Not authorized to approve this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     TryPostServer::actingAs($this->requester)
         ->tool(RejectPostTool::class, ['post_id' => $request->id])
-        ->assertHasErrors(['Not authorized to reject this post.']);
+        ->assertHasErrors(['This action is unauthorized.']);
 
     expect($request->fresh()->status)->toBe(PostStatus::PendingApproval);
 });
@@ -83,7 +83,7 @@ test('list posts filters posts waiting for approval', function () {
         ->tool(ListPostsTool::class, ['status' => PostStatus::PendingApproval->value])
         ->assertOk()
         ->assertStructuredContent(fn (AssertableJson $json) => $json
-            ->has('posts', 1, fn (AssertableJson $post) => $post->where('status', PostStatus::PendingApproval->value)->etc()));
+            ->has('posts', 1, fn (AssertableJson $post) => $post->where('status', PostStatus::PendingApproval->value)->etc())->etc());
 });
 
 test('approving a post that is no longer pending returns an error', function () {

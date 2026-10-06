@@ -13,6 +13,7 @@ return [
     'no_content' => 'İçerik yok',
     'more' => '+:count daha',
     'less' => 'Daha az göster',
+    'empty_day' => 'Bu gün için planlanmış bir şey yok.',
     'status' => [
         'label' => 'Durum',
         'all' => 'Tüm gönderiler',

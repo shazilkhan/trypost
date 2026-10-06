@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => 'np. Osoby, które kochają wystrój wnętrz i ręcznie robione prezenty',
             'notes_label' => 'Coś jeszcze? (opcjonalnie)',
             'notes_placeholder' => 'Ton, tematy do poruszenia lub unikania, nadchodzące premiery',
-            'count_label' => 'Ile pomysłów?',
-            'stage_label' => 'Dodaj do grupy',
+            'again' => 'Generuj ponownie',
+            'use' => 'Użyj pomysłu',
             'submit' => 'Generuj pomysły',
         ],
         'default_stages' => [

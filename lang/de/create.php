@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => 'z. B. Menschen, die Wohndeko und handgemachte Geschenke lieben',
             'notes_label' => 'Sonst noch etwas? (optional)',
             'notes_placeholder' => 'Tonalität, Themen oder No-Gos, anstehende Launches',
-            'count_label' => 'Wie viele Ideen?',
-            'stage_label' => 'Zur Gruppe hinzufügen',
+            'again' => 'Neu generieren',
+            'use' => 'Idee verwenden',
             'submit' => 'Ideen generieren',
         ],
         'default_stages' => [

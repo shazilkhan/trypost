@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Kanalen zoeken',
     'channel_submenu' => 'Submenu van :name',
     'toggle' => 'Zijbalk in- of uitklappen',
+    'collapse' => 'Zijbalk inklappen',
+    'expand' => 'Zijbalk uitklappen',
     'mobile_title' => 'Navigatie',
     'mobile_description' => 'Hoofdnavigatie van de app.',
     'repurposes' => 'Repurpose',

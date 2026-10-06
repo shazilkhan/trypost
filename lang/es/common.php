@@ -58,6 +58,7 @@ return [
     'cancel' => 'Cancelar',
     'clear' => 'Limpiar',
     'close' => 'Cerrar',
+    'loading' => 'Cargando...',
     'loading_more' => 'Cargando más...',
 
     'actions' => [

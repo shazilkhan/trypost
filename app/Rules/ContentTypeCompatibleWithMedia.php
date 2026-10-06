@@ -86,12 +86,15 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
      * The per-platform entries to validate for a post update: each platform's
      * effective content_type (resubmitted in this request, else its stored
      * value), keyed by the error path the caller surfaces. When
-     * $requestPlatforms is null, the post's currently-enabled platforms are used.
+     * $requestPlatforms is null, the post's currently-enabled platforms are used,
+     * and with $media (media sent without a content type) a network whose type
+     * follows its media (ContentType::derivesFromMedia()) takes the type it decides.
      *
      * @param  array<int, mixed>|null  $requestPlatforms
+     * @param  array<int, mixed>|null  $media
      * @return array<int, array{key: string, content_type: string|null}>
      */
-    public static function entriesForUpdate(Post $post, ?array $requestPlatforms): array
+    public static function entriesForUpdate(Post $post, ?array $requestPlatforms, ?array $media = null): array
     {
         if (is_array($requestPlatforms)) {
             $stored = $post->postPlatforms()->get()->keyBy('id');
@@ -105,7 +108,9 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
         return $post->postPlatforms()->enabled()->get()->values()
             ->map(fn ($postPlatform, $index): array => [
                 'key' => "platforms.{$index}.content_type",
-                'content_type' => $postPlatform->content_type?->value,
+                'content_type' => $media !== null && ContentType::derivesFromMedia($postPlatform->platform)
+                    ? ContentType::forMedia($postPlatform->platform, $media)->value
+                    : $postPlatform->content_type?->value,
             ])->all();
     }
 
@@ -380,8 +385,10 @@ class ContentTypeCompatibleWithMedia implements DataAwareRule, ValidationRule
         }
 
         $rows = ResolveWorkspaceMedia::byUploadTokens($this->workspace, $tokens)
+            ->toBase()
             ->mapWithKeys(fn (Media $row, string $token): array => ["token:{$token}" => $row])
             ->merge(ResolveWorkspaceMedia::execute($this->workspace, $ids)
+                ->toBase()
                 ->mapWithKeys(fn (Media $row, string $id): array => ["id:{$id}" => $row]));
 
         $this->resolvedRows = ['key' => $key, 'rows' => $rows];

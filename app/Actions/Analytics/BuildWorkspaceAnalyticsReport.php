@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions\Analytics;
 
 use App\Dto\Analytics\DateRange;
+use App\Dto\Analytics\PublicationFilter;
 use App\Enums\User\WeekStart;
 use App\Models\AnalyticsSyncState;
 use App\Models\SocialAccount;
@@ -26,15 +27,13 @@ class BuildWorkspaceAnalyticsReport
     /**
      * @param  array{start?: string, end?: string, observed_through?: string}  $selected
      * @param  array<string, string>|null  $channelKeys  Analytics key of each selected social account (already resolved for tenancy), keyed by account id; null means every channel.
-     * @param  list<string>  $labelIds  Workspace label ids already resolved for tenancy; restricts post metrics only.
-     * @param  bool  $untagged  Also count TryPost posts without labels (a union with $labelIds); restricts post metrics only.
      * @return array<string, mixed>
      */
-    public function forSelection(Workspace $workspace, array $selected = [], ?array $channelKeys = null, bool $clampToBounds = true, array $labelIds = [], bool $untagged = false, WeekStart $weekStart = WeekStart::DEFAULT): array
+    public function forSelection(Workspace $workspace, array $selected = [], ?array $channelKeys = null, bool $clampToBounds = true, WeekStart $weekStart = WeekStart::DEFAULT): array
     {
         ['bounds' => $bounds, 'range' => $range] = $this->resolveRange($workspace, $selected, $this->keys($channelKeys), $clampToBounds);
 
-        return $this->forRange($workspace, $range, $bounds, $channelKeys, $labelIds, $untagged, $weekStart);
+        return $this->forRange($workspace, $range, $bounds, $channelKeys, $weekStart);
     }
 
     /**
@@ -53,29 +52,30 @@ class BuildWorkspaceAnalyticsReport
      * @param  array{min: ?string, max: ?string}|null  $bounds
      * @return array<string, mixed>
      */
-    public function execute(Workspace $workspace, DateRange $range, ?array $bounds = null, ?SocialAccount $channel = null, ?string $accountKey = null, WeekStart $weekStart = WeekStart::DEFAULT): array
+    public function execute(Workspace $workspace, DateRange $range, ?array $bounds = null, ?SocialAccount $channel = null, ?string $accountKey = null, WeekStart $weekStart = WeekStart::DEFAULT, ?PublicationFilter $filter = null): array
     {
         $channelKeys = $channel === null ? null : [$channel->id => $accountKey ?? $this->accountKey->for($channel)];
 
-        return $this->forRange($workspace, $range, $bounds, $channelKeys, weekStart: $weekStart);
+        return $this->forRange($workspace, $range, $bounds, $channelKeys, $weekStart, $filter);
     }
 
     /**
      * @param  array{min: ?string, max: ?string}|null  $bounds
      * @param  array<string, string>|null  $channelKeys
-     * @param  list<string>  $labelIds
+     * @param  PublicationFilter|null  $filter  Narrows post metrics only; followers stay account-wide.
      * @return array<string, mixed>
      */
-    public function forRange(Workspace $workspace, DateRange $range, ?array $bounds, ?array $channelKeys, array $labelIds = [], bool $untagged = false, WeekStart $weekStart = WeekStart::DEFAULT): array
+    public function forRange(Workspace $workspace, DateRange $range, ?array $bounds, ?array $channelKeys, WeekStart $weekStart = WeekStart::DEFAULT, ?PublicationFilter $filter = null): array
     {
         $accountKeys = $this->keys($channelKeys);
         $previous = $range->previous();
-        $publications = $this->publications->execute($workspace, $previous, $range, $accountKeys, $labelIds, $untagged, $weekStart);
+        $publications = $this->publications->execute($workspace, $previous, $range, $accountKeys, $weekStart, $filter);
         $followers = $this->followers->execute($workspace, $previous, $range, $channelKeys);
         $current = data_get($publications, 'current_totals');
         $prior = data_get($publications, 'previous_totals');
         $currentFollowers = data_get($followers, 'current_total');
         $previousFollowers = data_get($followers, 'previous_total');
+        $currentNet = data_get($followers, 'current_net');
 
         $topPosts = data_get($publications, 'top_posts');
         $postAccounts = data_get($publications, 'posts.accounts');
@@ -98,13 +98,21 @@ class BuildWorkspaceAnalyticsReport
                 'followers' => [
                     'value' => $currentFollowers,
                     'previous' => $previousFollowers,
-                    'change' => $currentFollowers !== null && $previousFollowers !== null
-                        ? $currentFollowers - $previousFollowers : null,
+                    'change' => match (true) {
+                        $currentFollowers === null => null,
+                        $previousFollowers !== null => $currentFollowers - $previousFollowers,
+                        default => $currentNet,
+                    },
                 ],
+                'net_followers' => MetricComparison::between($currentNet, data_get($followers, 'previous_net')),
                 'reactions' => MetricComparison::between(data_get($current, 'reactions'), data_get($prior, 'reactions')),
                 'comments' => MetricComparison::between(data_get($current, 'comments'), data_get($prior, 'comments')),
                 'engagement_rate' => MetricComparison::between(data_get($current, 'engagement_rate'), data_get($prior, 'engagement_rate')),
                 'views' => MetricComparison::between(data_get($current, 'views'), data_get($prior, 'views')),
+                'impressions' => MetricComparison::between(data_get($current, 'impressions'), data_get($prior, 'impressions')),
+                'clicks' => MetricComparison::between(data_get($current, 'clicks'), data_get($prior, 'clicks')),
+                'reposts' => MetricComparison::between(data_get($current, 'reposts'), data_get($prior, 'reposts')),
+                'quotes' => MetricComparison::between(data_get($current, 'quotes'), data_get($prior, 'quotes')),
                 'reach' => MetricComparison::between(data_get($current, 'reach'), data_get($prior, 'reach')),
                 'shares' => MetricComparison::between(data_get($current, 'shares'), data_get($prior, 'shares')),
                 'saves' => MetricComparison::between(data_get($current, 'saves'), data_get($prior, 'saves')),

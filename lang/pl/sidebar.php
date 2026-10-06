@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Szukaj kanałów',
     'channel_submenu' => 'Podmenu :name',
     'toggle' => 'Przełącz pasek boczny',
+    'collapse' => 'Zwiń pasek boczny',
+    'expand' => 'Rozwiń pasek boczny',
     'mobile_title' => 'Nawigacja',
     'mobile_description' => 'Główna nawigacja aplikacji.',
     'repurposes' => 'Repurpose',

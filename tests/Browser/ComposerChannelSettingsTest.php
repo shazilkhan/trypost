@@ -1244,6 +1244,17 @@ test('the x preview shows the verified badge next to the name', function () {
         ->assertNoJavaScriptErrors();
 });
 
+test('the google business preview shows no verified badge', function () {
+    fakeChannelSettingsApis();
+    $postPlatform = seedChannelSettingsPost(Platform::GoogleBusiness, ContentType::GoogleBusinessPost);
+
+    $page = visit(route('app.posts.edit', $postPlatform->post))->resize(1440, 1000);
+    waitForChannelSettingsTestId($page, 'google-business-preview');
+
+    expect($page->script("document.querySelector('[data-testid=\"google-business-preview\"] .text-info.rounded-full, [data-testid=\"google-business-preview\"] [data-testid=\"preview-verified\"]') === null"))->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
 test('a youtube video with neither text nor a title warns in its card until a title is set', function () {
     fakeChannelSettingsApis();
     $video = [['id' => (string) Str::uuid(), 'type' => 'video', 'path' => 'medias/clip.mp4', 'url' => 'https://example.com/clip.mp4', 'mime_type' => 'video/mp4', 'original_filename' => 'clip.mp4']];

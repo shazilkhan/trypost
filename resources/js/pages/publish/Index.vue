@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Head, InfiniteScroll, Link, router, usePage } from '@inertiajs/vue3';
+import {
+    Deferred,
+    Head,
+    InfiniteScroll,
+    Link,
+    router,
+    usePage,
+} from '@inertiajs/vue3';
 import {
     IconDotsVertical,
     IconFileText,
@@ -29,6 +36,7 @@ import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
 import DayHeading from '@/components/publish/DayHeading.vue';
 import NewPostButton from '@/components/publish/NewPostButton.vue';
+import PostListSkeleton from '@/components/publish/PostListSkeleton.vue';
 import PostTimelineCard from '@/components/publish/PostTimelineCard.vue';
 import PublishEmptyIllustration from '@/components/publish/PublishEmptyIllustration.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
@@ -44,6 +52,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useWorkspaceEcho } from '@/composables/echo/useWorkspaceEcho';
+import { useComposerData } from '@/composables/useComposerData';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
@@ -54,7 +63,6 @@ import {
     schedulePostCard,
 } from '@/composables/usePostCardActions';
 import type {
-    ComposerAccount,
     ComposerInitialDraft,
     ComposerInitialPost,
     PostComposition,
@@ -97,6 +105,8 @@ interface Props {
     channel: PublishChannel | null;
     tab: PublishTab;
     counts: PublishCounts;
+    hasData: boolean;
+    hasQueueSlots: boolean;
     displayTimezone: string;
     timezones: TimezoneOption[];
     queue?: PublishQueue;
@@ -112,11 +122,6 @@ interface Props {
     openComposerAssistant?: boolean;
     initialComposerDate?: string | null;
     editPost?: PostCard | null;
-    socialAccounts?: ComposerAccount[];
-    platformConfigs?: Record<string, any>;
-    pinterestBoards?: Record<string, any>;
-    tiktokCreatorInfos?: Record<string, any>;
-    signatures?: { id: string; name: string; content: string }[];
 }
 
 interface CardGroup {
@@ -211,7 +216,7 @@ const applyFilters = (): void => {
             preserveState: true,
             preserveScroll: true,
             replace: true,
-            only: ['posts', 'queue', 'counts', 'filters'],
+            only: ['posts', 'queue', 'counts', 'hasData', 'filters'],
             reset: ['posts'],
         },
     );
@@ -487,7 +492,10 @@ const withChannelOrder = (
     return { ...queue, days, posts };
 };
 
-const QUEUE_RELOAD = { only: ['queue', 'posts', 'counts'], reset: ['posts'] };
+const QUEUE_RELOAD = {
+    only: ['queue', 'posts', 'counts', 'hasData'],
+    reset: ['posts'],
+};
 
 const reordering = ref(false);
 
@@ -616,13 +624,6 @@ const moveToSlot = (postId: string, slot: QueueSlotTarget): void => {
     );
 };
 
-const hasActiveFilters = computed(
-    () =>
-        selectedLabelIds.value.length > 0 ||
-        selectedUntagged.value ||
-        selectedChannelIds.value.length > 0,
-);
-
 const hasChannels = computed(
     () => props.channel !== null || props.filterAccounts.length > 0,
 );
@@ -645,6 +646,41 @@ const isEmpty = computed(() =>
         : (props.posts?.data.length ?? 0) === 0,
 );
 
+const listProps = computed<string[]>(() =>
+    props.tab === 'queue' ? ['posts', 'queue'] : ['posts'],
+);
+
+const hasActiveFilters = computed(
+    () =>
+        selectedLabelIds.value.length > 0 ||
+        selectedUntagged.value ||
+        selectedChannelIds.value.length > 0,
+);
+
+const isListLoaded = computed(() =>
+    listProps.value.every(
+        (key) => props[key as 'posts' | 'queue'] !== undefined,
+    ),
+);
+
+const showsQueueSlots = computed(
+    () => props.tab === 'queue' && (showSlots.value || !props.channel),
+);
+
+const hasListData = computed(
+    () => props.hasData || (showsQueueSlots.value && props.hasQueueSlots),
+);
+
+const showFirstUse = computed(
+    () =>
+        !hasListData.value ||
+        (isListLoaded.value && isEmpty.value && !hasActiveFilters.value),
+);
+
+const skeletonVariant = computed<'list' | 'timeline'>(() =>
+    showsQueueSlots.value ? 'timeline' : 'list',
+);
+
 const deleteModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 
 provide(editPostCardUrlKey, (post: PostCard) =>
@@ -662,7 +698,7 @@ provide(deletePostCardKey, (post: PostCard) => {
 
 const refresh = (): void =>
     router.reload({
-        only: ['queue', 'posts', 'counts', 'channels'],
+        only: ['queue', 'posts', 'counts', 'hasData', 'channels'],
         reset: ['posts'],
     });
 
@@ -678,6 +714,16 @@ useWorkspaceEcho<{ post_id: string; change: string }>(
     },
 );
 
+const {
+    socialAccounts: composerAccounts,
+    labels: composerLabels,
+    signatures: composerSignatures,
+    platformConfigs: composerPlatformConfigs,
+    pinterestBoards: composerPinterestBoards,
+    tiktokCreatorInfos: composerTiktokCreatorInfos,
+    load: loadComposerData,
+    reset: resetComposerData,
+} = useComposerData();
 const composerOpen = ref(Boolean(props.openComposer));
 const composerSubmitting = ref(false);
 
@@ -717,6 +763,18 @@ watch(
     (open) => {
         composerOpen.value = Boolean(open);
     },
+);
+
+watch(
+    () => [props.openComposer, props.editPost?.id],
+    () => {
+        if (props.openComposer) {
+            void loadComposerData();
+        } else {
+            resetComposerData();
+        }
+    },
+    { immediate: true },
 );
 
 const onComposerOpenChange = (open: boolean): void => {
@@ -828,12 +886,12 @@ const submitComposition = (
             data-testid="publish-page"
         >
             <div
-                class="mx-4 mt-2 flex shrink-0 flex-col md:mx-8 md:h-12 md:flex-row md:items-center md:justify-between md:gap-4 md:border-b md:border-border-strong"
+                class="mx-4 mt-2 flex shrink-0 flex-col border-b border-border-strong md:mx-8 md:h-12 md:flex-row md:items-center md:justify-between md:gap-4"
             >
                 <PublishTabs :tab="tab" :counts="counts" :href-for="listUrl" />
 
                 <div
-                    class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 py-2 md:mx-0 md:overflow-visible md:px-0 md:py-0"
+                    class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 pt-2 pb-3 md:mx-0 md:overflow-visible md:px-0 md:py-0"
                     data-testid="publish-filters"
                 >
                     <PostChannelFilter
@@ -858,6 +916,7 @@ const submitComposition = (
                             testid="publish-timezone"
                             variant="ghost"
                             compact
+                            icon-only-on-mobile
                             @update:model-value="setTimezone"
                         />
                     </div>
@@ -904,14 +963,7 @@ const submitComposition = (
             </div>
 
             <EmptyState
-                v-if="isEmpty && hasActiveFilters"
-                :icon="IconFileText"
-                :title="$t('posts.no_search_results')"
-                :description="$t('posts.try_different_search')"
-            />
-
-            <EmptyState
-                v-else-if="isEmpty && !hasChannels"
+                v-if="showFirstUse && !hasChannels"
                 :title="$t('posts.publish.welcome.title')"
                 :description="$t('posts.publish.welcome.description')"
                 data-testid="publish-welcome"
@@ -942,7 +994,7 @@ const submitComposition = (
             </EmptyState>
 
             <EmptyState
-                v-else-if="isEmpty"
+                v-else-if="showFirstUse"
                 :title="$t(`posts.publish.empty.${tab}.title`)"
                 :description="$t(`posts.publish.empty.${tab}.description`)"
             >
@@ -971,112 +1023,125 @@ const submitComposition = (
                 </template>
             </EmptyState>
 
-            <div
-                v-else-if="tab === 'queue'"
-                class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain pb-px"
-                data-testid="posts-scroll"
-            >
-                <InfiniteScroll
-                    data="posts"
-                    items-element="#posts-body"
-                    preserve-url
-                >
-                    <div
-                        id="posts-body"
-                        class="mx-auto flex w-full max-w-[900px] flex-col px-4 pt-6 pb-12 md:px-12"
-                    >
-                        <QueueTimeline
-                            :days="visibleQueueDays"
-                            :posts="localQueue.posts"
-                            :publishing="publishingPosts"
-                            :queue-days="queue?.queueDays ?? 0"
-                            :can-load-more-times="canLoadMoreTimes"
-                            :channels="queueChannels"
-                            :display-timezone="timezone"
-                            :reorderable="
-                                canPublishDirectly &&
-                                selectedLabelIds.length === 0 &&
-                                !selectedUntagged &&
-                                !reordering
-                            "
-                            :slot-drop="channel !== null"
-                            @reorder="reorderQueue"
-                            @move-to-slot="moveToSlot"
-                            @move-top="
-                                (post) =>
-                                    schedulePostCard(
-                                        post.id,
-                                        'queue_top',
-                                        QUEUE_RELOAD,
-                                    )
-                            "
-                        />
-                    </div>
+            <Deferred v-else :data="listProps">
+                <template #fallback>
+                    <PostListSkeleton :tab="tab" :variant="skeletonVariant" />
+                </template>
 
-                    <template #next="{ loading }">
-                        <p
-                            v-if="loading"
-                            class="py-5 text-center text-sm text-muted-foreground"
-                            role="status"
-                        >
-                            {{ $t('common.loading_more') }}
-                        </p>
-                    </template>
-                </InfiniteScroll>
-            </div>
+                <EmptyState
+                    v-if="isEmpty"
+                    :icon="IconFileText"
+                    :title="$t('posts.no_search_results')"
+                    :description="$t('posts.try_different_search')"
+                />
 
-            <div
-                v-else
-                class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain pb-px"
-                data-testid="posts-scroll"
-            >
-                <InfiniteScroll
-                    data="posts"
-                    items-element="#posts-body"
-                    preserve-url
+                <div
+                    v-else-if="tab === 'queue'"
+                    class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain pb-px"
+                    data-testid="posts-scroll"
                 >
-                    <div
-                        id="posts-body"
-                        class="mx-auto flex w-full max-w-[900px] flex-col gap-10 px-4 pt-6 pb-12 md:px-12"
+                    <InfiniteScroll
+                        data="posts"
+                        items-element="#posts-body"
+                        preserve-url
                     >
-                        <section
-                            v-for="group in listGroups"
-                            :key="group.key"
-                            class="flex flex-col gap-6"
-                            :data-testid="`publish-day-${group.key}`"
+                        <div
+                            id="posts-body"
+                            class="mx-auto flex w-full max-w-[900px] flex-col px-4 pt-6 pb-12 md:px-12"
                         >
-                            <h2
-                                v-if="group.key === NO_TIME"
-                                class="text-base leading-5 font-emphasis text-foreground"
-                            >
-                                {{ $t('posts.publish.unscheduled') }}
-                            </h2>
-                            <DayHeading
-                                v-else
-                                :date-key="group.key"
-                                :timezone="timezone"
-                            />
-                            <PostTimelineCard
-                                v-for="post in group.posts"
-                                :key="post.card_key ?? post.id"
-                                :post="post"
-                                :tab="tab"
+                            <QueueTimeline
+                                :days="visibleQueueDays"
+                                :posts="localQueue.posts"
+                                :publishing="publishingPosts"
+                                :queue-days="queue?.queueDays ?? 0"
+                                :can-load-more-times="canLoadMoreTimes"
+                                :channels="queueChannels"
                                 :display-timezone="timezone"
+                                :reorderable="
+                                    canPublishDirectly &&
+                                    selectedLabelIds.length === 0 &&
+                                    !selectedUntagged &&
+                                    !reordering
+                                "
+                                :slot-drop="channel !== null"
+                                @reorder="reorderQueue"
+                                @move-to-slot="moveToSlot"
+                                @move-top="
+                                    (post) =>
+                                        schedulePostCard(
+                                            post.id,
+                                            'queue_top',
+                                            QUEUE_RELOAD,
+                                        )
+                                "
                             />
-                        </section>
-                    </div>
+                        </div>
 
-                    <template #next="{ loading }">
-                        <p
-                            v-if="loading"
-                            class="py-5 text-center text-sm text-muted-foreground"
-                            role="status"
+                        <template #next="{ loading }">
+                            <p
+                                v-if="loading"
+                                class="py-5 text-center text-sm text-muted-foreground"
+                                role="status"
+                            >
+                                {{ $t('common.loading_more') }}
+                            </p>
+                        </template>
+                    </InfiniteScroll>
+                </div>
+
+                <div
+                    v-else
+                    class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain pb-px"
+                    data-testid="posts-scroll"
+                >
+                    <InfiniteScroll
+                        data="posts"
+                        items-element="#posts-body"
+                        preserve-url
+                    >
+                        <div
+                            id="posts-body"
+                            class="mx-auto flex w-full max-w-[900px] flex-col gap-10 px-4 pt-6 pb-12 md:px-12"
                         >
-                            {{ $t('common.loading_more') }}
-                        </p>
-                    </template>
-                </InfiniteScroll>
-            </div>
+                            <section
+                                v-for="group in listGroups"
+                                :key="group.key"
+                                class="flex flex-col gap-6"
+                                :data-testid="`publish-day-${group.key}`"
+                            >
+                                <h2
+                                    v-if="group.key === NO_TIME"
+                                    class="text-base leading-5 font-emphasis text-foreground"
+                                >
+                                    {{ $t('posts.publish.unscheduled') }}
+                                </h2>
+                                <DayHeading
+                                    v-else
+                                    :date-key="group.key"
+                                    :timezone="timezone"
+                                />
+                                <PostTimelineCard
+                                    v-for="post in group.posts"
+                                    :key="post.card_key ?? post.id"
+                                    :post="post"
+                                    :tab="tab"
+                                    :display-timezone="timezone"
+                                />
+                            </section>
+                        </div>
+
+                        <template #next="{ loading }">
+                            <p
+                                v-if="loading"
+                                class="py-5 text-center text-sm text-muted-foreground"
+                                role="status"
+                            >
+                                {{ $t('common.loading_more') }}
+                            </p>
+                        </template>
+                    </InfiniteScroll>
+                </div>
+            </Deferred>
         </div>
         <InviteMemberDialog
             v-if="canManageTeam"
@@ -1096,18 +1161,18 @@ const submitComposition = (
         v-if="openComposer"
         :key="editPost?.id ?? 'new'"
         v-model:open="composerOpen"
-        :social-accounts="socialAccounts ?? []"
+        :social-accounts="composerAccounts"
         :initial-post="initialPost"
         :initial-draft="recoveryDraft"
         :post-id="editPost?.id"
         :open-assistant="openComposerAssistant"
-        :labels="labels"
-        :signatures="signatures ?? []"
+        :labels="composerLabels"
+        :signatures="composerSignatures"
         :initial-date="initialComposerDate"
         :submitting="composerSubmitting"
-        :platform-configs="platformConfigs ?? {}"
-        :pinterest-boards="pinterestBoards ?? {}"
-        :tiktok-creator-infos="tiktokCreatorInfos ?? {}"
+        :platform-configs="composerPlatformConfigs"
+        :pinterest-boards="composerPinterestBoards"
+        :tiktok-creator-infos="composerTiktokCreatorInfos"
         @update:open="onComposerOpenChange"
         @submit="submitComposition"
     />

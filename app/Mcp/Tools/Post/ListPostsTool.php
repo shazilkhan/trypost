@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Mcp\Tools\Post;
 
+use App\Actions\Post\BuildPublishPageProps;
 use App\Enums\Post\Status;
 use App\Http\Resources\Api\PostResource;
+use App\Mcp\Concerns\AuthorizesMcpTool;
+use App\Models\Workspace;
+use App\Support\RequestIds;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Request;
@@ -16,11 +20,19 @@ use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
-#[Description('List posts for the current workspace, ordered by scheduled date (newest first). Optional filters: status (draft|scheduled|pending_approval|published|failed) and search (matches against post content).')]
+#[Description('List posts for the current workspace, ordered by scheduled date (newest first). Optional filters: status (draft|scheduled|pending_approval|published|failed), search (matches against post content), channels (social account IDs), labels (label IDs) with untagged (posts without labels), like the publish page filters. Unknown IDs match nothing. Paginated with the app page size: pass page; the response carries total, per_page, current_page and last_page.')]
 class ListPostsTool extends Tool
 {
-    public function handle(Request $request): ResponseFactory
+    use AuthorizesMcpTool;
+
+    public function handle(Request $request): Response|ResponseFactory
     {
+        $workspace = $this->authorizeCurrentWorkspace($request, 'view');
+
+        if (! $workspace instanceof Workspace) {
+            return $workspace;
+        }
+
         $validated = $request->validate([
             'status' => ['sometimes', 'string', Rule::in([
                 Status::Draft->value,
@@ -30,12 +42,23 @@ class ListPostsTool extends Tool
                 Status::PendingApproval->value,
             ])],
             'search' => ['sometimes', 'string', 'max:255'],
-            'limit' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'channels' => ['sometimes', 'nullable', 'array'],
+            'labels' => ['sometimes', 'nullable', 'array'],
+            'untagged' => ['sometimes', 'nullable'],
+            'page' => ['sometimes', 'integer', 'min:1'],
         ]);
 
-        $query = $request->user()->currentWorkspace
+        $user = $request->user();
+
+        $query = $workspace
             ->posts()
-            ->with(['postPlatforms.socialAccount', 'labels']);
+            ->visiblePendingApprovalsFor(BuildPublishPageProps::pendingApprovalsRequester($user, $workspace))
+            ->onChannels(RequestIds::uuidList(collect((array) data_get($validated, 'channels'))->unique()) ?: null)
+            ->matchingLabelFilter(
+                RequestIds::uuidList(collect((array) data_get($validated, 'labels'))),
+                filter_var(data_get($validated, 'untagged'), FILTER_VALIDATE_BOOLEAN),
+            )
+            ->with(['postPlatforms.socialAccount', 'user', 'approvalRequestedBy', 'approver', 'labels']);
 
         $query = match (data_get($validated, 'status')) {
             Status::Draft->value => $query->draft(),
@@ -51,11 +74,14 @@ class ListPostsTool extends Tool
         }
 
         $posts = $query->latest('scheduled_at')
-            ->limit((int) data_get($validated, 'limit', 50))
-            ->get();
+            ->paginate((int) config('app.pagination.default'), page: (int) data_get($validated, 'page', 1));
 
         return Response::structured([
-            'posts' => PostResource::collection($posts)->resolve(),
+            'posts' => PostResource::collection($posts->items())->resolve(),
+            'total' => $posts->total(),
+            'per_page' => $posts->perPage(),
+            'current_page' => $posts->currentPage(),
+            'last_page' => $posts->lastPage(),
         ]);
     }
 
@@ -66,7 +92,10 @@ class ListPostsTool extends Tool
                 ->enum(['draft', 'scheduled', 'published', 'failed', 'pending_approval'])
                 ->description('Filter by status. "published" includes partially-published posts.'),
             'search' => $schema->string()->description('Case-insensitive substring match against the post content.'),
-            'limit' => $schema->integer()->description('Max results (1-100, default 50).'),
+            'channels' => $schema->array()->items($schema->string())->description('Only posts on one of these social account IDs (list-social-accounts-tool).'),
+            'labels' => $schema->array()->items($schema->string())->description('Only posts with one of these label IDs.'),
+            'untagged' => $schema->boolean()->description('Include posts without labels (combines with labels).'),
+            'page' => $schema->integer()->description('Page number.'),
         ];
     }
 }

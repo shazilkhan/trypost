@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\App\Idea;
 
+use App\Support\Requests\Idea\IdeaRequestRules;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateIdeaStageRequest extends FormRequest
@@ -18,8 +19,6 @@ class UpdateIdeaStageRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'name' => ['required', 'string', 'max:60'],
-        ];
+        return IdeaRequestRules::updateStage();
     }
 }

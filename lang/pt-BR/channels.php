@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Seus horários de postagem dizem ao TryPost quando enviar os posts da sua fila. Os próximos posts que você adicionar à fila saem nos próximos horários abaixo.',
         'day_on' => 'Ligado',
         'day_off' => 'Inativo',
+        'day_empty' => 'Sem horários',
         'remove_time' => 'Remover :time',
         'edit_hour' => 'Alterar a hora de :time',
         'edit_minute' => 'Alterar os minutos de :time',

@@ -21,7 +21,6 @@ return [
         'delete' => 'Etiketi sil',
         'more' => 'Diğer işlemler',
         'view_posts' => 'Gönderileri görüntüle',
-        'open_reporting' => 'Raporları aç',
     ],
 
     'create' => [

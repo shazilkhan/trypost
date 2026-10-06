@@ -9,6 +9,7 @@ use App\Http\Resources\Api\LabelResource;
 use App\Mcp\Concerns\AuthorizesMcpTool;
 use App\Models\Workspace;
 use App\Models\WorkspaceLabel;
+use App\Support\Requests\Label\LabelRequestRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
@@ -23,11 +24,7 @@ class UpdateLabelTool extends Tool
 
     public function handle(Request $request): Response|ResponseFactory
     {
-        $workspace = $this->authorizeCurrentWorkspace(
-            $request,
-            'createPost',
-            'Not authorized to manage labels.',
-        );
+        $workspace = $this->authorizeCurrentWorkspace($request, 'createPost');
 
         if (! $workspace instanceof Workspace) {
             return $workspace;
@@ -35,8 +32,7 @@ class UpdateLabelTool extends Tool
 
         $validated = $request->validate([
             'label_id' => ['required', 'string'],
-            'name' => ['required', 'string', 'max:255'],
-            'color' => ['required', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            ...LabelRequestRules::rules(),
         ]);
 
         $label = WorkspaceLabel::where('workspace_id', $workspace->id)

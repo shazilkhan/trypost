@@ -267,7 +267,7 @@ const hasFailure = computed(
 );
 
 const APPROVAL_RELOAD = {
-    only: ['posts', 'counts', 'queue'],
+    only: ['posts', 'counts', 'queue', 'hasData'],
     reset: ['posts'],
 };
 

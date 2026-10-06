@@ -21,11 +21,11 @@ export const formatNumber = (value: number): string => {
     return value.toLocaleString('en-US');
 };
 
-export const formatNumberCompact = (value: number): string => {
+export const formatNumberCompact = (value: number, digits = 1): string => {
     return new Intl.NumberFormat(activeLocale.value, {
         notation: 'compact',
         compactDisplay: 'short',
-        maximumFractionDigits: 1,
+        maximumFractionDigits: digits,
     }).format(value);
 };
 

@@ -495,3 +495,82 @@ test('the tabs row border keeps the page padding instead of touching the panel e
         ->and($edges[1])->toBeGreaterThanOrEqual(32);
     $page->assertNoJavaScriptErrors();
 });
+
+test('on a phone the channels and time zone filters show only an icon and a chevron on the schedule list and calendar', function (string $route) {
+    [$user, , $channel] = publishPageSetup();
+    $this->actingAs($user);
+    $triggers = ['posts-channel-filter', 'publish-timezone-trigger'];
+    $measure = <<<'JS'
+        (() => ['posts-channel-filter', 'publish-timezone-trigger'].map((id) => {
+            const trigger = document.querySelector(`[data-testid="${id}"]`);
+            const visible = (node) => node.getClientRects().length > 0 && getComputedStyle(node).display !== 'none';
+
+            return {
+                text: [...trigger.querySelectorAll('span')].filter((span) => visible(span) && span.textContent.trim() !== '').length,
+                icons: [...trigger.querySelectorAll('svg')].filter(visible).length,
+                label: trigger.getAttribute('aria-label') !== null,
+            };
+        }))()
+    JS;
+
+    $page = visit($route === 'list' ? route('app.posts.index') : route('app.calendar', ['view' => 'week']))->resize(390, 844);
+    waitForPublishPageTestId($page, 'publish-timezone-trigger');
+    waitForPublishPageTestId($page, 'posts-channel-filter');
+
+    expect($page->script($measure))->toBe([
+        ['text' => 0, 'icons' => 2, 'label' => true],
+        ['text' => 0, 'icons' => 2, 'label' => true],
+    ]);
+
+    $page->resize(1280, 900);
+    $page->script(<<<'JS'
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if ([...document.querySelector('[data-testid="publish-timezone-trigger"]').querySelectorAll('span')].some((span) => span.getClientRects().length > 0 && span.textContent.trim() !== '')) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+    $wide = $page->script($measure);
+    expect($wide[0]['text'])->toBeGreaterThan(0)->and($wide[1]['text'])->toBeGreaterThan(0);
+    $page->assertNoJavaScriptErrors();
+})->with(['list', 'calendar']);
+
+test('the mobile filters are bordered buttons inside the header border and the desktop ones stay ghost', function () {
+    [$user, , $channel] = publishPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channel))->resize(390, 844);
+    waitForPublishPageTestId($page, 'publish-filters');
+
+    $measure = <<<'JS'
+        (() => {
+            const row = document.querySelector('[data-testid="publish-filters"]');
+            const buttons = [...row.querySelectorAll('button[role="combobox"]')];
+            const header = row.parentElement;
+            return {
+                count: buttons.length,
+                borders: buttons.map((button) => parseFloat(getComputedStyle(button).borderTopWidth)),
+                heights: new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().height))).size,
+                headerBorder: parseFloat(getComputedStyle(header).borderBottomWidth),
+                rowBottom: row.getBoundingClientRect().bottom,
+                headerBottom: header.getBoundingClientRect().bottom,
+                overflow: document.documentElement.scrollWidth > window.innerWidth,
+            };
+        })()
+    JS;
+
+    $mobile = $page->script($measure);
+    expect($mobile['count'])->toBeGreaterThanOrEqual(2)
+        ->and(min($mobile['borders']))->toBeGreaterThan(0)
+        ->and($mobile['heights'])->toBe(1)
+        ->and($mobile['headerBorder'])->toBeGreaterThan(0)
+        ->and($mobile['rowBottom'])->toBeLessThanOrEqual($mobile['headerBottom'])
+        ->and($mobile['overflow'])->toBeFalse();
+
+    $page->resize(1280, 800);
+    $desktop = $page->script($measure);
+    expect(max($desktop['borders']) == 0)->toBeTrue();
+
+    $page->assertNoJavaScriptErrors();
+});

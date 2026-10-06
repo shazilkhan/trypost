@@ -27,9 +27,9 @@ it('lists social accounts', function () {
     ]);
 
     $response->assertOk();
-    $response->assertJsonCount(2);
+    $response->assertJsonCount(2, 'data');
     $response->assertJsonStructure([
-        '*' => ['id', 'platform', 'display_name', 'username', 'status'],
+        'data' => ['*' => ['id', 'platform', 'display_name', 'username', 'status']],
     ]);
 });
 
@@ -44,7 +44,7 @@ it('does not expose tokens in social accounts list', function () {
     ]);
 
     $response->assertOk();
-    $response->assertJsonMissingPath('0.is_active');
+    $response->assertJsonMissingPath('data.0.is_active');
     $response->assertJsonMissing(['access_token']);
     $response->assertJsonMissing(['refresh_token']);
 });
@@ -61,5 +61,5 @@ it('returns empty list when no social accounts', function () {
     ]);
 
     $response->assertOk();
-    $response->assertJsonCount(0);
+    $response->assertJsonCount(0, 'data');
 });

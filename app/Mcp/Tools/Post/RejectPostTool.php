@@ -36,7 +36,7 @@ class RejectPostTool extends Tool
             return Response::error('Post not found.');
         }
 
-        if ($denied = $this->denyUnlessCan($request, 'approve', $post, 'Not authorized to reject this post.')) {
+        if ($denied = $this->denyUnlessCan($request, 'approve', $post, 'Post not found.')) {
             return $denied;
         }
 

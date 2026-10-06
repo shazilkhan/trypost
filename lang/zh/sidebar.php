@@ -33,6 +33,8 @@ return [
     'search_channels' => '搜索频道',
     'channel_submenu' => ':name 子菜单',
     'toggle' => '切换侧边栏',
+    'collapse' => '收起侧边栏',
+    'expand' => '展开侧边栏',
     'mobile_title' => '导航',
     'mobile_description' => '应用主导航。',
     'repurposes' => 'Repurpose',

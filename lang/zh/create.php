@@ -64,8 +64,8 @@ return [
             'audience_placeholder' => '例如：喜爱家居装饰和手工礼品的人',
             'notes_label' => '还有其他补充吗？（可选）',
             'notes_placeholder' => '语气、要涵盖或避免的主题、即将发布的内容',
-            'count_label' => '需要多少个想法？',
-            'stage_label' => '添加到分组',
+            'again' => '重新生成',
+            'use' => '使用这个想法',
             'submit' => '生成想法',
         ],
         'default_stages' => [

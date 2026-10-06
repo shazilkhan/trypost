@@ -403,8 +403,8 @@ test('the shared upload limits carry the three byte caps and the upload retentio
     ]);
 });
 
-test('the shared upload limits are null for a guest', function () {
-    test()->get(route('login'))->assertInertia(fn ($page) => $page->where('mediaUploadLimits', null));
+test('the shared upload limits are absent for a guest', function () {
+    test()->get(route('login'))->assertInertia(fn ($page) => $page->missing('mediaUploadLimits'));
 });
 
 function mediaUploadDeclare(User $user, string $fileName, int $totalSize): TestResponse

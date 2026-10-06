@@ -17,6 +17,8 @@ class CreatePinterestBoard
     {
         $board = app(PinterestPublisher::class)->createBoard($account, (string) data_get($data, 'name'));
 
+        ListPinterestBoards::forget($account->id);
+
         return ListPinterestBoards::present($board);
     }
 }

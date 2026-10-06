@@ -188,6 +188,7 @@ return [
         'slots_description' => '发布时段告诉 TryPost 何时发送队列中的帖子。你之后加入队列的帖子会在下面最近的时段发出。',
         'day_on' => '开',
         'day_off' => '关',
+        'day_empty' => '没有发布时间',
         'remove_time' => '移除 :time',
         'edit_hour' => '更改 :time 的小时',
         'edit_minute' => '更改 :time 的分钟',

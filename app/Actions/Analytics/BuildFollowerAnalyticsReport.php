@@ -25,7 +25,7 @@ class BuildFollowerAnalyticsReport
 
     /**
      * @param  array<string, string>|null  $channelKeys  Analytics key of each selected social account, keyed by account id; null means every account.
-     * @return array{current_total: ?int, previous_total: ?int, followers: array<string, mixed>}
+     * @return array{current_total: ?int, previous_total: ?int, current_net: ?int, previous_net: ?int, followers: array<string, mixed>}
      */
     public function execute(Workspace $workspace, DateRange $previous, DateRange $current, ?array $channelKeys = null): array
     {
@@ -42,10 +42,15 @@ class BuildFollowerAnalyticsReport
         $currentTotal = $this->total($latestCurrent, $current->observedThrough, $connectedAccounts);
         $previousTotal = $this->total($this->latest($workspace, $previous, $accountKeys), $previous->observedThrough, $connectedAccounts);
 
+        $currentChanges = $this->changes($workspace, $current, $accountKeys, $latestCurrent);
+        $previousChanges = $this->changes($workspace, $previous, $accountKeys);
+
         return [
             'current_total' => $currentTotal,
             'previous_total' => $previousTotal,
-            'followers' => $this->followers($rows, $latestCurrent, $current, $currentTotal),
+            'current_net' => $currentChanges === [] ? null : array_sum($currentChanges),
+            'previous_net' => $previousChanges === [] ? null : array_sum($previousChanges),
+            'followers' => $this->followers($rows, $latestCurrent, $current, $currentTotal, $currentChanges),
         ];
     }
 
@@ -76,13 +81,68 @@ class BuildFollowerAnalyticsReport
             ->keyBy('social_account_key');
     }
 
+    /**
+     * Followers gained in the range: the last count of the range minus the last count before it, or minus the
+     * first count of the range when the account has no earlier history, keyed by account. Accounts with a
+     * single observation have no change to report.
+     *
+     * @param  list<string>|null  $accountKeys
+     * @return array<string, int>
+     */
+    private function changes(Workspace $workspace, DateRange $range, ?array $accountKeys, ?Collection $latest = null): array
+    {
+        $latest ??= $this->latest($workspace, $range, $accountKeys);
+        $before = $this->edge($this->scoped($workspace, $accountKeys)->where('date', '<', $range->start->toDateString()), 'MAX');
+        $first = $this->edge($this->snapshots($workspace, $range, $accountKeys), 'MIN');
+        $changes = [];
+
+        foreach ($latest as $key => $end) {
+            $baseline = $before->get($key) ?? $first->get($key);
+
+            if ($end->followers_count === null || $baseline === null || (string) $baseline->date === (string) $end->date) {
+                continue;
+            }
+
+            $changes[$key] = (int) $end->followers_count - (int) $baseline->followers_count;
+        }
+
+        return $changes;
+    }
+
+    private function edge(Builder $snapshots, string $aggregate): Collection
+    {
+        $dates = (clone $snapshots)
+            ->whereNotNull('analytics_account_daily_snapshots.followers_count')
+            ->select('analytics_account_daily_snapshots.social_account_key')
+            ->selectRaw("{$aggregate}(analytics_account_daily_snapshots.date) as edge_date")
+            ->groupBy('analytics_account_daily_snapshots.social_account_key');
+
+        return $snapshots
+            ->joinSub($dates, 'edge', fn (JoinClause $join): JoinClause => $join
+                ->on('analytics_account_daily_snapshots.social_account_key', '=', 'edge.social_account_key')
+                ->on('analytics_account_daily_snapshots.date', '=', 'edge.edge_date'))
+            ->select([
+                'analytics_account_daily_snapshots.social_account_key',
+                'analytics_account_daily_snapshots.date',
+                'analytics_account_daily_snapshots.followers_count',
+            ])
+            ->get()
+            ->keyBy('social_account_key');
+    }
+
     /** @param  list<string>|null  $accountKeys */
-    private function snapshots(Workspace $workspace, DateRange $range, ?array $accountKeys): Builder
+    private function scoped(Workspace $workspace, ?array $accountKeys): Builder
     {
         return DB::table('analytics_account_daily_snapshots')
             ->where('analytics_account_daily_snapshots.workspace_id', $workspace->id)
             ->whereIn('analytics_account_daily_snapshots.platform', Platform::analyticsValues())
-            ->when($accountKeys !== null, fn (Builder $query): Builder => $query->whereIn('analytics_account_daily_snapshots.social_account_key', $accountKeys))
+            ->when($accountKeys !== null, fn (Builder $query): Builder => $query->whereIn('analytics_account_daily_snapshots.social_account_key', $accountKeys));
+    }
+
+    /** @param  list<string>|null  $accountKeys */
+    private function snapshots(Workspace $workspace, DateRange $range, ?array $accountKeys): Builder
+    {
+        return $this->scoped($workspace, $accountKeys)
             ->whereBetween('analytics_account_daily_snapshots.date', [$range->start->toDateString(), $range->observedThrough->toDateString()]);
     }
 
@@ -103,7 +163,8 @@ class BuildFollowerAnalyticsReport
     }
 
     /** @return array<string, mixed> */
-    private function followers(Collection $current, Collection $latest, DateRange $range, ?int $total): array
+    /** @param  array<string, int>  $changes */
+    private function followers(Collection $current, Collection $latest, DateRange $range, ?int $total, array $changes): array
     {
         $byAccount = $current->groupBy('social_account_key');
         $accounts = [];
@@ -123,6 +184,7 @@ class BuildFollowerAnalyticsReport
                 'value' => $end?->followers_count === null ? null : (int) $end->followers_count,
                 'growth' => $values->count() > 1 && $first->followers_count !== null && $last->followers_count !== null
                     ? (int) $last->followers_count - (int) $first->followers_count : null,
+                'net' => data_get($changes, $key),
                 'provenance' => $end?->provenance,
             ];
         }

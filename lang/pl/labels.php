@@ -19,7 +19,6 @@ return [
         'delete' => 'Usuń etykietę',
         'more' => 'Więcej działań',
         'view_posts' => 'Zobacz posty',
-        'open_reporting' => 'Otwórz raporty',
     ],
 
     'create' => [

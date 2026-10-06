@@ -14,6 +14,7 @@ import {
     IconEye,
     IconLayoutGrid,
     IconLoader2,
+    IconPencil,
     IconPin,
     IconPlus,
     IconSend,
@@ -24,10 +25,16 @@ import {
     IconWand,
     IconX,
 } from '@tabler/icons-vue';
+import {
+    createReusableTemplate,
+    useMediaQuery,
+    useResizeObserver,
+} from '@vueuse/core';
 import { trans, transChoice } from 'laravel-vue-i18n';
 import {
     computed,
     effectScope,
+    nextTick,
     onMounted,
     ref,
     shallowReactive,
@@ -38,6 +45,7 @@ import { toast } from 'vue-sonner';
 import WritingAssistantPanel, {
     type AssistantChannel,
 } from '@/components/ai/WritingAssistantPanel.vue';
+import BottomSheet from '@/components/BottomSheet.vue';
 import CharacterCounter from '@/components/CharacterCounter.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import FilterEmptyState from '@/components/FilterEmptyState.vue';
@@ -93,6 +101,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useCanHover } from '@/composables/useCanHover';
 import {
     type AutosaveMediaRef,
     type AutosaveSnapshot,
@@ -102,6 +111,7 @@ import {
     toAutosaveMedia,
     useComposerAutosave,
 } from '@/composables/useComposerAutosave';
+import { useComposerLiveState } from '@/composables/useComposerData';
 import { useComposerTimezone } from '@/composables/useComposerTimezone';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { useLinkCard } from '@/composables/useLinkCard';
@@ -323,11 +333,59 @@ const toggleExpandedDialog = (): void => {
     expandedDialog.value = !expandedDialog.value;
 };
 
-const mobilePanelOpen = ref(false);
+const isDesktop = useMediaQuery('(min-width: 1024px)');
+const belowSm = useMediaQuery('(max-width: 639.98px)');
+const canHover = useCanHover();
+const [DefineAssistant, ReuseAssistant] = createReusableTemplate();
+const [DefineScheduleMenu, ReuseScheduleMenu] = createReusableTemplate();
+type ComposerMobileView = 'edit' | 'preview';
+const mobileView = ref<ComposerMobileView>('edit');
+const mobileSheet = ref<Exclude<ComposerSidePanel, 'preview'> | null>(
+    props.openAssistant ? 'assistant' : null,
+);
+const activePanel = computed(() =>
+    isDesktop.value ? sidePanel.value : mobileSheet.value,
+);
+const templatesSheetOpen = computed({
+    get: () => !isDesktop.value && mobileSheet.value === 'templates',
+    set: (open: boolean) => {
+        if (!open) closeMobileSheet();
+    },
+});
+const assistantSheetOpen = computed({
+    get: () => !isDesktop.value && mobileSheet.value === 'assistant',
+    set: (open: boolean) => {
+        if (!open) closeMobileSheet();
+    },
+});
+const scheduleSheetOpen = computed({
+    get: () => belowSm.value && scheduleMenuOpen.value,
+    set: (open: boolean) => {
+        scheduleMenuOpen.value = open;
+    },
+});
 
-const closeMobilePanel = (): void => {
-    mobilePanelOpen.value = false;
+const closeMobileSheet = (): void => {
+    mobileSheet.value = null;
 };
+
+const showMobileView = (view: ComposerMobileView): void => {
+    mobileView.value = view;
+};
+
+const accountStrip = ref<HTMLElement | null>(null);
+const accountStripOverflows = ref(false);
+
+const updateAccountStripFade = (): void => {
+    const strip = accountStrip.value;
+    accountStripOverflows.value = Boolean(
+        strip &&
+            Math.ceil(Math.abs(strip.scrollLeft) + strip.clientWidth) <
+                strip.scrollWidth,
+    );
+};
+
+useResizeObserver(accountStrip, updateAccountStripFade);
 
 const accountPickerOpen = ref(false);
 const accountSearch = ref('');
@@ -431,8 +489,22 @@ watch(
 );
 
 const selectedAccounts = composition.selectedAccounts;
+watch(
+    () => selectedAccounts.value.length,
+    () => nextTick(updateAccountStripFade),
+    { immediate: true },
+);
 const isSingleChannel = computed(() => selectedAccounts.value.length === 1);
 
+const {
+    loaded: liveLoaded,
+    failed: liveFailed,
+    retry: retryLiveData,
+} = useComposerLiveState();
+
+const retryLiveLoad = (): void => {
+    retryLiveData();
+};
 const slotSchedule = computed(() =>
     isSingleChannel.value
         ? (selectedAccounts.value[0]?.posting_schedule ?? null)
@@ -1592,12 +1664,19 @@ const goBackToSharedStep = (): void => {
 const insertAssistantText = (text: string): void => {
     const target = assistantContent.value;
     writeAssistantTarget(target.trim() ? `${target}\n\n${text}` : text);
-    mobilePanelOpen.value = false;
+    mobileSheet.value = null;
+    mobileView.value = 'edit';
 };
 
 const showSidePanel = (panel: ComposerSidePanel): void => {
     sidePanel.value = panel;
-    mobilePanelOpen.value = true;
+    if (isDesktop.value) return;
+    if (panel === 'preview') {
+        mobileView.value = 'preview';
+
+        return;
+    }
+    mobileSheet.value = panel;
 };
 
 const editorMedia = (
@@ -1925,6 +2004,210 @@ const close = (): void => emit('update:open', false);
 </script>
 
 <template>
+    <DefineAssistant>
+        <WritingAssistantPanel
+            :key="openGroupKey ? `group-${openGroupKey}` : 'shared'"
+            :content="assistantContent"
+            :channel="assistantChannel"
+            @insert="insertAssistantText"
+            @replace="writeAssistantTarget"
+        />
+    </DefineAssistant>
+    <DefineScheduleMenu>
+        <ComposerSchedulePicker
+            v-if="schedulePanel === 'picker'"
+            :key="composerTimezone"
+            :model-value="composition.scheduledAt.value"
+            :timezone="composerTimezone"
+            :posting-schedule="slotSchedule"
+            :taken-slots="takenSlots"
+            :slots-loading="!liveLoaded"
+            @back="showScheduleMenu"
+            @confirm="confirmScheduledAt"
+        />
+        <template v-else>
+        <TooltipProvider :delay-duration="150" :disabled="!canHover">
+            <div
+                v-for="option in scheduleOptions"
+                :key="option.mode"
+                class="group/option relative"
+                :data-testid="`composer-schedule-row-${option.mode}`"
+            >
+                <Tooltip
+                    :disabled="
+                        !canHover ||
+                        !isScheduleModeDisabled(option.mode)
+                    "
+                >
+                    <TooltipTrigger as-child>
+                        <span class="block">
+                                <button
+                                    type="button"
+                                    :data-testid="`composer-schedule-${option.mode}`"
+                                    :aria-pressed="
+                                        scheduleMode ===
+                                        option.mode
+                                    "
+                                    :disabled="
+                                        isScheduleModeDisabled(
+                                            option.mode,
+                                        )
+                                    "
+                                    class="w-full space-y-1.5 rounded-md py-2 ps-3 pe-11 text-left text-sm transition-control outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                    :class="
+                                        scheduleMode ===
+                                        option.mode
+                                            ? 'bg-primary-subtle text-primary-text'
+                                            : 'text-foreground enabled:hover:bg-accent focus-visible:bg-accent'
+                                    "
+                                    @click="
+                                        selectScheduleMode(
+                                            option.mode,
+                                        )
+                                    "
+                                >
+                                    <span
+                                        class="flex items-center gap-1 leading-[17.5px] font-emphasis"
+                                        ><IconCheck
+                                            v-if="
+                                                scheduleMode ===
+                                                option.mode
+                                            "
+                                            class="size-4 shrink-0"
+                                        /><span
+                                            v-else
+                                            class="size-4 shrink-0"
+                                            aria-hidden="true"
+                                        />{{
+                                            $t(option.titleKey)
+                                        }}</span
+                                    >
+                                    <span
+                                        class="block ps-5 leading-[21px]"
+                                        >{{
+                                            $t(
+                                                option.descriptionKey,
+                                            )
+                                        }}</span
+                                    >
+                                </button>
+                        </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="left"
+                        :data-testid="`composer-schedule-blocked-${option.mode}`"
+                    >
+                        {{
+                            $t(
+                                'posts.composer.queue.no_slots_tooltip',
+                                {
+                                    channels:
+                                        accountsWithoutSlotsLabel,
+                                },
+                            )
+                        }}
+                    </TooltipContent>
+                </Tooltip>
+                <Tooltip :disabled="!canHover">
+                    <TooltipTrigger as-child>
+                        <button
+                            type="button"
+                            :data-testid="`composer-schedule-default-${option.mode}`"
+                            :aria-pressed="
+                                currentDefaultPostAction ===
+                                option.mode
+                            "
+                            :aria-label="
+                                $t(
+                                    'posts.composer.queue.set_default',
+                                    {
+                                        option: $t(
+                                            option.titleKey,
+                                        ),
+                                    },
+                                )
+                            "
+                            class="absolute top-2 right-2 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-[opacity,background-color,color] duration-150 outline-none hover:bg-sidebar-action-hover focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
+                            :class="
+                                currentDefaultPostAction ===
+                                option.mode
+                                    ? 'opacity-100'
+                                    : 'opacity-0 group-hover/option:opacity-100 [@media(hover:none)]:opacity-100'
+                            "
+                            @click.stop="
+                                setDefaultPostAction(
+                                    option.mode,
+                                )
+                            "
+                        >
+                            <IconStarFilled
+                                v-if="
+                                    currentDefaultPostAction ===
+                                    option.mode
+                                "
+                                class="size-4"
+                                :stroke-width="2.2"
+                            />
+                            <IconStar
+                                v-else
+                                class="size-4"
+                                :stroke-width="2.2"
+                            />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        {{
+                            $t(
+                                'posts.composer.queue.set_default',
+                                {
+                                    option: $t(
+                                        option.titleKey,
+                                    ),
+                                },
+                            )
+                        }}
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+        </TooltipProvider>
+        <div
+            v-if="queueBlocked"
+            data-testid="composer-queue-hint"
+            class="mt-2 space-y-1 border-t border-border-strong px-3 pt-3 pb-1 text-xs text-muted-foreground"
+        >
+            <p>{{ $t('posts.composer.queue.no_slots_hint') }}</p>
+            <a
+                v-if="accountsWithoutSlots.length === 1"
+                :href="
+                    channelSettings.url(
+                        accountsWithoutSlots[0].id,
+                    )
+                "
+                data-testid="composer-queue-manage-slots"
+                class="font-medium text-foreground underline underline-offset-2"
+                >{{
+                    $t('posts.composer.queue.manage_slots')
+                }}</a
+            >
+            <p v-else>
+                {{
+                    $t(
+                        'posts.composer.queue.no_slots_channels',
+                        {
+                            channels: accountsWithoutSlots
+                                .map(
+                                    (account) =>
+                                        account.display_label ||
+                                        account.display_name,
+                                )
+                                .join(', '),
+                        },
+                    )
+                }}
+            </p>
+        </div>
+        </template>
+    </DefineScheduleMenu>
     <Dialog :open="open" @update:open="emit('update:open', $event)">
         <DialogContent
             class="motion-resize top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none p-0 sm:top-1/2 sm:left-1/2 sm:max-w-none sm:-translate-x-1/2 sm:-translate-y-1/2"
@@ -1951,7 +2234,7 @@ const close = (): void => emit('update:open', false);
             />
             <header
                 data-testid="composer-header"
-                class="flex shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:min-h-16 sm:flex-nowrap sm:py-4 sm:ps-8 sm:pe-6"
+                class="flex shrink-0 flex-row flex-wrap items-center justify-between gap-2 border-b px-4 py-3 sm:min-h-16 sm:py-4 sm:ps-8 sm:pe-6 lg:flex-nowrap"
             >
                 <div class="flex min-w-0 items-center gap-3">
                     <Button
@@ -1975,6 +2258,7 @@ const close = (): void => emit('update:open', false);
                         :show-untagged="false"
                         test-id="composer-label"
                         align="start"
+                        sheet-below-sm
                         @created="addLabel"
                     >
                         <template #trigger>
@@ -1982,14 +2266,17 @@ const close = (): void => emit('update:open', false);
                                 type="button"
                                 variant="outline"
                                 size="default"
-                                class="max-w-72"
+                                class="max-w-72 max-sm:max-w-40"
                                 data-testid="composer-tags-trigger"
                             >
                                 <IconTag
                                     v-if="!selectedLabels.length"
                                     class="size-4"
                                 />
-                                <span v-if="!selectedLabels.length">{{
+                                <span
+                                    v-if="!selectedLabels.length"
+                                    class="max-sm:sr-only"
+                                    >{{
                                     $t('posts.edit.labels')
                                 }}</span>
                                 <span
@@ -2022,43 +2309,46 @@ const close = (): void => emit('update:open', false);
                                 </span>
                                 <IconChevronDown
                                     class="size-4 shrink-0 text-muted-foreground"
+                                    :class="{
+                                        'max-sm:hidden': !selectedLabels.length,
+                                    }"
                                 />
                             </Button>
                         </template>
                     </LabelFilter>
                 </div>
                 <div
-                    class="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto"
+                    class="ms-auto flex min-w-0 items-center justify-end gap-1 sm:gap-2"
                 >
                     <Button
                         type="button"
                         variant="ghost"
-                        :aria-pressed="sidePanel === 'templates'"
+                        :aria-pressed="activePanel === 'templates'"
                         data-testid="composer-templates-toggle"
-                        class="max-sm:w-8 max-sm:px-0"
+                        class="max-lg:w-8 max-lg:px-0"
                         :class="
-                            sidePanel === 'templates'
+                            activePanel === 'templates'
                                 ? 'bg-primary-subtle text-primary-text hover:bg-primary-subtle hover:text-primary-text'
                                 : 'text-muted-foreground'
                         "
                         @click="showSidePanel('templates')"
-                        ><IconTemplate class="size-4" /><span class="max-sm:sr-only">{{
+                        ><IconTemplate class="size-4" /><span class="max-lg:sr-only">{{
                             $t('create.templates.panel.title')
                         }}</span></Button
                     >
                     <Button
                         type="button"
                         variant="ghost"
-                        :aria-pressed="sidePanel === 'assistant'"
+                        :aria-pressed="activePanel === 'assistant'"
                         data-testid="composer-ai-assistant"
-                        class="max-sm:w-8 max-sm:px-0"
+                        class="max-lg:w-8 max-lg:px-0"
                         :class="
-                            sidePanel === 'assistant'
+                            activePanel === 'assistant'
                                 ? 'bg-primary-subtle text-primary-text hover:bg-primary-subtle hover:text-primary-text'
                                 : 'text-muted-foreground'
                         "
                         @click="showSidePanel('assistant')"
-                        ><IconWand class="size-4" /><span class="max-sm:sr-only">{{
+                        ><IconWand class="size-4" /><span class="max-lg:sr-only">{{
                             $t('posts.composer.assistant_title')
                         }}</span></Button
                     >
@@ -2067,14 +2357,14 @@ const close = (): void => emit('update:open', false);
                         variant="ghost"
                         :aria-pressed="sidePanel === 'preview'"
                         data-testid="composer-preview-toggle"
-                        class="max-sm:w-8 max-sm:px-0"
+                        class="max-lg:hidden"
                         :class="
                             sidePanel === 'preview'
                                 ? 'bg-primary-subtle text-primary-text hover:bg-primary-subtle hover:text-primary-text'
                                 : 'text-muted-foreground'
                         "
                         @click="showSidePanel('preview')"
-                        ><IconEye class="size-4" /><span class="max-sm:sr-only">{{
+                        ><IconEye class="size-4" /><span class="max-lg:sr-only">{{
                             $t('posts.edit.tabs.preview')
                         }}</span></Button
                     >
@@ -2088,6 +2378,7 @@ const close = (): void => emit('update:open', false);
                                 : $t('posts.composer.expand')
                         "
                         data-testid="composer-expand-dialog"
+                        class="max-sm:hidden"
                         @click="toggleExpandedDialog"
                     >
                         <IconArrowsMinimize
@@ -2109,14 +2400,47 @@ const close = (): void => emit('update:open', false);
             </header>
 
             <div
-                class="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1fr)_440px]"
+                class="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_440px]"
             >
                 <div
-                    class="min-h-0 overflow-y-auto px-4 pt-4 pb-5 sm:px-8"
-                    :class="[
-                        'flex flex-col gap-6',
-                        mobilePanelOpen ? 'max-md:hidden' : '',
-                    ]"
+                    v-if="!isDesktop"
+                    class="shrink-0 border-b px-4 py-2 sm:px-8"
+                >
+                    <div
+                        class="mx-auto flex h-9 w-full max-w-[744px] items-center gap-1 rounded-lg border border-border-strong bg-card p-[3px]"
+                        data-testid="composer-view-switch"
+                    >
+                        <button
+                            v-for="view in (['edit', 'preview'] as const)"
+                            :key="view"
+                            type="button"
+                            :aria-pressed="mobileView === view"
+                            :data-testid="`composer-view-${view}`"
+                            class="inline-flex h-full min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-control outline-none focus-visible:outline-2 focus-visible:outline-ring"
+                            :class="
+                                mobileView === view
+                                    ? 'bg-primary-selected text-primary-text'
+                                    : 'text-foreground hover:bg-accent'
+                            "
+                            @click="showMobileView(view)"
+                        >
+                            <IconPencil
+                                v-if="view === 'edit'"
+                                class="size-4 shrink-0"
+                            />
+                            <IconEye v-else class="size-4 shrink-0" />
+                            <span class="whitespace-nowrap" data-single-line>{{
+                                view === 'edit'
+                                    ? $t('posts.composer.edit_view')
+                                    : $t('posts.edit.tabs.preview')
+                            }}</span>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 pt-4 pb-5 sm:px-8"
+                    :class="mobileView === 'preview' ? 'max-lg:hidden' : ''"
+                    data-testid="composer-editor-column"
                 >
                     <p
                         v-if="Object.keys(errors).length"
@@ -2126,11 +2450,35 @@ const close = (): void => emit('update:open', false);
                         {{ Object.values(errors)[0] }}
                     </p>
                     <div
+                        v-if="liveFailed"
+                        role="alert"
+                        data-testid="composer-live-data-failed"
+                        class="mx-auto flex w-full max-w-[744px] items-center justify-between gap-3 rounded-lg border border-destructive bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                        <p>{{ $t('posts.composer.load_failed') }}</p>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            data-testid="composer-live-data-retry"
+                            @click="retryLiveLoad"
+                            >{{ $t('posts.composer.retry') }}</Button
+                        >
+                    </div>
+                    <div
                         class="relative mx-auto flex h-12 w-full max-w-[744px] shrink-0 items-center gap-2"
                     >
                         <div
-                            class="-my-3 flex min-w-0 gap-4 overflow-x-auto py-3 pr-3 empty:hidden"
+                            ref="accountStrip"
+                            class="-my-3 flex min-w-0 gap-4 overflow-x-auto py-3 pe-3 empty:hidden"
+                            :class="
+                                accountStripOverflows
+                                    ? '[mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] rtl:[mask-image:linear-gradient(to_left,black_calc(100%-2.5rem),transparent)]'
+                                    : ''
+                            "
+                            :data-overflowing="accountStripOverflows ? '' : undefined"
                             data-testid="composer-accounts"
+                            @scroll.passive="updateAccountStripFade"
                         >
                             <ComposerAccountChip
                                 v-for="account in selectedAccounts"
@@ -2822,25 +3170,17 @@ const close = (): void => emit('update:open', false);
                 <aside
                     class="min-h-0 flex-col bg-muted"
                     data-testid="composer-preview-panel"
-                    :class="mobilePanelOpen ? 'flex' : 'hidden md:flex'"
+                    :class="
+                        mobileView === 'preview'
+                            ? 'flex max-lg:flex-1'
+                            : 'hidden lg:flex'
+                    "
                 >
-                    <div class="border-b px-4 py-2 md:hidden">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            data-testid="composer-mobile-compose"
-                            @click="closeMobilePanel"
-                        >
-                            <IconArrowLeft class="size-4" />
-                            {{ $t('posts.edit.tabs.compose') }}
-                        </Button>
-                    </div>
                     <ComposerTemplatesPanel
-                        v-if="sidePanel === 'templates'"
+                        v-if="isDesktop && sidePanel === 'templates'"
                         @select="insertAssistantText"
                     />
-                    <template v-else-if="sidePanel === 'assistant'">
+                    <template v-else-if="isDesktop && sidePanel === 'assistant'">
                         <h3
                             class="shrink-0 px-8 pt-[22px] pb-[18px] text-base leading-5 font-medium"
                         >
@@ -2850,17 +3190,7 @@ const close = (): void => emit('update:open', false);
                             class="min-h-0 flex-1 overflow-y-auto px-8 pb-6"
                             data-testid="composer-assistant-panel"
                         >
-                            <WritingAssistantPanel
-                                :key="
-                                    openGroupKey
-                                        ? `group-${openGroupKey}`
-                                        : 'shared'
-                                "
-                                :content="assistantContent"
-                                :channel="assistantChannel"
-                                @insert="insertAssistantText"
-                                @replace="writeAssistantTarget"
-                            />
+                            <ReuseAssistant />
                         </div>
                     </template>
                     <template v-else>
@@ -2876,7 +3206,7 @@ const close = (): void => emit('update:open', false);
                             "
                         />
                         <div
-                            class="min-h-0 flex-1 space-y-10 overflow-x-hidden overflow-y-auto px-8 pb-8"
+                            class="min-h-0 flex-1 space-y-10 overflow-x-hidden overflow-y-auto px-4 pb-8 sm:px-8"
                             data-testid="composer-previews-scroll"
                         >
                             <template v-if="sharedStep && hasSharedPreview">
@@ -2950,9 +3280,12 @@ const close = (): void => emit('update:open', false);
             </div>
 
             <footer
-                class="flex shrink-0 flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8"
+                class="flex shrink-0 flex-col gap-2 border-t px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8 sm:py-4"
+                data-testid="composer-footer"
             >
-                <div class="flex flex-1 items-center gap-3.5">
+                <div
+                    class="flex flex-1 flex-wrap items-center gap-x-3.5 gap-y-1"
+                >
                     <label
                         v-if="!postId"
                         class="flex cursor-pointer items-center gap-2 text-sm font-medium"
@@ -2967,6 +3300,7 @@ const close = (): void => emit('update:open', false);
                         type="button"
                         variant="ghost"
                         size="lg"
+                        class="max-sm:h-8 max-sm:px-3"
                         data-testid="composer-save-draft"
                         :disabled="!canSubmit"
                         @click="submit('draft')"
@@ -2992,7 +3326,7 @@ const close = (): void => emit('update:open', false);
                 >
                 <Popover v-else v-model:open="scheduleMenuOpen">
                     <PopoverAnchor as-child>
-                        <div class="flex items-center gap-0">
+                        <div class="flex items-center gap-0 max-sm:w-full">
                             <PopoverTrigger as-child>
                                 <Button
                                     type="button"
@@ -3016,6 +3350,7 @@ const close = (): void => emit('update:open', false);
                                 </Button>
                             </PopoverTrigger>
                             <PopoverContent
+                                v-if="!belowSm"
                                 align="end"
                                 side="top"
                                 :class="
@@ -3024,217 +3359,29 @@ const close = (): void => emit('update:open', false);
                                         : 'w-80 space-y-0.5 p-3'
                                 "
                             >
-                                <ComposerSchedulePicker
-                                    v-if="schedulePanel === 'picker'"
-                                    :key="composerTimezone"
-                                    :model-value="composition.scheduledAt.value"
-                                    :timezone="composerTimezone"
-                                    :posting-schedule="slotSchedule"
-                                    :taken-slots="takenSlots"
-                                    @back="showScheduleMenu"
-                                    @confirm="confirmScheduledAt"
-                                />
-                                <template v-else>
-                                <TooltipProvider :delay-duration="150">
-                                    <div
-                                        v-for="option in scheduleOptions"
-                                        :key="option.mode"
-                                        class="group/option relative"
-                                        :data-testid="`composer-schedule-row-${option.mode}`"
-                                    >
-                                        <Tooltip
-                                            :disabled="
-                                                !isScheduleModeDisabled(
-                                                    option.mode,
-                                                )
-                                            "
-                                        >
-                                            <TooltipTrigger as-child>
-                                                <span class="block">
-                                                        <button
-                                                            type="button"
-                                                            :data-testid="`composer-schedule-${option.mode}`"
-                                                            :aria-pressed="
-                                                                scheduleMode ===
-                                                                option.mode
-                                                            "
-                                                            :disabled="
-                                                                isScheduleModeDisabled(
-                                                                    option.mode,
-                                                                )
-                                                            "
-                                                            class="w-full space-y-1.5 rounded-md py-2 ps-3 pe-11 text-left text-sm transition-control outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                                                            :class="
-                                                                scheduleMode ===
-                                                                option.mode
-                                                                    ? 'bg-primary-subtle text-primary-text'
-                                                                    : 'text-foreground enabled:hover:bg-accent focus-visible:bg-accent'
-                                                            "
-                                                            @click="
-                                                                selectScheduleMode(
-                                                                    option.mode,
-                                                                )
-                                                            "
-                                                        >
-                                                            <span
-                                                                class="flex items-center gap-1 leading-[17.5px] font-emphasis"
-                                                                ><IconCheck
-                                                                    v-if="
-                                                                        scheduleMode ===
-                                                                        option.mode
-                                                                    "
-                                                                    class="size-4 shrink-0"
-                                                                /><span
-                                                                    v-else
-                                                                    class="size-4 shrink-0"
-                                                                    aria-hidden="true"
-                                                                />{{
-                                                                    $t(option.titleKey)
-                                                                }}</span
-                                                            >
-                                                            <span
-                                                                class="block ps-5 leading-[21px]"
-                                                                >{{
-                                                                    $t(
-                                                                        option.descriptionKey,
-                                                                    )
-                                                                }}</span
-                                                            >
-                                                        </button>
-                                                </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent
-                                                side="left"
-                                                :data-testid="`composer-schedule-blocked-${option.mode}`"
-                                            >
-                                                {{
-                                                    $t(
-                                                        'posts.composer.queue.no_slots_tooltip',
-                                                        {
-                                                            channels:
-                                                                accountsWithoutSlotsLabel,
-                                                        },
-                                                    )
-                                                }}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                        <Tooltip>
-                                            <TooltipTrigger as-child>
-                                                <button
-                                                    type="button"
-                                                    :data-testid="`composer-schedule-default-${option.mode}`"
-                                                    :aria-pressed="
-                                                        currentDefaultPostAction ===
-                                                        option.mode
-                                                    "
-                                                    :aria-label="
-                                                        $t(
-                                                            'posts.composer.queue.set_default',
-                                                            {
-                                                                option: $t(
-                                                                    option.titleKey,
-                                                                ),
-                                                            },
-                                                        )
-                                                    "
-                                                    class="absolute top-2 right-2 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-[opacity,background-color,color] duration-150 outline-none hover:bg-sidebar-action-hover focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
-                                                    :class="
-                                                        currentDefaultPostAction ===
-                                                        option.mode
-                                                            ? 'opacity-100'
-                                                            : 'opacity-0 group-hover/option:opacity-100'
-                                                    "
-                                                    @click.stop="
-                                                        setDefaultPostAction(
-                                                            option.mode,
-                                                        )
-                                                    "
-                                                >
-                                                    <IconStarFilled
-                                                        v-if="
-                                                            currentDefaultPostAction ===
-                                                            option.mode
-                                                        "
-                                                        class="size-4"
-                                                        :stroke-width="2.2"
-                                                    />
-                                                    <IconStar
-                                                        v-else
-                                                        class="size-4"
-                                                        :stroke-width="2.2"
-                                                    />
-                                                </button>
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top">
-                                                {{
-                                                    $t(
-                                                        'posts.composer.queue.set_default',
-                                                        {
-                                                            option: $t(
-                                                                option.titleKey,
-                                                            ),
-                                                        },
-                                                    )
-                                                }}
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </div>
-                                </TooltipProvider>
-                                <div
-                                    v-if="queueBlocked"
-                                    data-testid="composer-queue-hint"
-                                    class="mt-2 space-y-1 border-t border-border-strong px-3 pt-3 pb-1 text-xs text-muted-foreground"
-                                >
-                                    <p>{{ $t('posts.composer.queue.no_slots_hint') }}</p>
-                                    <a
-                                        v-if="accountsWithoutSlots.length === 1"
-                                        :href="
-                                            channelSettings.url(
-                                                accountsWithoutSlots[0].id,
-                                            )
-                                        "
-                                        data-testid="composer-queue-manage-slots"
-                                        class="font-medium text-foreground underline underline-offset-2"
-                                        >{{
-                                            $t('posts.composer.queue.manage_slots')
-                                        }}</a
-                                    >
-                                    <p v-else>
-                                        {{
-                                            $t(
-                                                'posts.composer.queue.no_slots_channels',
-                                                {
-                                                    channels: accountsWithoutSlots
-                                                        .map(
-                                                            (account) =>
-                                                                account.display_label ||
-                                                                account.display_name,
-                                                        )
-                                                        .join(', '),
-                                                },
-                                            )
-                                        }}
-                                    </p>
-                                </div>
-                                </template>
+                                <ReuseScheduleMenu />
                             </PopoverContent>
                         <Button
                             v-if="sharedStep"
                             type="button"
                             size="lg"
-                            class="rounded-l-none rounded-r-xl"
+                            class="rounded-l-none rounded-r-xl max-sm:min-w-0 max-sm:flex-1"
                             data-testid="composer-next"
                             @click="customizeNetworks"
                             >{{ $t('posts.composer.customize_networks')
                             }}<IconArrowRight class="size-4"
                         /></Button>
-                        <TooltipProvider v-else :delay-duration="150">
-                            <Tooltip :disabled="!blockingIssue">
+                        <TooltipProvider
+                            v-else
+                            :delay-duration="150"
+                            :disabled="!canHover"
+                        >
+                            <Tooltip :disabled="!canHover || !blockingIssue">
                                 <TooltipTrigger as-child>
                                     <Button
                                         type="button"
                                         size="lg"
-                                        class="rounded-l-none rounded-r-xl aria-disabled:cursor-not-allowed aria-disabled:bg-border-strong aria-disabled:text-subtle-foreground aria-disabled:hover:bg-border-strong aria-disabled:active:translate-y-0"
+                                        class="rounded-l-none rounded-r-xl max-sm:min-w-0 max-sm:flex-1 aria-disabled:cursor-not-allowed aria-disabled:bg-border-strong aria-disabled:text-subtle-foreground aria-disabled:hover:bg-border-strong aria-disabled:active:translate-y-0"
                                         data-testid="composer-submit"
                                         :data-schedule-mode="scheduleMode"
                                         :disabled="
@@ -3302,10 +3449,53 @@ const close = (): void => emit('update:open', false);
                         </div>
                     </PopoverAnchor>
                 </Popover>
+                <BottomSheet
+                    v-if="belowSm && socialAccounts.length > 0"
+                    v-model:open="scheduleSheetOpen"
+                    :title="$t('posts.edit.schedule')"
+                    :show-header="false"
+                    test-id="composer-schedule-sheet"
+                    :content-class="
+                        schedulePanel === 'picker' ? '' : 'space-y-0.5 p-3'
+                    "
+                >
+                    <ReuseScheduleMenu />
+                </BottomSheet>
             </footer>
         </DialogContent>
     </Dialog>
 
+    <BottomSheet
+        v-model:open="templatesSheetOpen"
+        :title="$t('create.templates.panel.title')"
+        :show-header="false"
+        test-id="composer-templates-sheet"
+        content-class="h-[85dvh] overflow-hidden"
+    >
+        <ComposerTemplatesPanel @select="insertAssistantText">
+            <template #actions>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    :aria-label="$t('common.close')"
+                    data-testid="composer-templates-sheet-close"
+                    @click="closeMobileSheet"
+                >
+                    <IconX class="size-4" />
+                </Button>
+            </template>
+        </ComposerTemplatesPanel>
+    </BottomSheet>
+    <BottomSheet
+        v-model:open="assistantSheetOpen"
+        :title="$t('posts.composer.assistant_title')"
+        test-id="composer-assistant-sheet"
+    >
+        <div class="px-4 pb-6" data-testid="composer-assistant-panel">
+            <ReuseAssistant />
+        </div>
+    </BottomSheet>
     <MediaEditorDialog
         v-model:open="cropping"
         :items="cropItems"

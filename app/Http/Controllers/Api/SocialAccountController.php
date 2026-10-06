@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api;
 
+use App\Actions\Post\Queue\ListFreeQueueSlots;
+use App\Actions\SocialAccount\CreatePinterestBoard;
 use App\Actions\SocialAccount\ListDiscordChannels;
 use App\Actions\SocialAccount\ListPinterestBoards;
 use App\Enums\SocialAccount\Platform;
@@ -11,18 +13,25 @@ use App\Exceptions\PlatformUnavailableException;
 use App\Exceptions\Social\ErrorCategory;
 use App\Exceptions\Social\PinterestPublishException;
 use App\Exceptions\TokenExpiredException;
+use App\Http\Requests\Api\SocialAccount\StorePinterestBoardRequest;
+use App\Http\Resources\Api\ChannelFreeSlotsResource;
+use App\Http\Resources\Api\ChannelPostingScheduleResource;
+use App\Http\Resources\Api\PinterestBoardResource;
 use App\Http\Resources\Api\SocialAccountResource;
 use App\Models\SocialAccount;
+use App\Support\Social\PinterestBoardFailure;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class SocialAccountController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $accounts = $request->user()->currentWorkspace->socialAccounts()->get();
+        $accounts = $request->user()->currentWorkspace->socialAccounts()->paginate((int) config('app.pagination.default'));
 
         return SocialAccountResource::collection($accounts);
     }
@@ -53,6 +62,25 @@ class SocialAccountController extends Controller
         }
     }
 
+    public function storeBoard(StorePinterestBoardRequest $request, SocialAccount $account): JsonResponse
+    {
+        $this->authorize('view', $account);
+
+        abort_unless($account->platform === Platform::Pinterest, Response::HTTP_NOT_FOUND);
+
+        $this->authorize('createPost', $request->user()->currentWorkspace);
+
+        try {
+            $board = CreatePinterestBoard::execute($account, $request->validated());
+        } catch (TokenExpiredException|PinterestPublishException|ConnectionException $e) {
+            throw ValidationException::withMessages(['name' => PinterestBoardFailure::message($e)]);
+        }
+
+        return (new PinterestBoardResource($board))
+            ->response()
+            ->setStatusCode(Response::HTTP_CREATED);
+    }
+
     public function channels(Request $request, SocialAccount $account): JsonResponse
     {
         $this->authorize('view', $account);
@@ -74,6 +102,20 @@ class SocialAccountController extends Controller
                 Response::HTTP_BAD_GATEWAY,
             );
         }
+    }
+
+    public function postingSchedule(SocialAccount $account): ChannelPostingScheduleResource
+    {
+        $this->authorize('view', $account);
+
+        return new ChannelPostingScheduleResource($account);
+    }
+
+    public function freeSlots(SocialAccount $account): ChannelFreeSlotsResource
+    {
+        $this->authorize('view', $account);
+
+        return new ChannelFreeSlotsResource(ListFreeQueueSlots::handle($account));
     }
 
     private function statusForPinterestCategory(ErrorCategory $category): int

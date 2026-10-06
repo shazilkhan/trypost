@@ -9,6 +9,7 @@ import {
     IconLayoutSidebarRight,
     IconPlus,
 } from '@tabler/icons-vue';
+import { useMediaQuery, useSwipe, type UseSwipeDirection } from '@vueuse/core';
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 
 import { destroy as destroyPost } from '@/actions/App/Http/Controllers/App/PostController';
@@ -16,11 +17,14 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
+import CalendarDayAgenda from '@/components/publish/CalendarDayAgenda.vue';
+import CalendarMonthDotGrid from '@/components/publish/CalendarMonthDotGrid.vue';
 import CalendarPostChip from '@/components/publish/CalendarPostChip.vue';
 import CalendarSlotChip from '@/components/publish/CalendarSlotChip.vue';
 import CalendarStatusFilter from '@/components/publish/CalendarStatusFilter.vue';
 import CalendarTimeGrid from '@/components/publish/CalendarTimeGrid.vue';
 import CalendarUndatedPanel from '@/components/publish/CalendarUndatedPanel.vue';
+import CalendarWeekStrip from '@/components/publish/CalendarWeekStrip.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
 import TimezoneSelect from '@/components/TimezoneSelect.vue';
 import { Button } from '@/components/ui/button';
@@ -350,8 +354,6 @@ const navigate = (direction: number): void => {
     }
 };
 
-const goToToday = (): void => visit(calendarUrl(props.view));
-
 const switchView = (view: CalendarView): void => visit(calendarUrl(view));
 
 const dayKey = (day: dayjs.Dayjs): string => day.format('YYYY-MM-DD');
@@ -408,6 +410,140 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
     expandedDays.value.includes(dayKey(day))
         ? itemsFor(day)
         : itemsFor(day).slice(0, MONTH_CHIPS);
+
+const isDesktop = useMediaQuery('(min-width: 768px)');
+
+const mobileTitle = computed(() => {
+    if (props.view === 'month') {
+        return monthDate.value.format('MMMM YYYY');
+    }
+
+    const start = weekStart.value;
+    const end = weekStart.value.add(6, 'day');
+
+    if (start.isSame(end, 'month')) {
+        return start.format('MMMM YYYY');
+    }
+
+    if (start.isSame(end, 'year')) {
+        return `${start.format('MMM')} – ${end.format('MMM YYYY')}`;
+    }
+
+    return `${start.format('MMM YYYY')} – ${end.format('MMM YYYY')}`;
+});
+
+const dayKeys = computed(() =>
+    (props.view === 'month' ? calendarWeeks.value.flat() : weekDays.value).map(
+        dayKey,
+    ),
+);
+
+const periodDayKeys = computed(() =>
+    props.view === 'month'
+        ? dayKeys.value.filter((key) =>
+              key.startsWith(monthDate.value.format('YYYY-MM')),
+          )
+        : dayKeys.value,
+);
+
+const defaultDayKey = (): string =>
+    periodDayKeys.value.includes(todayKey.value)
+        ? todayKey.value
+        : periodDayKeys.value[0];
+
+const selectedDayKey = ref(defaultDayKey());
+const pendingDayKey = ref<string | null>(null);
+
+watch(dayKeys, (keys, previousKeys) => {
+    const pending = pendingDayKey.value;
+    pendingDayKey.value = null;
+
+    if (pending && keys.includes(pending)) {
+        selectedDayKey.value = pending;
+
+        return;
+    }
+
+    if (keys.includes(selectedDayKey.value)) {
+        return;
+    }
+
+    const offset = previousKeys.indexOf(selectedDayKey.value);
+
+    selectedDayKey.value =
+        props.view === 'week' &&
+        previousKeys.length === 7 &&
+        offset >= 0 &&
+        !keys.includes(todayKey.value)
+            ? keys[offset]
+            : defaultDayKey();
+});
+
+const selectedDay = computed(() => localized(selectedDayKey.value));
+
+const selectDay = (key: string): void => {
+    selectedDayKey.value = key;
+};
+
+const isRtl = (): boolean => document.documentElement.dir === 'rtl';
+
+const swipeStep = (direction: UseSwipeDirection): number => {
+    if (direction !== 'left' && direction !== 'right') {
+        return 0;
+    }
+
+    return (direction === 'left') !== isRtl() ? 1 : -1;
+};
+
+const shiftSelectedDay = (step: number): void => {
+    const target = dayKey(selectedDay.value.add(step, 'day'));
+
+    if (periodDayKeys.value.includes(target)) {
+        selectedDayKey.value = target;
+
+        return;
+    }
+
+    pendingDayKey.value = target;
+    navigate(step);
+};
+
+const periodSwipeTarget = ref<HTMLElement | null>(null);
+const daySwipeTarget = ref<HTMLElement | null>(null);
+
+useSwipe(periodSwipeTarget, {
+    threshold: 48,
+    onSwipeEnd: (_event, direction) => {
+        const step = swipeStep(direction);
+
+        if (step !== 0) {
+            navigate(step);
+        }
+    },
+});
+
+useSwipe(daySwipeTarget, {
+    threshold: 48,
+    onSwipeEnd: (_event, direction) => {
+        const step = swipeStep(direction);
+
+        if (step !== 0) {
+            shiftSelectedDay(step);
+        }
+    },
+});
+
+const composeOnSelectedDay = (): void => composeOn(selectedDay.value);
+
+const goToToday = (): void => {
+    if (periodDayKeys.value.includes(todayKey.value)) {
+        selectedDayKey.value = todayKey.value;
+    } else {
+        pendingDayKey.value = todayKey.value;
+    }
+
+    visit(calendarUrl(props.view));
+};
 </script>
 
 <template>
@@ -449,8 +585,8 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                 class="mx-4 mt-2 flex shrink-0 flex-col md:mx-8 md:h-12 md:flex-row md:items-center md:gap-4"
                 data-testid="calendar-toolbar"
             >
-                <div class="flex h-12 min-w-0 items-center gap-4">
-                    <div class="flex min-w-0 items-center">
+                <div class="flex h-12 min-w-0 items-center gap-4 max-md:gap-2">
+                    <div class="flex min-w-0 items-center max-md:flex-1">
                         <Button
                             variant="ghost"
                             size="icon"
@@ -475,7 +611,7 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                             class="ms-1 truncate font-heading text-base leading-5 font-medium text-foreground capitalize"
                             data-testid="calendar-title"
                         >
-                            {{ headerTitle }}
+                            {{ isDesktop ? headerTitle : mobileTitle }}
                         </h2>
                     </div>
                     <Button
@@ -490,7 +626,7 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                         <DropdownMenuTrigger as-child>
                             <Button
                                 variant="ghost"
-                                class="shrink-0 data-[state=open]:bg-accent"
+                                class="shrink-0 data-[state=open]:bg-accent max-md:-me-2"
                                 data-testid="calendar-view-trigger"
                             >
                                 {{ $t(`calendar.${view}`) }}
@@ -517,7 +653,7 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                 </div>
 
                 <div
-                    class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 pb-2 md:ms-auto md:overflow-visible md:p-0"
+                    class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 pb-2 max-md:pe-8 max-md:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] max-md:rtl:[mask-image:linear-gradient(to_left,black_calc(100%-2rem),transparent)] md:ms-auto md:overflow-visible md:p-0"
                     data-testid="calendar-filters"
                 >
                     <PostChannelFilter
@@ -533,7 +669,7 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                     />
                     <Button
                         variant="ghost"
-                        class="shrink-0"
+                        class="shrink-0 max-sm:border max-sm:border-border-strong"
                         :class="{ 'bg-accent': undatedOpen }"
                         :aria-pressed="undatedOpen"
                         data-testid="calendar-no-date"
@@ -560,6 +696,7 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                             testid="publish-timezone"
                             variant="ghost"
                             compact
+                            icon-only-on-mobile
                             @update:model-value="setTimezone"
                         />
                     </div>
@@ -611,8 +748,52 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
                     :class="{ 'max-md:hidden': undatedOpen }"
                     data-testid="calendar-grid"
                 >
+                    <div
+                        v-if="!isDesktop"
+                        class="flex min-h-0 flex-1 flex-col"
+                        data-testid="calendar-mobile"
+                    >
+                        <div
+                            ref="periodSwipeTarget"
+                            class="shrink-0 border-b border-border-strong"
+                        >
+                            <CalendarWeekStrip
+                                v-if="view === 'week'"
+                                :days="weekDays"
+                                :posts="posts"
+                                :selected-key="selectedDayKey"
+                                :today-key="todayKey"
+                                @select="selectDay"
+                            />
+                            <CalendarMonthDotGrid
+                                v-else
+                                :weeks="calendarWeeks"
+                                :month="monthDate"
+                                :posts="posts"
+                                :selected-key="selectedDayKey"
+                                :today-key="todayKey"
+                                @select="selectDay"
+                            />
+                        </div>
+                        <div
+                            ref="daySwipeTarget"
+                            class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                        >
+                            <CalendarDayAgenda
+                                :key="selectedDayKey"
+                                :day="selectedDay"
+                                :items="itemsFor(selectedDay)"
+                                :channels="slotChannels"
+                                :timezone="timezone"
+                                :can-create-post="canCreatePost"
+                                :is-past="isPast(selectedDay)"
+                                @compose="composeOnSelectedDay"
+                            />
+                        </div>
+                    </div>
+
                     <CalendarTimeGrid
-                        v-if="view !== 'month'"
+                        v-else-if="view !== 'month'"
                         :days="weekDays"
                         :posts="posts"
                         :slots="visibleSlots"

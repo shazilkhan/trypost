@@ -9,6 +9,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useCanHover } from '@/composables/useCanHover';
 import {
     getPlatformLabel,
 } from '@/composables/usePlatformLogo';
@@ -26,9 +27,10 @@ const emit = defineEmits<{
 }>();
 
 const tooltipOpen = ref(false);
+const canHover = useCanHover();
 
 const focusAccount = (): void => {
-    tooltipOpen.value = true;
+    tooltipOpen.value = canHover.value;
     emit('focus');
 };
 
@@ -40,8 +42,8 @@ const remove = (): void => {
 
 <template>
     <div class="group relative shrink-0">
-        <TooltipProvider :delay-duration="150">
-            <Tooltip v-model:open="tooltipOpen">
+        <TooltipProvider :delay-duration="150" :disabled="!canHover">
+            <Tooltip v-model:open="tooltipOpen" :disabled="!canHover">
                 <TooltipTrigger as-child>
                     <button
                         type="button"

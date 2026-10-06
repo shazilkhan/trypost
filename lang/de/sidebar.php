@@ -33,6 +33,8 @@ return [
     'search_channels' => 'Kanäle suchen',
     'channel_submenu' => 'Untermenü von :name',
     'toggle' => 'Seitenleiste umschalten',
+    'collapse' => 'Seitenleiste einklappen',
+    'expand' => 'Seitenleiste ausklappen',
     'mobile_title' => 'Navigation',
     'mobile_description' => 'Hauptnavigation der App.',
     'repurposes' => 'Repurpose',

@@ -20,6 +20,7 @@ export interface FollowerAccount extends AccountIdentityData {
     network: string;
     value: number | null;
     growth: number | null;
+    net?: number | null;
     provenance: string | null;
 }
 
@@ -99,10 +100,15 @@ export interface AnalyticsReport {
     summary: {
         posts: Comparison;
         followers: Comparison;
+        net_followers: Comparison;
         reactions: Comparison;
         comments: Comparison;
         engagement_rate: Comparison;
         views: Comparison;
+        impressions: Comparison;
+        clicks: Comparison;
+        reposts: Comparison;
+        quotes: Comparison;
         reach: Comparison;
         shares: Comparison;
         saves: Comparison;
@@ -133,7 +139,6 @@ export type AnalyticsRangePreset =
     | '7d'
     | '30d'
     | 'mtd'
-    | 'last_month'
     | 'custom';
 
 export interface AnalyticsFilters {
@@ -143,8 +148,6 @@ export interface AnalyticsFilters {
 }
 
 export interface WorkspaceAnalyticsFilters extends AnalyticsFilters {
-    labels: string[];
-    untagged: boolean;
     channels: string[];
 }
 
@@ -162,9 +165,69 @@ export type SummaryMetric = keyof AnalyticsReport['summary'];
 
 export type PublicationPeriod = 'current' | 'previous';
 
+export type SeriesMetric =
+    | 'posts'
+    | 'followers'
+    | 'net_followers'
+    | 'reach'
+    | 'views'
+    | 'impressions'
+    | 'profile_visits'
+    | 'growth_rate';
+
+export type SeriesValues = Partial<Record<SeriesMetric, number | null>>;
+
+export interface MetricSeriesPoint {
+    start: string;
+    end: string;
+    values: SeriesValues;
+}
+
+export interface FollowerGrowthMonth {
+    month: string;
+    start: string;
+    end: string;
+    followers: number | null;
+    rate: number | null;
+}
+
+export interface FollowerGrowthRate {
+    range: { start: string; end: string };
+    months: FollowerGrowthMonth[];
+    latest: number | null;
+    previous: number | null;
+}
+
+export interface ChannelMetricSeries {
+    resolution: 'daily' | 'weekly' | 'monthly';
+    metrics: SeriesMetric[];
+    range: { start: string; end: string };
+    previous_range: { start: string; end: string };
+    current: MetricSeriesPoint[];
+    previous: MetricSeriesPoint[];
+    totals: { current: SeriesValues; previous: SeriesValues };
+    growth?: FollowerGrowthRate | null;
+}
+
+export interface ChannelPublicationPage {
+    data: ChannelPublicationRow[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+}
+
 export interface ChannelInsightsFilters extends AnalyticsFilters {
     period: PublicationPeriod;
     sort: SummaryMetric;
+    labels: string[];
+    untagged: boolean;
+    types: string[];
+}
+
+export interface ContentTypeOption {
+    value: string;
+    label: string;
 }
 
 export interface ChannelPublicationRow {

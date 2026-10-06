@@ -188,6 +188,7 @@ return [
         'slots_description' => 'Your posting times tell TryPost when to send posts from your queue. The next posts you add to the queue go out in the next upcoming slots below.',
         'day_on' => 'On',
         'day_off' => 'Off',
+        'day_empty' => 'No posting times',
         'remove_time' => 'Remove :time',
         'edit_hour' => 'Change the hour of :time',
         'edit_minute' => 'Change the minute of :time',

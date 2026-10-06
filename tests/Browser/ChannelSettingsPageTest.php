@@ -213,7 +213,9 @@ test('meet my posting goal is disabled with a hint once the goal is met', functi
     $page->assertAttribute('@schedule-generate-goal', 'data-disabled', '')
         ->assertAttribute('@schedule-generate-copy', 'data-disabled', '')
         ->assertScript('getComputedStyle(document.querySelector("[data-testid=schedule-generate-goal]")).opacity', '1')
-        ->assertScript('(() => { const toggle = document.querySelector("[data-testid=schedule-day-1-toggle]").getBoundingClientRect(); return `${toggle.width}x${toggle.height}`; })()', '30x16');
+        ->assertScript('(() => { const toggle = document.querySelector("[data-testid=schedule-day-1-toggle]").getBoundingClientRect(); return `${toggle.width}x${toggle.height}`; })()', '30x16')
+        ->assertScript('document.querySelector("[data-testid=schedule-day-1-toggle] svg") === null', true);
+    $page->assertScript('(() => { const toggle = document.querySelector("[data-testid=schedule-day-1-toggle]"); const label = toggle.parentElement.querySelector("span").getBoundingClientRect(); const box = toggle.getBoundingClientRect(); return Math.abs((label.top + label.height / 2) - (box.top + box.height / 2)) <= 1 && label.height < 20; })()', true);
 
     $page->hover('@schedule-generate-goal-hint');
     waitForChannelSettingsPageTestId($page, 'schedule-generate-goal-tooltip');
@@ -360,4 +362,68 @@ test('the time zone confirmation buttons fit on one line in every language', fun
     }
 
     expect($problems)->toBe([]);
+});
+
+test('on a phone the schedule stacks one day per row in week-start order without horizontal scroll', function () {
+    [$user, $channel] = channelSettingsPageSetup(PostingSchedule::empty()->withTime(1, '09:42')->withTime(0, '14:30'));
+    $user->update(['week_starts_on' => WeekStart::Sunday, 'time_format' => TimeFormat::TwelveHour]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel))->resize(390, 844);
+    waitForChannelSettingsPageTestId($page, 'schedule-day-1-time-0942');
+
+    $page->assertScript(<<<'JS'
+        (() => {
+            const days = [...document.querySelectorAll('[data-testid^="schedule-day-"]')]
+                .filter((el) => /^schedule-day-\d$/.test(el.dataset.testid));
+            const rects = days.map((el) => el.getBoundingClientRect());
+            const order = days.map((el) => el.dataset.testid.slice(-1)).join('');
+            const stacked = rects.every((rect, i) => i === 0 || (rect.top >= rects[i - 1].bottom - 1 && Math.abs(rect.left - rects[0].left) < 1));
+
+            return order === '0123456' && stacked && document.documentElement.scrollWidth <= window.innerWidth;
+        })()
+    JS, true)
+        ->assertVisible('@schedule-day-2-empty')
+        ->assertSeeIn('@schedule-day-2-empty', 'No posting times')
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a phone toggling a day, adding and removing a time persist', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel))->resize(390, 844);
+    waitForChannelSettingsPageTestId($page, 'schedule-day-1-time-0942');
+
+    pickChannelSettingsOption($page, 'schedule-add-target', 'weekdays');
+    pickChannelSettingsOption($page, 'schedule-add-hour', '18');
+    pickChannelSettingsOption($page, 'schedule-add-minute', '30');
+    $page->click('@schedule-add-submit');
+    waitForChannelSettingsPageTestId($page, 'schedule-day-5-time-1830');
+    waitForChannelSaved($page, $channel, fn (SocialAccount $c): bool => $c->posting_schedule->slotCount() === 6);
+
+    $page->click('@schedule-day-1-time-0942-remove');
+    waitForChannelSaved($page, $channel, fn (SocialAccount $c): bool => $c->posting_schedule->slotCount() === 5);
+
+    $page->click('@schedule-day-3-toggle');
+    waitForChannelSaved($page, $channel, fn (SocialAccount $c): bool => $c->posting_schedule->days()[3]['enabled'] === false);
+
+    $fresh = $channel->fresh()->posting_schedule;
+    expect($fresh->days()[1]['times'])->toBe(['18:30'])
+        ->and($fresh->days()[3]['enabled'])->toBeFalse();
+    $page->assertScript('document.documentElement.scrollWidth <= window.innerWidth', true)
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a wide screen an empty day column shows the empty state', function () {
+    [$user, $channel] = channelSettingsPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.settings', $channel))->resize(1800, 900);
+    waitForChannelSettingsPageTestId($page, 'schedule-day-1-time-0942');
+
+    $page->assertVisible('@schedule-day-2-empty')
+        ->assertSeeIn('@schedule-day-2-empty', 'No posting times')
+        ->assertScript('document.querySelector(\'[data-testid="schedule-day-1"]\').getBoundingClientRect().top === document.querySelector(\'[data-testid="schedule-day-2"]\').getBoundingClientRect().top', true)
+        ->assertNoJavaScriptErrors();
 });
