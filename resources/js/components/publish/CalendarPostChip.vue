@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconPlayerPlayFilled, IconRepeat } from '@tabler/icons-vue';
+import { useMediaQuery } from '@vueuse/core';
 import { Presence } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 
@@ -34,6 +35,18 @@ const MAX_ICONS = 4;
 
 const open = ref(false);
 const detailsOpen = ref(false);
+const isPhone = useMediaQuery('(max-width: 639px)');
+const card = ref<InstanceType<typeof PostTimelineCard> | null>(null);
+
+const onOpenChange = (value: boolean): void => {
+    if (value && isPhone.value) {
+        card.value?.openDetails();
+
+        return;
+    }
+
+    open.value = value;
+};
 
 watch(
     () => [props.post.status, props.post.calendar_at, props.post.schedule_mode],
@@ -125,7 +138,7 @@ const scheduleMode = computed(() =>
 </script>
 
 <template>
-    <Popover v-model:open="open">
+    <Popover :open="open" @update:open="onOpenChange">
         <Teleport to="body">
             <Presence :present="open">
                 <div
@@ -222,12 +235,13 @@ const scheduleMode = computed(() =>
             align="start"
             :collision-padding="16"
             class="max-h-(--reka-popover-content-available-height) w-[min(28rem,calc(100vw-2rem))] overflow-y-auto border border-border-strong p-0"
-            :class="{ hidden: detailsOpen && !open }"
-            :force-mount="detailsOpen"
+            :class="{ hidden: !open }"
+            :force-mount="detailsOpen || isPhone"
             :data-testid="`calendar-post-popover-${post.id}`"
             @open-auto-focus="focusPopover"
         >
             <PostTimelineCard
+                ref="card"
                 :post="post"
                 :tab="tab"
                 :display-timezone="timezone"

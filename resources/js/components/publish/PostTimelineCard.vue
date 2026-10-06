@@ -362,6 +362,8 @@ const onMenuSelect = (action: PostCardMenuAction): void => {
             runPostAction(action, props.post);
     }
 };
+
+defineExpose({ openDetails });
 </script>
 
 <template>

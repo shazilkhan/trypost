@@ -676,3 +676,24 @@ test('on a phone a free posting slot in the agenda opens the composer at that in
         ->and($post->schedule_mode)->toBe(ScheduleMode::Queue);
     $page->assertNoJavaScriptErrors();
 });
+
+test('on a phone, tapping a post in the month agenda opens its details directly', function () {
+    [$user, $linkedin] = calendarPageSetup();
+    $at = now('UTC')->addMonthNoOverflow()->startOfMonth()->addDays(10)->setTime(12, 0);
+    $post = calendarPagePost($linkedin, $at);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'month', 'month' => $at->format('Y-m-d')]))->resize(390, 844);
+    $dayKey = $at->copy()->setTimezone($user->timezone)->format('Y-m-d');
+    waitForCalendarTestId($page, "calendar-month-day-{$dayKey}");
+
+    $page->click("@calendar-month-day-{$dayKey}");
+    waitForCalendarTestId($page, "calendar-post-{$post->id}");
+    $page->click("@calendar-post-{$post->id}");
+    waitForCalendarTestId($page, "post-details-{$post->id}");
+
+    $page->assertVisible("@post-details-{$post->id}")
+        ->assertMissing("@calendar-post-popover-{$post->id}")
+        ->assertNoJavaScriptErrors();
+});

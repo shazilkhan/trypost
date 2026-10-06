@@ -64,7 +64,7 @@ const mentions = computed((): MentionChip[] =>
             class="space-y-1 rounded-md border border-l-4 bg-muted p-3"
             :style="embed.color ? { borderLeftColor: embed.color } : undefined"
         >
-            <p v-if="embed.title" class="font-semibold text-info">
+            <p v-if="embed.title" class="font-semibold text-info dark:text-info-text">
                 {{ embed.title }}
             </p>
             <p

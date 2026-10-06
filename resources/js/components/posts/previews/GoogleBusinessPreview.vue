@@ -86,7 +86,7 @@ const event = computed(() => {
         link-tone="info"
         tags="plain"
         :trailing-actions="[{ icon: IconShare }]"
-        action-class="text-info"
+        action-class="text-info dark:text-info-text"
     >
         <template #aside>
             <IconDotsVertical class="size-5 shrink-0 text-muted-foreground" />
@@ -104,7 +104,7 @@ const event = computed(() => {
         </template>
         <span
             v-if="ctaLabelKey"
-            class="inline-flex rounded-full border px-4 py-1.5 text-[13px] font-semibold text-info"
+            class="inline-flex rounded-full border px-4 py-1.5 text-[13px] font-semibold text-info dark:text-info-text"
             >{{ $t(ctaLabelKey) }}</span
         >
     </PreviewTextPost>

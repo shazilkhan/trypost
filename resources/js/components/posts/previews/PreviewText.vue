@@ -66,7 +66,7 @@ const segments = computed((): Segment[] => {
 
 const linkClass = computed((): string =>
     props.tone === 'info'
-        ? 'text-info underline underline-offset-2'
+        ? 'text-info dark:text-info-text underline underline-offset-2'
         : 'text-primary-text underline underline-offset-2',
 );
 
