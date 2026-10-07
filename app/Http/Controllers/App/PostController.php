@@ -23,6 +23,8 @@ use App\Http\Resources\App\PlatformConfigResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Models\Post;
 use App\Models\PostPlatform;
+use App\Services\Ai\AiVideoClient;
+use App\Services\Ai\AiVideoQuota;
 use App\Services\Post\PostMetricsFetcher;
 use App\Services\Social\TikTokCreatorInfo;
 use App\Support\LinkTlds;
@@ -278,6 +280,9 @@ class PostController extends Controller
             ])
             ->filter();
 
+        $aiVideo = app(AiVideoClient::class);
+        $aiVideoEnabled = $aiVideo->isAvailable();
+
         return Inertia::render('posts/Edit', [
             'workspace' => $workspace,
             'post' => $post,
@@ -289,6 +294,13 @@ class PostController extends Controller
             'signatures' => $signatures,
             'authUserId' => $request->user()->id,
             'xLinkTlds' => config('trypost.platforms.x.defuse_links') ? LinkTlds::all() : [],
+            'aiVideo' => [
+                'enabled' => $aiVideoEnabled,
+                'durations' => $aiVideo->allowedDurations(),
+                'aspectRatios' => AiVideoClient::ASPECT_RATIOS,
+                'limit' => AiVideoQuota::limit(),
+                'remaining' => $aiVideoEnabled ? AiVideoQuota::remaining($workspace->account) : 0,
+            ],
         ]);
     }
 

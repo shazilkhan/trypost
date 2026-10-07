@@ -12,6 +12,7 @@ import {
     IconSparkles,
     IconTrash,
     IconVideo,
+    IconVideoPlus,
     IconWriting,
 } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
@@ -53,10 +54,12 @@ const props = withDefaults(
         platformLimits: PlatformLimit[];
         mediaIssues: Record<string, MediaIssue[]>;
         allowAiRegenerate?: boolean;
+        aiVideoEnabled?: boolean;
         readOnly?: boolean;
     }>(),
     {
         allowAiRegenerate: true,
+        aiVideoEnabled: false,
         readOnly: false,
     },
 );
@@ -68,6 +71,7 @@ const emit = defineEmits<{
     (e: 'open-ai-generate'): void;
     (e: 'open-ai-review'): void;
     (e: 'open-ai-regenerate-image', mediaId: string): void;
+    (e: 'open-ai-video'): void;
 }>();
 
 const emojiOpen = ref(false);
@@ -222,7 +226,7 @@ const onMediaKeydown = async (event: KeyboardEvent, index: number) => {
 };
 
 const issueLabel = (reason: string): string => trans(`posts.form.warnings.${reason}`);
-const canRegenerateWithAi = (item: MediaItem): boolean => props.allowAiRegenerate && item.source === 'ai';
+const canRegenerateWithAi = (item: MediaItem): boolean => props.allowAiRegenerate && item.source === 'ai' && isImage(item);
 
 const altDialogOpen = ref(false);
 const altDialogIndex = ref<number | null>(null);
@@ -462,6 +466,22 @@ const onAltTextSave = (alt: string): void => {
                             </button>
                         </TooltipTrigger>
                         <TooltipContent>{{ $t('posts.ai.review.button_tooltip') }}</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider v-if="aiVideoEnabled">
+                    <Tooltip>
+                        <TooltipTrigger as-child>
+                            <button
+                                type="button"
+                                class="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border-2 border-foreground bg-card text-foreground shadow-2xs transition-all hover:-translate-y-0.5 hover:bg-violet-100 hover:shadow-sm"
+                                data-testid="open-ai-video"
+                                @click="emit('open-ai-video')"
+                            >
+                                <IconVideoPlus class="size-4" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('posts.ai.video.button_tooltip') }}</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
 

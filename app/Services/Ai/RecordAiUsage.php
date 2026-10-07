@@ -87,6 +87,60 @@ final class RecordAiUsage
     }
 
     /**
+     * Record a usage entry for an AI video generation. Credits are flat per
+     * call via CreditCost::forVideo($model). Recorded when the generation is
+     * accepted so in-flight clips count against the monthly limit; pass the
+     * `generation_id` in the metadata so a failed one can be forgotten.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function recordVideo(
+        Workspace $workspace,
+        string $provider,
+        string $model,
+        ?string $userId = null,
+        ?string $postId = null,
+        array $metadata = [],
+    ): void {
+        $credits = CreditCost::forVideo($model);
+
+        self::persist(
+            workspace: $workspace,
+            type: UsageType::Video,
+            credits: $credits,
+            provider: $provider,
+            model: $model,
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            userId: $userId,
+            postId: $postId,
+            metadata: $metadata,
+        );
+    }
+
+    /**
+     * Drop the usage entry of a video generation that produced nothing, so a
+     * failed attempt neither costs credits nor counts against the limit.
+     */
+    public static function forgetVideo(Workspace $workspace, string $generationId): void
+    {
+        try {
+            AiUsageLog::query()
+                ->where('account_id', $workspace->account_id)
+                ->where('type', UsageType::Video)
+                ->where('metadata->generation_id', $generationId)
+                ->delete();
+        } catch (Throwable $e) {
+            Log::warning('Failed to forget AI video usage', [
+                'workspace_id' => $workspace->id,
+                'generation_id' => $generationId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Record a usage entry for an image-template generation. Templates do not
      * call an LLM (composed via Unsplash + branding) so we charge zero credits.
      *

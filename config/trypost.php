@@ -153,6 +153,29 @@ return [
         'backoff_minutes' => (int) env('REPURPOSE_BACKOFF_MINUTES', 60),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | AI Video Generation
+    |--------------------------------------------------------------------------
+    |
+    | Short clips generated with Google Veo through the Gemini API, billed to
+    | the same GEMINI_API_KEY as the other Gemini features. Veo charges per
+    | second of output, so the feature is off until enabled and every account
+    | is held to `monthly_limit` clips per billing cycle (0 allows none).
+    | Resolutions above 720p only support 8-second clips.
+    |
+    */
+
+    'ai_video' => [
+        'enabled' => (bool) env('AI_VIDEO_ENABLED', false),
+        'api' => env('AI_VIDEO_API', 'https://generativelanguage.googleapis.com/v1beta'),
+        'model' => env('AI_VIDEO_MODEL', 'veo-3.1-generate-preview'),
+        'resolution' => env('AI_VIDEO_RESOLUTION', '720p'),
+        'monthly_limit' => (int) env('AI_VIDEO_MONTHLY_LIMIT', 20),
+        'poll_interval_seconds' => (int) env('AI_VIDEO_POLL_INTERVAL_SECONDS', 10),
+        'timeout_seconds' => (int) env('AI_VIDEO_TIMEOUT_SECONDS', 600),
+    ],
+
     'google_auth_enabled' => env('GOOGLE_AUTH_ENABLED', false),
 
     'github_auth_enabled' => env('GITHUB_AUTH_ENABLED', false),

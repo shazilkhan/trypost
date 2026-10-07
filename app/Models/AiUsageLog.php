@@ -58,4 +58,13 @@ class AiUsageLog extends Model
             ->where('created_at', '<', $end)
             ->sum('credits');
     }
+
+    public static function countOfTypeBetween(string $accountId, UsageType $type, CarbonInterface $start, CarbonInterface $end): int
+    {
+        return static::where('account_id', $accountId)
+            ->where('type', $type)
+            ->where('created_at', '>=', $start)
+            ->where('created_at', '<', $end)
+            ->count();
+    }
 }

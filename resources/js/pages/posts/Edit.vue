@@ -8,6 +8,7 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import AiGenerateDialog from '@/components/posts/ai/AiGenerateDialog.vue';
 import AiRegenerateImageDialog from '@/components/posts/ai/AiRegenerateImageDialog.vue';
 import AiReviewDialog from '@/components/posts/ai/AiReviewDialog.vue';
+import AiVideoDialog, { type AiVideoOptions } from '@/components/posts/ai/AiVideoDialog.vue';
 import PostEditorActionBar from '@/components/posts/editor/PostEditorActionBar.vue';
 import PostEditorComposer from '@/components/posts/editor/PostEditorComposer.vue';
 import PostEditorHeader from '@/components/posts/editor/PostEditorHeader.vue';
@@ -94,6 +95,7 @@ const props = defineProps<{
     labels: { id: string; name: string; color: string }[];
     signatures: { id: string; name: string; content: string }[];
     authUserId: string;
+    aiVideo: AiVideoOptions;
 }>();
 
 const { canCreatePost } = useWorkspaceRole();
@@ -174,6 +176,7 @@ const showSaved = ref(false);
 const isAiGenerateOpen = ref(false);
 const isAiReviewOpen = ref(false);
 const isAiRegenerateImageOpen = ref(false);
+const isAiVideoOpen = ref(false);
 const selectedAiMediaId = ref<string | null>(null);
 
 const onAiGenerateApply = (newContent: string) => {
@@ -199,6 +202,11 @@ const onAiMediaRegenerated = (payload: { media: MediaItem; targetMediaId: string
     media.value = media.value.map((item) => (
         item.id === payload.targetMediaId ? payload.media : item
     ));
+};
+
+const onAiVideoGenerated = (generated: MediaItem) => {
+    if (media.value.some((item) => item.id === generated.id)) return;
+    media.value = [...media.value, generated];
 };
 
 const isPostActionDisabled = computed(
@@ -438,10 +446,12 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
                             :platform-limits="platformLimits"
                             :media-issues="mediaIssues"
                             :allow-ai-regenerate="!isLocked"
+                            :ai-video-enabled="aiVideo.enabled && !isLocked"
                             :read-only="!canCreatePost"
                             @open-ai-generate="isAiGenerateOpen = true"
                             @open-ai-review="isAiReviewOpen = true"
                             @open-ai-regenerate-image="onOpenAiRegenerateImage"
+                            @open-ai-video="isAiVideoOpen = true"
                         />
                     </div>
 
@@ -523,5 +533,13 @@ usePostEcho(post.value.id, '.post.comment.created', (e: any) => {
         :post-id="post.id"
         :media-item="selectedAiMediaItem"
         @regenerated="onAiMediaRegenerated"
+    />
+
+    <AiVideoDialog
+        v-if="aiVideo.enabled"
+        v-model:open="isAiVideoOpen"
+        :post-id="post.id"
+        :options="aiVideo"
+        @generated="onAiVideoGenerated"
     />
 </template>

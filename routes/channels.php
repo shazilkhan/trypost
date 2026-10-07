@@ -6,6 +6,7 @@ use App\Broadcasting\PostChannel;
 use App\Broadcasting\UserAiCreationChannel;
 use App\Broadcasting\UserAiGenerationChannel;
 use App\Broadcasting\UserAiMediaRegenerationChannel;
+use App\Broadcasting\UserAiVideoGenerationChannel;
 use App\Broadcasting\WebhookLogChannel;
 use App\Broadcasting\WorkspaceChannel;
 use App\Broadcasting\WorkspaceUserChannel;
@@ -24,3 +25,5 @@ Broadcast::channel('user.{owner}.ai-gen.{generationId}', UserAiGenerationChannel
 Broadcast::channel('user.{owner}.ai-creation.{creationId}', UserAiCreationChannel::class);
 
 Broadcast::channel('user.{owner}.ai-media.{regenerationId}', UserAiMediaRegenerationChannel::class);
+
+Broadcast::channel('user.{owner}.ai-video.{generationId}', UserAiVideoGenerationChannel::class);
