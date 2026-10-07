@@ -63,15 +63,26 @@ createInertiaApp({
             capturePageview();
         });
 
-        createApp({
+        let mounted = false;
+
+        const app = createApp({
             render: () =>
                 h(ConfigProvider, { dir: textDirection.value }, () =>
                     h(App, props),
                 ),
-        })
-            .use(i18nVue, i18nConfig(locale))
-            .use(plugin)
-            .mount(el);
+        });
+
+        app.use(i18nVue, {
+            ...i18nConfig(locale),
+            onLoad: () => {
+                if (mounted) {
+                    return;
+                }
+
+                mounted = true;
+                app.mount(el);
+            },
+        }).use(plugin);
     },
     progress: {
         color: '#4B5563',

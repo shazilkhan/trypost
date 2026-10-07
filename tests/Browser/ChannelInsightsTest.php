@@ -159,7 +159,7 @@ test('sorting by views puts the most viewed publication first', function () {
 
     $page->assertScript('document.querySelector("#insights-posts-body tr")?.dataset.testid', "insights-posts-row-{$this->mostReactions->id}")
         ->click('@insights-sort-views');
-    waitForChannelInsightsScript($page, "document.querySelector('#insights-posts-body tr')?.dataset.testid === 'insights-posts-row-{$this->mostViews->id}'");
+    waitForChannelInsightsScript($page, "document.querySelector('#insights-posts-body tr')?.dataset.testid === 'insights-posts-row-{$this->mostViews->id}' && new URLSearchParams(location.search).get('sort') === 'views'");
 
     $page->assertScript('document.querySelector("#insights-posts-body tr")?.dataset.testid', "insights-posts-row-{$this->mostViews->id}")
         ->assertScript('new URLSearchParams(location.search).get("sort")', 'views')
@@ -172,7 +172,7 @@ test('the previous period lists publications from the previous range', function 
     waitForChannelInsightsTestId($page, 'insights-period-previous');
 
     $page->click('@insights-period-previous');
-    waitForChannelInsightsTestId($page, "insights-posts-row-{$this->previous->id}");
+    waitForChannelInsightsScript($page, "Boolean(document.querySelector('[data-testid=\"insights-posts-row-{$this->previous->id}\"]')) && !document.querySelector('[data-testid=\"insights-posts-row-{$this->mostReactions->id}\"]') && new URLSearchParams(location.search).get('period') === 'previous'");
 
     $page->assertVisible("@insights-posts-row-{$this->previous->id}")
         ->assertMissing("@insights-posts-row-{$this->mostReactions->id}")

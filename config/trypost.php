@@ -118,7 +118,6 @@ return [
             'area_mb' => (int) env('MEDIA_HEIC_AREA_LIMIT_MB', 1024),
             'width_px' => (int) env('MEDIA_HEIC_WIDTH_LIMIT_PX', 16384),
             'height_px' => (int) env('MEDIA_HEIC_HEIGHT_LIMIT_PX', 16384),
-            'time_seconds' => (int) env('MEDIA_HEIC_TIME_LIMIT_SECONDS', 30),
         ],
     ],
 

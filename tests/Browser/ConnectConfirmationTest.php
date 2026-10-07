@@ -24,6 +24,8 @@ function waitForConnectConfirmTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 function connectConfirmPollFor(mixed $page, string $condition, int $attempts = 160): bool

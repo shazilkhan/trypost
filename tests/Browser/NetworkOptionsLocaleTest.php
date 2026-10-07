@@ -22,6 +22,8 @@ function waitForNetworkOptionsTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 test('network card labels stay on one line in every language', function (Platform $platform, ContentType $contentType, string $readyTestId, array $meta) {

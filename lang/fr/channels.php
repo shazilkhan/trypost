@@ -219,7 +219,7 @@ return [
 
     'goal_dialog' => [
         'title' => 'Combien de fois par semaine souhaitez-vous publier ?',
-        'description' => 'Nous ajouterons des créneaux à votre file selon votre objectif.',
+        'description' => 'Vos créneaux de file suivront votre objectif.',
         'options' => [
             'steady' => 'Rester régulier',
             'presence' => 'Bâtir une présence',

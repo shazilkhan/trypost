@@ -31,7 +31,7 @@ return [
     'goals_title' => 'ما هدفك؟',
     'goals' => [
         'save_time' => 'النشر في كل مكان دفعة واحدة',
-        'use_mcp' => 'إنشاء المنشورات عبر MCP (Claude وChatGPT)',
+        'use_mcp' => 'انشر عبر MCP (Claude وChatGPT)',
         'plan_calendar' => 'تخطيط المنشورات في تقويم',
         'stay_on_brand' => 'الحفاظ على هوية العلامة',
         'grow_audience' => 'تنمية جمهوري',

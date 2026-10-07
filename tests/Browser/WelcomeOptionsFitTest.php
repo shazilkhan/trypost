@@ -20,6 +20,8 @@ function waitForWelcomeOptionsTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 test('every welcome option label fits on one line in every language', function (string $route, array $attributes, string $testIdPrefix, string $langPrefix, array $values) {

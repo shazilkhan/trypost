@@ -23,6 +23,8 @@ function waitForSettingsDescriptionTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 test('a settings page description fits on one line in every language', function (string $route, string $key) {

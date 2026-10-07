@@ -25,6 +25,8 @@ function waitForSidebarTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 test('account owners see settings, channels and plans and billing in the sidebar menu', function () {
@@ -635,6 +637,13 @@ test('the sidebar auto-collapses below 1024px, can be expanded there, and restor
 
     $page->resize(700, 900);
     waitForSidebarTestId($page, 'app-sidebar-trigger');
+    $page->script(<<<'JS'
+        (async () => {
+            for (let i = 0; i < 100 && document.querySelector('[data-testid="sidebar-footer-toggle"]'); i++) {
+                await new Promise((r) => setTimeout(r, 50));
+            }
+        })();
+    JS);
     expect($page->script("document.querySelector('[data-testid=\"sidebar-footer-toggle\"]')"))->toBeNull();
 
     $page->resize(1280, 900);

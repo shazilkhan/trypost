@@ -19,6 +19,8 @@ function waitForWebhookCreateTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 function waitForWebhookCreateTestIdGone(mixed $page, string $testId): void

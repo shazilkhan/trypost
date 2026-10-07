@@ -26,6 +26,8 @@ function waitForWelcomePlanTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 function welcomeOwnerOnPlanStep(): User

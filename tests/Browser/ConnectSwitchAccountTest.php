@@ -21,6 +21,8 @@ function waitForSwitchAccountTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 function switchAccountPollFor(mixed $page, string $condition, int $attempts = 160): bool

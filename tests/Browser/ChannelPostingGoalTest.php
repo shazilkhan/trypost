@@ -20,6 +20,8 @@ function waitForPostingGoalTestId(mixed $page, string $testId): void
             }
         })();
     JS);
+
+    waitForWebFonts($page);
 }
 
 function postingGoalSetup(): array

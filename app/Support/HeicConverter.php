@@ -35,8 +35,6 @@ final class HeicConverter
      */
     public const SEQUENCE_MIME_TYPES = ['image/heic-sequence', 'image/heif-sequence'];
 
-    private const int UNBOUNDED_SECONDS = 31536000000;
-
     private static ?bool $available = null;
 
     public static function available(): bool
@@ -97,7 +95,6 @@ final class HeicConverter
         Imagick::RESOURCETYPE_AREA => ['area_mb', 1048576],
         Imagick::RESOURCETYPE_WIDTH => ['width_px', 1],
         Imagick::RESOURCETYPE_HEIGHT => ['height_px', 1],
-        Imagick::RESOURCETYPE_TIME => ['time_seconds', 1],
     ];
 
     /**
@@ -119,22 +116,16 @@ final class HeicConverter
             return (string) (new ImageManager(new Driver))->decodePath($filePath)->orient()->encode(new JpegEncoder(quality: 100));
         } finally {
             foreach ($previous as $resource => $limit) {
-                Imagick::setResourceLimit($resource, self::restorable($resource, $limit));
+                Imagick::setResourceLimit($resource, self::restorable($limit));
             }
         }
     }
 
     /**
-     * Imagick reports "unlimited" as 2^63; handing that back as the time limit
-     * trips `TimeLimitExceeded` on the next read, so time falls back to a
-     * thousand years, which is as good as none.
+     * Imagick reports "unlimited" as 2^63, which does not fit an int.
      */
-    private static function restorable(int $resource, float $limit): int
+    private static function restorable(float $limit): int
     {
-        if ($limit < PHP_INT_MAX) {
-            return (int) $limit;
-        }
-
-        return $resource === Imagick::RESOURCETYPE_TIME ? self::UNBOUNDED_SECONDS : PHP_INT_MAX;
+        return $limit < PHP_INT_MAX ? (int) $limit : PHP_INT_MAX;
     }
 }
