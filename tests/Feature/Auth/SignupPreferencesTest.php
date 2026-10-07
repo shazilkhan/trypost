@@ -18,7 +18,7 @@ test('email registration stores the zone, week start and clock the browser repor
     $this->post(route('register.store'), [
         'name' => 'Bia',
         'email' => 'bia@example.com',
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => 'pt-BR',
         'timezone' => 'America/Sao_Paulo',
         'week_starts_on' => 'sunday',
@@ -36,7 +36,7 @@ test('email registration without detection falls back to UTC, Monday and the lan
     $this->post(route('register.store'), [
         'name' => 'Dirk',
         'email' => 'dirk@example.com',
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => 'de',
         'week_starts_on' => '',
         'time_format' => '',
@@ -53,7 +53,7 @@ test('email registration rejects a week start or clock outside the allowed value
     $this->post(route('register.store'), [
         'name' => 'Eve',
         'email' => 'eve@example.com',
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => 'en',
         $field => $value,
     ])->assertSessionHasErrors($field);

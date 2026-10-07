@@ -15,6 +15,7 @@ use App\Models\Workspace;
 use App\Services\Http\HostResolver;
 use App\Support\Social\PendingConnection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as HttpClientRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -38,12 +39,14 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->beforeEach(function (): void {
         Http::preventStrayRequests();
+        fakePwnedPasswords();
         Queue::fake([BootstrapAccountAnalytics::class]);
     })
     ->in('Feature', 'Unit');
 
 pest()->extend(BrowserTestCase::class)
     ->use(RefreshDatabase::class)
+    ->beforeEach(fn () => fakePwnedPasswords())
     ->in('Browser');
 
 pest()->in('Feature/Social')
@@ -93,6 +96,27 @@ expect()->extend('toBeOne', function () {
  * the plain JWT string. Use the returned token in `Authorization: Bearer ...`
  * to exercise the auth:api + workspace.token middleware stack.
  */
+function strongPassword(): string
+{
+    return 'Tr7#pass-Word-2026';
+}
+
+function compromisedPassword(): string
+{
+    return 'Compromised#Pass-2026';
+}
+
+function fakePwnedPasswords(): void
+{
+    $hash = strtoupper(sha1(compromisedPassword()));
+
+    Http::fake([
+        'api.pwnedpasswords.com/range/*' => fn (HttpClientRequest $request) => Http::response(
+            str_ends_with($request->url(), substr($hash, 0, 5)) ? substr($hash, 5).':42' : '',
+        ),
+    ]);
+}
+
 function passportToken(User $user, Workspace $workspace, array $scopes = []): string
 {
     $result = $user->createToken('Test', $scopes);

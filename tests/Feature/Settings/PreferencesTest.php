@@ -102,7 +102,7 @@ test('a new account reads the clock of its language', function (string $locale, 
     $this->post(route('register.store'), [
         'name' => 'Ana',
         'email' => $email,
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => $locale,
     ])->assertSessionHasNoErrors();
 

@@ -17,7 +17,7 @@ test('registration stores the browser time zone', function () {
     $this->post(route('register.store'), [
         'name' => 'Ana',
         'email' => 'ana@example.com',
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => 'en',
         'timezone' => 'Europe/Warsaw',
     ]);
@@ -29,7 +29,7 @@ test('registration maps a legacy time zone alias to its canonical identifier', f
     $this->post(route('register.store'), [
         'name' => 'Ravi',
         'email' => 'ravi@example.com',
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => 'en',
         'timezone' => 'Asia/Calcutta',
     ]);
@@ -49,7 +49,7 @@ test('registration falls back to UTC for a missing or invalid time zone', functi
     $payload = [
         'name' => 'Bo',
         'email' => 'bo@example.com',
-        'password' => 'Password123!',
+        'password' => strongPassword(),
         'locale' => 'en',
     ];
 

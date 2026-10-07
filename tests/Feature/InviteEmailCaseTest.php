@@ -109,8 +109,8 @@ test('registration through a legacy mixed-case invite accepts the lowercase emai
     $this->post(route('register.store'), [
         'name' => 'Bob',
         'email' => 'bob@acme.com',
-        'password' => 'password',
-        'password_confirmation' => 'password',
+        'password' => strongPassword(),
+        'password_confirmation' => strongPassword(),
         'invite' => $inviteId,
         'locale' => 'en',
     ])->assertSessionHasNoErrors();

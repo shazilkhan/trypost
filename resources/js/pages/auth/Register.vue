@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { Form, Head, usePage } from '@inertiajs/vue3';
-import { IconEye, IconEyeOff, IconMail } from '@tabler/icons-vue';
+import { IconEye, IconEyeOff } from '@tabler/icons-vue';
 import { computed, ref } from 'vue';
 
 import LegalLinks from '@/components/auth/LegalLinks.vue';
+import PasswordRequirements from '@/components/auth/PasswordRequirements.vue';
+import type { PasswordRequirement } from '@/components/auth/PasswordRequirements.vue';
 import SocialLogin from '@/components/auth/SocialLogin.vue';
 import InputError from '@/components/InputError.vue';
 import TextLink from '@/components/TextLink.vue';
@@ -26,21 +28,17 @@ import { store } from '@/routes/register';
 defineProps<{
     email?: string | null;
     invite?: string | null;
+    passwordRequirements: PasswordRequirement[];
 }>();
 
 const { locale } = useGuestLocale();
 const detected = detectPreferences();
 
 const showPassword = ref(false);
+const password = ref('');
 
 const togglePasswordVisibility = (): void => {
     showPassword.value = !showPassword.value;
-};
-
-const showEmailForm = ref(false);
-
-const revealEmailForm = (): void => {
-    showEmailForm.value = true;
 };
 
 const page = usePage();
@@ -49,16 +47,11 @@ const hasSocial = computed(
         Boolean(page.props.googleAuthEnabled) ||
         Boolean(page.props.githubAuthEnabled),
 );
-
-// With no social providers the email form is the only way to sign up, so it
-// stays visible; otherwise it is revealed by the "Sign up with email" toggle.
-const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value);
 </script>
 
 <template>
     <AuthBase
         :title="$t('auth.register.title')"
-        :description="$t('auth.register.description')"
         panel
     >
         <Head :title="$t('auth.register.page_title')" />
@@ -66,22 +59,9 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
         <div class="flex flex-col gap-6">
             <div v-if="hasSocial" class="flex flex-col gap-2">
                 <SocialLogin mode="signup" hide-divider :invite="invite" />
-
-                <Button
-                    v-if="!showEmailForm"
-                    type="button"
-                    variant="outline"
-                    class="w-full bg-card"
-                    data-testid="register-email-toggle"
-                    @click="revealEmailForm"
-                >
-                    <IconMail />
-                    {{ $t('auth.register.signup_with_email') }}
-                </Button>
             </div>
 
             <Form
-                v-show="emailFormVisible"
                 v-bind="store.form()"
                 :reset-on-success="['password']"
                 v-slot="{ errors, processing }"
@@ -94,7 +74,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                 <input type="hidden" name="time_format" :value="detected.time_format ?? ''" data-testid="register-time-format" />
 
                 <div
-                    v-if="hasSocial && showEmailForm"
+                    v-if="hasSocial"
                     class="flex items-center gap-3 text-sm text-muted-foreground"
                 >
                     <span class="h-px flex-1 bg-border-strong" />
@@ -102,16 +82,12 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                     <span class="h-px flex-1 bg-border-strong" />
                 </div>
 
-                <Transition
-                    enter-active-class="transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none"
-                    enter-from-class="-translate-y-1 opacity-0"
-                    enter-to-class="translate-y-0 opacity-100"
-                >
-                    <div v-if="emailFormVisible" class="grid gap-4">
+                    <div class="grid gap-4">
                         <div class="grid gap-2">
                             <Label for="name">{{ $t('auth.register.name') }}</Label>
                             <Input
                                 id="name"
+                                data-testid="register-name"
                                 type="text"
                                 autofocus
                                 :tabindex="1"
@@ -126,6 +102,7 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                             <Label for="email">{{ $t('auth.register.email') }}</Label>
                             <Input
                                 id="email"
+                                data-testid="register-email"
                                 type="email"
                                 :tabindex="2"
                                 autocomplete="email"
@@ -148,6 +125,8 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                     :tabindex="3"
                                     autocomplete="new-password"
                                     name="password"
+                                    v-model="password"
+                                    data-testid="register-password"
                                     :placeholder="$t('auth.register.password')"
                                     class="pe-8"
                                 />
@@ -172,6 +151,10 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                                     </TooltipProvider>
                                 </div>
                             </div>
+                            <PasswordRequirements
+                                :password="password"
+                                :requirements="passwordRequirements"
+                            />
                             <InputError :message="errors.password" />
                         </div>
 
@@ -186,17 +169,21 @@ const emailFormVisible = computed(() => !hasSocial.value || showEmailForm.value)
                             {{ $t('auth.register.submit') }}
                         </Button>
                     </div>
-                </Transition>
             </Form>
 
             <p class="text-center text-sm text-muted-foreground">
                 {{ $t('auth.register.has_account') }}
-                <TextLink :href="login()" :tabindex="5">{{
-                    $t('auth.register.log_in')
-                }}</TextLink>
+                <TextLink
+                    :href="login()"
+                    :tabindex="5"
+                    data-testid="register-log-in-link"
+                    >{{ $t('auth.register.log_in') }}</TextLink
+                >
             </p>
-
-            <LegalLinks />
         </div>
+
+        <template #footer>
+            <LegalLinks />
+        </template>
     </AuthBase>
 </template>

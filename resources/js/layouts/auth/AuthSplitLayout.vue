@@ -4,8 +4,9 @@ import { IconCircleCheck, IconStarFilled } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 import AppLogo from '@/components/AppLogo.vue';
-import LocaleSwitcher from '@/components/LocaleSwitcher.vue';
+import LanguageSelect from '@/components/LanguageSelect.vue';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useGuestLocale } from '@/composables/useGuestLocale';
 import type { Auth } from '@/types';
 
 const widthClass = {
@@ -33,6 +34,7 @@ withDefaults(
 const page = usePage();
 
 const isGuest = computed(() => !(page.props.auth as Auth).user);
+const { locale, languages } = useGuestLocale();
 
 const g2ReviewsUrl = 'https://www.g2.com/products/trypost/reviews';
 
@@ -84,13 +86,23 @@ const loopedReviews = [
         ]"
     >
         <div
-            class="relative flex min-w-0 flex-col items-center px-4 pt-13 pb-8 sm:justify-center sm:px-8 sm:py-16"
+            class="relative flex min-h-svh min-w-0 flex-col items-center px-4 pt-16 pb-8 sm:px-8 sm:py-16"
         >
             <div class="absolute end-4 top-4 sm:end-6 sm:top-6">
-                <LocaleSwitcher v-if="isGuest" />
+                <LanguageSelect
+                    v-if="isGuest"
+                    v-model="locale"
+                    :languages="languages"
+                    :label="$t('settings.preferences.language.heading')"
+                    testid="language-picker"
+                    trigger-class="bg-card"
+                />
             </div>
 
-            <div :class="['flex w-full flex-col gap-6', widthClass[width]]">
+            <div
+                :class="['my-auto flex w-full flex-col gap-6', widthClass[width]]"
+                data-testid="auth-content"
+            >
                 <div class="flex flex-col items-center gap-4 text-center">
                     <AppLogo
                         variant="mark"
@@ -128,6 +140,14 @@ const loopedReviews = [
 
                 <slot />
             </div>
+
+            <div
+                v-if="$slots.footer"
+                class="w-full max-w-sm pt-8 sm:absolute sm:inset-x-0 sm:bottom-6 sm:mx-auto sm:pt-0"
+                data-testid="auth-footer"
+            >
+                <slot name="footer" />
+            </div>
         </div>
 
         <div
@@ -137,25 +157,9 @@ const loopedReviews = [
             <div
                 class="relative flex h-full flex-col items-center overflow-hidden rounded-[20px] bg-primary-subtle px-12 pt-14 text-center xl:px-16"
             >
-                <a
-                    :href="g2ReviewsUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="group inline-flex items-center gap-2 rounded-md bg-primary-text px-3 py-1.5 text-xs font-medium tracking-[0.04em] text-primary-strong-foreground uppercase transition-control dark:text-background hover:bg-primary-text-hover"
-                    data-testid="auth-reviews-g2-link"
-                >
-                    <span class="flex gap-0.5">
-                        <IconStarFilled
-                            v-for="star in 5"
-                            :key="star"
-                            class="size-3 text-amber-300"
-                        />
-                    </span>
-                    {{ $t('auth.reviews.eyebrow') }}
-                </a>
 
                 <h2
-                    class="motion-auth-reveal mt-6 max-w-lg font-heading text-[clamp(30px,3.2vw,48px)] leading-[1.12] font-normal tracking-[-0.03em] text-balance text-foreground"
+                    class="motion-auth-reveal max-w-lg font-heading text-[clamp(30px,3.2vw,48px)] leading-[1.12] font-normal tracking-[-0.03em] text-balance text-foreground"
                 >
                     {{ $t('auth.reviews.heading') }}
                 </h2>
@@ -213,6 +217,22 @@ const loopedReviews = [
                         </figure>
                     </div>
                 </div>
+                <a
+                    :href="g2ReviewsUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="motion-auth-fade my-6 inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-sm font-medium text-foreground shadow-xs transition-control hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    data-testid="auth-reviews-g2-link"
+                >
+                    <span class="flex gap-0.5">
+                        <IconStarFilled
+                            v-for="star in 5"
+                            :key="star"
+                            class="size-3.5 text-amber-500"
+                        />
+                    </span>
+                    {{ $t('auth.reviews.eyebrow') }}
+                </a>
             </div>
         </div>
     </div>

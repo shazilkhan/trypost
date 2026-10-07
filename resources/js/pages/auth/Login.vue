@@ -47,7 +47,6 @@ const pageErrors = usePageErrors();
 <template>
     <AuthBase
         :title="$t('auth.login.title')"
-        :description="$t('auth.login.description')"
         :status="status"
         panel
     >
@@ -179,8 +178,10 @@ const pageErrors = usePageErrors();
                     >{{ $t('auth.login.sign_up') }}</TextLink
                 >
             </p>
-
-            <LegalLinks />
         </div>
+
+        <template #footer>
+            <LegalLinks />
+        </template>
     </AuthBase>
 </template>
