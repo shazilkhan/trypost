@@ -92,6 +92,7 @@ test('job generates the clip, stores it as a video asset and notifies the editor
     expect($media->type)->toBe(MediaType::Video)
         ->and($media->collection)->toBe('assets')
         ->and($media->mime_type)->toBe('video/mp4')
+        ->and($media->path)->toStartWith('ai-videos/')
         ->and($media->size)->toBe(strlen('FAKE-MP4-BYTES'))
         ->and($media->mediable_id)->toBe($this->workspace->id)
         ->and($media->meta)->toEqual(['width' => 720, 'height' => 1280, 'duration' => 8.0]);

@@ -115,9 +115,14 @@ class GeneratePostVideo implements ShouldQueue
         throw new RuntimeException('Video generation timed out.');
     }
 
+    /**
+     * Clips get their own directory, like AI images do. The queue worker and
+     * the web server can run as different users, so a directory the worker
+     * creates must not be the one uploads are written to.
+     */
     private function storeVideo(Workspace $workspace, AiVideoClient $client, string $bytes): Media
     {
-        $path = 'medias/'.Str::uuid().'.mp4';
+        $path = 'ai-videos/'.Str::uuid().'.mp4';
 
         Storage::put($path, $bytes);
 

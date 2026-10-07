@@ -1,0 +1,126 @@
+# TryPost on the Hetzner services box, behind that box's Traefik (HTTPS via
+# Let's Encrypt), following the same pattern as the other projects in /opt.
+#
+# The image is built from this repository rather than pulled, because the
+# published image carries neither this fork's changes nor the public
+# WebSocket address, which Vite bakes into the frontend at build time.
+#
+#   cd /opt/trypost
+#   docker compose -f compose.hetzner.yaml up -d --build
+#
+# Secrets and the public host come from /opt/trypost/.env (never committed):
+#   APP_DOMAIN, APP_KEY, DB_PASSWORD, REVERB_APP_KEY, REVERB_APP_SECRET,
+#   PASSPORT_PRIVATE_KEY, PASSPORT_PUBLIC_KEY, GEMINI_API_KEY
+# plus anything optional: AI_VIDEO_*, AI_*_PROVIDER, MAIL_*, social platform keys.
+
+name: trypost
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+            target: production
+            args:
+                VITE_APP_NAME: TryPost
+                VITE_REVERB_APP_KEY: ${REVERB_APP_KEY}
+                # The browser reaches Reverb through the same host: nginx inside
+                # the container proxies /app to it, so no extra port is exposed.
+                VITE_REVERB_HOST: ${APP_DOMAIN}
+                VITE_REVERB_PORT: '443'
+                VITE_REVERB_SCHEME: https
+        image: trypost-hetzner:latest
+        restart: unless-stopped
+        env_file:
+            - .env
+        environment:
+            APP_NAME: TryPost
+            APP_ENV: production
+            APP_DEBUG: 'false'
+            APP_URL: https://${APP_DOMAIN}
+            SELF_HOSTED: 'true'
+            TRYPOST_TARGET: production
+
+            DB_CONNECTION: pgsql
+            DB_HOST: pgsql
+            DB_PORT: '5432'
+            DB_DATABASE: trypost
+            DB_USERNAME: trypost
+
+            REDIS_HOST: redis
+            REDIS_PORT: '6379'
+            QUEUE_CONNECTION: redis
+            CACHE_STORE: redis
+            SESSION_DRIVER: database
+            SESSION_SECURE_COOKIE: 'true'
+            BROADCAST_CONNECTION: reverb
+
+            # Server-side publishing stays inside the container.
+            REVERB_APP_ID: '1001'
+            REVERB_HOST: localhost
+            REVERB_PORT: '8080'
+            REVERB_SCHEME: http
+
+            FILESYSTEM_DISK: public
+        volumes:
+            - storage:/var/www/html/storage/app
+        networks:
+            - internal
+            - dokploy-network
+        depends_on:
+            pgsql:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        labels:
+            - 'traefik.enable=true'
+            - 'traefik.docker.network=dokploy-network'
+            - 'traefik.http.routers.trypost.rule=Host(`${APP_DOMAIN}`)'
+            - 'traefik.http.routers.trypost.entrypoints=websecure'
+            - 'traefik.http.routers.trypost.tls.certresolver=letsencrypt'
+            - 'traefik.http.services.trypost.loadbalancer.server.port=80'
+            - 'traefik.http.routers.trypost-web.rule=Host(`${APP_DOMAIN}`)'
+            - 'traefik.http.routers.trypost-web.entrypoints=web'
+            - 'traefik.http.routers.trypost-web.middlewares=trypost-https'
+            - 'traefik.http.middlewares.trypost-https.redirectscheme.scheme=https'
+
+    pgsql:
+        image: postgres:16-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: trypost
+            POSTGRES_USER: trypost
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        volumes:
+            - pgdata:/var/lib/postgresql/data
+        networks:
+            - internal
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U trypost -d trypost']
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    redis:
+        image: redis:7-alpine
+        restart: unless-stopped
+        command: redis-server --appendonly yes
+        volumes:
+            - redisdata:/data
+        networks:
+            - internal
+        healthcheck:
+            test: ['CMD', 'redis-cli', 'ping']
+            interval: 10s
+            timeout: 3s
+            retries: 5
+
+networks:
+    internal:
+    dokploy-network:
+        external: true
+
+volumes:
+    pgdata:
+    redisdata:
+    storage:
