@@ -6,6 +6,7 @@ use App\Enums\Post\ScheduleMode;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\Status as PostPlatformStatus;
 use App\Enums\SocialAccount\Platform;
+use App\Enums\User\Locale;
 use App\Enums\User\TimeFormat;
 use App\Jobs\Analytics\BootstrapAccountAnalytics;
 use App\Jobs\Analytics\CollectAccountDailySnapshot;
@@ -266,6 +267,39 @@ test('the status filter narrows the calendar to one kind of post', function () {
         ->assertNoJavaScriptErrors();
 });
 
+test('the no date panel slides open and closed, pushing the calendar aside gradually', function () {
+    [$user, $linkedin] = calendarPageSetup();
+    calendarPagePost($linkedin, null, PostStatus::Draft);
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'month']))->resize(1280, 900);
+    waitForCalendarTestId($page, 'calendar-no-date');
+
+    $sample = <<<'JS'
+        (async () => {
+            const widths = [];
+            document.querySelector('[data-testid="calendar-no-date"]').click();
+            const started = performance.now();
+            while (performance.now() - started < 500) {
+                await new Promise((resolve) => requestAnimationFrame(resolve));
+                widths.push(Math.round(document.querySelector('[data-testid="calendar-undated-slide"]')?.getBoundingClientRect().width ?? 0));
+            }
+            return widths;
+        })()
+    JS;
+
+    $opening = $page->script($sample);
+    expect(collect($opening)->contains(fn (int $width) => $width > 0 && $width < 360))->toBeTrue()
+        ->and(end($opening))->toBe(360);
+
+    $closing = $page->script($sample);
+    expect(collect($closing)->contains(fn (int $width) => $width > 0 && $width < 360))->toBeTrue()
+        ->and(end($closing))->toBe(0);
+
+    $page->assertMissing('@calendar-undated-panel')->assertNoJavaScriptErrors();
+});
+
 test('the no date panel lists undated drafts and a card opens the composer', function () {
     [$user, $linkedin, $x] = calendarPageSetup();
     $undated = calendarPagePost($linkedin, null, PostStatus::Draft);
@@ -276,10 +310,14 @@ test('the no date panel lists undated drafts and a card opens the composer', fun
     $page = visit(route('app.calendar', ['view' => 'month']));
     waitForCalendarTestId($page, 'calendar-no-date');
     $page->assertMissing('@calendar-undated-panel')
+        ->assertPresent('@calendar-no-date-icon-closed')
+        ->assertMissing('@calendar-no-date-icon-open')
         ->click('@calendar-no-date');
     waitForCalendarTestId($page, "calendar-undated-{$undated->id}");
 
     $page->assertVisible('@calendar-undated-panel')
+        ->assertPresent('@calendar-no-date-icon-open')
+        ->assertMissing('@calendar-no-date-icon-closed')
         ->assertSeeIn('@calendar-undated-panel', 'Undated drafts')
         ->assertMissing("@calendar-undated-{$dated->id}")
         ->assertAttribute('@calendar-no-date', 'aria-pressed', 'true')
@@ -579,42 +617,58 @@ test('a popover action reloads the calendar and closes the popover', function ()
     expect($post->refresh()->status)->toBe(PostStatus::Draft);
 });
 
-test('on a phone the week shows a day strip and the agenda of the tapped day', function () {
+test('on a phone the week shows its seven days in columns with their posts', function () {
     [$user, $linkedin, $x] = calendarPageSetup();
     $weekStart = now('UTC')->startOfWeek()->addWeek();
-    $first = $weekStart->copy()->addDays(2);
-    $second = $weekStart->copy()->addDays(4);
-
-    $firstPost = calendarPagePost($linkedin, $first->copy()->setTime(9, 0));
-    $secondPost = calendarPagePost($x, $second->copy()->setTime(16, 0));
+    $first = calendarPagePost($linkedin, $weekStart->copy()->addDays(2)->setTime(9, 0));
+    $second = calendarPagePost($x, $weekStart->copy()->addDays(4)->setTime(16, 0));
 
     $this->actingAs($user);
 
     $page = visit(route('app.calendar', ['view' => 'week', 'week' => $weekStart->format('Y-m-d')]))->resize(390, 844);
-    waitForCalendarTestId($page, 'calendar-week-strip');
+    waitForCalendarTestId($page, 'calendar-time-grid');
 
-    $page->assertMissing('@calendar-time-grid')
-        ->assertVisible("@calendar-agenda-{$weekStart->format('Y-m-d')}")
-        ->assertVisible('@calendar-agenda-empty')
-        ->assertAttribute("@calendar-strip-day-{$weekStart->format('Y-m-d')}", 'aria-pressed', 'true');
+    expect($page->script('document.querySelectorAll(\'[data-testid^="calendar-column-"]\').length'))->toBe(7);
+    expect($page->script('[...document.querySelectorAll(\'[data-testid^="calendar-add-"]\')].every((button) => button.getBoundingClientRect().width === 0)'))->toBeTrue();
 
-    expect($page->script("document.querySelectorAll('[data-testid=\"calendar-strip-day-{$first->format('Y-m-d')}\"] [data-testid=\"calendar-day-dot\"]').length"))->toBe(1);
-
-    $page->click("@calendar-strip-day-{$first->format('Y-m-d')}");
-    waitForCalendarTestId($page, "calendar-post-{$firstPost->id}");
-
-    $page->assertVisible("@calendar-agenda-{$first->format('Y-m-d')}")
-        ->assertMissing("@calendar-post-{$secondPost->id}")
-        ->click("@calendar-strip-day-{$second->format('Y-m-d')}");
-    waitForCalendarTestId($page, "calendar-post-{$secondPost->id}");
-
-    $page->assertMissing("@calendar-post-{$firstPost->id}")
-        ->assertAttribute("@calendar-strip-day-{$second->format('Y-m-d')}", 'aria-pressed', 'true')
+    $page->assertPresent("@calendar-post-{$first->id}")
+        ->assertPresent("@calendar-post-{$second->id}")
         ->assertScript('document.documentElement.scrollWidth <= window.innerWidth', true)
         ->assertNoJavaScriptErrors();
 });
 
-test('on a phone the month shows dots and the tapped day lists its posts', function () {
+test('the three days view shows three columns, and only the phone picker offers it', function () {
+    [$user, $linkedin] = calendarPageSetup();
+    $day = now('UTC')->addDays(10)->startOfDay();
+    $post = calendarPagePost($linkedin, $day->copy()->addDay()->setTime(9, 0));
+
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'days', 'day' => $day->format('Y-m-d')]))->resize(390, 844);
+    waitForCalendarTestId($page, 'calendar-time-grid');
+
+    expect($page->script('[...document.querySelectorAll(\'[data-testid^="calendar-column-"]\')].map((el) => el.dataset.testid)'))
+        ->toBe(collect(range(0, 2))->map(fn (int $offset): string => "calendar-column-{$day->copy()->addDays($offset)->format('Y-m-d')}")->all());
+
+    $page->assertPresent("@calendar-post-{$post->id}")
+        ->assertScript('document.documentElement.scrollWidth <= window.innerWidth', true);
+
+    $page->resize(1280, 900);
+    waitForCalendarTestId($page, 'calendar-view-trigger');
+    $page->assertSeeIn('@calendar-view-trigger', __('calendar.days'))
+        ->click('@calendar-view-trigger');
+    waitForCalendarTestId($page, 'calendar-view-week');
+    $page->assertPresent('@calendar-view-month')
+        ->assertMissing('@calendar-view-days')
+        ->keys('@calendar-view-week', 'Escape');
+    waitForCalendarCondition($page, '!document.querySelector(\'[data-testid="calendar-view-week"]\')');
+    $page->click('@calendar-next');
+    waitForCalendarCondition($page, "new URLSearchParams(location.search).get('day') === '{$day->copy()->addDays(3)->format('Y-m-d')}'");
+
+    $page->assertMissing("@calendar-post-{$post->id}")->assertNoJavaScriptErrors();
+});
+
+test('on a phone the month shows its weeks in columns with the posts of each day', function () {
     [$user, $linkedin, $x] = calendarPageSetup();
     $day = now('UTC')->addMonthNoOverflow()->startOfMonth()->addDays(12);
     $dayKey = $day->format('Y-m-d');
@@ -623,24 +677,16 @@ test('on a phone the month shows dots and the tapped day lists its posts', funct
     $this->actingAs($user);
 
     $page = visit(route('app.calendar', ['view' => 'month', 'month' => $dayKey]))->resize(390, 844);
-    waitForCalendarTestId($page, 'calendar-month-dots');
+    waitForCalendarTestId($page, 'calendar-month-grid');
 
-    expect($page->script("document.querySelectorAll('[data-testid=\"calendar-month-day-{$dayKey}\"] [data-testid=\"calendar-day-dot\"]').length"))->toBe(3);
-
-    $page->assertMissing("@calendar-post-{$posts[0]->id}")
-        ->click("@calendar-month-day-{$dayKey}");
-    waitForCalendarTestId($page, "calendar-post-{$posts[4]->id}");
-
-    foreach ($posts as $post) {
-        $page->assertPresent("@calendar-post-{$post->id}");
-    }
-
-    $page->assertVisible("@calendar-agenda-{$dayKey}")
+    $page->assertPresent("@calendar-day-{$dayKey}")
+        ->assertPresent("@calendar-post-{$posts[0]->id}")
+        ->assertPresent("@calendar-more-{$dayKey}")
         ->assertScript('document.documentElement.scrollWidth <= window.innerWidth', true)
         ->assertNoJavaScriptErrors();
 });
 
-test('on a phone a free posting slot in the agenda opens the composer at that instant', function () {
+test('on a phone a free posting slot in the week opens the composer at that instant', function () {
     [$user, $linkedin] = calendarPageSetup();
     $schedule = PostingSchedule::empty();
 
@@ -659,12 +705,9 @@ test('on a phone a free posting slot in the agenda opens the composer at that in
     $page = visit(route('app.calendar', ['view' => 'week', 'week' => $weekStart->format('Y-m-d')]))->resize(390, 844);
     $page->script('window.localStorage.clear()');
     $page->refresh();
-    waitForCalendarTestId($page, "calendar-strip-day-{$day->format('Y-m-d')}");
-    $page->click("@calendar-strip-day-{$day->format('Y-m-d')}");
     waitForCalendarTestId($page, "calendar-posting-slot-{$slotKey}");
 
-    $page->assertSeeIn("@calendar-posting-slot-{$slotKey}", __('posts.publish.add_post_in_slot'))
-        ->click("@calendar-posting-slot-{$slotKey}");
+    $page->click("@calendar-posting-slot-{$slotKey}");
     waitForCalendarTestId($page, "composer-caption-{$linkedin->id}");
     $page->fill("@composer-caption-{$linkedin->id}", 'From a phone slot');
     waitForCalendarTestId($page, 'composer-submit');
@@ -677,7 +720,7 @@ test('on a phone a free posting slot in the agenda opens the composer at that in
     $page->assertNoJavaScriptErrors();
 });
 
-test('on a phone, tapping a post in the month agenda opens its details directly', function () {
+test('on a phone, tapping a post in the month opens its details directly', function () {
     [$user, $linkedin] = calendarPageSetup();
     $at = now('UTC')->addMonthNoOverflow()->startOfMonth()->addDays(10)->setTime(12, 0);
     $post = calendarPagePost($linkedin, $at);
@@ -685,10 +728,6 @@ test('on a phone, tapping a post in the month agenda opens its details directly'
     $this->actingAs($user);
 
     $page = visit(route('app.calendar', ['view' => 'month', 'month' => $at->format('Y-m-d')]))->resize(390, 844);
-    $dayKey = $at->copy()->setTimezone($user->timezone)->format('Y-m-d');
-    waitForCalendarTestId($page, "calendar-month-day-{$dayKey}");
-
-    $page->click("@calendar-month-day-{$dayKey}");
     waitForCalendarTestId($page, "calendar-post-{$post->id}");
     $page->click("@calendar-post-{$post->id}");
     waitForCalendarTestId($page, "post-details-{$post->id}");
@@ -696,4 +735,60 @@ test('on a phone, tapping a post in the month agenda opens its details directly'
     $page->assertVisible("@post-details-{$post->id}")
         ->assertMissing("@calendar-post-popover-{$post->id}")
         ->assertNoJavaScriptErrors();
+});
+
+test('in Portuguese the week columns show one-word weekday names', function () {
+    [$user] = calendarPageSetup();
+    $user->update(['locale' => Locale::PortugueseBrazil]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'week']))->resize(1280, 900);
+    waitForCalendarTestId($page, 'calendar-time-grid');
+
+    $names = $page->script('[...document.querySelectorAll(\'[data-testid^="calendar-column-"] span:first-child\')].map((el) => el.textContent.trim().toLowerCase())');
+
+    expect($names)->toHaveCount(7)
+        ->and(collect($names)->sort()->values()->all())->toBe(['domingo', 'quarta', 'quinta', 'segunda', 'sexta', 'sábado', 'terça']);
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('on a phone the period picker opens from the bottom, switches the view in place and jumps to a picked day', function () {
+    [$user] = calendarPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.calendar', ['view' => 'week', 'week' => '2027-03-01']))->resize(390, 844);
+    waitForCalendarTestId($page, 'calendar-period-trigger');
+
+    expect($page->script('Boolean(document.querySelector(\'[data-testid="calendar-previous"]\'))'))->toBeFalse();
+
+    $page->click('@calendar-period-trigger');
+    waitForCalendarTestId($page, 'calendar-period-calendar');
+    waitForCalendarCondition($page, 'Math.abs(window.innerHeight - document.querySelector(\'[data-testid="calendar-period-picker"]\').getBoundingClientRect().bottom) <= 1');
+
+    $page->assertVisible('@calendar-view-days')
+        ->click('[data-testid="calendar-period-calendar"] [data-testid="calendar-date-2027-03-17"]');
+    waitForCalendarCondition($page, 'new URLSearchParams(location.search).get("week") !== "2027-03-01"');
+
+    $week = $page->script('new URLSearchParams(location.search).get("week")');
+    expect($week >= '2027-03-11' && $week <= '2027-03-17')->toBeTrue();
+    waitForCalendarCondition($page, '!document.querySelector(\'[data-testid="calendar-period-picker"]\')');
+    $page->assertMissing('@calendar-period-picker');
+
+    $page->click('@calendar-period-trigger');
+    waitForCalendarTestId($page, 'calendar-view-month');
+    $page->click('@calendar-view-month');
+    waitForCalendarCondition($page, 'location.pathname.endsWith("/month")');
+
+    expect($page->script('location.pathname.endsWith("/month")'))->toBeTrue();
+    $page->assertVisible('@calendar-period-calendar')
+        ->assertAttribute('@calendar-view-month', 'aria-pressed', 'true')
+        ->click('@calendar-today');
+    waitForCalendarCondition($page, '!document.querySelector(\'[data-testid="calendar-period-picker"]\')');
+
+    $page->assertMissing('@calendar-period-picker')->assertNoJavaScriptErrors();
+
+    $page->resize(1280, 900);
+    waitForCalendarTestId($page, 'calendar-previous');
+    $page->assertVisible('@calendar-next')->assertVisible('@calendar-view-trigger');
 });

@@ -188,6 +188,73 @@ test('the goal step matches the wide card layout with right-side radios', functi
     $page->assertNoJavaScriptErrors();
 });
 
+test('on a phone the goal step shows a full-width Next above the help in every language', function (Locale $locale) {
+    [$user, $channel] = postingGoalSetup();
+    $user->update(['locale' => $locale]);
+    $this->actingAs($user);
+
+    [$page, $channel] = connectPostingGoalChannel();
+    $page->resize(390, 844);
+    waitForPostingGoalTestId($page, 'goal-next');
+
+    expect(postingGoalPollFor($page, 'window.innerWidth === 390 && document.querySelector(\'[data-testid="connect-channel-dialog"]\').getAnimations().length === 0'))->toBeTrue();
+
+    $layout = $page->script(<<<'JS'
+        (() => {
+            const rect = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+            const footer = rect('goal-footer');
+            const help = rect('goal-help');
+            const next = rect('goal-next');
+            const perWeekLines = [...document.querySelectorAll('[data-testid="goal-option-label"] > span:nth-child(2)')]
+                .map((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)));
+
+            return {
+                nextAlignedWithOptions: (() => { const option = rect('goal-option-custom'); return Math.abs(next.left - option.left) <= 1 && Math.abs(next.right - option.right) <= 1 && Math.round(next.top - option.bottom) === 24; })(),
+                nextAboveHelp: next.bottom <= help.top,
+                helpInside: help.left >= footer.left && help.right <= footer.right,
+                footerBorder: getComputedStyle(document.querySelector('[data-testid="goal-footer"]')).borderTopWidth,
+                perWeekOnOneLine: perWeekLines.every((lines) => lines === 1),
+            };
+        })();
+    JS);
+
+    expect($layout)->toBe(['nextAlignedWithOptions' => true, 'nextAboveHelp' => true, 'helpInside' => true, 'footerBorder' => '0px', 'perWeekOnOneLine' => true]);
+    $page->assertNoJavaScriptErrors();
+})->with(fn () => array_map(fn (Locale $locale) => [$locale], Locale::cases()));
+
+test('on a phone the recommended step stacks Done, Customize and Change goal in full width', function () {
+    [$user, $channel] = postingGoalSetup();
+    $user->update(['locale' => Locale::PortugueseBrazil]);
+    $this->actingAs($user);
+
+    [$page, $channel] = connectPostingGoalChannel();
+    $page->resize(390, 844);
+    waitForPostingGoalTestId($page, 'goal-next');
+    $page->click('@goal-next');
+    waitForPostingGoalTestId($page, 'goal-recommended');
+
+    $layout = $page->script(<<<'JS'
+        (() => {
+            const rect = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+            const row = rect('goal-recommended-row');
+            const done = rect('goal-done');
+            const customize = rect('goal-customize');
+            const change = rect('goal-change');
+            const sameWidth = (box) => Math.abs(box.left - row.left) <= 1 && Math.abs(box.right - row.right) <= 1;
+
+            return {
+                doneFullWidth: sameWidth(done),
+                customizeFullWidth: sameWidth(customize),
+                order: done.bottom <= customize.top && customize.bottom <= change.top,
+                changeOnOneLine: Math.round(change.height) <= 40,
+            };
+        })();
+    JS);
+
+    expect($layout)->toBe(['doneFullWidth' => true, 'customizeFullWidth' => true, 'order' => true, 'changeOnOneLine' => true]);
+    $page->assertNoJavaScriptErrors();
+});
+
 test('the recommended-time help opens above its trigger and links to the docs', function () {
     [$user, $channel] = postingGoalSetup();
     $this->actingAs($user);

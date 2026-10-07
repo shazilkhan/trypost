@@ -1,40 +1,29 @@
 <script setup lang="ts">
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import {
-    IconCheck,
     IconChevronDown,
-    IconChevronLeft,
-    IconChevronRight,
-    IconDotsVertical,
-    IconLayoutSidebarRight,
+    IconLayoutSidebarRightCollapse,
+    IconLayoutSidebarRightExpand,
     IconPlus,
 } from '@tabler/icons-vue';
-import { useMediaQuery, useSwipe, type UseSwipeDirection } from '@vueuse/core';
+import { useSwipe, type UseSwipeDirection } from '@vueuse/core';
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 
 import { destroy as destroyPost } from '@/actions/App/Http/Controllers/App/PostController';
+import AppHeaderActions from '@/components/AppHeaderActions.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
 import PostChannelFilter from '@/components/posts/PostChannelFilter.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
-import CalendarDayAgenda from '@/components/publish/CalendarDayAgenda.vue';
-import CalendarMonthDotGrid from '@/components/publish/CalendarMonthDotGrid.vue';
+import CalendarPeriodPicker from '@/components/publish/CalendarPeriodPicker.vue';
 import CalendarPostChip from '@/components/publish/CalendarPostChip.vue';
 import CalendarSlotChip from '@/components/publish/CalendarSlotChip.vue';
-import CalendarStatusFilter from '@/components/publish/CalendarStatusFilter.vue';
 import CalendarTimeGrid from '@/components/publish/CalendarTimeGrid.vue';
 import CalendarUndatedPanel from '@/components/publish/CalendarUndatedPanel.vue';
-import CalendarWeekStrip from '@/components/publish/CalendarWeekStrip.vue';
+import PublishFilterMenu from '@/components/publish/PublishFilterMenu.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
-import TimezoneSelect from '@/components/TimezoneSelect.vue';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { useAtLeastBreakpoint } from '@/composables/useBreakpoint';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import { openPostComposer } from '@/composables/useGlobalPostComposer';
 import {
@@ -76,6 +65,7 @@ interface Props {
     scope: PublishScope;
     channel: PublishChannel | null;
     posts: Record<string, CalendarPost[]>;
+    currentDay: string;
     currentWeekStart: string;
     currentMonth: string;
     view: CalendarView;
@@ -98,10 +88,12 @@ const page = usePage();
 const { canCreatePost, canManageAccounts } = useWorkspaceAbilities();
 const { showSlots, setShowSlots } = useShowPostingSlots();
 
-const VIEWS: readonly CalendarView[] = ['week', 'month'];
+const VIEWS: readonly CalendarView[] = ['days', 'week', 'month'];
+const DAYS_SPAN = 3;
 const MONTH_CHIPS = 3;
 const RELOAD_PROPS = [
     'posts',
+    'currentDay',
     'currentWeekStart',
     'currentMonth',
     'view',
@@ -271,26 +263,32 @@ const todayKey = computed(() =>
     now.value.tz(timezone.value).format('YYYY-MM-DD'),
 );
 
+const isDesktop = useAtLeastBreakpoint('md');
+
 const weekdayNames = computed(() => {
     const start = localized().startOf('week');
 
     return Array.from({ length: 7 }, (_, index) =>
-        start.add(index, 'day').format('dddd'),
+        start.add(index, 'day').format(isDesktop.value ? 'dddd' : 'ddd'),
     );
 });
 
-const weekStart = computed(() => localized(props.currentWeekStart));
+const periodStart = computed(() =>
+    localized(props.view === 'days' ? props.currentDay : props.currentWeekStart),
+);
+
+const periodLength = computed(() => (props.view === 'days' ? DAYS_SPAN : 7));
 const monthDate = computed(() => localized(props.currentMonth));
 
-const weekDays = computed(() =>
-    Array.from({ length: 7 }, (_, index) =>
-        weekStart.value.add(index, 'day'),
+const periodDays = computed(() =>
+    Array.from({ length: periodLength.value }, (_, index) =>
+        periodStart.value.add(index, 'day'),
     ),
 );
 
 const weekHeaderTitle = computed(() => {
-    const start = weekStart.value;
-    const end = weekStart.value.add(6, 'day');
+    const start = periodStart.value;
+    const end = periodStart.value.add(periodLength.value - 1, 'day');
 
     if (start.isSame(end, 'month')) {
         return `${start.format('D')}–${end.format('D MMMM YYYY')}`;
@@ -332,7 +330,9 @@ const currentDateQuery = (
 ): Record<string, string> =>
     view === 'month'
         ? { month: props.currentMonth }
-        : { week: props.currentWeekStart };
+        : view === 'days'
+          ? { day: props.currentDay }
+          : { week: props.currentWeekStart };
 
 const navigate = (direction: number): void => {
     if (props.view === 'month') {
@@ -344,12 +344,15 @@ const navigate = (direction: number): void => {
             }),
         );
     } else {
+        const start = periodStart.value
+            .add(direction * periodLength.value, 'day')
+            .format('YYYY-MM-DD');
+
         visit(
-            calendarUrl('week', {
-                week: weekStart.value
-                    .add(direction * 7, 'day')
-                    .format('YYYY-MM-DD'),
-            }),
+            calendarUrl(
+                props.view,
+                props.view === 'days' ? { day: start } : { week: start },
+            ),
         );
     }
 };
@@ -411,15 +414,13 @@ const visibleMonthItems = (day: dayjs.Dayjs): CalendarItem[] =>
         ? itemsFor(day)
         : itemsFor(day).slice(0, MONTH_CHIPS);
 
-const isDesktop = useMediaQuery('(min-width: 768px)');
-
 const mobileTitle = computed(() => {
     if (props.view === 'month') {
         return monthDate.value.format('MMMM YYYY');
     }
 
-    const start = weekStart.value;
-    const end = weekStart.value.add(6, 'day');
+    const start = periodStart.value;
+    const end = periodStart.value.add(periodLength.value - 1, 'day');
 
     if (start.isSame(end, 'month')) {
         return start.format('MMMM YYYY');
@@ -433,7 +434,7 @@ const mobileTitle = computed(() => {
 });
 
 const dayKeys = computed(() =>
-    (props.view === 'month' ? calendarWeeks.value.flat() : weekDays.value).map(
+    (props.view === 'month' ? calendarWeeks.value.flat() : periodDays.value).map(
         dayKey,
     ),
 );
@@ -479,12 +480,6 @@ watch(dayKeys, (keys, previousKeys) => {
             : defaultDayKey();
 });
 
-const selectedDay = computed(() => localized(selectedDayKey.value));
-
-const selectDay = (key: string): void => {
-    selectedDayKey.value = key;
-};
-
 const isRtl = (): boolean => document.documentElement.dir === 'rtl';
 
 const swipeStep = (direction: UseSwipeDirection): number => {
@@ -495,21 +490,7 @@ const swipeStep = (direction: UseSwipeDirection): number => {
     return (direction === 'left') !== isRtl() ? 1 : -1;
 };
 
-const shiftSelectedDay = (step: number): void => {
-    const target = dayKey(selectedDay.value.add(step, 'day'));
-
-    if (periodDayKeys.value.includes(target)) {
-        selectedDayKey.value = target;
-
-        return;
-    }
-
-    pendingDayKey.value = target;
-    navigate(step);
-};
-
 const periodSwipeTarget = ref<HTMLElement | null>(null);
-const daySwipeTarget = ref<HTMLElement | null>(null);
 
 useSwipe(periodSwipeTarget, {
     threshold: 48,
@@ -522,19 +503,6 @@ useSwipe(periodSwipeTarget, {
     },
 });
 
-useSwipe(daySwipeTarget, {
-    threshold: 48,
-    onSwipeEnd: (_event, direction) => {
-        const step = swipeStep(direction);
-
-        if (step !== 0) {
-            shiftSelectedDay(step);
-        }
-    },
-});
-
-const composeOnSelectedDay = (): void => composeOn(selectedDay.value);
-
 const goToToday = (): void => {
     if (periodDayKeys.value.includes(todayKey.value)) {
         selectedDayKey.value = todayKey.value;
@@ -543,6 +511,27 @@ const goToToday = (): void => {
     }
 
     visit(calendarUrl(props.view));
+};
+
+const goToDay = (key: string): void => {
+    if (periodDayKeys.value.includes(key)) {
+        selectedDayKey.value = key;
+
+        return;
+    }
+
+    const day = localized(key);
+    pendingDayKey.value = key;
+    visit(
+        calendarUrl(
+            props.view,
+            {
+                month: { month: day.startOf('month').format('YYYY-MM-DD') },
+                days: { day: key },
+                week: { week: day.startOf('week').format('YYYY-MM-DD') },
+            }[props.view],
+        ),
+    );
 };
 </script>
 
@@ -556,14 +545,6 @@ const goToToday = (): void => {
 
         <template #header-actions>
             <div class="flex items-center gap-2">
-                <ScheduleViewSwitch
-                    active-view="calendar"
-                    :list-href="listHref"
-                    :calendar-href="calendarUrl('month')"
-                    :grid-href="
-                        channel?.has_grid ? grid.url(channel.id) : undefined
-                    "
-                />
                 <Button
                     v-if="canCreatePost"
                     variant="outline"
@@ -582,78 +563,22 @@ const goToToday = (): void => {
 
         <div class="flex min-h-0 flex-1 flex-col">
             <div
-                class="mx-4 mt-2 flex shrink-0 flex-col md:mx-8 md:h-12 md:flex-row md:items-center md:gap-4"
+                class="mx-4 mt-2 flex h-12 shrink-0 items-center justify-between gap-2 md:mx-8 md:gap-4"
                 data-testid="calendar-toolbar"
             >
-                <div class="flex h-12 min-w-0 items-center gap-4 max-md:gap-2">
-                    <div class="flex min-w-0 items-center max-md:flex-1">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="-ms-2 shrink-0 md:-ms-3"
-                            :aria-label="$t('calendar.previous')"
-                            data-testid="calendar-previous"
-                            @click="navigate(-1)"
-                        >
-                            <IconChevronLeft class="size-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="shrink-0"
-                            :aria-label="$t('calendar.next')"
-                            data-testid="calendar-next"
-                            @click="navigate(1)"
-                        >
-                            <IconChevronRight class="size-4" />
-                        </Button>
-                        <h2
-                            class="ms-1 truncate font-heading text-base leading-5 font-medium text-foreground capitalize"
-                            data-testid="calendar-title"
-                        >
-                            {{ isDesktop ? headerTitle : mobileTitle }}
-                        </h2>
-                    </div>
-                    <Button
-                        variant="outline"
-                        class="shrink-0"
-                        data-testid="calendar-today"
-                        @click="goToToday"
-                    >
-                        {{ $t('calendar.today') }}
-                    </Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                class="shrink-0 data-[state=open]:bg-accent max-md:-me-2"
-                                data-testid="calendar-view-trigger"
-                            >
-                                {{ $t(`calendar.${view}`) }}
-                                <IconChevronDown
-                                    class="size-4 text-muted-foreground"
-                                />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                            <DropdownMenuItem
-                                v-for="option in VIEWS"
-                                :key="option"
-                                :data-testid="`calendar-view-${option}`"
-                                @click="switchView(option)"
-                            >
-                                <IconCheck
-                                    class="size-4"
-                                    :class="view === option ? '' : 'invisible'"
-                                />
-                                {{ $t(`calendar.${option}`) }}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                <CalendarPeriodPicker
+                    :view="view"
+                    :views="VIEWS"
+                    :title="isDesktop ? headerTitle : mobileTitle"
+                    :selected-day-key="selectedDayKey"
+                    @navigate="navigate"
+                    @today="goToToday"
+                    @change-view="switchView"
+                    @pick-day="goToDay"
+                />
 
                 <div
-                    class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 pb-2 max-md:pe-8 max-md:[mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] max-md:rtl:[mask-image:linear-gradient(to_left,black_calc(100%-2rem),transparent)] md:ms-auto md:overflow-visible md:p-0"
+                    class="flex shrink-0 items-center gap-1 md:ms-auto md:gap-2"
                     data-testid="calendar-filters"
                 >
                     <PostChannelFilter
@@ -661,140 +586,75 @@ const goToToday = (): void => {
                         v-model="selectedChannelIds"
                         :channels="filterAccounts"
                     />
-                    <CalendarStatusFilter v-model="selectedStatus" />
-                    <LabelFilter
-                        v-model="selectedLabelIds"
-                        v-model:untagged="selectedUntagged"
-                        :labels="labels"
-                    />
+                    <PublishFilterMenu
+                        v-model:status="selectedStatus"
+                        :timezone="timezone"
+                        test-id="calendar"
+                        :timezones="timezones"
+                        :show-slots="showSlots"
+                        :manage-slots-href="
+                            channel && canManageAccounts
+                                ? settings.url(channel.id)
+                                : null
+                        "
+                        @update:timezone="setTimezone"
+                        @update:show-slots="toggleSlots"
+                    >
+                        <template #desktop-filters>
+                            <LabelFilter
+                                v-model="selectedLabelIds"
+                                v-model:untagged="selectedUntagged"
+                                :labels="labels"
+                            />
+                        </template>
+                    </PublishFilterMenu>
+                    <AppHeaderActions>
+                        <ScheduleViewSwitch
+                            active-view="calendar"
+                            :list-href="listHref"
+                            :calendar-href="calendarUrl('month')"
+                            :grid-href="
+                                channel?.has_grid
+                                    ? grid.url(channel.id)
+                                    : undefined
+                            "
+                        />
+                    </AppHeaderActions>
                     <Button
                         variant="ghost"
-                        class="shrink-0 max-sm:border max-sm:border-border-strong"
+                        class="shrink-0 max-xl:size-8 max-xl:px-0 max-sm:border max-sm:border-border-strong"
                         :class="{ 'bg-accent': undatedOpen }"
                         :aria-pressed="undatedOpen"
                         data-testid="calendar-no-date"
                         @click="toggleUndated"
                     >
-                        <IconLayoutSidebarRight
+                        <IconLayoutSidebarRightCollapse
+                            v-if="undatedOpen"
                             class="size-4 text-muted-foreground"
+                            data-testid="calendar-no-date-icon-open"
                         />
-                        {{ $t('calendar.no_date') }}
+                        <IconLayoutSidebarRightExpand
+                            v-else
+                            class="size-4 text-muted-foreground"
+                            data-testid="calendar-no-date-icon-closed"
+                        />
+                        <span class="max-xl:sr-only">{{
+                            $t('calendar.no_date')
+                        }}</span>
                     </Button>
-                    <span
-                        class="h-5 w-px shrink-0 bg-border-strong"
-                        aria-hidden="true"
-                    />
-                    <div
-                        class="shrink-0"
-                        data-testid="publish-timezone-select"
-                        role="group"
-                        :aria-label="$t('posts.publish.timezone.label')"
-                    >
-                        <TimezoneSelect
-                            :model-value="timezone"
-                            :options="timezones"
-                            testid="publish-timezone"
-                            variant="ghost"
-                            compact
-                            icon-only-on-mobile
-                            @update:model-value="setTimezone"
-                        />
-                    </div>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="shrink-0 data-[state=open]:bg-accent"
-                                :aria-label="$t('posts.table.actions')"
-                                data-testid="calendar-menu"
-                            >
-                                <IconDotsVertical class="size-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuCheckboxItem
-                                :model-value="showSlots"
-                                data-testid="calendar-toggle-slots"
-                                @update:model-value="toggleSlots"
-                            >
-                                {{
-                                    $t('posts.publish.menu.show_posting_times')
-                                }}
-                            </DropdownMenuCheckboxItem>
-                            <DropdownMenuItem
-                                v-if="channel && canManageAccounts"
-                                as-child
-                            >
-                                <Link
-                                    :href="settings.url(channel.id)"
-                                    data-testid="calendar-manage-slots"
-                                >
-                                    {{
-                                        $t(
-                                            'posts.publish.menu.manage_posting_times',
-                                        )
-                                    }}
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
                 </div>
             </div>
 
             <div class="mx-4 flex min-h-0 flex-1 gap-4 md:mx-8">
                 <div
+                    ref="periodSwipeTarget"
                     class="mb-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-strong md:mb-6"
                     :class="{ 'max-md:hidden': undatedOpen }"
                     data-testid="calendar-grid"
                 >
-                    <div
-                        v-if="!isDesktop"
-                        class="flex min-h-0 flex-1 flex-col"
-                        data-testid="calendar-mobile"
-                    >
-                        <div
-                            ref="periodSwipeTarget"
-                            class="shrink-0 border-b border-border-strong"
-                        >
-                            <CalendarWeekStrip
-                                v-if="view === 'week'"
-                                :days="weekDays"
-                                :posts="posts"
-                                :selected-key="selectedDayKey"
-                                :today-key="todayKey"
-                                @select="selectDay"
-                            />
-                            <CalendarMonthDotGrid
-                                v-else
-                                :weeks="calendarWeeks"
-                                :month="monthDate"
-                                :posts="posts"
-                                :selected-key="selectedDayKey"
-                                :today-key="todayKey"
-                                @select="selectDay"
-                            />
-                        </div>
-                        <div
-                            ref="daySwipeTarget"
-                            class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-                        >
-                            <CalendarDayAgenda
-                                :key="selectedDayKey"
-                                :day="selectedDay"
-                                :items="itemsFor(selectedDay)"
-                                :channels="slotChannels"
-                                :timezone="timezone"
-                                :can-create-post="canCreatePost"
-                                :is-past="isPast(selectedDay)"
-                                @compose="composeOnSelectedDay"
-                            />
-                        </div>
-                    </div>
-
                     <CalendarTimeGrid
-                        v-else-if="view !== 'month'"
-                        :days="weekDays"
+                        v-if="view !== 'month'"
+                        :days="periodDays"
                         :posts="posts"
                         :slots="visibleSlots"
                         :channels="slotChannels"
@@ -806,7 +666,7 @@ const goToToday = (): void => {
 
                     <div
                         v-else
-                        class="flex-1 overflow-y-auto overscroll-contain"
+                        class="flex flex-1 flex-col overflow-y-auto overscroll-contain"
                         data-testid="calendar-month-grid"
                     >
                         <div
@@ -815,24 +675,24 @@ const goToToday = (): void => {
                             <div
                                 v-for="(name, index) in weekdayNames"
                                 :key="name"
-                                class="border-border-strong p-2.5 text-center text-sm font-medium text-muted-foreground capitalize"
+                                class="border-border-strong p-1.5 text-center text-sm font-medium text-muted-foreground capitalize md:p-2.5"
                                 :class="{ 'border-l': index > 0 }"
                             >
                                 {{ name }}
                             </div>
                         </div>
 
-                        <div>
+                        <div class="flex flex-1 flex-col">
                             <div
                                 v-for="(week, weekIndex) in calendarWeeks"
                                 :key="weekIndex"
-                                class="grid min-h-[208px] grid-cols-7 border-border-strong"
+                                class="grid min-h-24 flex-1 grid-cols-7 border-border-strong md:min-h-[208px]"
                                 :class="{ 'border-t': weekIndex > 0 }"
                             >
                                 <div
                                     v-for="(day, index) in week"
                                     :key="dayKey(day)"
-                                    class="group flex min-w-0 flex-col gap-1 border-border-strong p-2"
+                                    class="group flex min-w-0 flex-col gap-1 border-border-strong p-1 md:p-2"
                                     :class="{
                                         'border-l': index > 0,
                                         'bg-accent': isPast(day),
@@ -859,7 +719,7 @@ const goToToday = (): void => {
                                             v-if="canCreatePost && !isPast(day)"
                                             type="button"
                                             :aria-label="$t('calendar.new_post')"
-                                            class="flex size-6 items-center justify-center rounded-md border border-border-strong bg-card text-muted-foreground opacity-0 transition-opacity duration-100 ease-in-out group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                                            class="flex size-6 items-center justify-center rounded-md border border-border-strong bg-card text-muted-foreground opacity-0 transition-opacity duration-100 ease-in-out group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 max-md:hidden [@media(hover:none)]:opacity-100"
                                             :data-testid="`calendar-add-${dayKey(day)}`"
                                             @click="composeOn(day)"
                                         >
@@ -931,11 +791,23 @@ const goToToday = (): void => {
                     </div>
                 </div>
 
-                <CalendarUndatedPanel
-                    v-if="undatedOpen"
-                    :drafts="undatedDrafts?.data ?? null"
-                    @close="closeUndated"
-                />
+                <Transition
+                    enter-active-class="transition-[width,margin,opacity] duration-200 ease-out motion-reduce:transition-none"
+                    leave-active-class="transition-[width,margin,opacity] duration-200 ease-out motion-reduce:transition-none"
+                    enter-from-class="opacity-0 md:-ms-4! md:w-0!"
+                    leave-to-class="opacity-0 md:-ms-4! md:w-0!"
+                >
+                    <div
+                        v-if="undatedOpen"
+                        class="flex min-h-0 shrink-0 overflow-hidden max-md:w-full md:w-[360px]"
+                        data-testid="calendar-undated-slide"
+                    >
+                        <CalendarUndatedPanel
+                            :drafts="undatedDrafts?.data ?? null"
+                            @close="closeUndated"
+                        />
+                    </div>
+                </Transition>
             </div>
         </div>
     </AppLayout>

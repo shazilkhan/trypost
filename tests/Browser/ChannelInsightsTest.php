@@ -332,6 +332,21 @@ test('on desktop the channel insights range keeps the segmented control', functi
         ->assertNoJavaScriptErrors();
 });
 
+test('the channel insights header sticks under the channel header with a divider like the workspace insights', function () {
+    $today = CarbonImmutable::today('UTC');
+
+    foreach (range(1, 11) as $index) {
+        channelInsightsBrowserPublication($this->instagram, $today->subDays($index)->setTime(9, $index), []);
+    }
+
+    $page = visit(route('app.channels.insights', $this->instagram));
+    waitForChannelInsightsTestId($page, 'insights-posts-pagination');
+
+    $page->assertScript('getComputedStyle(document.querySelector("[data-testid=insights-toolbar]")).borderBottomWidth', '1px')
+        ->assertScript('(() => { const scroller = document.querySelector("[data-testid=app-layout-scroller]"); scroller.scrollTop = scroller.scrollHeight; const header = document.querySelector("[data-testid=insights-page-header]"); const toolbar = document.querySelector("[data-testid=insights-toolbar]"); const top = scroller.getBoundingClientRect().top; const stuck = scroller.scrollTop > 0 && Math.abs(header.getBoundingClientRect().top - top) <= 1 && toolbar.getBoundingClientRect().bottom > top; scroller.scrollTop = 0; return stuck; })()', true)
+        ->assertNoJavaScriptErrors();
+});
+
 test('the per post table shows ten posts per page with numbered pages kept in the url', function () {
     $today = CarbonImmutable::today('UTC');
 

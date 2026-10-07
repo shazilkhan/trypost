@@ -32,7 +32,7 @@ const toDo = computed(() =>
         <PopoverTrigger as-child>
             <button
                 type="button"
-                class="flex min-w-0 items-center gap-1 rounded-md text-sm text-muted-foreground transition-control hover:text-foreground data-[state=open]:text-foreground"
+                class="flex max-w-full min-w-0 items-center gap-1 rounded-md text-sm text-muted-foreground transition-control hover:text-foreground data-[state=open]:text-foreground"
                 data-testid="publish-goal-progress"
             >
             <svg

@@ -5,6 +5,7 @@ return [
     'today' => '오늘',
     'previous' => '이전',
     'next' => '다음',
+    'days' => '3일',
     'week' => '주',
     'month' => '월',
     'new_post' => '새 게시물',

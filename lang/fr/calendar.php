@@ -5,6 +5,7 @@ return [
     'today' => 'Aujourd\'hui',
     'previous' => 'Précédent',
     'next' => 'Suivant',
+    'days' => '3 jours',
     'week' => 'Semaine',
     'month' => 'Mois',
     'new_post' => 'Nouvelle publication',

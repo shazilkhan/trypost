@@ -12,14 +12,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { CalendarStatus } from '@/types/publish';
-
-const STATUSES: readonly CalendarStatus[] = [
-    'all',
-    'drafts',
-    'scheduled',
-    'sent',
-];
+import { CALENDAR_STATUSES, type CalendarStatus } from '@/types/publish';
 
 const status = defineModel<CalendarStatus>({ required: true });
 
@@ -45,7 +38,7 @@ const selectStatus = (option: CalendarStatus): void => {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
             <DropdownMenuItem
-                v-for="option in STATUSES"
+                v-for="option in CALENDAR_STATUSES"
                 :key="option"
                 :data-testid="`calendar-status-${option}`"
                 @click="selectStatus(option)"

@@ -192,7 +192,7 @@ test('scheduled posts replace the slots with a list of only those posts', functi
     $page->assertVisible("@post-card-{$queued->id}")
         ->assertPresent("@queue-day-{$custom->scheduled_at->format('Y-m-d')}")
         ->assertAttribute("@post-schedule-mode-{$custom->id}", 'data-mode', 'custom')
-        ->assertMissing("@post-schedule-mode-{$queued->id}")
+        ->assertAttribute("@post-schedule-mode-{$queued->id}", 'data-mode', 'queue')
         ->assertMissing('@queue-more-times');
 
     expect($page->script('document.querySelectorAll(\'[data-testid^="queue-slot-"]\').length'))->toBe(0);

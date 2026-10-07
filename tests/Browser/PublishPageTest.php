@@ -29,6 +29,18 @@ function waitForPublishPageTestId(mixed $page, string $testId): void
     JS);
 }
 
+function waitForPublishPageScript(mixed $page, string $condition): void
+{
+    $page->script(<<<JS
+        (async () => {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                if ({$condition}) return;
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        })();
+    JS);
+}
+
 function waitForPublishPagePostStatus(mixed $page, Post $post, PostStatus $status): void
 {
     for ($attempt = 0; $attempt < 50 && $post->refresh()->status !== $status; $attempt++) {
@@ -96,7 +108,7 @@ test('the channel page shows the weekly goal progress', function () {
 
     expect($page->script('new URL(document.querySelector(\'[data-testid="schedule-view-calendar"]\').href).search'))->toBe('');
     expect($page->script('new URL(document.querySelector(\'[data-testid="schedule-view-calendar"]\').href).pathname'))->toBe(route('app.channels.calendar', ['account' => $channel->id, 'view' => 'week'], false));
-    $page->assertSeeIn('@publish-goal-progress', '0/3')
+    $page->assertSeeIn('@publish-goal-progress', trans('posts.publish.goal', ['sent' => 0, 'goal' => 3]))
         ->assertAttribute('@publish-goal-pie', 'data-percent', '0')
         ->assertNoJavaScriptErrors();
 });
@@ -110,7 +122,7 @@ test('the weekly goal pie fills with the posts sent this week', function () {
     $page = visit(route('app.channels.publish', $channel));
     waitForPublishPageTestId($page, 'publish-goal-pie');
 
-    $page->assertSeeIn('@publish-goal-progress', '1/3')
+    $page->assertSeeIn('@publish-goal-progress', trans('posts.publish.goal', ['sent' => 1, 'goal' => 3]))
         ->assertAttribute('@publish-goal-pie', 'data-percent', '33')
         ->assertNoJavaScriptErrors();
 
@@ -496,81 +508,214 @@ test('the tabs row border keeps the page padding instead of touching the panel e
     $page->assertNoJavaScriptErrors();
 });
 
-test('on a phone the channels and time zone filters show only an icon and a chevron on the schedule list and calendar', function (string $route) {
+test('on a phone the calendar row holds the channels, filter menu, view switch and no date last, with the filters in a sheet', function () {
     [$user, , $channel] = publishPageSetup();
     $this->actingAs($user);
-    $triggers = ['posts-channel-filter', 'publish-timezone-trigger'];
-    $measure = <<<'JS'
-        (() => ['posts-channel-filter', 'publish-timezone-trigger'].map((id) => {
-            const trigger = document.querySelector(`[data-testid="${id}"]`);
-            const visible = (node) => node.getClientRects().length > 0 && getComputedStyle(node).display !== 'none';
 
-            return {
-                text: [...trigger.querySelectorAll('span')].filter((span) => visible(span) && span.textContent.trim() !== '').length,
-                icons: [...trigger.querySelectorAll('svg')].filter(visible).length,
-                label: trigger.getAttribute('aria-label') !== null,
-            };
-        }))()
-    JS;
-
-    $page = visit($route === 'list' ? route('app.posts.index') : route('app.calendar', ['view' => 'week']))->resize(390, 844);
-    waitForPublishPageTestId($page, 'publish-timezone-trigger');
+    $page = visit(route('app.calendar', ['view' => 'week']))->resize(390, 844);
+    waitForPublishPageTestId($page, 'calendar-menu');
     waitForPublishPageTestId($page, 'posts-channel-filter');
-
-    expect($page->script($measure))->toBe([
-        ['text' => 0, 'icons' => 2, 'label' => true],
-        ['text' => 0, 'icons' => 2, 'label' => true],
-    ]);
-
-    $page->resize(1280, 900);
-    $page->script(<<<'JS'
-        (async () => {
-            for (let attempt = 0; attempt < 100; attempt++) {
-                if ([...document.querySelector('[data-testid="publish-timezone-trigger"]').querySelectorAll('span')].some((span) => span.getClientRects().length > 0 && span.textContent.trim() !== '')) return;
-                await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-        })();
-    JS);
-    $wide = $page->script($measure);
-    expect($wide[0]['text'])->toBeGreaterThan(0)->and($wide[1]['text'])->toBeGreaterThan(0);
-    $page->assertNoJavaScriptErrors();
-})->with(['list', 'calendar']);
-
-test('the mobile filters are bordered buttons inside the header border and the desktop ones stay ghost', function () {
-    [$user, , $channel] = publishPageSetup();
-    $this->actingAs($user);
-
-    $page = visit(route('app.channels.publish', $channel))->resize(390, 844);
-    waitForPublishPageTestId($page, 'publish-filters');
 
     $measure = <<<'JS'
         (() => {
-            const row = document.querySelector('[data-testid="publish-filters"]');
-            const buttons = [...row.querySelectorAll('button[role="combobox"]')];
-            const header = row.parentElement;
+            const rect = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+            const middle = (box) => Math.round(box.top + box.height / 2);
+            const row = ['posts-channel-filter', 'calendar-menu', 'schedule-view-list', 'calendar-no-date'].map(rect);
+            const noDate = rect('calendar-no-date');
+            const channelFilter = document.querySelector('[data-testid="posts-channel-filter"]');
+            const visible = (node) => node.getClientRects().length > 0 && getComputedStyle(node).display !== 'none';
+
             return {
-                count: buttons.length,
-                borders: buttons.map((button) => parseFloat(getComputedStyle(button).borderTopWidth)),
-                heights: new Set(buttons.map((button) => Math.round(button.getBoundingClientRect().height))).size,
-                headerBorder: parseFloat(getComputedStyle(header).borderBottomWidth),
-                rowBottom: row.getBoundingClientRect().bottom,
-                headerBottom: header.getBoundingClientRect().bottom,
+                oneRow: row.every((box) => Math.abs(middle(box) - middle(row[0])) <= 2),
+                noDateLast: row.every((box) => box.right <= noDate.right),
+                noDateSquare: Math.round(noDate.width) === Math.round(noDate.height),
+                noDateLabelHidden: document.querySelector('[data-testid="calendar-no-date"] span').getBoundingClientRect().width <= 1,
+                channelText: [...channelFilter.querySelectorAll('span')].filter((span) => visible(span) && span.textContent.trim() !== '').length,
+                tags: Boolean(document.querySelector('[data-testid="posts-label-filter"]')),
                 overflow: document.documentElement.scrollWidth > window.innerWidth,
             };
         })()
     JS;
 
-    $mobile = $page->script($measure);
-    expect($mobile['count'])->toBeGreaterThanOrEqual(2)
-        ->and(min($mobile['borders']))->toBeGreaterThan(0)
-        ->and($mobile['heights'])->toBe(1)
-        ->and($mobile['headerBorder'])->toBeGreaterThan(0)
-        ->and($mobile['rowBottom'])->toBeLessThanOrEqual($mobile['headerBottom'])
-        ->and($mobile['overflow'])->toBeFalse();
+    expect($page->script($measure))->toBe([
+        'oneRow' => true,
+        'noDateLast' => true,
+        'noDateSquare' => true,
+        'noDateLabelHidden' => true,
+        'channelText' => 0,
+        'tags' => false,
+        'overflow' => false,
+    ]);
+
+    $page->click('@calendar-menu');
+    waitForPublishPageTestId($page, 'calendar-menu-content');
+    waitForPublishPageScript($page, 'Math.abs(window.innerHeight - document.querySelector(\'[data-testid="calendar-menu-content"]\').getBoundingClientRect().bottom) <= 1');
+
+    $page->assertVisible('@calendar-status-drafts')
+        ->assertVisible('@publish-timezone-trigger')
+        ->assertVisible('@calendar-toggle-slots');
+
+    $page->resize(1280, 900);
+
+    waitForPublishPageScript($page, 'Boolean(document.querySelector(\'[data-testid="calendar-status-filter"]\'))');
+
+    $order = $page->script(<<<'JS'
+        (() => ['posts-channel-filter', 'calendar-status-filter', 'posts-label-filter', 'publish-timezone-trigger', 'calendar-no-date', 'calendar-menu']
+            .map((id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect().left)
+            .every((left, index, lefts) => index === 0 || left > lefts[index - 1]))()
+    JS);
+
+    expect($order)->toBeTrue()
+        ->and($page->script('Boolean(document.querySelector(\'[data-testid="schedule-view-list"]\').closest("header"))'))->toBeTrue()
+        ->and($page->script('document.querySelector(\'[data-testid="calendar-no-date"] span\').getBoundingClientRect().width > 1'))->toBeTrue();
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('the channel page puts the filters on one row on a phone and the view switch in the header on desktop', function () {
+    [$user, , $channel] = publishPageSetup();
+    $channel->update(['display_name' => 'A channel with a rather long display name', 'posting_goal' => 5]);
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channel))->resize(390, 844);
+    waitForPublishPageTestId($page, 'publish-tabs-mobile-trigger');
+
+    $phone = $page->script(<<<'JS'
+        (() => {
+            const rect = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+            const middle = (box) => Math.round(box.top + box.height / 2);
+            const row = ['publish-tabs-mobile-trigger', 'publish-menu', 'schedule-view-list', 'posts-new-post'].map(rect);
+
+            return {
+                oneRow: row.every((box) => Math.abs(middle(box) - middle(row[0])) <= 2),
+                belowGoal: row[0].top >= rect('publish-goal-progress').bottom,
+                tags: Boolean(document.querySelector('[data-testid="posts-label-filter"]')),
+                overflow: document.documentElement.scrollWidth > window.innerWidth,
+            };
+        })()
+    JS);
+
+    expect($phone)->toBe(['oneRow' => true, 'belowGoal' => true, 'tags' => false, 'overflow' => false]);
 
     $page->resize(1280, 800);
-    $desktop = $page->script($measure);
-    expect(max($desktop['borders']) == 0)->toBeTrue();
+    waitForPublishPageScript($page, 'Boolean(document.querySelector(\'[data-testid="schedule-view-list"]\')?.closest("header"))');
+
+    $desktop = $page->script(<<<'JS'
+        (() => {
+            const left = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect().left;
+            const inHeader = (id) => Boolean(document.querySelector(`[data-testid="${id}"]`).closest('header'));
+
+            return {
+                switchInHeader: inHeader('schedule-view-list'),
+                newPostInHeader: inHeader('posts-new-post'),
+                order: left('posts-label-filter') < left('publish-timezone-trigger') && left('publish-timezone-trigger') < left('publish-menu'),
+            };
+        })()
+    JS);
+
+    expect($desktop)->toBe(['switchInHeader' => true, 'newPostInHeader' => true, 'order' => true]);
+    $page->assertNoJavaScriptErrors();
+});
+
+test('on a phone the tabs are a select that opens a sheet and moves to the picked tab', function () {
+    [$user, , $channel] = publishPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channel))->resize(390, 844);
+    waitForPublishPageTestId($page, 'publish-tabs-mobile-trigger');
+
+    expect($page->script('document.querySelector(\'[data-testid="posts-tabs"]\').getBoundingClientRect().height'))->toBe(0);
+    $page->assertSeeIn('@publish-tabs-mobile-trigger', trans('posts.publish.tabs.queue'))
+        ->click('@publish-tabs-mobile-trigger');
+    waitForPublishPageTestId($page, 'publish-tabs-sheet');
+
+    $page->assertPresent('@publish-tab-sheet-queue-check')
+        ->assertMissing('@publish-tab-sheet-drafts-check')
+        ->click('@publish-tab-sheet-drafts');
+    waitForPublishPageScript($page, 'new URLSearchParams(location.search).get("tab") === "drafts"');
+
+    $page->assertSeeIn('@publish-tabs-mobile-trigger', trans('posts.publish.tabs.drafts'))
+        ->assertMissing('@publish-tabs-sheet')
+        ->assertNoJavaScriptErrors();
+});
+
+test('on a phone the filter button opens a sheet with the time zone and posting times, on desktop they stay separate', function () {
+    [$user, , $channel] = publishPageSetup();
+    $this->actingAs($user);
+
+    $page = visit(route('app.channels.publish', $channel))->resize(390, 844);
+    waitForPublishPageTestId($page, 'publish-menu');
+    expect($page->script('Boolean(document.querySelector(\'[data-testid="publish-timezone-trigger"]\'))'))->toBeFalse();
+
+    $page->click('@publish-menu');
+    waitForPublishPageTestId($page, 'publish-menu-content');
+    waitForPublishPageScript($page, 'Math.abs(window.innerHeight - document.querySelector(\'[data-testid="publish-menu-content"]\').getBoundingClientRect().bottom) <= 1');
+
+    $pressed = 'document.querySelector(\'[data-testid="publish-toggle-slots"]\').getAttribute("aria-pressed")';
+    $before = $page->script($pressed);
+    $page->assertVisible('@publish-timezone-trigger')
+        ->click('@publish-toggle-slots');
+
+    expect($page->script($pressed))->toBe($before === 'true' ? 'false' : 'true')
+        ->and($page->script('new URL(document.querySelector(\'[data-testid="publish-manage-slots"]\').href).pathname'))
+        ->toBe(route('app.channels.settings', $channel, false));
+
+    $page->resize(1280, 800);
+    waitForPublishPageScript($page, '!document.querySelector(\'[data-testid="publish-menu-content"]\')');
+    waitForPublishPageTestId($page, 'publish-timezone-trigger');
+
+    $page->assertVisible('@publish-timezone-trigger')
+        ->click('@publish-menu');
+    waitForPublishPageTestId($page, 'publish-toggle-slots');
+    $page->assertVisible('@publish-manage-slots')->assertNoJavaScriptErrors();
+});
+
+test('the notes button sits inside the post card below the large breakpoint and beside it above', function () {
+    [$user, $workspace, $channel] = publishPageSetup();
+    $post = publishPagePost($user, $workspace, $channel);
+    $this->actingAs($user);
+
+    $measure = <<<'JS'
+        (() => {
+            const row = document.querySelector('[data-testid^="post-card-"]');
+            const card = row.querySelector('article').getBoundingClientRect();
+            const notes = row.querySelector('[data-testid^="post-notes-trigger-"]').getBoundingClientRect();
+
+            return {
+                inside: notes.left >= card.left && notes.right <= card.right && notes.top >= card.top,
+                beside: notes.left >= card.right,
+            };
+        })()
+    JS;
+
+    $page = visit(route('app.channels.publish', $channel))->resize(900, 800);
+    waitForPublishPageTestId($page, "post-notes-trigger-{$post->id}");
+    expect($page->script($measure))->toBe(['inside' => true, 'beside' => false]);
+
+    $page->resize(1280, 800);
+    waitForPublishPageScript($page, 'document.querySelector(\'[data-testid^="post-notes-trigger-"]\').getBoundingClientRect().left >= document.querySelector(\'[data-testid^="post-card-"] article\').getBoundingClientRect().right');
+    expect($page->script($measure))->toBe(['inside' => false, 'beside' => true]);
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('on a phone the calendar link of the lists opens the three days view, on desktop the week', function () {
+    [$user, , $channel] = publishPageSetup();
+    $this->actingAs($user);
+
+    $path = 'new URL(document.querySelector(\'[data-testid="schedule-view-calendar"]\').href).pathname';
+
+    $page = visit(route('app.channels.publish', $channel))->resize(390, 844);
+    waitForPublishPageTestId($page, 'schedule-view-calendar');
+    expect($page->script($path))->toBe(route('app.channels.calendar', ['account' => $channel->id, 'view' => 'days'], false));
+
+    $page->navigate(route('app.posts.index'));
+    waitForPublishPageTestId($page, 'schedule-view-calendar');
+    expect($page->script($path))->toBe(route('app.calendar', ['view' => 'days'], false));
+
+    $page->resize(1280, 800);
+    waitForPublishPageScript($page, $path.'.endsWith("/week")');
+    expect($page->script($path))->toBe(route('app.calendar', ['view' => 'week'], false));
 
     $page->assertNoJavaScriptErrors();
 });

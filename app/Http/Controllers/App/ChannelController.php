@@ -112,6 +112,7 @@ class ChannelController extends Controller
             return $this->redirectToComposer($request, 'app.channels.calendar', [
                 'account' => $account->id,
                 'view' => $view,
+                'day' => $request->query('day'),
                 'week' => $request->query('week'),
                 'month' => $request->query('month'),
                 'labels' => $request->query('labels'),

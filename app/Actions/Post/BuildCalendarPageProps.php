@@ -23,7 +23,9 @@ use Inertia\Inertia;
 
 class BuildCalendarPageProps
 {
-    public const VIEWS = ['week', 'month'];
+    public const VIEWS = ['days', 'week', 'month'];
+
+    public const DAYS_SPAN = 3;
 
     public const STATUS_ALL = 'all';
 
@@ -50,10 +52,13 @@ class BuildCalendarPageProps
         $today = CarbonImmutable::now($timezone)->startOfDay();
         $weekStart = (self::parseDate($request->query('week'), $timezone) ?? $today)->startOfWeek($weekStartsOn->firstDay());
         $monthDate = (self::parseDate($request->query('month'), $timezone) ?? $today)->startOfMonth();
+        $dayStart = self::parseDate($request->query('day'), $timezone) ?? $today;
 
-        [$rangeStart, $rangeEnd] = $view === 'month'
-            ? [$monthDate->startOfWeek($weekStartsOn->firstDay()), $monthDate->endOfMonth()->endOfWeek($weekStartsOn->lastDay())]
-            : [$weekStart, $weekStart->endOfWeek($weekStartsOn->lastDay())];
+        [$rangeStart, $rangeEnd] = match ($view) {
+            'month' => [$monthDate->startOfWeek($weekStartsOn->firstDay()), $monthDate->endOfMonth()->endOfWeek($weekStartsOn->lastDay())],
+            'days' => [$dayStart, $dayStart->addDays(self::DAYS_SPAN - 1)->endOfDay()],
+            default => [$weekStart, $weekStart->endOfWeek($weekStartsOn->lastDay())],
+        };
 
         $workspaceAccounts = null;
         $filterAccounts = function () use (&$workspaceAccounts, $channel, $workspace): Collection {
@@ -96,6 +101,7 @@ class BuildCalendarPageProps
             'scope' => $channel ? 'channel' : 'all',
             'channel' => fn (): ?array => $channel ? BuildPublishPageProps::channelHeader($channel, $weekStartsOn) : null,
             'posts' => $posts,
+            'currentDay' => $dayStart->format('Y-m-d'),
             'currentWeekStart' => $weekStart->format('Y-m-d'),
             'currentMonth' => $monthDate->format('Y-m-d'),
             'view' => $view,

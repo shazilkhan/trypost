@@ -7,6 +7,7 @@ return [
     'today' => 'Heute',
     'previous' => 'Zurück',
     'next' => 'Weiter',
+    'days' => '3 Tage',
     'week' => 'Woche',
     'month' => 'Monat',
     'new_post' => 'Neuer Beitrag',

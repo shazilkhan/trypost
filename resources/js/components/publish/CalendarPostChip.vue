@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { IconPlayerPlayFilled, IconRepeat } from '@tabler/icons-vue';
-import { useMediaQuery } from '@vueuse/core';
 import { Presence } from 'reka-ui';
 import { computed, ref, watch } from 'vue';
 
@@ -12,6 +11,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useBelowBreakpoint } from '@/composables/useBreakpoint';
 import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import date from '@/date';
 import { isImage, isVideo } from '@/lib/mediaType';
@@ -35,7 +35,7 @@ const MAX_ICONS = 4;
 
 const open = ref(false);
 const detailsOpen = ref(false);
-const isPhone = useMediaQuery('(max-width: 639px)');
+const isPhone = useBelowBreakpoint('sm');
 const card = ref<InstanceType<typeof PostTimelineCard> | null>(null);
 
 const onOpenChange = (value: boolean): void => {

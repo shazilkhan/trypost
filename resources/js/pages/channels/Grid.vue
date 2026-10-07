@@ -7,6 +7,7 @@ import {
 } from '@tabler/icons-vue';
 import { ref } from 'vue';
 
+import AppHeaderActions from '@/components/AppHeaderActions.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import MediaLightbox from '@/components/media/MediaLightbox.vue';
 import ScheduleViewSwitch from '@/components/posts/ScheduleViewSwitch.vue';
@@ -18,6 +19,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useBelowBreakpoint } from '@/composables/useBreakpoint';
 import date from '@/date';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { isVideo } from '@/lib/mediaType';
@@ -43,6 +45,8 @@ defineProps<{
     posts: { data: GridTile[] };
 }>();
 
+const isPhone = useBelowBreakpoint('md');
+
 const lightboxOpen = ref(false);
 const lightboxItems = ref<GridTile['items']>([]);
 
@@ -60,31 +64,31 @@ const openLightbox = (tile: GridTile): void => {
             <PublishHeader :channel="channel" />
         </template>
 
-        <template #header-actions>
-            <div class="flex items-center gap-2">
-                <ScheduleViewSwitch
-                    active-view="grid"
-                    :list-href="publish.url(channel.id)"
-                    :calendar-href="
-                        channelCalendar.url({
-                            account: channel.id,
-                            view: 'month',
-                        })
-                    "
-                    :grid-href="grid.url(channel.id)"
-                />
-                <NewPostButton :social-account-ids="[channel.id]" />
-            </div>
-        </template>
-
         <div
             class="flex min-h-0 flex-1 flex-col overflow-hidden"
             data-testid="channel-grid-page"
         >
             <div
-                class="mx-4 mt-2 shrink-0 border-b border-border-strong md:mx-8"
+                class="mx-4 mt-2 flex h-12 shrink-0 items-center justify-end gap-2 border-b border-border-strong md:mx-8"
                 data-testid="channel-grid-divider"
-            />
+            >
+                <AppHeaderActions>
+                    <div class="flex items-center gap-2">
+                        <ScheduleViewSwitch
+                            active-view="grid"
+                            :list-href="publish.url(channel.id)"
+                            :calendar-href="
+                                channelCalendar.url({
+                                    account: channel.id,
+                                    view: isPhone ? 'days' : 'month',
+                                })
+                            "
+                            :grid-href="grid.url(channel.id)"
+                        />
+                        <NewPostButton :social-account-ids="[channel.id]" />
+                    </div>
+                </AppHeaderActions>
+            </div>
 
             <div
                 class="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain px-4 pt-6 pb-18 md:px-8"

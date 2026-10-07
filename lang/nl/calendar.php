@@ -5,6 +5,7 @@ return [
     'today' => 'Vandaag',
     'previous' => 'Vorige',
     'next' => 'Volgende',
+    'days' => '3 dagen',
     'week' => 'Week',
     'month' => 'Maand',
     'new_post' => 'Nieuwe post',

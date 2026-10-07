@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
 import CalendarPostChip from '@/components/publish/CalendarPostChip.vue';
 import CalendarSlotChip from '@/components/publish/CalendarSlotChip.vue';
+import { useBelowBreakpoint } from '@/composables/useBreakpoint';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import { calendarItems, type CalendarItem } from '@/lib/calendarItems';
@@ -28,6 +29,8 @@ const emit = defineEmits<{
 }>();
 
 const ROW_HEIGHT = 106;
+
+const compact = useBelowBreakpoint('md');
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 const scroller = ref<HTMLElement | null>(null);
@@ -115,7 +118,7 @@ watch(
             <div
                 v-for="(column, index) in columns"
                 :key="column.key"
-                class="-mb-px flex items-center justify-center gap-3 border-b p-2.5 text-sm font-medium capitalize"
+                class="-mb-px flex flex-col items-center justify-center border-b p-1.5 text-sm font-medium capitalize md:flex-row md:gap-3 md:p-2.5"
                 :class="[
                     index > 0 ? 'border-l border-l-border-strong' : '',
                     column.isToday
@@ -124,7 +127,7 @@ watch(
                 ]"
                 :data-testid="`calendar-column-${column.key}`"
             >
-                <span>{{ column.day.format('dddd') }}</span>
+                <span>{{ column.day.format(compact ? 'ddd' : 'dddd') }}</span>
                 <span>{{ column.day.format('D') }}</span>
             </div>
         </div>
@@ -142,7 +145,7 @@ watch(
                 <div
                     v-for="hour in HOURS"
                     :key="hour"
-                    class="group relative flex items-start justify-between gap-1 px-3 py-2"
+                    class="group relative flex items-start justify-between gap-1 px-1 py-2 md:px-3"
                     :class="{
                         'bg-accent': isPastSlot(column.key, hour),
                         'border-t border-border-strong':
@@ -230,7 +233,7 @@ watch(
                         v-if="canCreatePost && !isPastSlot(column.key, hour)"
                         type="button"
                         :aria-label="$t('calendar.new_post')"
-                        class="flex size-6 shrink-0 items-center justify-center rounded-md border border-border-strong bg-card text-muted-foreground opacity-0 transition-opacity duration-100 ease-in-out group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+                        class="flex size-6 shrink-0 items-center justify-center rounded-md border border-border-strong bg-card text-muted-foreground opacity-0 transition-opacity duration-100 ease-in-out group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100 max-md:hidden [@media(hover:none)]:opacity-100"
                         :data-testid="`calendar-add-${column.key}-${hourLabel(hour)}`"
                         @click="compose(column.key, hour)"
                     >

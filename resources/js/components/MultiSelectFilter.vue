@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { IconChevronDown, IconSearch } from '@tabler/icons-vue';
-import { createReusableTemplate, useMediaQuery } from '@vueuse/core';
+import { createReusableTemplate } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 
 import BottomSheet from '@/components/BottomSheet.vue';
@@ -12,6 +12,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { useBelowBreakpoint } from '@/composables/useBreakpoint';
 
 interface FilterOption {
     id: string;
@@ -51,7 +52,7 @@ const props = withDefaults(
 );
 
 const [DefinePanel, ReusePanel] = createReusableTemplate();
-const belowSm = useMediaQuery('(max-width: 639.98px)');
+const belowSm = useBelowBreakpoint('sm');
 const asSheet = computed(() => props.sheetBelowSm && belowSm.value);
 
 const emit = defineEmits<{ clear: []; close: [] }>();

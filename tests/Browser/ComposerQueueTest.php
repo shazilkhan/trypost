@@ -383,7 +383,7 @@ test('prioritize puts the new post first and moves the queued one back', functio
     $page->assertNoJavaScriptErrors();
 });
 
-test('the queue list marks only custom-time posts', function () {
+test('the queue list marks each scheduled post with its schedule mode', function () {
     [$user, $workspace] = composerQueueWorkspace();
     $channel = composerQueueChannel($workspace, composerQueueSchedule());
     $queued = composerQueueSeedPost($user, $workspace, $channel);
@@ -398,7 +398,7 @@ test('the queue list marks only custom-time posts', function () {
     waitForComposerQueuePageTestId($page, "post-schedule-mode-{$custom->id}");
 
     $page->assertVisible("@post-card-{$queued->id}")
-        ->assertMissing("@post-schedule-mode-{$queued->id}")
+        ->assertAttribute("@post-schedule-mode-{$queued->id}", 'data-mode', 'queue')
         ->assertAttribute("@post-schedule-mode-{$custom->id}", 'data-mode', 'custom')
         ->assertNoJavaScriptErrors();
 });

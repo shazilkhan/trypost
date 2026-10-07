@@ -148,9 +148,16 @@ export interface CalendarPost extends PostCard {
     calendar_at: string;
 }
 
-export type CalendarView = 'week' | 'month';
+export type CalendarView = 'days' | 'week' | 'month';
 
 export type CalendarStatus = 'all' | 'drafts' | 'scheduled' | 'sent';
+
+export const CALENDAR_STATUSES: readonly CalendarStatus[] = [
+    'all',
+    'drafts',
+    'scheduled',
+    'sent',
+];
 
 export interface CalendarSlot {
     at: string;

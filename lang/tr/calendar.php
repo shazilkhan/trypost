@@ -7,6 +7,7 @@ return [
     'today' => 'Bugün',
     'previous' => 'Önceki',
     'next' => 'Sonraki',
+    'days' => '3 gün',
     'week' => 'Hafta',
     'month' => 'Ay',
     'new_post' => 'Yeni Gönderi',

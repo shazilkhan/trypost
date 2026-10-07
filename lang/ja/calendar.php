@@ -5,6 +5,7 @@ return [
     'today' => '今日',
     'previous' => '前へ',
     'next' => '次へ',
+    'days' => '3日',
     'week' => '週',
     'month' => '月',
     'new_post' => '新規投稿',

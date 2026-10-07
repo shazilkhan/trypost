@@ -499,8 +499,17 @@ const siblingMoment = (sibling: PostCard): string | null => {
                         :insights-test-id="`post-details-insights-${currentKey}`"
                     />
 
-                    <DialogFooter class="sm:justify-between">
-                        <p class="min-w-0 truncate text-sm text-foreground">
+                    <DialogFooter
+                        class="sm:justify-between"
+                        :data-testid="`post-details-footer-${currentKey}`"
+                    >
+                        <p
+                            class="min-w-0 truncate text-sm text-foreground"
+                            :class="{
+                                'max-sm:hidden':
+                                    current.origin === PostOrigin.Network,
+                            }"
+                        >
                             <TooltipProvider
                                 v-if="
                                     current.origin === PostOrigin.Network &&
@@ -544,7 +553,10 @@ const siblingMoment = (sibling: PostCard): string | null => {
                                 }}</span
                             >
                         </p>
-                        <div class="flex shrink-0 items-center gap-1">
+                        <div
+                            class="flex shrink-0 items-center gap-1 max-sm:ms-auto"
+                            :data-testid="`post-details-actions-${currentKey}`"
+                        >
                             <Button
                                 v-if="permalink"
                                 as="a"

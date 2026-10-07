@@ -121,6 +121,31 @@ test('an unknown tz falls back to the user time zone', function () {
             ->where('currentMonth', '2026-10-01'));
 });
 
+test('the three days view starts on the requested day and covers three days of the display time zone', function () {
+    calendarPost($this->linkedin, '2026-10-08 15:00:00', 'First day');
+    calendarPost($this->linkedin, '2026-10-11 02:30:00', 'Still the third day in Sao Paulo');
+    calendarPost($this->linkedin, '2026-10-11 03:30:00', 'Fourth day in Sao Paulo');
+    calendarPost($this->linkedin, '2026-10-07 15:00:00', 'Day before');
+
+    $this->actingAs($this->user)
+        ->get(route('app.calendar', ['view' => 'days', 'day' => '2026-10-08']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('view', 'days')
+            ->where('currentDay', '2026-10-08')
+            ->has('posts.2026-10-08', 1)
+            ->has('posts.2026-10-10', 1)
+            ->missing('posts.2026-10-07')
+            ->missing('posts.2026-10-11'));
+
+    $this->actingAs($this->user)
+        ->get(route('app.channels.calendar', ['account' => $this->linkedin, 'view' => 'days']))
+        ->assertOk()
+        ->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('view', 'days')
+            ->where('currentDay', '2026-10-05'));
+});
+
 test('the day view no longer exists', function () {
     $this->actingAs($this->user)
         ->get('/schedule/calendar/day')

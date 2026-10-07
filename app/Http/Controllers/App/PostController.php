@@ -73,6 +73,7 @@ class PostController extends Controller
 
             return $this->redirectToComposer($request, 'app.calendar', [
                 'view' => $view ?? $request->query('view'),
+                'day' => $request->query('day'),
                 'week' => $request->query('week'),
                 'month' => $request->query('month'),
                 'labels' => $request->query('labels'),

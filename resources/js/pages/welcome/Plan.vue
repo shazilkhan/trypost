@@ -39,6 +39,7 @@ const select = (planId: string): void => {
             interval="monthly"
             :allow-yearly="false"
             :offer-first-month="true"
+            shared-features-on-mobile
             :processing="form.processing"
             @select="select"
         />

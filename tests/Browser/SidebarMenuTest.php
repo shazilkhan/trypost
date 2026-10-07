@@ -643,3 +643,54 @@ test('the sidebar auto-collapses below 1024px, can be expanded there, and restor
 
     $page->assertNoJavaScriptErrors();
 });
+
+test('on a phone a global bar with the menu button and logo sits above the content card on every page', function (string $routeName) {
+    $user = User::factory()->create();
+    $workspace = Workspace::factory()->create([
+        'user_id' => $user->id,
+        'account_id' => $user->account_id,
+    ]);
+    $workspace->members()->attach($user->id, membershipPivot('admin'));
+    $user->update(['current_workspace_id' => $workspace->id]);
+
+    subscribeAccount($user->account);
+
+    $this->actingAs($user);
+
+    $page = visit(route($routeName))->resize(390, 844);
+    waitForSidebarTestId($page, 'app-mobile-bar');
+
+    $layout = <<<'JS'
+        (() => {
+            const rect = (id) => document.querySelector(`[data-testid="${id}"]`).getBoundingClientRect();
+            const bar = rect('app-mobile-bar');
+            const card = document.querySelector('[data-testid="app-layout-scroller"]').parentElement;
+
+            return {
+                barVisible: bar.height > 0,
+                triggerInBar: rect('app-sidebar-trigger').bottom <= bar.bottom,
+                logoInBar: rect('app-mobile-logo').bottom <= bar.bottom,
+                cardBelowBar: card.getBoundingClientRect().top >= bar.bottom,
+                cardRounded: parseFloat(getComputedStyle(card).borderTopLeftRadius) > 0,
+            };
+        })()
+    JS;
+
+    expect($page->script($layout))->toBe([
+        'barVisible' => true,
+        'triggerInBar' => true,
+        'logoInBar' => true,
+        'cardBelowBar' => true,
+        'cardRounded' => true,
+    ]);
+
+    $page->click('@app-sidebar-trigger');
+    $mobileSidebar = '(document.querySelector(\'[data-mobile="true"]\')?.getBoundingClientRect().width ?? 0) > 0';
+    $page->script("(async () => { for (let attempt = 0; attempt < 100; attempt++) { if ({$mobileSidebar}) return; await new Promise((resolve) => setTimeout(resolve, 50)); } })()");
+    expect($page->script($mobileSidebar))->toBeTrue();
+
+    $page->resize(1280, 900);
+    expect($page->script('document.querySelector(\'[data-testid="app-mobile-bar"]\').getBoundingClientRect().height'))->toBe(0);
+
+    $page->assertNoJavaScriptErrors();
+})->with(['app.posts.index', 'app.profile.edit']);

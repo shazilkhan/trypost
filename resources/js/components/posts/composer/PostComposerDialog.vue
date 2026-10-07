@@ -27,7 +27,6 @@ import {
 } from '@tabler/icons-vue';
 import {
     createReusableTemplate,
-    useMediaQuery,
     useResizeObserver,
 } from '@vueuse/core';
 import { trans, transChoice } from 'laravel-vue-i18n';
@@ -102,6 +101,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useAtLeastBreakpoint, useBelowBreakpoint } from '@/composables/useBreakpoint';
 import { useCanHover } from '@/composables/useCanHover';
 import {
     type AutosaveMediaRef,
@@ -338,8 +338,8 @@ const toggleExpandedDialog = (): void => {
     expandedDialog.value = !expandedDialog.value;
 };
 
-const isDesktop = useMediaQuery('(min-width: 1024px)');
-const belowSm = useMediaQuery('(max-width: 639.98px)');
+const isDesktop = useAtLeastBreakpoint('lg');
+const belowSm = useBelowBreakpoint('sm');
 const canHover = useCanHover();
 const [DefineAssistant, ReuseAssistant] = createReusableTemplate();
 const [DefineScheduleMenu, ReuseScheduleMenu] = createReusableTemplate();

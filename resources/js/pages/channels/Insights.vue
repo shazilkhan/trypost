@@ -158,7 +158,7 @@ watch(selectedTypes, applyFilters, { deep: true });
             data-testid="channel-insights"
         >
             <header
-                class="-mb-2 flex min-w-0 flex-col gap-2"
+                class="sticky top-0 z-20 -mx-4 -mt-6 flex min-w-0 flex-col gap-2 bg-card px-4 pt-6 md:-mx-8 md:px-8"
                 data-testid="insights-page-header"
             >
                 <div class="flex min-w-0 items-center justify-between gap-4">
@@ -183,7 +183,8 @@ watch(selectedTypes, applyFilters, { deep: true });
                 </div>
                 <div
                     v-if="report && filters"
-                    class="flex min-h-12 min-w-0 items-center justify-between gap-2 pt-2 pb-4"
+                    class="flex min-h-12 min-w-0 items-center justify-between gap-2 border-b border-border-strong pt-2 pb-3"
+                    data-testid="insights-toolbar"
                 >
                     <AnalyticsRangePresets
                         :filters="filters"

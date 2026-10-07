@@ -3,12 +3,10 @@ import {
     Deferred,
     Head,
     InfiniteScroll,
-    Link,
     router,
     usePage,
 } from '@inertiajs/vue3';
 import {
-    IconDotsVertical,
     IconFileText,
     IconLayoutGrid,
     IconPlus,
@@ -27,6 +25,7 @@ import {
     store as storePost,
     update as updatePost,
 } from '@/actions/App/Http/Controllers/App/PostController';
+import AppHeaderActions from '@/components/AppHeaderActions.vue';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal.vue';
 import EmptyState from '@/components/EmptyState.vue';
 import LabelFilter from '@/components/labels/LabelFilter.vue';
@@ -39,19 +38,13 @@ import NewPostButton from '@/components/publish/NewPostButton.vue';
 import PostListSkeleton from '@/components/publish/PostListSkeleton.vue';
 import PostTimelineCard from '@/components/publish/PostTimelineCard.vue';
 import PublishEmptyIllustration from '@/components/publish/PublishEmptyIllustration.vue';
+import PublishFilterMenu from '@/components/publish/PublishFilterMenu.vue';
 import PublishHeader from '@/components/publish/PublishHeader.vue';
 import PublishTabs from '@/components/publish/PublishTabs.vue';
 import QueueTimeline from '@/components/publish/QueueTimeline.vue';
-import TimezoneSelect from '@/components/TimezoneSelect.vue';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useWorkspaceEcho } from '@/composables/echo/useWorkspaceEcho';
+import { useBelowBreakpoint } from '@/composables/useBreakpoint';
 import { useComposerData } from '@/composables/useComposerData';
 import { useConnectChannelDialog } from '@/composables/useConnectChannelDialog';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
@@ -186,6 +179,8 @@ const listUrl = (
         : postsIndex.url({ query });
 };
 
+const isPhone = useBelowBreakpoint('md');
+
 const calendarUrl = computed((): string => {
     const query = {
         labels: selectedLabelIds.value.length
@@ -199,12 +194,11 @@ const calendarUrl = computed((): string => {
         tz: timezone.value !== userTimezone.value ? timezone.value : undefined,
     };
 
+    const view = isPhone.value ? 'days' : 'week';
+
     return props.channel
-        ? channelCalendar.url(
-              { account: props.channel.id, view: 'week' },
-              { query },
-          )
-        : calendar.url({ view: 'week' }, { query });
+        ? channelCalendar.url({ account: props.channel.id, view }, { query })
+        : calendar.url({ view }, { query });
 });
 
 const applyFilters = (): void => {
@@ -853,33 +847,17 @@ const submitComposition = (composition: PostComposition): void => {
             <PublishHeader :channel="channel" />
         </template>
 
-        <template #header-actions>
-            <div class="flex items-center gap-2">
-                <ScheduleViewSwitch
-                    active-view="list"
-                    :list-href="listUrl()"
-                    :calendar-href="calendarUrl"
-                    :grid-href="
-                        channel?.has_grid ? grid.url(channel.id) : undefined
-                    "
-                />
-                <NewPostButton
-                    :social-account-ids="channel ? [channel.id] : []"
-                />
-            </div>
-        </template>
-
         <div
             class="flex min-h-0 flex-1 flex-col overflow-hidden"
             data-testid="publish-page"
         >
             <div
-                class="mx-4 mt-2 flex shrink-0 flex-col border-b border-border-strong md:mx-8 md:h-12 md:flex-row md:items-center md:justify-between md:gap-4"
+                class="mx-4 mt-2 flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border-strong md:mx-8 md:gap-4"
             >
                 <PublishTabs :tab="tab" :counts="counts" :href-for="listUrl" />
 
                 <div
-                    class="-mx-1 flex min-w-0 items-center gap-2 overflow-x-auto px-1 pt-2 pb-3 md:mx-0 md:overflow-visible md:px-0 md:py-0"
+                    class="flex min-w-0 items-center gap-2"
                     data-testid="publish-filters"
                 >
                     <PostChannelFilter
@@ -887,66 +865,44 @@ const submitComposition = (composition: PostComposition): void => {
                         v-model="selectedChannelIds"
                         :channels="filterAccounts"
                     />
-                    <LabelFilter
-                        v-model="selectedLabelIds"
-                        v-model:untagged="selectedUntagged"
-                        :labels="labels"
-                    />
-                    <div
-                        class="shrink-0"
-                        data-testid="publish-timezone-select"
-                        role="group"
-                        :aria-label="$t('posts.publish.timezone.label')"
+                    <PublishFilterMenu
+                        :timezone="timezone"
+                        test-id="publish"
+                        :timezones="timezones"
+                        :show-slots="channel ? showSlots : null"
+                        :manage-slots-href="
+                            channel && canManageAccounts
+                                ? settings.url(channel.id)
+                                : null
+                        "
+                        @update:timezone="setTimezone"
+                        @update:show-slots="setShowSlots"
                     >
-                        <TimezoneSelect
-                            :model-value="timezone"
-                            :options="timezones"
-                            testid="publish-timezone"
-                            variant="ghost"
-                            compact
-                            icon-only-on-mobile
-                            @update:model-value="setTimezone"
-                        />
-                    </div>
-                    <DropdownMenu v-if="channel">
-                        <DropdownMenuTrigger as-child>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="ms-auto shrink-0 data-[state=open]:bg-accent md:ms-0"
-                                :aria-label="$t('posts.table.actions')"
-                                data-testid="publish-menu"
-                            >
-                                <IconDotsVertical class="size-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuCheckboxItem
-                                :model-value="showSlots"
-                                data-testid="publish-toggle-slots"
-                                @update:model-value="setShowSlots"
-                            >
-                                {{
-                                    $t('posts.publish.menu.show_posting_times')
-                                }}
-                            </DropdownMenuCheckboxItem>
-                            <DropdownMenuItem
-                                v-if="channel && canManageAccounts"
-                                as-child
-                            >
-                                <Link
-                                    :href="settings.url(channel.id)"
-                                    data-testid="publish-manage-slots"
-                                >
-                                    {{
-                                        $t(
-                                            'posts.publish.menu.manage_posting_times',
-                                        )
-                                    }}
-                                </Link>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                        <template #desktop-filters>
+                            <LabelFilter
+                                v-model="selectedLabelIds"
+                                v-model:untagged="selectedUntagged"
+                                :labels="labels"
+                            />
+                        </template>
+                    </PublishFilterMenu>
+                    <AppHeaderActions>
+                        <div class="flex items-center gap-2">
+                            <ScheduleViewSwitch
+                                active-view="list"
+                                :list-href="listUrl()"
+                                :calendar-href="calendarUrl"
+                                :grid-href="
+                                    channel?.has_grid
+                                        ? grid.url(channel.id)
+                                        : undefined
+                                "
+                            />
+                            <NewPostButton
+                                :social-account-ids="channel ? [channel.id] : []"
+                            />
+                        </div>
+                    </AppHeaderActions>
                 </div>
             </div>
 

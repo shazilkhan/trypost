@@ -42,6 +42,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useAtLeastBreakpoint } from '@/composables/useBreakpoint';
 import { useDisplayTimezone } from '@/composables/useDisplayTimezone';
 import {
     getContentTypeBadgeKey,
@@ -143,6 +144,21 @@ const recurrenceTimezone = computed(
 const isPublishing = computed(
     () => props.post.status === PostStatus.Publishing,
 );
+
+const scheduleMode = computed(() => {
+    if (props.post.origin === PostOrigin.Network) {
+        return props.tab === 'sent' ? ScheduleMode.Custom : null;
+    }
+
+    return props.tab === 'sent' ||
+        props.post.status === PostStatus.Scheduled ||
+        props.post.status === PostStatus.PendingApproval
+        ? props.post.schedule_mode
+        : null;
+});
+
+const showNotes = computed(() => !props.popover && !isPublishing.value);
+const notesBesideCard = useAtLeastBreakpoint('lg');
 
 const time = computed(() => {
     if (props.tab === 'sent') {
@@ -374,7 +390,7 @@ defineExpose({ openDetails });
         :class="
             popover
                 ? 'flex flex-col'
-                : 'grid grid-cols-[minmax(0,1fr)_2.5rem] gap-x-3 gap-y-2 md:grid-cols-[71px_minmax(0,1fr)] md:gap-x-8'
+                : 'grid grid-cols-1 gap-y-2 md:grid-cols-[71px_minmax(0,1fr)] md:gap-x-8'
         "
     >
         <div
@@ -382,7 +398,7 @@ defineExpose({ openDetails });
             :class="
                 popover
                     ? 'border-b border-border-strong px-4 py-3'
-                    : 'col-span-2 md:col-span-1 md:flex-col md:flex-nowrap md:items-start'
+                    : 'md:flex-col md:flex-nowrap md:items-start'
             "
         >
             <span class="inline-flex items-center gap-1">
@@ -439,14 +455,9 @@ defineExpose({ openDetails });
                 {{ $t('posts.recurrence.marker') }}
             </span>
             <PostScheduleModeBadge
-                v-else-if="
-                    post.schedule_mode &&
-                    (tab === 'sent' ||
-                        (post.status === PostStatus.Scheduled &&
-                            post.schedule_mode === ScheduleMode.Custom))
-                "
+                v-else-if="scheduleMode"
                 :post-id="post.id"
-                :mode="post.schedule_mode"
+                :mode="scheduleMode"
                 plain
             />
             <PostFailurePopover
@@ -703,6 +714,18 @@ defineExpose({ openDetails });
                         +{{ hiddenVisuals }}
                     </button>
                 </div>
+                <div
+                    v-if="showNotes && !notesBesideCard"
+                    class="relative z-10 shrink-0"
+                >
+                    <PostNotesPopover
+                        :post-id="post.id"
+                        :count="post.notes_count"
+                        :current-user-id="authUserId"
+                        :initial-open="openPostNotesId === post.id"
+                        :highlight-note-id="highlightNoteId"
+                    />
+                </div>
                 <MediaLightbox
                     v-model:open="lightboxOpen"
                     :items="visuals"
@@ -731,7 +754,11 @@ defineExpose({ openDetails });
                 :class="popover ? 'justify-end' : 'justify-between'"
                 :data-testid="`post-footer-${testKey}`"
             >
-                <p v-if="!popover" class="min-w-0 truncate text-sm text-foreground">
+                <p
+                    v-if="!popover"
+                    class="min-w-0 truncate text-sm text-foreground"
+                    :class="{ 'max-sm:hidden': post.origin === PostOrigin.Network }"
+                >
                     <TooltipProvider
                         v-if="post.origin === PostOrigin.Network && primaryTarget"
                         :delay-duration="200"
@@ -772,7 +799,7 @@ defineExpose({ openDetails });
                     }}</span>
                 </p>
                 <div
-                    class="flex max-w-full shrink-0 flex-wrap items-center gap-1"
+                    class="flex max-w-full shrink-0 flex-wrap items-center gap-1 max-sm:ms-auto"
                     :data-testid="`post-actions-${testKey}`"
                 >
                     <template v-if="isPending && canApprove">
@@ -917,8 +944,8 @@ defineExpose({ openDetails });
         </article>
 
         <div
-            v-if="!popover && !isPublishing"
-            class="md:absolute md:top-0 md:left-full md:ms-1"
+            v-if="showNotes && notesBesideCard"
+            class="absolute top-0 left-full ms-1"
         >
             <PostNotesPopover
                 :post-id="post.id"

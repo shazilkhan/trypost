@@ -121,7 +121,7 @@ test('an imported sent card looks like a sent post and offers only the allowed a
         ->assertSeeIn("@post-published-via-{$post->id}", 'Instagram')
         ->assertPresent("@post-published-via-icon-{$post->id}")
         ->assertPresent("@post-time-{$post->id}")
-        ->assertMissing("@post-schedule-mode-{$post->id}")
+        ->assertAttribute("@post-schedule-mode-{$post->id}", 'data-mode', 'custom')
         ->assertMissing("@post-recurring-{$post->id}")
         ->assertMissing("@post-edit-{$post->id}")
         ->assertMissing("@post-publish-now-{$post->id}");
@@ -163,6 +163,74 @@ test('an imported sent card looks like a sent post and offers only the allowed a
         ->toBe('https://www.instagram.com/reel/abc/')
         ->and($page->script("document.querySelectorAll('[data-testid=\"post-details-metrics-{$post->id}\"] svg').length > 0"))
         ->toBeTrue();
+
+    $page->assertNoJavaScriptErrors();
+});
+
+test('on a phone an imported sent card hides the published via line and right-aligns its actions', function () {
+    [$user, $workspace, $account] = importedCardSetup();
+    $post = importedCardPost($workspace, $account);
+    $this->actingAs($user);
+
+    $measure = <<<JS
+        (() => {
+            const footer = document.querySelector('[data-testid="post-footer-{$post->id}"]');
+            const actions = document.querySelector('[data-testid="post-actions-{$post->id}"]').getBoundingClientRect();
+            const via = document.querySelector('[data-testid="post-published-via-{$post->id}"]');
+
+            return {
+                viaVisible: via.getClientRects().length > 0,
+                actionsAtEnd: Math.abs(footer.getBoundingClientRect().right - parseFloat(getComputedStyle(footer).paddingRight) - actions.right) <= 1,
+            };
+        })()
+    JS;
+
+    $page = visit(route('app.posts.index', ['tab' => 'sent']))->resize(390, 844);
+    waitForImportedCardTestId($page, "post-actions-{$post->id}");
+
+    expect($page->script($measure))->toBe(['viaVisible' => false, 'actionsAtEnd' => true]);
+
+    $page->resize(1280, 800);
+    waitForImportedCardTestId($page, "post-published-via-{$post->id}");
+
+    expect($page->script($measure)['viaVisible'])->toBeTrue();
+    $page->assertNoJavaScriptErrors();
+});
+
+test('on a phone the details dialog of an imported post hides the published via line and right-aligns the view post button and menu', function () {
+    [$user, $workspace, $account] = importedCardSetup();
+    $post = importedCardPost($workspace, $account);
+    $this->actingAs($user);
+
+    $measure = <<<JS
+        (() => {
+            const footer = document.querySelector('[data-testid="post-details-footer-{$post->id}"]');
+            const menu = document.querySelector('[data-testid="post-card-menu-details-{$post->id}"]').getBoundingClientRect();
+            const visible = (id) => (document.querySelector('[data-testid="' + id + '"]')?.getClientRects().length ?? 0) > 0;
+
+            return {
+                viaVisible: visible('post-details-published-via-{$post->id}'),
+                viewVisible: visible('post-details-view-{$post->id}'),
+                menuAtEnd: Math.abs(footer.getBoundingClientRect().right - parseFloat(getComputedStyle(footer).paddingRight) - menu.right) <= 1,
+            };
+        })()
+    JS;
+
+    $page = visit(route('app.posts.index', ['tab' => 'sent']))->resize(390, 844);
+    waitForImportedCardTestId($page, "post-card-menu-{$post->id}");
+    $page->click("@post-card-menu-{$post->id}");
+    waitForImportedCardTestId($page, "post-details-open-{$post->id}");
+    $page->click("@post-details-open-{$post->id}");
+    waitForImportedCardTestId($page, "post-card-menu-details-{$post->id}");
+
+    expect($page->script($measure))->toBe(['viaVisible' => false, 'viewVisible' => true, 'menuAtEnd' => true]);
+
+    $page->resize(1280, 800);
+    waitForImportedCardTestId($page, "post-details-view-{$post->id}");
+
+    $desktop = $page->script($measure);
+    expect($desktop['viaVisible'])->toBeTrue()
+        ->and($desktop['viewVisible'])->toBeTrue();
 
     $page->assertNoJavaScriptErrors();
 });

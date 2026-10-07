@@ -193,7 +193,7 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
     Route::get('channels/{account}/publish', [ChannelController::class, 'publish'])->name('app.channels.publish');
     Route::get('channels/{account}/grid', [ChannelController::class, 'grid'])->name('app.channels.grid');
     Route::get('channels/{account}/calendar/{view?}', [ChannelController::class, 'calendar'])
-        ->where('view', 'week|month')
+        ->where('view', 'days|week|month')
         ->name('app.channels.calendar');
     Route::get('channels/{account}/insights', [ChannelController::class, 'insights'])->name('app.channels.insights');
     Route::get('channels/{account}/insights/download/{format}', [ChannelController::class, 'downloadInsights'])
@@ -215,7 +215,7 @@ Route::middleware(['auth', EnsureAccountReady::class, EnsureHasWorkspace::class]
 
     Route::get('schedule', [PostController::class, 'index'])->name('app.posts.index');
     Route::get('schedule/calendar/{view?}', [PostController::class, 'calendar'])
-        ->where('view', 'week|month')
+        ->where('view', 'days|week|month')
         ->name('app.calendar');
 
     Route::get('posts/composer/live', ComposerLiveDataController::class)->name('app.posts.composer.live');

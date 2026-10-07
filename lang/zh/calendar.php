@@ -5,6 +5,7 @@ return [
     'today' => '今天',
     'previous' => '上一个',
     'next' => '下一个',
+    'days' => '3天',
     'week' => '周',
     'month' => '月',
     'new_post' => '新建帖子',

@@ -4,7 +4,7 @@ import { IconLoader2 } from '@tabler/icons-vue';
 import { computed, onMounted, ref, watch } from 'vue';
 
 import AppLogo from '@/components/AppLogo.vue';
-import { calendar } from '@/routes/app';
+import { index as postsIndex } from '@/routes/app/posts';
 import type { SharedData } from '@/types';
 
 const props = defineProps<{
@@ -25,7 +25,7 @@ const purchaseReady = computed(
 );
 
 const goNext = (): void => {
-    router.visit(calendar.url());
+    router.visit(postsIndex.url());
 };
 
 // Card-required trials are already `subscribed()` (`trialing`) on first paint.

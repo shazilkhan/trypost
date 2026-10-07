@@ -231,7 +231,7 @@ const rows = computed(() =>
     </div>
 
     <div v-else class="flex flex-col sm:min-h-[660px]">
-        <div class="flex flex-1 flex-col px-6 pt-12 pb-10 sm:px-10 sm:pt-20">
+        <div class="flex flex-1 flex-col px-6 pt-12 pb-6 sm:px-10 sm:pt-20 sm:pb-10">
             <div class="mx-auto flex w-full max-w-[640px] flex-col items-center">
                 <div ref="avatar" class="shrink-0" data-testid="goal-avatar">
                     <ChannelAvatar
@@ -285,8 +285,15 @@ const rows = computed(() =>
                                     <template v-else-if="choice === 'custom'">{{ custom }}x</template>
                                     <IconPencil v-else class="size-5" />
                                 </span>
-                                <span class="flex-1 text-base font-medium text-foreground">
-                                    {{ $t(`channels.goal_dialog.options.${option.label}`) }}<template v-if="option.value !== 'custom'"> · {{ perWeek(option.value) }}</template>
+                                <span
+                                    class="flex min-w-0 flex-1 flex-col text-base font-medium text-foreground sm:block"
+                                    data-testid="goal-option-label"
+                                >
+                                    <span>{{ $t(`channels.goal_dialog.options.${option.label}`) }}</span>
+                                    <span
+                                        v-if="option.value !== 'custom'"
+                                        class="text-sm font-normal whitespace-nowrap text-muted-foreground sm:text-base sm:font-medium sm:text-foreground"
+                                    ><span class="hidden sm:inline"> · </span>{{ perWeek(option.value) }}</span>
                                 </span>
                                 <Stepper
                                     v-if="option.value === 'custom' && choice === 'custom'"
@@ -354,7 +361,7 @@ const rows = computed(() =>
         </div>
 
         <div
-            class="flex items-center justify-between gap-3 border-t border-border px-4 py-4 sm:px-8"
+            class="flex flex-col-reverse items-center justify-between gap-3 border-border px-6 pt-0 pb-6 sm:flex-row sm:border-t sm:px-8 sm:py-4"
             data-testid="goal-footer"
         >
             <template v-if="step === 'goal'">
@@ -363,7 +370,7 @@ const rows = computed(() =>
                         <Button
                             variant="ghost"
                             size="lg"
-                            class="-ms-2 px-2 font-normal data-[state=open]:bg-accent sm:text-[15px]"
+                            class="px-2 font-normal data-[state=open]:bg-accent sm:-ms-2 sm:text-[15px]"
                             data-testid="goal-help"
                         >
                             <IconHelpCircle class="size-4" />
@@ -397,7 +404,7 @@ const rows = computed(() =>
                         </div>
                     </PopoverContent>
                 </Popover>
-                <Button size="lg" :disabled="saving" data-testid="goal-next" @click="save">
+                <Button size="lg" class="w-full sm:w-auto" :disabled="saving" data-testid="goal-next" @click="save">
                     <IconLoader2 v-if="saving" class="size-4 animate-spin" />
                     {{ $t('channels.goal_dialog.next') }}
                     <IconArrowRight v-if="!saving" class="size-4 rtl:rotate-180" />
@@ -408,24 +415,24 @@ const rows = computed(() =>
                 <Button
                     variant="ghost"
                     size="lg"
-                    class="-ms-2 px-2 font-normal sm:text-[15px]"
+                    class="px-2 font-normal sm:-ms-2 sm:text-[15px]"
                     data-testid="goal-change"
                     @click="showGoalStep"
                 >
                     <IconArrowLeft class="size-4 rtl:rotate-180" />
                     {{ $t('channels.goal_dialog.change_goal') }}
                 </Button>
-                <div class="flex items-center gap-2">
+                <div class="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:items-center">
                     <Button
                         size="lg"
                         variant="ghost"
-                        class="font-normal sm:text-[15px]"
+                        class="w-full font-normal sm:w-auto sm:text-[15px]"
                         data-testid="goal-customize"
                         @click="emit('customize')"
                     >
                         {{ $t('channels.goal_dialog.customize') }}
                     </Button>
-                    <Button size="lg" data-testid="goal-done" @click="emit('done')">
+                    <Button size="lg" class="w-full sm:w-auto" data-testid="goal-done" @click="emit('done')">
                         {{ $t('channels.goal_dialog.done') }}
                     </Button>
                 </div>

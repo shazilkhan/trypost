@@ -1,21 +1,9 @@
 <script setup lang="ts">
-import {
-    IconBuilding,
-    IconCalendarEvent,
-    IconChartBar,
-    IconInfoCircle,
-    IconRefresh,
-    IconRobot,
-    IconShare,
-    IconSparkles,
-    IconUsers,
-    IconWorld,
-} from '@tabler/icons-vue';
+import { IconBuilding, IconInfoCircle } from '@tabler/icons-vue';
 import { trans } from 'laravel-vue-i18n';
-import type { Component } from 'vue';
 import { computed } from 'vue';
 
-import PlatformLogo from '@/components/PlatformLogo.vue';
+import PlanFeatureList from '@/components/billing/PlanFeatureList.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,22 +12,14 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getPlatformLabel } from '@/composables/usePlatformLogo';
 import {
     PLAN_CHANGE_LABELS,
     planChangeAction,
     type BillingInterval,
     type PlanOption,
 } from '@/types/plan';
-import { Platform } from '@/types/platform';
 
 export type { PlanOption };
-
-interface PlanFeature {
-    key: string;
-    icon: Component;
-    hasTooltip: boolean;
-}
 
 const props = withDefaults(
     defineProps<{
@@ -51,6 +31,7 @@ const props = withDefaults(
         processing?: boolean;
         allowYearly?: boolean;
         offerFirstMonth?: boolean;
+        sharedFeaturesOnMobile?: boolean;
     }>(),
     {
         currentPlanId: null,
@@ -59,6 +40,7 @@ const props = withDefaults(
         processing: false,
         allowYearly: true,
         offerFirstMonth: false,
+        sharedFeaturesOnMobile: false,
     },
 );
 
@@ -66,42 +48,6 @@ const emit = defineEmits<{
     (event: 'update:interval', value: BillingInterval): void;
     (event: 'select', planId: string): void;
 }>();
-
-const PLAN_NETWORKS = [
-    Platform.Instagram,
-    Platform.Facebook,
-    Platform.LinkedIn,
-    Platform.X,
-    Platform.TikTok,
-    Platform.YouTube,
-    Platform.Pinterest,
-    Platform.Threads,
-    Platform.Bluesky,
-    Platform.Mastodon,
-    Platform.Telegram,
-    Platform.Discord,
-    Platform.GoogleBusiness,
-] as const;
-
-const SHARED_FEATURES: Omit<PlanFeature, 'hasTooltip'>[] = [
-    { key: 'accounts_unlimited', icon: IconShare },
-    { key: 'calendar', icon: IconCalendarEvent },
-    { key: 'ai', icon: IconSparkles },
-    { key: 'mcp', icon: IconRobot },
-    { key: 'repurpose', icon: IconRefresh },
-    { key: 'analytics', icon: IconChartBar },
-    { key: 'team', icon: IconUsers },
-];
-
-const FEATURES_WITH_TOOLTIP = new Set([
-    'accounts_unlimited',
-    'ai',
-    'analytics',
-    'calendar',
-    'mcp',
-    'repurpose',
-    'team',
-]);
 
 const price = (plan: PlanOption): string =>
     trans(
@@ -180,15 +126,6 @@ const workspaceLabel = (plan: PlanOption): string =>
     isUnlimited(plan)
         ? trans('billing.plans.workspaces_unlimited')
         : trans('billing.plans.workspaces_one');
-
-/**
- * Labels stay as keys and resolve with `$t` in the template: the language JSON
- * loads asynchronously and `trans()` in a computed would cache the raw keys.
- */
-const sharedFeatures: PlanFeature[] = SHARED_FEATURES.map((feature) => ({
-    ...feature,
-    hasTooltip: FEATURES_WITH_TOOLTIP.has(feature.key),
-}));
 </script>
 
 <template>
@@ -350,144 +287,20 @@ const sharedFeatures: PlanFeature[] = SHARED_FEATURES.map((feature) => ({
                     </p>
                 </div>
 
-                <div
-                    class="flex flex-1 flex-col gap-3 border-t border-border pt-4"
-                >
-                    <p class="text-sm font-medium text-muted-foreground">
-                        {{ $t('billing.plans.everything_included') }}
-                    </p>
-
-                    <ul class="flex flex-col gap-1">
-                        <li
-                            class="flex items-center gap-2 text-sm text-foreground"
-                        >
-                            <IconWorld
-                                class="size-4 shrink-0 text-muted-foreground"
-                            />
-                            <span class="inline-flex items-center gap-1.5">
-                                <span
-                                    :data-testid="`plan-feature-label-${plan.slug}-networks_all`"
-                                    >{{
-                                        $t('billing.plans.features.networks_all')
-                                    }}</span
-                                >
-                                <TooltipProvider :delay-duration="200">
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <button
-                                                type="button"
-                                                class="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center text-muted-foreground transition-control hover:text-foreground"
-                                                :aria-label="
-                                                    $t(
-                                                        'billing.plans.features.networks_all_tooltip',
-                                                    )
-                                                "
-                                                :data-testid="`plan-networks-info-${plan.slug}`"
-                                            >
-                                                <IconInfoCircle
-                                                    class="size-4"
-                                                />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent
-                                            side="top"
-                                            :side-offset="8"
-                                            class="w-fit max-w-none space-y-2 p-3"
-                                        >
-                                            <p class="font-medium">
-                                                {{
-                                                    $t(
-                                                        'billing.plans.features.networks_all_tooltip',
-                                                    )
-                                                }}
-                                            </p>
-                                            <div
-                                                class="grid grid-cols-4 gap-1"
-                                                :data-testid="`plan-networks-${plan.slug}`"
-                                            >
-                                                <span
-                                                    v-for="network in PLAN_NETWORKS"
-                                                    :key="network"
-                                                    class="flex w-16 flex-col items-center gap-1.5 rounded-md bg-background/10 px-1.5 py-2"
-                                                >
-                                                    <PlatformLogo
-                                                        :platform="network"
-                                                        size="xs"
-                                                        plain
-                                                        :title="null"
-                                                    />
-                                                    <span
-                                                        class="max-w-full truncate text-[10px] leading-none font-medium text-background/80"
-                                                    >
-                                                        {{
-                                                            getPlatformLabel(
-                                                                network,
-                                                            )
-                                                        }}
-                                                    </span>
-                                                </span>
-                                            </div>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </span>
-                        </li>
-
-                        <li
-                            v-for="feature in sharedFeatures"
-                            :key="feature.key"
-                            class="flex items-center gap-2 text-sm text-foreground"
-                        >
-                            <component
-                                :is="feature.icon"
-                                class="size-4 shrink-0 text-muted-foreground"
-                            />
-                            <span class="inline-flex items-center gap-1.5">
-                                <span
-                                    :data-testid="`plan-feature-label-${plan.slug}-${feature.key}`"
-                                    >{{
-                                        $t(`billing.plans.features.${feature.key}`)
-                                    }}</span
-                                >
-                                <TooltipProvider
-                                    v-if="feature.hasTooltip"
-                                    :delay-duration="200"
-                                >
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <button
-                                                type="button"
-                                                class="inline-flex size-4 shrink-0 cursor-pointer items-center justify-center text-muted-foreground transition-control hover:text-foreground"
-                                                :aria-label="
-                                                    $t(
-                                                        `billing.plans.features.${feature.key}_tooltip`,
-                                                    )
-                                                "
-                                                :data-testid="`plan-feature-info-${plan.slug}-${feature.key}`"
-                                            >
-                                                <IconInfoCircle
-                                                    class="size-4"
-                                                />
-                                            </button>
-                                        </TooltipTrigger>
-                                        <TooltipContent
-                                            side="top"
-                                            :side-offset="8"
-                                            class="max-w-56 text-start"
-                                        >
-                                            {{
-                                                $t(
-                                                    `billing.plans.features.${feature.key}_tooltip`,
-                                                )
-                                            }}
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </span>
-                        </li>
-                    </ul>
-                </div>
+                <PlanFeatureList
+                    :scope="plan.slug"
+                    :class="[
+                        'flex-1 border-t border-border pt-4',
+                        sharedFeaturesOnMobile && 'max-sm:hidden',
+                    ]"
+                />
             </article>
         </div>
+
+        <PlanFeatureList
+            v-if="sharedFeaturesOnMobile"
+            scope="all"
+            class="rounded-xl border border-border bg-card p-5 sm:hidden"
+        />
     </div>
 </template>

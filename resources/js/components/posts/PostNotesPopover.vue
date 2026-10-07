@@ -7,12 +7,8 @@ import {
 import { ref, watch } from 'vue';
 
 import PostNotesPanel from '@/components/posts/editor/PostNotesPanel.vue';
+import ResponsivePopover from '@/components/ResponsivePopover.vue';
 import { Button } from '@/components/ui/button';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
 
 const props = withDefaults(
     defineProps<{
@@ -56,8 +52,13 @@ watch(
 </script>
 
 <template>
-    <Popover v-model:open="open">
-        <PopoverTrigger as-child>
+    <ResponsivePopover
+        v-model:open="open"
+        :title="$t('notes.title')"
+        test-id="post-notes-popover"
+        content-class="flex w-[min(23.75rem,calc(100vw-2rem))] flex-col p-0"
+    >
+        <template #trigger>
             <Button
                 type="button"
                 variant="outline"
@@ -78,12 +79,8 @@ watch(
                     :data-testid="`post-notes-outline-icon-${postId}`"
                 />
             </Button>
-        </PopoverTrigger>
-        <PopoverContent
-            align="end"
-            class="flex w-[min(23.75rem,calc(100vw-2rem))] flex-col p-0"
-            data-testid="post-notes-popover"
-        >
+        </template>
+        <div class="flex flex-col">
             <div
                 class="flex items-center gap-2 border-b border-border py-2 ps-4 pe-2"
             >
@@ -114,6 +111,6 @@ watch(
                 :highlight-note-id="highlightNoteId"
                 @count-change="changeNoteCount($event)"
             />
-        </PopoverContent>
-    </Popover>
+        </div>
+    </ResponsivePopover>
 </template>

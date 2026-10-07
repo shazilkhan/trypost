@@ -3,10 +3,11 @@ let compactSidebarOpen: boolean | null = null;
 </script>
 
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core';
+import { Link } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
 import AppHeader from '@/components/AppHeader.vue';
+import AppLogo from '@/components/AppLogo.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import ConnectChannelDialog from '@/components/channels/ConnectChannelDialog.vue';
 import CommandPalette from '@/components/command-palette/CommandPalette.vue';
@@ -19,6 +20,8 @@ import {
     SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { SIDEBAR_COOKIE_NAME } from '@/components/ui/sidebar/utils';
+import { useBelowBreakpoint } from '@/composables/useBreakpoint';
+import { index as postsIndex } from '@/routes/app/posts';
 
 type Props = {
     fullWidth?: boolean;
@@ -36,7 +39,7 @@ const readSidebarOpen = (): boolean => {
     return !document.cookie.split('; ').includes(`${SIDEBAR_COOKIE_NAME}=false`);
 };
 
-const isCompactViewport = useMediaQuery('(max-width: 1023px)');
+const isCompactViewport = useBelowBreakpoint('lg');
 const sidebarOpen = ref(
     isCompactViewport.value
         ? (compactSidebarOpen ?? false)
@@ -61,42 +64,54 @@ watch(isCompactViewport, (isCompact) => {
             <AppSidebar />
         </slot>
         <SidebarInset
-            class="min-w-0 overflow-hidden bg-card md:my-2 md:me-2 md:rounded-xl md:border md:border-border"
+            class="min-w-0 overflow-hidden max-md:bg-sidebar md:my-2 md:me-2 md:rounded-xl md:border md:border-border md:bg-card"
             data-testid="app-content-shell"
         >
-            <AppHeader v-if="$slots['header'] || $slots['header-actions']">
-                <template v-if="$slots['header']" #left>
-                    <slot name="header" />
-                </template>
-                <template v-if="$slots['header-actions']" #right>
-                    <slot name="header-actions" />
-                </template>
-            </AppHeader>
-            <SidebarTrigger
-                v-else
-                data-testid="app-sidebar-trigger"
-                class="absolute top-3 left-4 z-30 size-8 rounded-lg border border-border-strong bg-card text-foreground md:hidden"
-            />
             <div
-                data-testid="app-layout-scroller"
-                :class="
-                    fullWidth
-                        ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto'
-                        : 'flex-1 overflow-y-auto'
-                "
+                class="flex h-14 shrink-0 items-center gap-2 px-4 md:hidden"
+                data-testid="app-mobile-bar"
             >
-                <div
-                    data-testid="app-layout-content"
-                    :class="[
-                        fullWidth
-                            ? 'flex min-h-0 min-w-0 flex-1 flex-col'
-                            : 'mx-auto w-full max-w-7xl',
-                        !$slots['header'] && !$slots['header-actions']
-                            ? 'pt-14 md:pt-0'
-                            : '',
-                    ]"
+                <SidebarTrigger
+                    class="-ms-1.5 size-9 [&_svg]:size-5"
+                    data-testid="app-sidebar-trigger"
+                />
+                <Link
+                    :href="postsIndex.url()"
+                    class="flex h-8 items-center rounded-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                    data-testid="app-mobile-logo"
                 >
-                    <slot />
+                    <AppLogo class="text-[19px]" />
+                </Link>
+            </div>
+            <div
+                class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-card max-md:mx-2 max-md:rounded-t-xl max-md:border max-md:border-b-0 max-md:border-border"
+            >
+                <AppHeader v-if="$slots['header'] || $slots['header-actions']">
+                    <template v-if="$slots['header']" #left>
+                        <slot name="header" />
+                    </template>
+                    <template v-if="$slots['header-actions']" #right>
+                        <slot name="header-actions" />
+                    </template>
+                </AppHeader>
+                <div
+                    data-testid="app-layout-scroller"
+                    :class="
+                        fullWidth
+                            ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto'
+                            : 'flex-1 overflow-y-auto'
+                    "
+                >
+                    <div
+                        data-testid="app-layout-content"
+                        :class="
+                            fullWidth
+                                ? 'flex min-h-0 min-w-0 flex-1 flex-col'
+                                : 'mx-auto w-full max-w-7xl'
+                        "
+                    >
+                        <slot />
+                    </div>
                 </div>
             </div>
         </SidebarInset>
